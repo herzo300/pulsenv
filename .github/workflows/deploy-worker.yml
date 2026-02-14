@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'cloudflare-worker/worker.js'
+      - 'cloudflare-worker/wrangler.toml'
   workflow_dispatch:
 
 jobs:
@@ -16,5 +17,6 @@ jobs:
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
           workingDirectory: cloudflare-worker
           command: deploy
