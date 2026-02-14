@@ -1,88 +1,349 @@
-"""Генерирует JSON-данные для инфографики из opendata_full.json"""
-import json
+"""Generate infographic_data.json from opendata_full.json — all 72 datasets"""
+import json, os, re
+from datetime import datetime, timezone
 
-f = open('opendata_full.json', 'r', encoding='utf-8')
-d = json.load(f)
+DATA_FILE = "opendata_full.json"
+OUT_FILE = "infographic_data.json"
 
-info = {}
+with open(DATA_FILE, "r", encoding="utf-8") as f:
+    d = json.load(f)
 
-# 1. Цены на бензин (актуальные 13.02.2026)
-gas = d['roadgasstationprice']['rows']
-fuel_prices = {}
-for fuel_key, fuel_name in [('AI92','АИ-92'),('AI95EURO','АИ-95'),('DTZIMA','ДТ зимнее'),('GAZ','Газ')]:
-    vals = [g[fuel_key] for g in gas if g.get(fuel_key)]
+meta = d.get("_meta", {})
+info = {"updated_at": meta.get("updated_at", "")[:10]}
+
+def rows(key):
+    return d.get(key, {}).get("rows", [])
+
+def safe_int(v):
+    try: return int(v)
+    except: return 0
+
+def safe_float(v):
+    try: return float(str(v).replace(",", ".").replace(" ", ""))
+    except: return 0.0
+
+def strip_html(s):
+    if not s: return ""
+    return re.sub(r'<[^>]+>', '', str(s)).strip()[:200]
+
+# ═══ FUEL ═══
+gas = rows("roadgasstationprice")
+fp = {}
+for fk, fn in [("AI92", "АИ-92"), ("AI95EURO", "АИ-95"), ("DTZIMA", "ДТ зимнее"), ("GAZ", "Газ")]:
+    vals = [g[fk] for g in gas if g.get(fk)]
     if vals:
-        fuel_prices[fuel_name] = {
-            'min': round(min(vals), 1),
-            'max': round(max(vals), 1),
-            'avg': round(sum(vals)/len(vals), 1),
-            'count': len(vals)
-        }
-info['fuel'] = {'date': '13.02.2026', 'stations': len(gas), 'prices': fuel_prices}
+        fp[fn] = {"min": round(min(vals), 1), "max": round(max(vals), 1),
+                  "avg": round(sum(vals) / len(vals), 1), "count": len(vals)}
+fuel_date = gas[0].get("DAT", "") if gas else ""
+info["fuel"] = {"date": fuel_date, "stations": len(gas), "prices": fp}
 
-# 2. УК
-uk = d['listoumd']['rows']
-total_houses = sum(int(u.get('CNT', 0)) for u in uk)
-top_uk = sorted(uk, key=lambda x: int(x.get('CNT', 0)), reverse=True)[:10]
-info['uk'] = {
-    'total': len(uk),
-    'houses': total_houses,
-    'top': [{'name': u.get('TITLESM',''), 'houses': int(u.get('CNT',0))} for u in top_uk]
+# АЗС
+azs = rows("roadgasstation")
+info["azs"] = [{"name": a.get("NUM", ""), "address": a.get("ADDRESS", ""),
+                "org": a.get("ORG", ""), "tel": a.get("TEL", "")} for a in azs[:15]]
+
+# ═══ УК ═══
+uk = rows("listoumd")
+top_uk = sorted(uk, key=lambda x: safe_int(x.get("CNT", 0)), reverse=True)[:10]
+info["uk"] = {"total": len(uk),
+              "houses": sum(safe_int(u.get("CNT", 0)) for u in uk),
+              "top": [{"name": u.get("TITLESM", ""), "houses": safe_int(u.get("CNT", 0))} for u in top_uk]}
+
+# ═══ EDUCATION ═══
+sections = rows("uchsportsection")
+dou = rows("uchdou")
+ou = rows("uchou")
+info["education"] = {
+    "kindergartens": len(dou), "schools": len(ou),
+    "culture": len(rows("uchculture")),
+    "sport_orgs": len(rows("uchsport")),
+    "sections": len(sections),
+    "sections_free": sum(1 for s in sections if s.get("PAY") == "Бюджетная группа"),
+    "sections_paid": sum(1 for s in sections if s.get("PAY") == "Платная группа"),
+    "dod": len(rows("uchoudod")),
 }
 
-# 3. Образование
-info['education'] = {
-    'kindergartens': len(d['uchdou']['rows']),
-    'schools': len(d['uchou']['rows']),
-    'culture': len(d['uchculture']['rows']),
-    'sport_orgs': len(d['uchsport']['rows']),
-    'sport_sections': len(d['uchsportsection']['rows']),
-    'sections_free': sum(1 for s in d['uchsportsection']['rows'] if s.get('PAY') == 'Бюджетная группа'),
-    'sections_paid': sum(1 for s in d['uchsportsection']['rows'] if s.get('PAY') == 'Платная группа'),
-}
-
-# 4. Мусор
-waste = d['wastecollection']['rows']
-wgroups = {}
+# ═══ WASTE ═══
+waste = rows("wastecollection")
+wg = {}
 for w in waste:
-    g = w.get('GROUP', '')
-    wgroups[g] = wgroups.get(g, 0) + 1
-info['waste'] = {
-    'total_points': len(waste),
-    'groups': [{'name': g, 'count': c} for g, c in sorted(wgroups.items(), key=lambda x: -x[1])]
+    g = w.get("GROUP", "")
+    wg[g] = wg.get(g, 0) + 1
+info["waste"] = {"total": len(waste),
+                 "groups": [{"name": g, "count": c} for g, c in sorted(wg.items(), key=lambda x: -x[1])]}
+
+# ═══ NAMES ═══
+boys = rows("topnameboys")
+girls = rows("topnamegirls")
+info["names"] = {
+    "boys": [{"n": b["TITLE"], "c": safe_int(b["CNT"])}
+             for b in sorted(boys, key=lambda x: safe_int(x.get("CNT", 0)), reverse=True)[:10]],
+    "girls": [{"n": g["TITLE"], "c": safe_int(g["CNT"])}
+              for g in sorted(girls, key=lambda x: safe_int(x.get("CNT", 0)), reverse=True)[:10]],
 }
 
-# 5. Стройки
-info['construction'] = {'total': len(d['buildlist']['rows'])}
+# ═══ GKH ═══
+gkh = rows("uchgkhservices")
+info["gkh"] = [{"name": g["TITLE"], "phone": g.get("TEL", "")} for g in gkh]
 
-# 6. Имена
-boys = d['topnameboys']['rows']
-girls = d['topnamegirls']['rows']
-top_boys = sorted(boys, key=lambda x: int(x.get('CNT', 0)), reverse=True)[:10]
-top_girls = sorted(girls, key=lambda x: int(x.get('CNT', 0)), reverse=True)[:10]
-info['names'] = {
-    'boys': [{'name': b['TITLE'], 'count': int(b['CNT'])} for b in top_boys],
-    'girls': [{'name': g['TITLE'], 'count': int(g['CNT'])} for g in top_girls],
+# ═══ TARIFFS ═══
+tarif = rows("tarif")
+info["tariffs"] = [{"title": t.get("TITLE", ""), "desc": strip_html(t.get("DESCRIPTION", ""))[:100]} for t in tarif[:8]]
+
+# ═══ TRANSPORT ═══
+bus_routes = rows("busroute")
+bus_stops = rows("busstation")
+muni = [b for b in bus_routes if "Муниципальный" in str(b.get("TYPE", ""))]
+info["transport"] = {
+    "routes": len(bus_routes), "stops": len(bus_stops),
+    "municipal": len(muni), "commercial": len(bus_routes) - len(muni),
+    "routes_list": [{"num": b.get("NUM", ""), "title": b.get("TITLE", ""),
+                     "start": b.get("ROUTE_START", ""), "end": b.get("ROUTE_END", "")}
+                    for b in bus_routes[:15]],
 }
 
-# 7. ЖКХ службы
-gkh = d['uchgkhservices']['rows']
-info['gkh_services'] = [{'name': g['TITLE'], 'phone': g.get('TEL','')} for g in gkh]
+# ═══ ROAD SERVICE ═══
+rs = rows("roadservice")
+rs_types = {}
+for r in rs:
+    t = r.get("TYPE", "Прочее")
+    rs_types[t] = rs_types.get(t, 0) + 1
+info["road_service"] = {"total": len(rs),
+                        "types": [{"name": k, "count": v} for k, v in sorted(rs_types.items(), key=lambda x: -x[1])]}
 
-# 8. МСП поддержка
-msp = d['mspsupport']['rows']
-info['msp'] = {'total': len(msp)}
+# ═══ ROAD WORKS ═══
+rw = rows("roadworks")
+info["road_works"] = {"total": len(rw),
+                      "items": [{"title": x.get("TITLE", "")[:100]} for x in rw[:8]]}
 
-# 9. Телефонный справочник
-info['phonebook'] = {'total': len(d['agphonedir']['rows'])}
+# ═══ BUILDING ═══
+bp = rows("buildpermission")
+bl = rows("buildlist")
+br = rows("buildreestr")
+info["building"] = {"permits": len(bp), "objects": len(bl), "reestr": len(br)}
 
-# 10. Структура администрации
-info['admin_struct'] = {'total': len(d['agstruct']['rows'])}
+# ═══ LAND PLOTS ═══
+lp = rows("landplotsreestr")
+info["land_plots"] = {"total": len(lp),
+                      "items": [{"address": x.get("ADDRESS", "")[:80], "square": x.get("SQUARE", "")} for x in lp[:5]]}
 
-# 11. Спортзалы
-info['sport_places'] = {'total': len(d['placessg']['rows'])}
+# ═══ ACCESSIBILITY ═══
+ds_items = rows("dostupnayasreda")
+ds_groups = {}
+for item in ds_items:
+    g = item.get("GROUP_TITLE", "Прочее")
+    ds_groups[g] = ds_groups.get(g, 0) + 1
+info["accessibility"] = {"total": len(ds_items),
+                         "groups": [{"name": k, "count": v} for k, v in sorted(ds_groups.items(), key=lambda x: -x[1])]}
 
-# 12. МФЦ
-info['mfc'] = {'total': len(d['placespk']['rows'])}
+# ═══ CULTURE CLUBS ═══
+clubs = rows("uchcultureclubs")
+free_clubs = sum(1 for c in clubs if c.get("PAY") == "бесплатно")
+info["culture_clubs"] = {"total": len(clubs), "free": free_clubs, "paid": len(clubs) - free_clubs,
+                         "items": [{"name": c.get("TITLE", ""), "age": f"{c.get('AGE_START', '')}-{c.get('AGE_END', '')}",
+                                    "pay": c.get("PAY", "")} for c in clubs[:12]]}
 
-print(json.dumps(info, ensure_ascii=False, indent=2))
+# ═══ TRAINERS ═══
+info["trainers"] = {"total": len(rows("uchsporttrainers"))}
+
+# ═══ SALARY ═══
+salary = rows("averagesalary")
+years = sorted(set(s.get("YEAR") for s in salary if s.get("YEAR")))
+info["salary"] = {"total": len(salary), "years": years[-5:] if years else []}
+
+# ═══ PUBLIC HEARINGS ═══
+ph = rows("publichearing")
+info["hearings"] = {"total": len(ph),
+                    "recent": [{"date": h.get("DAT", ""), "title": strip_html(h.get("TITLE", ""))[:100]} for h in ph[:5]]}
+
+# ═══ GMU PHONES ═══
+gmu = rows("stvpgmu")
+info["gmu_phones"] = [{"org": g.get("TITLE", "")[:60], "tel": g.get("TEL", "")} for g in gmu[:10]]
+
+# ═══ DEMOGRAPHY ═══
+demo = rows("demography")
+info["demography"] = [{"marriages": d.get("MARRIAGES"), "birth": d.get("BIRTH"),
+                       "boys": d.get("BOYS"), "girls": d.get("GIRLS"), "date": d.get("DAT")} for d in demo if d.get("BIRTH") != "-"]
+
+# ═══════════════════════════════════════════
+# ═══ BUDGET (БЮДЖЕТ) — КЛЮЧЕВОЙ БЛОК ═══
+# ═══════════════════════════════════════════
+
+# Budget bulletins
+bb = rows("budgetbulletin")
+info["budget_bulletins"] = {"total": len(bb),
+    "items": [{"title": b.get("TITLE",""), "desc": b.get("DESCRIPTION",""), "url": b.get("URL","")} for b in bb[:10]]}
+
+# Budget info
+bi = rows("budgetinfo")
+info["budget_info"] = {"total": len(bi),
+    "items": [{"title": b.get("TITLE",""), "desc": b.get("DESCRIPTION",""), "url": b.get("URL","")} for b in bi[:10]]}
+
+# ═══ AGREEMENTS (КОНТРАКТЫ) ═══
+all_agreements = []
+agr_types = {
+    "agreementsek": "Энергосервис",
+    "agreementsgchp": "ГЧП",
+    "agreementskjc": "КЖЦ",
+    "agreementsdai": "Аренда имущества",
+    "agreementsdkr": "Капремонт",
+    "agreementsiip": "Инвестпроекты",
+    "agreementsik": "Инвестконтракты",
+    "agreementsrip": "РИП",
+    "agreementssp": "Соцпартнёрство",
+    "agreementszpk": "ЗПК",
+}
+total_summ = 0
+total_inv = 0
+total_gos = 0
+agr_by_type = {}
+for key, type_name in agr_types.items():
+    agr_rows = rows(key)
+    agr_by_type[type_name] = len(agr_rows)
+    for a in agr_rows:
+        summ = safe_float(a.get("SUMM", 0))
+        vol_inv = safe_float(a.get("VOLUME_INV", 0))
+        vol_gos = safe_float(a.get("VOLUME_GOS", 0))
+        total_summ += summ
+        total_inv += vol_inv
+        total_gos += vol_gos
+        if a.get("TITLE") or a.get("DESCRIPTION"):
+            all_agreements.append({
+                "type": type_name,
+                "title": (a.get("TITLE") or "")[:80],
+                "desc": strip_html(a.get("DESCRIPTION", ""))[:100],
+                "org": (a.get("ORG") or "")[:60],
+                "date": a.get("DAT", ""),
+                "summ": summ,
+                "vol_inv": vol_inv,
+                "vol_gos": vol_gos,
+                "year": a.get("YEAR", ""),
+            })
+
+# Sort by summ descending
+all_agreements.sort(key=lambda x: x["summ"], reverse=True)
+
+info["agreements"] = {
+    "total": sum(agr_by_type.values()),
+    "total_summ": round(total_summ, 2),
+    "total_inv": round(total_inv, 2),
+    "total_gos": round(total_gos, 2),
+    "by_type": [{"name": k, "count": v} for k, v in sorted(agr_by_type.items(), key=lambda x: -x[1]) if v > 0],
+    "top": all_agreements[:15],
+}
+
+# ═══ PROPERTY (ИМУЩЕСТВО) ═══
+pr_lands = rows("propertyregisterlands")
+pr_movable = rows("propertyregistermovableproperty")
+pr_realestate = rows("propertyregisterrealestate")
+pr_stoks = rows("propertyregisterstoks")
+priv = rows("infoprivatization")
+rent = rows("inforent")
+
+info["property"] = {
+    "lands": len(pr_lands),
+    "movable": len(pr_movable),
+    "realestate": len(pr_realestate),
+    "stoks": len(pr_stoks),
+    "privatization": len(priv),
+    "rent": len(rent),
+    "total": len(pr_lands) + len(pr_movable) + len(pr_realestate) + len(pr_stoks),
+}
+
+# ═══ BUSINESS ═══
+binfo = rows("businessinfo")
+msgsmp = rows("msgsmp")
+info["business"] = {
+    "info": len(binfo),
+    "smp_messages": len(msgsmp),
+    "events": len(rows("businessevents")),
+}
+
+# ═══ ADVERTISING ═══
+adv = rows("advertisingconstructions")
+info["advertising"] = {"total": len(adv)}
+
+# ═══ COMMUNICATION EQUIPMENT ═══
+comm = rows("listcommunicationequipment")
+info["communication"] = {"total": len(comm)}
+
+# ═══ ARCHIVE ═══
+arch_exp = rows("archiveexpertise")
+arch_list = rows("archivelistag")
+info["archive"] = {"expertise": len(arch_exp), "list": len(arch_list)}
+
+# ═══ DOCUMENTS ═══
+docag = rows("docag")
+doclink = rows("docaglink")
+doctext = rows("docagtext")
+info["documents"] = {"docs": len(docag), "links": len(doclink), "texts": len(doctext)}
+
+# ═══ PROGRAMS ═══
+prg = rows("prglistag")
+info["programs"] = {"total": len(prg),
+    "items": [{"title": strip_html(p.get("TITLE",""))[:100]} for p in prg[:5]]}
+
+# ═══ NEWS ═══
+news = rows("sitelenta")
+info["news"] = {"total": len(news) + len(rows("sitenews")),
+    "rubrics": len(rows("siterubrics")),
+    "photos": len(rows("photoreports"))}
+
+# ═══ PLACES ═══
+placesad = rows("placesad")
+info["ad_places"] = {"total": len(placesad)}
+
+# ═══ TERRITORY PLANS ═══
+tp = rows("territoryplans")
+info["territory_plans"] = {"total": len(tp)}
+
+# ═══ LABOR SAFETY ═══
+otguid = rows("otguid")
+info["labor_safety"] = {"total": len(otguid)}
+
+# ═══ APPEALS ═══
+ogobsor = rows("ogobsor")
+info["appeals"] = {"total": len(ogobsor)}
+
+# ═══ MSP SUPPORT ═══
+msp = rows("mspsupport")
+info["msp"] = {"total": len(msp),
+    "items": [{"title": m.get("TITLE","")[:80]} for m in msp[:10]]}
+
+# ═══ COUNTS ═══
+info["counts"] = {
+    "construction": len(rows("buildlist")),
+    "phonebook": len(rows("agphonedir")),
+    "admin": len(rows("agstruct")),
+    "sport_places": len(rows("placessg")),
+    "mfc": len(rows("placespk")),
+    "msp": len(msp),
+    "trainers": len(rows("uchsporttrainers")),
+    "bus_routes": len(bus_routes),
+    "bus_stops": len(bus_stops),
+    "accessibility": len(ds_items),
+    "culture_clubs": len(clubs),
+    "hearings": len(ph),
+    "permits": len(bp),
+    "property_total": info["property"]["total"],
+    "agreements_total": info["agreements"]["total"],
+    "budget_docs": len(bb) + len(bi),
+    "privatization": len(priv),
+    "rent": len(rent),
+    "advertising": len(adv),
+    "documents": len(docag),
+    "archive": len(arch_list),
+    "business_info": len(binfo),
+    "smp_messages": len(msgsmp),
+    "news": info["news"]["total"],
+    "territory_plans": len(tp),
+}
+
+info["datasets_total"] = 72
+info["datasets_with_data"] = sum(1 for k in d if k != "_meta" and len(d[k].get("rows", [])) > 0)
+
+# Save
+with open(OUT_FILE, "w", encoding="utf-8") as f:
+    json.dump(info, f, ensure_ascii=False, indent=None, separators=(",", ":"))
+
+print(f"Generated {OUT_FILE}: {os.path.getsize(OUT_FILE)} bytes, {len(info)} keys")

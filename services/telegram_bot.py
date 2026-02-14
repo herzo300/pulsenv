@@ -560,11 +560,11 @@ async def cmd_opendata(message: types.Message):
             buttons.append(row)
         buttons.append([InlineKeyboardButton(text="🔄 Обновить данные", callback_data="od:refresh")])
 
-        webapp_url = _get_webapp_url()
-        if webapp_url:
-            buttons.insert(0, [InlineKeyboardButton(
-                text="🌐 Открыть Web App", web_app=WebAppInfo(url=f"{webapp_url}/map"),
-            )])
+        # Инфографика всегда на CF Worker (не зависит от tunnel)
+        buttons.insert(0, [InlineKeyboardButton(
+            text="📊 Инфографика города",
+            web_app=WebAppInfo(url=f"{CF_WORKER}/info"),
+        )])
         await message.answer(text, parse_mode="Markdown",
                              reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
     except Exception as e:

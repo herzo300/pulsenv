@@ -738,9 +738,8 @@ async def opendata_search_uk(address: str):
         return {"success": False, "error": str(e)}
 
 
-@app.get("/opendata/infographic")
 async def opendata_infographic():
-    """Агрегированные данные для инфографики"""
+    """Агрегированные данные для инфографики — все датасеты"""
     import json as _json
     try:
         if not os.path.exists("opendata_full.json"):
@@ -751,8 +750,13 @@ async def opendata_infographic():
         meta = d.get("_meta", {})
         info = {"updated_at": meta.get("updated_at", "")}
 
+        def rows(key): return d.get(key, {}).get("rows", [])
+        def safe_int(v):
+            try: return int(v)
+            except: return 0
+
         # Топливо
-        gas = d.get("roadgasstationprice", {}).get("rows", [])
+        gas = rows("roadgasstationprice")
         fp = {}
         for fk, fn in [("AI92", "АИ-92"), ("AI95EURO", "АИ-95"), ("DTZIMA", "ДТ зимнее"), ("GAZ", "Газ")]:
             vals = [g[fk] for g in gas if g.get(fk)]
@@ -762,27 +766,40 @@ async def opendata_infographic():
         fuel_date = gas[0].get("DAT", "") if gas else ""
         info["fuel"] = {"date": fuel_date, "stations": len(gas), "prices": fp}
 
+        # АЗС (адреса и организации)
+        azs = rows("roadgasstation")
+        info["azs"] = [{"name": a.get("NUM", ""), "address": a.get("ADDRESS", ""),
+                        "org": a.get("ORG", ""), "tel": a.get("TEL", "")} for a in azs[:20]]
+
         # УК
-        uk = d.get("listoumd", {}).get("rows", [])
-        top_uk = sorted(uk, key=lambda x: int(x.get("CNT", 0)), reverse=True)[:10]
+        uk = rows("listoumd")
+        top_uk = sorted(uk, key=lambda x: safe_int(x.get("CNT", 0)), reverse=True)[:10]
         info["uk"] = {"total": len(uk),
-                      "houses": sum(int(u.get("CNT", 0)) for u in uk),
-                      "top": [{"name": u.get("TITLESM", ""), "houses": int(u.get("CNT", 0))} for u in top_uk]}
+                      "houses": sum(safe_int(u.get("CNT", 0)) for u in uk),
+                      "top": [{"name": u.get("TITLESM", ""), "houses": safe_int(u.get("CNT", 0))} for u in top_uk]}
 
         # Образование
-        sections = d.get("uchsportsection", {}).get("rows", [])
+        sections = rows("uchsportsection")
+        dou = rows("uchdou")
+        ou = rows("uchou")
         info["education"] = {
-            "kindergartens": len(d.get("uchdou", {}).get("rows", [])),
-            "schools": len(d.get("uchou", {}).get("rows", [])),
-            "culture": len(d.get("uchculture", {}).get("rows", [])),
-            "sport_orgs": len(d.get("uchsport", {}).get("rows", [])),
+            "kindergartens": len(dou), "schools": len(ou),
+            "culture": len(rows("uchculture")),
+            "sport_orgs": len(rows("uchsport")),
             "sections": len(sections),
             "sections_free": sum(1 for s in sections if s.get("PAY") == "Бюджетная группа"),
             "sections_paid": sum(1 for s in sections if s.get("PAY") == "Платная группа"),
+            "dod": len(rows("uchoudod")),
         }
 
+        # Детсады и школы (списки)
+        info["kindergartens"] = [{"name": x.get("TITLE", ""), "address": x.get("ADDRESS", ""),
+                                  "tel": x.get("TEL", "")} for x in dou]
+        info["schools"] = [{"name": x.get("TITLE", ""), "address": x.get("ADDRESS", ""),
+                            "tel": x.get("TEL", "")} for x in ou]
+
         # Мусор
-        waste = d.get("wastecollection", {}).get("rows", [])
+        waste = rows("wastecollection")
         wg = {}
         for w in waste:
             g = w.get("GROUP", "")
@@ -791,28 +808,206 @@ async def opendata_infographic():
                          "groups": [{"name": g, "count": c} for g, c in sorted(wg.items(), key=lambda x: -x[1])]}
 
         # Имена
-        boys = d.get("topnameboys", {}).get("rows", [])
-        girls = d.get("topnamegirls", {}).get("rows", [])
+        boys = rows("topnameboys")
+        girls = rows("topnamegirls")
         info["names"] = {
-            "boys": [{"n": b["TITLE"], "c": int(b["CNT"])}
-                     for b in sorted(boys, key=lambda x: int(x.get("CNT", 0)), reverse=True)[:10]],
-            "girls": [{"n": g["TITLE"], "c": int(g["CNT"])}
-                      for g in sorted(girls, key=lambda x: int(x.get("CNT", 0)), reverse=True)[:10]],
+            "boys": [{"n": b["TITLE"], "c": safe_int(b["CNT"])}
+                     for b in sorted(boys, key=lambda x: safe_int(x.get("CNT", 0)), reverse=True)[:10]],
+            "girls": [{"n": g["TITLE"], "c": safe_int(g["CNT"])}
+                      for g in sorted(girls, key=lambda x: safe_int(x.get("CNT", 0)), reverse=True)[:10]],
         }
 
         # ЖКХ
-        gkh = d.get("uchgkhservices", {}).get("rows", [])
+        gkh = rows("uchgkhservices")
         info["gkh"] = [{"name": g["TITLE"], "phone": g.get("TEL", "")} for g in gkh]
+
+        # Транспорт
+        bus_routes = rows("busroute")
+        bus_stops = rows("busstation")
+        muni = [b for b in bus_routes if "Муниципальный" in str(b.get("TYPE", ""))]
+        comm = [b for b in bus_routes if "Коммерческий" in str(b.get("TYPE", ""))]
+        info["transport"] = {
+            "routes": len(bus_routes), "stops": len(bus_stops),
+            "municipal": len(muni), "commercial": len(comm),
+            "routes_list": [{"num": b.get("NUM", ""), "title": b.get("TITLE", ""),
+                             "start": b.get("ROUTE_START", ""), "end": b.get("ROUTE_END", "")}
+                            for b in bus_routes[:30]],
+        }
+
+        # Дорожный сервис
+        rs = rows("roadservice")
+        rs_types = {}
+        for r_item in rs:
+            t = r_item.get("TYPE", "Прочее")
+            rs_types[t] = rs_types.get(t, 0) + 1
+        info["road_service"] = {"total": len(rs),
+                                "types": [{"name": k, "count": v} for k, v in sorted(rs_types.items(), key=lambda x: -x[1])]}
+
+        # Дорожные работы
+        rw = rows("roadworks")
+        info["road_works"] = {"total": len(rw),
+                              "items": [{"title": x.get("TITLE", "")[:100]} for x in rw[:10]]}
+
+        # Строительство
+        bp = rows("buildpermission")
+        bp_years = {}
+        for b in bp:
+            y = str(b.get("NUM", ""))[-4:] if b.get("NUM") else ""
+            if y.isdigit() and len(y) == 4:
+                bp_years[y] = bp_years.get(y, 0) + 1
+        info["building"] = {
+            "permits": len(bp), "objects": len(rows("buildlist")),
+            "by_year": [{"year": k, "count": v} for k, v in sorted(bp_years.items())],
+        }
+
+        # Доступная среда
+        ds_items = rows("dostupnayasreda")
+        ds_groups = {}
+        for item in ds_items:
+            g = item.get("GROUP_TITLE", "Прочее")
+            ds_groups[g] = ds_groups.get(g, 0) + 1
+        info["accessibility"] = {"total": len(ds_items),
+                                 "groups": [{"name": k, "count": v} for k, v in sorted(ds_groups.items(), key=lambda x: -x[1])]}
+
+        # Культурные кружки
+        clubs = rows("uchcultureclubs")
+        free_clubs = sum(1 for c in clubs if c.get("PAY") == "бесплатно")
+        info["culture_clubs"] = {"total": len(clubs), "free": free_clubs, "paid": len(clubs) - free_clubs,
+                                 "items": [{"name": c.get("TITLE", ""), "age": f"{c.get('AGE_START', '')}-{c.get('AGE_END', '')}",
+                                            "pay": c.get("PAY", "")} for c in clubs[:20]]}
+
+        # Тренеры
+        trainers = rows("uchsporttrainers")
+        info["trainers"] = {"total": len(trainers)}
+
+        # Зарплаты
+        salary = rows("averagesalary")
+        years = sorted(set(s.get("YEAR") for s in salary if s.get("YEAR")))
+        info["salary"] = {"total": len(salary), "years": years[-5:] if years else [],
+                          "sample": [{"post": s.get("POST", ""), "salary": s.get("SALARY", ""),
+                                      "year": s.get("YEAR", "")} for s in salary[:10]]}
+
+        # Публичные слушания
+        ph = rows("publichearing")
+        info["hearings"] = {"total": len(ph),
+                            "recent": [{"date": h.get("DAT", ""), "title": h.get("TITLE", "")[:120]} for h in ph[:5]]}
+
+        # Телефоны госуслуг
+        gmu = rows("stvpgmu")
+        info["gmu_phones"] = [{"org": g.get("TITLE", ""), "tel": g.get("TEL", "")} for g in gmu[:15]]
+
+        # Демография
+        demo = rows("demography")
+        info["demography"] = [{"marriages": dd.get("MARRIAGES"), "birth": dd.get("BIRTH"),
+                               "boys": dd.get("BOYS"), "girls": dd.get("GIRLS"), "date": dd.get("DAT")}
+                              for dd in demo if dd.get("BIRTH") != "-"]
+
+        # Тарифы
+        tarif = rows("tarif")
+        info["tariffs"] = [{"title": t.get("TITLE", ""), "desc": (t.get("DESCRIPTION", "") or "")[:100]} for t in tarif[:8]]
+
+        # Земельные участки
+        lp = rows("landplotsreestr")
+        info["land_plots"] = {"total": len(lp),
+                              "items": [{"address": x.get("ADDRESS", "")[:80], "square": x.get("SQUARE", "")} for x in lp[:5]]}
+
+        # ═══ BUDGET ═══
+        import re as _re
+        def strip_html(s):
+            if not s: return ""
+            return _re.sub(r'<[^>]+>', '', str(s)).strip()[:200]
+        def safe_float(v):
+            try: return float(str(v).replace(",", ".").replace(" ", ""))
+            except: return 0.0
+
+        bb = rows("budgetbulletin")
+        info["budget_bulletins"] = {"total": len(bb),
+            "items": [{"title": b.get("TITLE",""), "desc": b.get("DESCRIPTION",""), "url": b.get("URL","")} for b in bb[:10]]}
+        bi = rows("budgetinfo")
+        info["budget_info"] = {"total": len(bi),
+            "items": [{"title": b.get("TITLE",""), "desc": b.get("DESCRIPTION",""), "url": b.get("URL","")} for b in bi[:10]]}
+
+        # Agreements
+        agr_types = {"agreementsek":"Энергосервис","agreementsgchp":"ГЧП","agreementskjc":"КЖЦ",
+            "agreementsdai":"Аренда имущества","agreementsdkr":"Капремонт","agreementsiip":"Инвестпроекты",
+            "agreementsik":"Инвестконтракты","agreementsrip":"РИП","agreementssp":"Соцпартнёрство","agreementszpk":"ЗПК"}
+        total_summ=total_inv=total_gos=0
+        agr_by_type={}
+        all_agr=[]
+        for key,type_name in agr_types.items():
+            ar=rows(key)
+            agr_by_type[type_name]=len(ar)
+            for a in ar:
+                s=safe_float(a.get("SUMM",0));vi=safe_float(a.get("VOLUME_INV",0));vg=safe_float(a.get("VOLUME_GOS",0))
+                total_summ+=s;total_inv+=vi;total_gos+=vg
+                if a.get("TITLE") or a.get("DESCRIPTION"):
+                    all_agr.append({"type":type_name,"title":(a.get("TITLE") or "")[:80],
+                        "desc":strip_html(a.get("DESCRIPTION",""))[:100],"org":(a.get("ORG") or "")[:60],
+                        "date":a.get("DAT",""),"summ":s,"vol_inv":vi,"vol_gos":vg,"year":a.get("YEAR","")})
+        all_agr.sort(key=lambda x:x["summ"],reverse=True)
+        info["agreements"]={"total":sum(agr_by_type.values()),"total_summ":round(total_summ,2),
+            "total_inv":round(total_inv,2),"total_gos":round(total_gos,2),
+            "by_type":[{"name":k,"count":v} for k,v in sorted(agr_by_type.items(),key=lambda x:-x[1]) if v>0],
+            "top":all_agr[:15]}
+
+        # Property
+        pr_lands=rows("propertyregisterlands");pr_mov=rows("propertyregistermovableproperty")
+        pr_re=rows("propertyregisterrealestate");pr_st=rows("propertyregisterstoks")
+        priv=rows("infoprivatization");rent=rows("inforent")
+        info["property"]={"lands":len(pr_lands),"movable":len(pr_mov),"realestate":len(pr_re),
+            "stoks":len(pr_st),"privatization":len(priv),"rent":len(rent),
+            "total":len(pr_lands)+len(pr_mov)+len(pr_re)+len(pr_st)}
+
+        # Business
+        binfo=rows("businessinfo");msgsmp=rows("msgsmp")
+        info["business"]={"info":len(binfo),"smp_messages":len(msgsmp),"events":len(rows("businessevents"))}
+
+        # Other datasets
+        adv=rows("advertisingconstructions");info["advertising"]={"total":len(adv)}
+        comm_eq=rows("listcommunicationequipment");info["communication"]={"total":len(comm_eq)}
+        info["archive"]={"expertise":len(rows("archiveexpertise")),"list":len(rows("archivelistag"))}
+        docag=rows("docag");info["documents"]={"docs":len(docag),"links":len(rows("docaglink")),"texts":len(rows("docagtext"))}
+        prg=rows("prglistag");info["programs"]={"total":len(prg),
+            "items":[{"title":strip_html(p.get("TITLE",""))[:100]} for p in prg[:5]]}
+        news_r=rows("sitelenta");info["news"]={"total":len(news_r)+len(rows("sitenews")),
+            "rubrics":len(rows("siterubrics")),"photos":len(rows("photoreports"))}
+        info["ad_places"]={"total":len(rows("placesad"))}
+        info["territory_plans"]={"total":len(rows("territoryplans"))}
+        info["labor_safety"]={"total":len(rows("otguid"))}
+        info["appeals"]={"total":len(rows("ogobsor"))}
+        msp=rows("mspsupport");info["msp"]={"total":len(msp),
+            "items":[{"title":m.get("TITLE","")[:80]} for m in msp[:10]]}
 
         # Числа
         info["counts"] = {
-            "construction": len(d.get("buildlist", {}).get("rows", [])),
-            "phonebook": len(d.get("agphonedir", {}).get("rows", [])),
-            "admin": len(d.get("agstruct", {}).get("rows", [])),
-            "sport_places": len(d.get("placessg", {}).get("rows", [])),
-            "mfc": len(d.get("placespk", {}).get("rows", [])),
-            "msp": len(d.get("mspsupport", {}).get("rows", [])),
+            "construction": len(rows("buildlist")),
+            "phonebook": len(rows("agphonedir")),
+            "admin": len(rows("agstruct")),
+            "sport_places": len(rows("placessg")),
+            "mfc": len(rows("placespk")),
+            "msp": len(msp),
+            "trainers": len(trainers),
+            "bus_routes": len(bus_routes),
+            "bus_stops": len(bus_stops),
+            "accessibility": len(ds_items),
+            "culture_clubs": len(clubs),
+            "hearings": len(ph),
+            "permits": len(bp),
+            "property_total": info["property"]["total"],
+            "agreements_total": info["agreements"]["total"],
+            "budget_docs": len(bb)+len(bi),
+            "privatization": len(priv),
+            "rent": len(rent),
+            "advertising": len(adv),
+            "documents": len(docag),
+            "archive": len(rows("archivelistag")),
+            "business_info": len(binfo),
+            "smp_messages": len(msgsmp),
+            "news": info["news"]["total"],
+            "territory_plans": len(rows("territoryplans")),
         }
+        info["datasets_total"] = 72
+        info["datasets_with_data"] = sum(1 for k in d if k != "_meta" and len(d[k].get("rows", [])) > 0)
 
         return info
     except Exception as e:

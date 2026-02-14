@@ -5,7 +5,15 @@ DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Читаем базу worker.js (всё до INFO_HTML)
 with open(os.path.join(DIR, "worker.js"), "r", encoding="utf-8") as f:
-    base = f.read().rstrip()
+    full = f.read()
+
+# Обрезаем старый INFO_HTML если есть
+marker = "\n// ===== Инфографика"
+idx = full.find(marker)
+if idx != -1:
+    base = full[:idx].rstrip()
+else:
+    base = full.rstrip()
 
 # Читаем info.html
 with open(os.path.join(DIR, "info.html"), "r", encoding="utf-8") as f:

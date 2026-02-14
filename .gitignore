@@ -70,3 +70,6 @@ claude-code-proxy/
 
 # Wrangler cache
 cloudflare-worker/.wrangler/
+
+# Large data files
+opendata_full.json

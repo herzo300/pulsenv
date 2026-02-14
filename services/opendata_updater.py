@@ -42,6 +42,70 @@ DATASETS = {
     "placespk": "8603032896-placespk",
     "placessg": "8603032896-placessg",
     "territoryplans": "8603032896-territoryplans",
+    # Транспорт и дороги
+    "busroute": "8603032896-busroute",
+    "busstation": "8603032896-busstation",
+    "roadgasstation": "8603032896-roadgasstation",
+    "roadservice": "8603032896-roadservice",
+    "roadworks": "8603032896-roadworks",
+    # Образование и культура
+    "uchcultureclubs": "8603032896-uchcultureclubs",
+    "uchsporttrainers": "8603032896-uchsporttrainers",
+    "uchoudod": "8603032896-uchoudod",
+    # Строительство и земля
+    "buildpermission": "8603032896-buildpermission",
+    "buildreestr": "8603032896-buildreestr",
+    "landplotsreestr": "8603032896-landplotsreestr",
+    # Доступная среда и демография
+    "dostupnayasreda": "8603032896-dostupnayasreda",
+    "demography": "8603032896-demography",
+    "publichearing": "8603032896-publichearing",
+    "stvpgmu": "8603032896-stvpgmu",
+    # === БЮДЖЕТ ===
+    "budgetbulletin": "8603032896-budgetbulletin",
+    "budgetinfo": "8603032896-budgetinfo",
+    "budgetreport": "8603032896-budgetreport",
+    # === МУНИЦИПАЛЬНЫЕ КОНТРАКТЫ (agreements) ===
+    "agreementsdai": "8603032896-agreementsdai",       # Договоры аренды имущества
+    "agreementsdkr": "8603032896-agreementsdkr",       # Договоры капремонта
+    "agreementsek": "8603032896-agreementsek",         # Договоры энергосервис
+    "agreementsgchp": "8603032896-agreementsgchp",     # Договоры ГЧП
+    "agreementsiip": "8603032896-agreementsiip",       # Договоры инвестпроекты
+    "agreementsik": "8603032896-agreementsik",         # Договоры инвестконтракты
+    "agreementskjc": "8603032896-agreementskjc",       # Договоры КЖЦ
+    "agreementsrip": "8603032896-agreementsrip",       # Договоры РИП
+    "agreementssp": "8603032896-agreementssp",         # Договоры соцпартнёрство
+    "agreementszpk": "8603032896-agreementszpk",       # Договоры ЗПК
+    # === ИМУЩЕСТВО ===
+    "propertyregisterlands": "8603032896-propertyregisterlands",
+    "propertyregistermovableproperty": "8603032896-propertyregistermovableproperty",
+    "propertyregisterrealestate": "8603032896-propertyregisterrealestate",
+    "propertyregisterstoks": "8603032896-propertyregisterstoks",
+    "infoprivatization": "8603032896-infoprivatization",
+    "inforent": "8603032896-inforent",
+    # === БИЗНЕС ===
+    "businessevents": "8603032896-businessevents",
+    "businessinfo": "8603032896-businessinfo",
+    "msgsmp": "8603032896-msgsmp",
+    # === РЕКЛАМА И СВЯЗЬ ===
+    "advertisingconstructions": "8603032896-advertisingconstructions",
+    "listcommunicationequipment": "8603032896-listcommunicationequipment",
+    # === АРХИВ И ДОКУМЕНТЫ ===
+    "archiveexpertise": "8603032896-archiveexpertise",
+    "archivelistag": "8603032896-archivelistag",
+    "docag": "8603032896-docag",
+    "docaglink": "8603032896-docaglink",
+    "docagtext": "8603032896-docagtext",
+    "prglistag": "8603032896-prglistag",
+    # === НОВОСТИ И ФОТО ===
+    "sitelenta": "8603032896-sitelenta",
+    "sitenews": "8603032896-sitenews",
+    "siterubrics": "8603032896-siterubrics",
+    "photoreports": "8603032896-photoreports",
+    # === ПРОЧЕЕ ===
+    "ogobsor": "8603032896-ogobsor",
+    "otguid": "8603032896-otguid",
+    "placesad": "8603032896-placesad",
 }
 
 
