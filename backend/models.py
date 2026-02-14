@@ -15,6 +15,8 @@ class User(Base):
     first_name = Column(String(100))
     last_name = Column(String(100))
     photo_url = Column(String(500), nullable=True)
+    balance = Column(Integer, default=0)  # баланс в Stars
+    notify_new = Column(Integer, default=0)  # 1 = подписка на уведомления о новых жалобах
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Отношения
@@ -39,6 +41,10 @@ class Report(Base):
     source = Column(String(50), default="mobile_app")
     telegram_message_id = Column(String(100), nullable=True)
     telegram_channel = Column(String(200), nullable=True)
+    supporters = Column(Integer, default=0)  # кол-во присоединившихся
+    supporters_notified = Column(Integer, default=0)  # 1 = email отправлен при 10+
+    uk_name = Column(String(300), nullable=True)
+    uk_email = Column(String(200), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

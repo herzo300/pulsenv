@@ -251,7 +251,14 @@ async def analyze_and_publish(client, event):
         try:
             from backend.database import SessionLocal
             from backend.models import Report
+            from services.uk_service import find_uk_by_address, find_uk_by_coords
             db = SessionLocal()
+            # Поиск УК
+            uk_info = None
+            if lat and lon:
+                uk_info = await find_uk_by_coords(lat, lon)
+            elif address:
+                uk_info = find_uk_by_address(address)
             report = Report(
                 title=summary[:200],
                 description=text[:2000],
@@ -263,6 +270,8 @@ async def analyze_and_publish(client, event):
                 source=f"monitor:@{channel_username}",
                 telegram_message_id=message_id,
                 telegram_channel=f"@{channel_username}",
+                uk_name=uk_info.get("name") if uk_info else None,
+                uk_email=uk_info.get("email") if uk_info else None,
             )
             db.add(report)
             db.commit()

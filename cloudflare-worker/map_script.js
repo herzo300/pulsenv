@@ -416,14 +416,26 @@ function buildPopup(c,lat,lng){
     st=c.status||'open',stL=SL[st]||st,stC=SC[st]||'#9E9E9E',
     title=esc(c.summary||c.title||c.description||'—'),
     desc=esc(c.description||''),addr=esc(c.address||''),
-    src=esc(c.source_name||c.telegram_channel||c.source||'');
-  let h='<div class="pp"><h3 style="color:'+col+'">'+emoji+' '+esc(cat)+'</h3>';
+    src=esc(c.source_name||c.telegram_channel||c.source||''),
+    sup=c.supporters||0;
+  var h='<div class="pp"><h3 style="color:'+col+'">'+emoji+' '+esc(cat)+'</h3>';
   h+='<div class="desc"><b>'+title.substring(0,150)+'</b></div>';
   if(desc&&desc!==title)h+='<div class="desc">'+desc.substring(0,200)+'</div>';
   if(addr)h+='<div class="meta">📍 <b>'+addr+'</b></div>';
   h+='<div class="meta">📅 '+fmtDate(c.created_at)+'</div>';
   h+='<span class="badge" style="background:'+stC+'">'+stL+'</span>';
   if(src)h+='<span class="src">📢 '+src+'</span>';
+  // Supporters + join button
+  h+='<div class="join-row" style="margin-top:6px;display:flex;align-items:center;gap:8px">';
+  h+='<span class="sup-count" id="sup_'+c.id+'" style="font-size:12px;font-weight:700;color:var(--accent)">👥 '+sup+'</span>';
+  if(st!=='resolved'){
+    h+='<button onclick="joinComplaint(\''+c.id+'\')" class="join-btn" id="jbtn_'+c.id+'" style="';
+    h+='padding:4px 10px;border-radius:16px;border:1px solid var(--accent);background:rgba(59,130,246,.12);';
+    h+='color:var(--accentL);font-size:10px;font-weight:700;cursor:pointer;transition:.2s';
+    h+='">✊ Присоединиться</button>';
+  }
+  h+='</div>';
+  if(sup>=10)h+='<div class="meta" style="color:var(--green);font-size:9px;margin-top:2px">📧 Жалоба отправлена в УК</div>';
   h+='<div class="links">';
   h+='<a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+lat+','+lng+'" target="_blank">👁 Street View</a>';
   h+='<a href="https://yandex.ru/maps/?pt='+lng+','+lat+'&z=17&l=map" target="_blank">🗺 Яндекс</a>';
@@ -431,6 +443,30 @@ function buildPopup(c,lat,lng){
   if(c.uk_name)h+='<div class="meta" style="margin-top:3px">🏢 <b>'+esc(c.uk_name)+'</b></div>';
   if(c.uk_phone)h+='<div class="meta">📞 <a href="tel:'+c.uk_phone.replace(/[^\d+]/g,'')+'">'+esc(c.uk_phone)+'</a></div>';
   h+='</div>';return h;
+}
+
+// ═══ Join complaint ═══
+function joinComplaint(id){
+  var btn=document.getElementById('jbtn_'+id);
+  if(btn){btn.textContent='⏳...';btn.disabled=true}
+  fetch(FB.replace('/firebase','') + '/api/join',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id:id})
+  }).then(function(r){return r.json()}).then(function(d){
+    if(d.ok){
+      var el=document.getElementById('sup_'+id);
+      if(el)el.textContent='👥 '+d.supporters;
+      if(btn){btn.textContent='✅ Вы присоединились';btn.style.background='rgba(34,197,94,.15)';btn.style.borderColor='var(--green)';btn.style.color='var(--green)'}
+      // Update local data
+      var item=allItems.find(function(c){return c.id===id});
+      if(item)item.supporters=d.supporters;
+      if(d.emailSent)showToast('📧 Жалоба отправлена в УК!');
+      else if(d.supporters>=10)showToast('📧 Жалоба уже отправлена в УК');
+      try{tg&&tg.HapticFeedback&&tg.HapticFeedback.impactOccurred('light')}catch(e){}
+    }else{
+      if(btn){btn.textContent='❌ Ошибка';btn.disabled=false}
+    }
+  }).catch(function(e){if(btn){btn.textContent='✊ Присоединиться';btn.disabled=false}});
 }
 
 // ═══ Data + Realtime ═══

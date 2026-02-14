@@ -79,6 +79,8 @@ EMOJI = {
     "Детские площадки": "🎠",
 }
 
+CATEGORIES = list(EMOJI.keys())
+
 STATUS_ICON = {"open": "🔴", "pending": "🟡", "resolved": "✅"}
 
 LEGAL_PROMPT = (
@@ -99,7 +101,7 @@ LEGAL_PROMPT = (
 
 MENU_BUTTONS = {
     "📝 Новая жалоба", "📋 Мои жалобы", "📊 Статистика",
-    "🗺️ Карта", "🏷️ Категории", "📂 Данные города", "ℹ️ О проекте",
+    "🗺️ Карта", "🏷️ Категории", "📂 Данные города", "ℹ️ О проекте", "👤 Профиль",
 }
 
 # ═══════════════════════════════════════════════════════
@@ -222,8 +224,8 @@ def main_kb():
         keyboard=[
             [KeyboardButton(text="📝 Новая жалоба"), KeyboardButton(text="📋 Мои жалобы")],
             [KeyboardButton(text="📊 Статистика"), KeyboardButton(text="🗺️ Карта")],
-            [KeyboardButton(text="📂 Данные города"), KeyboardButton(text="🏷️ Категории")],
-            [KeyboardButton(text="ℹ️ О проекте")],
+            [KeyboardButton(text="🏷️ Категории"), KeyboardButton(text="👤 Профиль")],
+            [KeyboardButton(text="📂 Данные города"), KeyboardButton(text="ℹ️ О проекте")],
         ],
         resize_keyboard=True,
     )
@@ -232,7 +234,7 @@ def main_kb():
 def categories_kb():
     buttons, row = [], []
     for cat in CATEGORIES:
-        row.append(InlineKeyboardButton(text=f"{_emoji(cat)} {cat}", callback_data=f"cat:{cat}"))
+        row.append(InlineKeyboardButton(text=f"{_emoji(cat)} {cat}", callback_data=f"browse_cat:{cat}"))
         if len(row) == 2:
             buttons.append(row)
             row = []
@@ -366,9 +368,210 @@ async def cmd_stats(message: types.Message):
 
 @dp.message(Command("categories"))
 async def cmd_categories(message: types.Message):
-    text = "🏷️ *Категории жалоб (27):*\n\n"
-    text += "".join(f"{_emoji(c)} {c}\n" for c in CATEGORIES)
-    await message.answer(text, parse_mode="Markdown", reply_markup=main_kb())
+    db = _db()
+    try:
+        # Статистика по категориям
+        cat_stats = (
+            db.query(Report.category, func.count(Report.id))
+            .group_by(Report.category)
+            .all()
+        )
+        stats_map = {cat: cnt for cat, cnt in cat_stats}
+        total = sum(stats_map.values())
+
+        text = f"🏷️ *Категории жалоб ({len(CATEGORIES)}):*\n"
+        text += f"📊 Всего жалоб: {total}\n\n"
+
+        for cat in CATEGORIES:
+            cnt = stats_map.get(cat, 0)
+            bar = "█" * min(cnt, 10) if cnt else ""
+            text += f"{_emoji(cat)} *{cat}*"
+            if cnt:
+                text += f" — {cnt} {bar}"
+            text += "\n"
+
+        text += "\n💡 _Нажмите категорию ниже для фильтрации жалоб_"
+        await message.answer(text, parse_mode="Markdown", reply_markup=categories_kb())
+    finally:
+        db.close()
+
+
+@dp.message(Command("profile"))
+async def cmd_profile(message: types.Message):
+    db = _db()
+    try:
+        user = get_or_create_user(db, message.from_user)
+        my_reports = db.query(Report).filter(Report.user_id == user.id).count()
+        my_resolved = db.query(Report).filter(Report.user_id == user.id, Report.status == "resolved").count()
+        balance = user.balance or 0
+        reg_date = user.created_at.strftime("%d.%m.%Y") if user.created_at else "—"
+        notify_on = getattr(user, "notify_new", 0) == 1
+
+        text = (
+            f"👤 *Профиль*\n\n"
+            f"👋 {message.from_user.first_name or ''} {message.from_user.last_name or ''}\n"
+            f"🆔 @{message.from_user.username or '—'}\n"
+            f"📅 Регистрация: {reg_date}\n\n"
+            f"📊 *Активность:*\n"
+            f"📝 Жалоб подано: {my_reports}\n"
+            f"✅ Решено: {my_resolved}\n\n"
+            f"💰 *Баланс: {balance} ⭐*\n"
+            f"🔔 Уведомления: {'✅ Включены' if notify_on else '❌ Выключены'}\n"
+            f"_Звёзды используются для юридического анализа жалоб_\n"
+        )
+
+        notify_btn_text = "🔕 Выключить уведомления" if notify_on else "🔔 Включить уведомления"
+        buttons = [
+            [InlineKeyboardButton(text="💳 Пополнить баланс", callback_data="topup_menu")],
+            [InlineKeyboardButton(text="📋 Мои жалобы", callback_data="my_complaints")],
+            [InlineKeyboardButton(text=notify_btn_text, callback_data="toggle_notify")],
+        ]
+        webapp_url = _get_webapp_url()
+        if webapp_url:
+            buttons.append([InlineKeyboardButton(
+                text="🗺️ Карта моих жалоб", web_app=WebAppInfo(url=f"{webapp_url}/map"))])
+
+        await message.answer(text, parse_mode="Markdown",
+                             reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    finally:
+        db.close()
+
+
+@dp.callback_query(F.data == "topup_menu")
+async def cb_topup_menu(callback: types.CallbackQuery):
+    text = (
+        "💳 *Пополнение баланса*\n\n"
+        "Выберите сумму пополнения:\n"
+        "⭐ Звёзды Telegram — удобная оплата прямо в боте\n\n"
+        "💡 _50 ⭐ = 1 юридический анализ жалобы_"
+    )
+    buttons = [
+        [InlineKeyboardButton(text="⭐ 50 Stars", callback_data="topup_50"),
+         InlineKeyboardButton(text="⭐ 100 Stars", callback_data="topup_100")],
+        [InlineKeyboardButton(text="⭐ 200 Stars", callback_data="topup_200"),
+         InlineKeyboardButton(text="⭐ 500 Stars", callback_data="topup_500")],
+        [InlineKeyboardButton(text="◀️ Назад", callback_data="back_profile")],
+    ]
+    await callback.message.edit_text(text, parse_mode="Markdown",
+                                     reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("topup_"))
+async def cb_topup(callback: types.CallbackQuery):
+    amount = int(callback.data.split("_")[1])
+    await bot.send_invoice(
+        chat_id=callback.from_user.id,
+        title=f"Пополнение баланса — {amount} ⭐",
+        description=f"Пополнение баланса на {amount} Stars для юридических консультаций",
+        payload=f"topup_{amount}",
+        currency="XTR",
+        prices=[LabeledPrice(label=f"{amount} Stars", amount=amount)],
+    )
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "back_profile")
+async def cb_back_profile(callback: types.CallbackQuery):
+    await callback.answer()
+    await cmd_profile(callback.message)
+
+
+@dp.callback_query(F.data == "my_complaints")
+async def cb_my_complaints(callback: types.CallbackQuery):
+    await callback.answer()
+    db = _db()
+    try:
+        user = get_or_create_user(db, callback.from_user)
+        reports = db.query(Report).filter(Report.user_id == user.id).order_by(Report.created_at.desc()).limit(10).all()
+        if not reports:
+            await callback.message.answer("📭 У вас пока нет жалоб. Отправьте первую через /new", reply_markup=main_kb())
+            return
+        text = f"📋 *Ваши жалобы ({len(reports)}):*\n\n"
+        for r in reports:
+            st = STATUS_ICON.get(r.status, "⚪")
+            text += f"{st} {_emoji(r.category)} *{r.category}*\n"
+            text += f"   {(r.title or r.description or '—')[:60]}\n"
+            text += f"   📅 {r.created_at.strftime('%d.%m.%Y') if r.created_at else '—'}\n\n"
+        await callback.message.answer(text, parse_mode="Markdown", reply_markup=main_kb())
+    finally:
+        db.close()
+
+
+@dp.callback_query(F.data == "toggle_notify")
+async def cb_toggle_notify(callback: types.CallbackQuery):
+    db = _db()
+    try:
+        user = get_or_create_user(db, callback.from_user)
+        current = getattr(user, "notify_new", 0) or 0
+        user.notify_new = 0 if current else 1
+        db.commit()
+        status = "✅ Включены" if user.notify_new else "❌ Выключены"
+        await callback.answer(f"🔔 Уведомления: {status}")
+        await cmd_profile(callback.message)
+    finally:
+        db.close()
+
+
+async def _notify_subscribers(report: Report):
+    """Отправить push-уведомление подписчикам о новой жалобе на карте."""
+    db = _db()
+    try:
+        subscribers = db.query(User).filter(User.notify_new == 1).all()
+        if not subscribers:
+            return
+        text = (
+            f"🔔 *Новая проблема на карте*\n\n"
+            f"{_emoji(report.category)} *{report.category}*\n"
+            f"📍 {report.address or 'Адрес не указан'}\n"
+            f"📝 {(report.title or report.description or '')[:100]}\n"
+        )
+        sent = 0
+        for u in subscribers:
+            if not u.telegram_id or u.id == report.user_id:
+                continue
+            try:
+                await bot.send_message(u.telegram_id, text, parse_mode="Markdown")
+                sent += 1
+            except Exception:
+                pass
+            if sent >= 50:
+                break
+        if sent:
+            logger.info(f"🔔 Push: {sent} подписчиков уведомлены о жалобе #{report.id}")
+    except Exception as e:
+        logger.error(f"Notify error: {e}")
+    finally:
+        db.close()
+
+
+@dp.callback_query(F.data.startswith("browse_cat:"))
+async def cb_browse_cat(callback: types.CallbackQuery):
+    """Показать жалобы по категории из меню категорий."""
+    await callback.answer()
+    cat = callback.data.split(":", 1)[1]
+    db = _db()
+    try:
+        reports = (
+            db.query(Report).filter(Report.category == cat)
+            .order_by(Report.created_at.desc()).limit(10).all()
+        )
+        if not reports:
+            await callback.message.answer(
+                f"{_emoji(cat)} *{cat}*\n\n📭 Жалоб в этой категории пока нет.",
+                parse_mode="Markdown", reply_markup=main_kb())
+            return
+        total = db.query(Report).filter(Report.category == cat).count()
+        text = f"{_emoji(cat)} *{cat}* — {total} жалоб\n\n"
+        for r in reports:
+            st = STATUS_ICON.get(r.status, "⚪")
+            text += f"{st} {(r.title or r.description or '—')[:60]}\n"
+            text += f"   📍 {r.address or '—'} · 📅 {r.created_at.strftime('%d.%m.%Y') if r.created_at else '—'}\n\n"
+        if total > 10:
+            text += f"_...и ещё {total - 10}_"
+        await callback.message.answer(text, parse_mode="Markdown", reply_markup=main_kb())
+    finally:
+        db.close()
 
 
 @dp.message(Command("map"))
@@ -502,14 +705,20 @@ async def cmd_sync(message: types.Message):
         pushed, errors = 0, 0
         for r in reports:
             try:
-                doc_id = await firebase_push({
+                fb_data = {
                     "category": r.category, "summary": r.title,
                     "text": (r.description or "")[:2000],
                     "address": r.address, "lat": r.lat, "lng": r.lng,
                     "source": r.source or "sqlite",
                     "source_name": getattr(r, "telegram_channel", None) or "bot",
                     "post_link": "", "provider": "sync", "report_id": r.id,
-                })
+                    "supporters": r.supporters or 0, "supporters_notified": r.supporters_notified or 0,
+                }
+                if r.uk_name:
+                    fb_data["uk_name"] = r.uk_name
+                if r.uk_email:
+                    fb_data["uk_email"] = r.uk_email
+                doc_id = await firebase_push(fb_data)
                 pushed += 1 if doc_id else 0
                 errors += 0 if doc_id else 1
             except Exception:
@@ -599,6 +808,10 @@ async def btn_categories(message: types.Message):
 @dp.message(F.text == "📂 Данные города")
 async def btn_opendata(message: types.Message):
     await cmd_opendata(message)
+
+@dp.message(F.text == "👤 Профиль")
+async def btn_profile(message: types.Message):
+    await cmd_profile(message)
 
 @dp.message(F.text == "ℹ️ О проекте")
 async def btn_about(message: types.Message):
@@ -803,16 +1016,32 @@ async def cb_confirm(callback: types.CallbackQuery):
 
         # Firebase RTDB
         try:
-            await firebase_push({
+            uk_info = await _find_uk(report.lat, report.lng, report.address)
+            fb_data = {
                 "category": report.category, "summary": report.title,
                 "text": report.description, "address": report.address,
                 "lat": report.lat, "lng": report.lng,
                 "source": "anonymous" if is_anon else f"telegram_bot:{uid}",
                 "source_name": source_label, "post_link": "",
                 "provider": "bot", "report_id": report.id,
-            })
+                "supporters": 0, "supporters_notified": 0,
+            }
+            if uk_info:
+                fb_data["uk_name"] = uk_info.get("name", "")
+                fb_data["uk_email"] = uk_info.get("email", "")
+                fb_data["uk_phone"] = uk_info.get("phone", "")
+                report.uk_name = uk_info.get("name", "")
+                report.uk_email = uk_info.get("email", "")
+                db.commit()
+            await firebase_push(fb_data)
         except Exception as fb_err:
             logger.error(f"Firebase push error: {fb_err}")
+
+        # Push-уведомление подписчикам
+        try:
+            asyncio.create_task(_notify_subscribers(report))
+        except Exception:
+            pass
 
         # Формируем ответ
         uk_info = session.get("uk_info")
@@ -1054,7 +1283,8 @@ async def cb_legal_analysis(callback: types.CallbackQuery):
 
 @dp.pre_checkout_query()
 async def on_pre_checkout(pre_checkout: PreCheckoutQuery):
-    if pre_checkout.invoice_payload.startswith("legal_"):
+    payload = pre_checkout.invoice_payload
+    if payload.startswith("legal_") or payload.startswith("topup_"):
         await bot.answer_pre_checkout_query(pre_checkout.id, ok=True)
     else:
         await bot.answer_pre_checkout_query(pre_checkout.id, ok=False, error_message="Неизвестный тип оплаты")
@@ -1063,7 +1293,28 @@ async def on_pre_checkout(pre_checkout: PreCheckoutQuery):
 @dp.message(F.successful_payment)
 async def on_successful_payment(message: types.Message):
     payment = message.successful_payment
-    if not payment.invoice_payload.startswith("legal_"):
+    payload = payment.invoice_payload
+
+    # ═══ Пополнение баланса ═══
+    if payload.startswith("topup_"):
+        amount = int(payload.split("_")[1])
+        db = _db()
+        try:
+            user = get_or_create_user(db, message.from_user)
+            user.balance = (user.balance or 0) + amount
+            db.commit()
+            await message.answer(
+                f"✅ Баланс пополнен на {amount} ⭐\n\n"
+                f"💰 Текущий баланс: {user.balance} ⭐\n"
+                f"💡 Используйте для юридического анализа жалоб",
+                reply_markup=main_kb(),
+            )
+        finally:
+            db.close()
+        return
+
+    # ═══ Юридический анализ ═══
+    if not payload.startswith("legal_"):
         return
 
     uid = message.from_user.id
@@ -1273,11 +1524,12 @@ async def setup_menu():
         BotCommand(command="map", description="🗺️ Карта проблем"),
         BotCommand(command="opendata", description="📂 Данные города"),
         BotCommand(command="categories", description="🏷️ Категории"),
+        BotCommand(command="profile", description="👤 Профиль"),
         BotCommand(command="about", description="ℹ️ О проекте"),
         BotCommand(command="sync", description="🔄 Синхронизация Firebase"),
     ]
     await bot.set_my_commands(commands, scope=BotCommandScopeDefault())
-    logger.info("✅ Меню бота установлено (10 команд)")
+    logger.info("✅ Меню бота установлено (11 команд)")
 
 
 async def main():
