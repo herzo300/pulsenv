@@ -1,4 +1,4 @@
-"""Pull, push to GitHub and trigger deploy"""
+"""Force push to GitHub"""
 import ctypes, ctypes.wintypes, subprocess, os
 
 class CREDENTIAL(ctypes.Structure):
@@ -25,13 +25,8 @@ url = f'https://herzo300:{gh_token}@github.com/herzo300/pulsenv.git'
 env = os.environ.copy()
 env['GIT_TERMINAL_PROMPT'] = '0'
 
-# Pull first
-r = subprocess.run(['git', 'pull', url, 'main', '--rebase'], capture_output=True, text=True, timeout=30, env=env)
-print(f'Pull: {r.returncode}')
-if r.stderr: print(r.stderr[:300])
-
-# Push
-r = subprocess.run(['git', 'push', url, 'main'], capture_output=True, text=True, timeout=30, env=env)
+# Force push
+r = subprocess.run(['git', 'push', '--force', url, 'main'], capture_output=True, text=True, timeout=60, env=env)
 print(f'Push: {r.returncode}')
-if r.stdout: print(r.stdout[:200])
-if r.stderr: print(r.stderr[:200])
+if r.stdout: print(r.stdout[:300])
+if r.stderr: print(r.stderr[:300])

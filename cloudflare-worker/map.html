@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Пульс города — Карта проблем</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+</head>
+<body>
+<div class="hdr"><div class="pulse"></div><div><h1>🗺️ Пульс города</h1><small>НИЖНЕВАРТОВСК</small></div></div>
+<div id="filters" class="filter-bar"></div>
+<div id="map"></div>
+<div class="panel stats" id="statsPanel">
+  <h3>📊 Статистика</h3>
+  <div class="sr"><span class="l">Всего</span><span class="v blue" id="st">—</span></div>
+  <div class="sr"><span class="l">Открыто</span><span class="v red" id="so">—</span></div>
+  <div class="sr"><span class="l">В работе</span><span class="v yellow" id="sw">—</span></div>
+  <div class="sr"><span class="l">Решено</span><span class="v green" id="sr">—</span></div>
+  <div class="sr"><span class="l">Источник</span><span class="v" id="ss" style="color:#aaa;font-size:10px">—</span></div>
+</div>
+<div class="panel leg" id="leg"><h3>Категории</h3></div>
+<div class="loader" id="ld"><div class="sp"></div>Загрузка карты…</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+</body>
+</html>
