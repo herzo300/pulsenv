@@ -73,6 +73,28 @@
   <div class="toast" id="newToast" style="display:none">
     <span class="toast-icon">🔔</span><span class="toast-text" id="toastText"></span>
   </div>
+  <!-- FAB — подать жалобу -->
+  <button class="fab" id="fabNew" title="Подать жалобу">+</button>
+  <!-- Complaint form -->
+  <div class="cf-overlay" id="cfOverlay">
+    <div class="cf-sheet">
+      <h3>📝 Подать жалобу</h3>
+      <div class="cf-field"><label>Категория</label>
+        <select id="cfCat"></select></div>
+      <div class="cf-field"><label>Описание</label>
+        <textarea id="cfDesc" placeholder="Опишите проблему..." rows="3"></textarea></div>
+      <div class="cf-field"><label>Адрес <span class="cf-gps" id="cfGps">📍 Определить по GPS</span></label>
+        <input id="cfAddr" placeholder="ул. Ленина, 5" /></div>
+      <div class="cf-field" style="display:flex;gap:8px">
+        <div style="flex:1"><label>Широта</label><input id="cfLat" type="number" step="0.0001" placeholder="60.9344" /></div>
+        <div style="flex:1"><label>Долгота</label><input id="cfLng" type="number" step="0.0001" placeholder="76.5531" /></div>
+      </div>
+      <div class="cf-btns">
+        <button class="cf-btn secondary" id="cfCancel">Отмена</button>
+        <button class="cf-btn primary" id="cfSubmit">Отправить</button>
+      </div>
+    </div>
+  </div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>

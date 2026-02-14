@@ -273,6 +273,28 @@ const MAP_HTML = `<!DOCTYPE html>
   <div class="toast" id="newToast" style="display:none">
     <span class="toast-icon">🔔</span><span class="toast-text" id="toastText"></span>
   </div>
+  <!-- FAB — подать жалобу -->
+  <button class="fab" id="fabNew" title="Подать жалобу">+</button>
+  <!-- Complaint form -->
+  <div class="cf-overlay" id="cfOverlay">
+    <div class="cf-sheet">
+      <h3>📝 Подать жалобу</h3>
+      <div class="cf-field"><label>Категория</label>
+        <select id="cfCat"></select></div>
+      <div class="cf-field"><label>Описание</label>
+        <textarea id="cfDesc" placeholder="Опишите проблему..." rows="3"></textarea></div>
+      <div class="cf-field"><label>Адрес <span class="cf-gps" id="cfGps">📍 Определить по GPS</span></label>
+        <input id="cfAddr" placeholder="ул. Ленина, 5" /></div>
+      <div class="cf-field" style="display:flex;gap:8px">
+        <div style="flex:1"><label>Широта</label><input id="cfLat" type="number" step="0.0001" placeholder="60.9344" /></div>
+        <div style="flex:1"><label>Долгота</label><input id="cfLng" type="number" step="0.0001" placeholder="76.5531" /></div>
+      </div>
+      <div class="cf-btns">
+        <button class="cf-btn secondary" id="cfCancel">Отмена</button>
+        <button class="cf-btn primary" id="cfSubmit">Отправить</button>
+      </div>
+    </div>
+  </div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"><\/script>
@@ -435,6 +457,40 @@ box-shadow:0 4px 16px rgba(0,0,0,.3);animation:tin .3s ease;cursor:pointer}
 
 @keyframes mpop{0%{transform:scale(0)}60%{transform:scale(1.3)}100%{transform:scale(1)}}
 .new-marker{animation:mpop .5s ease}
+
+/* ═══ FAB — подать жалобу ═══ */
+.fab{position:fixed;bottom:64px;right:12px;z-index:1001;width:48px;height:48px;border-radius:50%;
+background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff;border:none;
+font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+box-shadow:0 4px 16px rgba(59,130,246,.4);transition:.2s;line-height:1}
+.fab:active{transform:scale(.9)}
+
+/* ═══ Complaint form overlay ═══ */
+.cf-overlay{position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
+display:none;align-items:flex-end;justify-content:center}
+.cf-overlay.show{display:flex}
+.cf-sheet{width:100%;max-width:400px;background:var(--surface);backdrop-filter:var(--glass);
+border-radius:20px 20px 0 0;padding:16px 16px 24px;border:1px solid rgba(255,255,255,.08);
+max-height:80vh;overflow-y:auto;animation:sheetUp .3s ease}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.cf-sheet h3{font-size:15px;font-weight:700;margin-bottom:10px;text-align:center}
+.cf-sheet .cf-field{margin-bottom:8px}
+.cf-sheet label{font-size:9px;color:var(--hint);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:3px}
+.cf-sheet input,.cf-sheet textarea,.cf-sheet select{width:100%;padding:8px 10px;border-radius:10px;
+border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:var(--text);
+font-size:12px;font-family:inherit;outline:none;transition:.2s}
+.cf-sheet input:focus,.cf-sheet textarea:focus,.cf-sheet select:focus{border-color:var(--accent)}
+.cf-sheet textarea{resize:vertical;min-height:60px}
+.cf-sheet select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2360a5fa' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+.cf-sheet select option{background:#1a1f2e;color:#e8ecf4}
+.cf-btns{display:flex;gap:8px;margin-top:10px}
+.cf-btn{flex:1;padding:10px;border-radius:12px;border:none;font-size:12px;font-weight:700;cursor:pointer;transition:.2s}
+.cf-btn.primary{background:var(--accent);color:#fff}
+.cf-btn.secondary{background:rgba(255,255,255,.06);color:var(--hint)}
+.cf-btn:active{transform:scale(.96)}
+.cf-gps{font-size:10px;color:var(--accent);cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.cf-gps:hover{text-decoration:underline}
 \`;
 document.head.appendChild(S);
 
@@ -530,10 +586,10 @@ function hideSplash(){const s=document.getElementById('splash');if(!s)return;if(
 
 // ═══ Helpers ═══
 function mkIcon(cat,isNew){
-  const c=CC[cat]||'#795548',e=CE[cat]||'📌',cls=isNew?'new-marker':'';
-  return L.divIcon({className:cls,
-    html:'<div style="width:28px;height:28px;border-radius:50%;background:'+c+';border:3px solid rgba(255,255,255,.85);box-shadow:0 2px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:13px">'+e+'</div>',
-    iconSize:[28,28],iconAnchor:[14,14]})}
+  var c=CC[cat]||'#795548',e=CE[cat]||'📌';
+  return L.divIcon({className:'',
+    html:'<div class="'+(isNew?'new-marker':'')+'" style="width:30px;height:30px;border-radius:50%;background:'+c+';border:3px solid rgba(255,255,255,.9);box-shadow:0 2px 10px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer">'+e+'</div>',
+    iconSize:[30,30],iconAnchor:[15,15],popupAnchor:[0,-15]})}
 function fmtDate(s){if(!s)return'—';try{const d=new Date(s);return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}catch(e){return String(s).substring(0,16)}}
 function esc(s){return s?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
 function dateKey(d){return d.toISOString().slice(0,10)}
@@ -614,24 +670,59 @@ function buildDayFilters(){
   }
 }
 
-// ═══ Category filters ═══
+// ═══ Category filters — dropdown menu ═══
 function buildCatFilters(){
-  const bar=document.getElementById('catFilters');if(!bar)return;bar.innerHTML='';
-  const cats={};allItems.forEach(c=>{if(c.category)cats[c.category]=(cats[c.category]||0)+1});
-  const sorted=Object.entries(cats).sort((a,b)=>b[1]-a[1]);
-  // All
-  const all=document.createElement('div');
-  all.className='chip'+(filterCat===null?' active':'');
-  all.textContent='Все категории';
-  all.onclick=()=>{filterCat=null;render();buildCatFilters()};
-  bar.appendChild(all);
-  sorted.slice(0,10).forEach(([cat,cnt])=>{
-    const chip=document.createElement('div');
-    chip.className='chip'+(filterCat===cat?' active':'');
-    chip.textContent=(CE[cat]||'')+''+cat+' '+cnt;
-    chip.onclick=()=>{filterCat=filterCat===cat?null:cat;render();buildCatFilters()};
-    bar.appendChild(chip);
+  var bar=document.getElementById('catFilters');if(!bar)return;bar.innerHTML='';
+  var cats={};allItems.forEach(function(c){if(c.category)cats[c.category]=(cats[c.category]||0)+1});
+  var sorted=Object.entries(cats).sort(function(a,b){return b[1]-a[1]});
+  // Dropdown wrapper
+  var wrap=document.createElement('div');
+  wrap.style.cssText='position:relative;display:inline-block';
+  var btn=document.createElement('div');
+  btn.className='chip'+(filterCat?' active':'');
+  btn.textContent=filterCat?((CE[filterCat]||'')+filterCat+' '+(cats[filterCat]||'')):'📂 Категория ▾';
+  btn.style.cssText='cursor:pointer;min-width:120px;text-align:center';
+  var menu=document.createElement('div');
+  menu.style.cssText='display:none;position:absolute;top:100%;left:0;z-index:2000;background:rgba(15,20,35,.95);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:4px 0;max-height:280px;overflow-y:auto;min-width:200px;box-shadow:0 8px 32px rgba(0,0,0,.5);scrollbar-width:thin';
+  // "Все" option
+  var allOpt=document.createElement('div');
+  allOpt.style.cssText='padding:6px 12px;font-size:11px;cursor:pointer;color:'+(filterCat===null?'var(--accent)':'var(--hint)')+';transition:.15s';
+  allOpt.textContent='Все категории';
+  allOpt.onmouseenter=function(){this.style.background='rgba(255,255,255,.06)'};
+  allOpt.onmouseleave=function(){this.style.background='transparent'};
+  allOpt.onclick=function(){filterCat=null;menu.style.display='none';render();buildCatFilters()};
+  menu.appendChild(allOpt);
+  // Category options
+  sorted.forEach(function(pair){
+    var cat=pair[0],cnt=pair[1];
+    var opt=document.createElement('div');
+    opt.style.cssText='padding:6px 12px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:6px;color:'+(filterCat===cat?'var(--accent)':'var(--text)')+';transition:.15s';
+    var dot=document.createElement('span');
+    dot.style.cssText='width:8px;height:8px;border-radius:50%;background:'+(CC[cat]||'#795548')+';flex-shrink:0';
+    opt.appendChild(dot);
+    var txt=document.createElement('span');
+    txt.textContent=(CE[cat]||'')+' '+cat;
+    txt.style.flex='1';
+    opt.appendChild(txt);
+    var num=document.createElement('span');
+    num.textContent=cnt;
+    num.style.cssText='font-size:10px;color:var(--hint);font-weight:700';
+    opt.appendChild(num);
+    opt.onmouseenter=function(){this.style.background='rgba(255,255,255,.06)'};
+    opt.onmouseleave=function(){this.style.background='transparent'};
+    opt.onclick=function(){filterCat=filterCat===cat?null:cat;menu.style.display='none';render();buildCatFilters()};
+    menu.appendChild(opt);
   });
+  btn.onclick=function(e){e.stopPropagation();menu.style.display=menu.style.display==='none'?'block':'none'};
+  document.addEventListener('click',function(){menu.style.display='none'});
+  wrap.appendChild(btn);wrap.appendChild(menu);bar.appendChild(wrap);
+  // Reset button if filter active
+  if(filterCat){
+    var reset=document.createElement('div');
+    reset.className='chip';reset.textContent='✕';reset.style.cssText='cursor:pointer;padding:4px 8px';
+    reset.onclick=function(){filterCat=null;render();buildCatFilters()};
+    bar.appendChild(reset);
+  }
 }
 
 // ═══ Status filters ═══
@@ -837,6 +928,121 @@ async function loadData(){
   }catch(e){console.error(e);splashProg(100,'Ошибка: '+e.message);setTimeout(()=>{hideSplash();initMap()},1500)}
 }
 loadData();
+
+// ═══ Complaint form from map ═══
+(function(){
+  var overlay=document.getElementById('cfOverlay');
+  var fab=document.getElementById('fabNew');
+  var catSel=document.getElementById('cfCat');
+  var descEl=document.getElementById('cfDesc');
+  var addrEl=document.getElementById('cfAddr');
+  var latEl=document.getElementById('cfLat');
+  var lngEl=document.getElementById('cfLng');
+  var gpsBtn=document.getElementById('cfGps');
+  var cancelBtn=document.getElementById('cfCancel');
+  var submitBtn=document.getElementById('cfSubmit');
+  if(!fab||!overlay)return;
+
+  // Populate categories
+  var allCats=Object.keys(CE);
+  allCats.forEach(function(cat){
+    var opt=document.createElement('option');
+    opt.value=cat;opt.textContent=(CE[cat]||'')+' '+cat;
+    catSel.appendChild(opt);
+  });
+
+  fab.onclick=function(){overlay.classList.add('show')};
+  cancelBtn.onclick=function(){overlay.classList.remove('show')};
+  overlay.onclick=function(e){if(e.target===overlay)overlay.classList.remove('show')};
+
+  // GPS + reverse geocoding
+  gpsBtn.onclick=function(){
+    if(!navigator.geolocation){showToast('GPS недоступен');return}
+    gpsBtn.textContent='⏳ Определяю...';
+    navigator.geolocation.getCurrentPosition(function(pos){
+      var lat=pos.coords.latitude,lng=pos.coords.longitude;
+      latEl.value=lat.toFixed(6);lngEl.value=lng.toFixed(6);
+      gpsBtn.textContent='✅ Координаты получены';
+      // Reverse geocode via Nominatim
+      fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lng+'&accept-language=ru')
+        .then(function(r){return r.json()})
+        .then(function(d){
+          if(d&&d.address){
+            var a=d.address;
+            var parts=[];
+            if(a.road)parts.push(a.road);
+            if(a.house_number)parts.push(a.house_number);
+            if(!parts.length&&d.display_name)parts.push(d.display_name.split(',')[0]);
+            addrEl.value=parts.join(', ');
+            gpsBtn.textContent='📍 '+addrEl.value;
+          }
+        }).catch(function(){});
+    },function(err){
+      gpsBtn.textContent='❌ Ошибка GPS';
+      showToast('GPS: '+err.message);
+    },{enableHighAccuracy:true,timeout:10000});
+  };
+
+  // Also allow clicking on map to set location
+  function enableMapClick(){
+    if(!map)return;
+    map.on('click',function(e){
+      if(!overlay.classList.contains('show'))return;
+      latEl.value=e.latlng.lat.toFixed(6);
+      lngEl.value=e.latlng.lng.toFixed(6);
+      // Reverse geocode
+      fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+e.latlng.lat+'&lon='+e.latlng.lng+'&accept-language=ru')
+        .then(function(r){return r.json()})
+        .then(function(d){
+          if(d&&d.address){
+            var a=d.address;var parts=[];
+            if(a.road)parts.push(a.road);
+            if(a.house_number)parts.push(a.house_number);
+            if(!parts.length&&d.display_name)parts.push(d.display_name.split(',')[0]);
+            addrEl.value=parts.join(', ');
+          }
+        }).catch(function(){});
+    });
+  }
+  // Hook after map init
+  var origInit=initMap;
+  initMap=function(){origInit();enableMapClick()};
+
+  // Submit
+  submitBtn.onclick=function(){
+    var cat=catSel.value,desc=descEl.value.trim(),addr=addrEl.value.trim();
+    var lat=parseFloat(latEl.value),lng=parseFloat(lngEl.value);
+    if(!desc){showToast('Опишите проблему');return}
+    submitBtn.textContent='⏳...';submitBtn.disabled=true;
+    var now=new Date().toISOString();
+    var complaint={
+      category:cat,description:desc,summary:desc.substring(0,200),
+      address:addr,lat:lat||null,lng:lng||null,
+      status:'open',created_at:now,source:'webapp',source_name:'Карта',
+      supporters:0,supporters_notified:0
+    };
+    // Push to Firebase
+    fetch(FB+'/complaints.json',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(complaint)
+    }).then(function(r){return r.json()}).then(function(d){
+      if(d&&d.name){
+        complaint.id=d.name;complaint._isNew=true;
+        allItems.unshift(complaint);knownIds.add(complaint.id);
+        render();buildAllFilters();
+        showToast('✅ Жалоба отправлена!');
+        overlay.classList.remove('show');
+        descEl.value='';addrEl.value='';latEl.value='';lngEl.value='';
+        setTimeout(function(){complaint._isNew=false},2000);
+        try{tg&&tg.HapticFeedback&&tg.HapticFeedback.notificationOccurred('success')}catch(e){}
+      }else{showToast('Ошибка отправки')}
+      submitBtn.textContent='Отправить';submitBtn.disabled=false;
+    }).catch(function(e){
+      showToast('Ошибка: '+e.message);
+      submitBtn.textContent='Отправить';submitBtn.disabled=false;
+    });
+  };
+})();
 
 <\/script>
 </body>
