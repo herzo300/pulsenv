@@ -13,6 +13,7 @@ import asyncio
 import json
 import logging
 import tempfile
+import time
 
 import httpx
 
@@ -429,7 +430,7 @@ async def cmd_profile(message: types.Message):
         webapp_url = _get_webapp_url()
         if webapp_url:
             buttons.append([InlineKeyboardButton(
-                text="🗺️ Карта моих жалоб", web_app=WebAppInfo(url=f"{webapp_url}/map"))])
+                text="🗺️ Карта моих жалоб", web_app=WebAppInfo(url=f"{webapp_url}/map?v={int(time.time())}"))])
 
         await message.answer(text, parse_mode="Markdown",
                              reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
@@ -609,7 +610,7 @@ async def cmd_map(message: types.Message):
         if webapp_url:
             buttons.append([InlineKeyboardButton(
                 text="🗺️ Открыть карту (Web App)",
-                web_app=WebAppInfo(url=f"{webapp_url}/map"),
+                web_app=WebAppInfo(url=f"{webapp_url}/map?v={int(time.time())}"),
             )])
         buttons.append([InlineKeyboardButton(
             text="🌍 Открыть карту (OpenStreetMap)",

@@ -32,7 +32,7 @@ export default {
     // --- Map Web App (для Telegram) ---
     if (path === "/map" || path === "/map/") {
       return new Response(MAP_HTML, {
-        headers: { "Content-Type": "text/html;charset=utf-8", "Access-Control-Allow-Origin": "*" },
+        headers: { "Content-Type": "text/html;charset=utf-8", "Access-Control-Allow-Origin": "*", "Cache-Control": "no-cache, no-store, must-revalidate" },
       });
     }
 
