@@ -1,0 +1,114 @@
+# Docker Compose для СообщиО с SQLite
+# Полный стек: Backend + SQLite + Redis
+
+version: '3.8'
+
+services:
+  # Backend API
+  api:
+    build: .
+    container_name: soobshio_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./soobshio.db
+      - REDIS_URL=redis://redis:6379
+      - TG_API_ID=${TG_API_ID}
+      - TG_API_HASH=${TG_API_HASH}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - BOT_TOKEN=${BOT_TOKEN}
+      - TARGET_CHANNEL=${TARGET_CHANNEL}
+    volumes:
+      - ./soobshio.db:/app/soobshio.db
+      - ./.env:/app/.env:ro
+    depends_on:
+      - redis
+    networks:
+      - soobshio_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Telegram Parser
+  parser:
+    build: .
+    container_name: soobshio_parser
+    restart: unless-stopped
+    command: python services/telegram_parser.py
+    environment:
+      - DATABASE_URL=sqlite:///./soobshio.db
+      - TG_API_ID=${TG_API_ID}
+      - TG_API_HASH=${TG_API_HASH}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - TARGET_CHANNEL=${TARGET_CHANNEL}
+    volumes:
+      - ./soobshio.db:/app/soobshio.db
+      - ./.env:/app/.env:ro
+    depends_on:
+      - api
+    networks:
+      - soobshio_network
+
+  # Telegram Bot
+  bot:
+    build: .
+    container_name: soobshio_bot
+    restart: unless-stopped
+    command: python services/telegram_bot.py
+    environment:
+      - DATABASE_URL=sqlite:///./soobshio.db
+      - BOT_TOKEN=${BOT_TOKEN}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./soobshio.db:/app/soobshio.db
+      - ./.env:/app/.env:ro
+    depends_on:
+      - api
+    networks:
+      - soobshio_network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: soobshio_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - soobshio_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: soobshio_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./web:/usr/share/nginx/html:ro
+    depends_on:
+      - api
+    networks:
+      - soobshio_network
+
+volumes:
+  redis_data:
+
+networks:
+  soobshio_network:
+    driver: bridge

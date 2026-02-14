@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Карта проблем - СообщиО</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        #map {
+            width: 100vw;
+            height: 100vh;
+        }
+        .legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 1000;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .legend-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #333;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 13px;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 8px;
+            border: 2px solid white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px 50px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 2000;
+        }
+        .loading-text {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        .filter-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+        .filter-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #333;
+        }
+        .category-btn {
+            display: block;
+            width: 100%;
+            padding: 8px 15px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .category-btn:hover {
+            opacity: 0.8;
+        }
+        .category-btn.active {
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="filter-container">
+        <div class="filter-title">Фильтр по категориям</div>
+        <button class="category-btn active" onclick="filterCategory('all')">Все категории</button>
+        <button class="category-btn" onclick="filterCategory('ЖКХ')">ЖКХ</button>
+        <button class="category-btn" onclick="filterCategory('Дороги')">Дороги</button>
+        <button class="category-btn" onclick="filterCategory('Благоустройство')">Благоустройство</button>
+        <button class="category-btn" onclick="filterCategory('Транспорт')">Транспорт</button>
+        <button class="category-btn" onclick="filterCategory('Экология')">Экология</button>
+        <button class="category-btn" onclick="filterCategory('Безопасность')">Безопасность</button>
+        <button class="category-btn" onclick="filterCategory('Освещение')">Освещение</button>
+        <button class="category-btn" onclick="filterCategory('Медицина')">Медицина</button>
+        <button class="category-btn" onclick="filterCategory('Образование')">Образование</button>
+    </div>
+    
+    <div class="legend">
+        <div class="legend-title">Статусы</div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ff6b6b;"></div>
+            <span>Открыто</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ffd93d;"></div>
+            <span>В работе</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #6bcb77;"></div>
+            <span>Решено</span>
+        </div>
+    </div>
+    
+    <div class="loading">
+        <div class="loading-text">Загрузка карты...</div>
+    </div>
+
+    <script>
+        let map;
+        let markers = [];
+        let filteredMarkers = [];
+        let selectedCategory = 'all';
+        
+        const categoryColors = {
+            'ЖКХ': '#ff6b6b',
+            'Дороги': '#ffa94d',
+            'Благоустройство': '#ffd43b',
+            'Транспорт': '#69db7c',
+            'Экология': '#4dabf7',
+            'Животные': '#da77f2',
+            'Торговля': '#ff922b',
+            'Безопасность': '#e599f7',
+            'Снег/Наледь': '#f783ac',
+            'Освещение': '#a5d8ff',
+            'Медицина': '#80ed99',
+            'Образование': '#61dafb',
+            'Связь': '#4dc9b6',
+            'Строительство': '#ff9f1c',
+            'Парковки': '#e9ecef',
+            'Социальная сфера': '#ced4da',
+            'Трудовое право': '#adb5bd',
+            'Прочее': '#495057',
+            'ЧП': '#6c757d'
+        };
+        
+        const statusColors = {
+            'open': '#ff6b6b',
+            'pending': '#ffd93d',
+            'resolved': '#6bcb77'
+        };
+        
+        function initMap() {
+            map = L.map('map').setView([60.5403, 76.5629], 12);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            
+            fetchComplaints();
+        }
+        
+        async function fetchComplaints() {
+            try {
+                const response = await fetch('http://127.0.0.1:8000/complaints/list?limit=100');
+                const data = await response.json();
+                
+                const complaints = data.data || [];
+                
+                clearMarkers();
+                
+                complaints.forEach(complaint => {
+                    if (complaint.latitude && complaint.longitude) {
+                        const marker = L.marker([
+                            complaint.latitude,
+                            complaint.longitude
+                        ]).addTo(map);
+                        
+                        const statusColor = statusColors[complaint.status] || '#ff6b6b';
+                        const categoryColor = categoryColors[complaint.category] || '#495057';
+                        
+                        marker.bindPopup(`
+                            <div style="font-family: 'Segoe UI', sans-serif; max-width: 300px;">
+                                <h3 style="margin: 0 0 10px 0; color: ${categoryColor}; font-size: 16px;">
+                                    ${complaint.category}
+                                </h3>
+                                <p style="margin: 0 0 10px 0; font-weight: bold; font-size: 14px;">
+                                    ${complaint.title}
+                                </p>
+                                <p style="margin: 0 0 10px 0; font-size: 12px; color: #666;">
+                                    ${complaint.description || 'Нет описания'}
+                                </p>
+                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
+                                    <span style="display: inline-block; width: 10px; height: 10px; background: ${statusColor}; border-radius: 50%; margin-right: 5px;"></span>
+                                    <span style="font-size: 11px;">${complaint.status === 'open' ? 'Открыто' : complaint.status === 'pending' ? 'В работе' : 'Решено'}</span>
+                                </div>
+                                <div style="margin-top: 10px; font-size: 11px; color: #999;">
+                                    ${complaint.created_at ? 'Дата: ' + new Date(complaint.created_at).toLocaleDateString('ru-RU') : ''}
+                                </div>
+                            </div>
+                        `);
+                        
+                        markers.push({
+                            marker: marker,
+                            complaint: complaint,
+                            color: categoryColor,
+                            statusColor: statusColor
+                        });
+                    }
+                });
+                
+                updateFilteredMarkers();
+                
+                document.querySelector('.loading').style.display = 'none';
+            } catch (error) {
+                console.error('Error fetching complaints:', error);
+                document.querySelector('.loading').innerHTML = '<div class="loading-text">Ошибка загрузки данных. Проверьте соединение.</div>';
+            }
+        }
+        
+        function clearMarkers() {
+            markers.forEach(item => {
+                map.removeLayer(item.marker);
+            });
+            markers = [];
+        }
+        
+        function filterCategory(category) {
+            selectedCategory = category;
+            
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            updateFilteredMarkers();
+        }
+        
+        function updateFilteredMarkers() {
+            filteredMarkers = markers.filter(item => {
+                if (selectedCategory === 'all') return true;
+                return item.complaint.category === selectedCategory;
+            });
+            
+            filteredMarkers.forEach(item => {
+                item.marker.setOpacity(1);
+            });
+            
+            markers.forEach(item => {
+                if (!filteredMarkers.includes(item)) {
+                    item.marker.setOpacity(0.3);
+                }
+            });
+        }
+        
+        initMap();
+    </script>
+</body>
+</html>

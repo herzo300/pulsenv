@@ -1,0 +1,72 @@
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Flutter
+*.apk
+*.ipa
+*.dSYM/
+flutter_*.lock
+
+# Sessions
+*.session
+*.session-journal
+
+# OS
+.DS_Store
+Thumbs.db
+/\!Приложения
+*.pdf
+/\!Приложения/Турбо-Мастер
+
+# Firebase
+firebase-service-account.json
+firebase-adminsdk.json
+pulsenv-*.json
+
+# Logs
+*.log
+monitoring_log.txt
+monitoring_err.txt
+
+# Temp
+temp/
+.hypothesis/
+.pytest_cache/
+nul
+
+# Session files
+soobshio_session.session
+soobshio.db.backup
+
+# Test results
+zai_test*.json
+
+# Build artifacts
+create_repo.py
+
+# Embedded repos
+claude-code-proxy/
+
+# Wrangler cache
+cloudflare-worker/.wrangler/

@@ -1,0 +1,39 @@
+.env, 
+venv, 
+build/, 
+.dart_tool/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Flutter
+*.apk
+*.ipa
+*.dSYM/
+flutter_*.lock
+
+# Sessions
+*.session
+*.session-journal
+
+# OS
+.DS_Store
+Thumbs.db

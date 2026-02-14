@@ -1,0 +1,251 @@
+// Cloudflare Worker — прокси для AI API (Anthropic + OpenAI)
+// Роутинг: /anthropic/* → api.anthropic.com, /openai/* → api.openai.com
+// Без префикса → api.anthropic.com (обратная совместимость)
+
+export default {
+  async fetch(request, env) {
+    // CORS preflight
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "*",
+          "Access-Control-Max-Age": "86400",
+        },
+      });
+    }
+
+    const url = new URL(request.url);
+    let path = url.pathname;
+
+    // --- Email endpoint ---
+    if (path === "/send-email" && request.method === "POST") {
+      return handleSendEmail(request);
+    }
+
+    // --- Map Web App (для Telegram) ---
+    if (path === "/map" || path === "/map/") {
+      return new Response(MAP_HTML, {
+        headers: { "Content-Type": "text/html;charset=utf-8", "Access-Control-Allow-Origin": "*" },
+      });
+    }
+
+    // --- Infographic Web App ---
+    if (path === "/info" || path === "/info/") {
+      return new Response(INFO_HTML, {
+        headers: { "Content-Type": "text/html;charset=utf-8", "Access-Control-Allow-Origin": "*" },
+      });
+    }
+
+    let targetHost;
+
+    if (path.startsWith("/openai/")) {
+      targetHost = "https://api.openai.com";
+      path = path.replace("/openai", "");
+    } else if (path.startsWith("/anthropic/")) {
+      targetHost = "https://api.anthropic.com";
+      path = path.replace("/anthropic", "");
+    } else if (path.startsWith("/firebase/")) {
+      targetHost = "https://soobshio-default-rtdb.europe-west1.firebasedatabase.app";
+      path = path.replace("/firebase", "");
+    } else {
+      targetHost = "https://api.anthropic.com";
+    }
+
+    const targetUrl = targetHost + path + url.search;
+
+    const headers = new Headers(request.headers);
+    headers.set("Host", new URL(targetHost).host);
+
+    const response = await fetch(targetUrl, {
+      method: request.method,
+      headers: headers,
+      body: request.method !== "GET" ? request.body : undefined,
+    });
+
+    const newHeaders = new Headers(response.headers);
+    newHeaders.set("Access-Control-Allow-Origin", "*");
+
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: newHeaders,
+    });
+  },
+};
+
+
+// --- Отправка email через Resend API (бесплатно 100/день) ---
+async function handleSendEmail(request) {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Content-Type": "application/json",
+  };
+
+  try {
+    const data = await request.json();
+    const { to_email, to_name, subject, body, from_name } = data;
+
+    if (!to_email || !subject || !body) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Missing to_email, subject, or body" }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    const brevoKey = typeof BREVO_API_KEY !== "undefined" ? BREVO_API_KEY : null;
+    if (brevoKey) {
+      const mailResp = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "api-key": brevoKey },
+        body: JSON.stringify({
+          sender: { name: from_name || "Пульс города", email: "pulsgoroda@noreply.ru" },
+          to: [{ email: to_email, name: to_name || "" }],
+          subject: subject, textContent: body,
+        }),
+      });
+      if (mailResp.ok) {
+        return new Response(JSON.stringify({ ok: true, method: "brevo" }), { status: 200, headers: corsHeaders });
+      }
+    }
+
+    const resendKey = typeof RESEND_API_KEY !== "undefined" ? RESEND_API_KEY : null;
+    if (resendKey) {
+      const mailResp = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendKey}` },
+        body: JSON.stringify({
+          from: `${from_name || "Пульс города"} <onboarding@resend.dev>`,
+          to: [to_email], subject: subject, text: body,
+        }),
+      });
+      if (mailResp.ok) {
+        return new Response(JSON.stringify({ ok: true, method: "resend" }), { status: 200, headers: corsHeaders });
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        ok: false, fallback: true,
+        error: "No email provider configured.",
+        mailto: `mailto:${to_email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body.substring(0, 500))}`,
+      }),
+      { status: 200, headers: corsHeaders }
+    );
+  } catch (e) {
+    return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers: corsHeaders });
+  }
+}
+
+
+// ===== Встроенная карта (Telegram Web App) =====
+const MAP_HTML = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Пульс города — Карта</title>
+<script src="https://telegram.org/js/telegram-web-app.js"><\/script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,Roboto,sans-serif;
+  background:var(--tg-theme-bg-color,#0a0a1a);color:var(--tg-theme-text-color,#fff);overflow:hidden}
+#map{width:100%;height:100vh}
+.hdr{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:1000;
+  background:rgba(10,10,26,.92);backdrop-filter:blur(12px);padding:8px 20px;border-radius:12px;
+  border:1px solid rgba(0,180,255,.2);display:flex;align-items:center;gap:8px}
+.hdr h1{font-size:15px;font-weight:800}.hdr small{font-size:9px;color:rgba(255,255,255,.4);letter-spacing:2px;display:block}
+.pulse{width:8px;height:8px;border-radius:50%;background:#4caf50;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.panel{position:fixed;z-index:1000;background:rgba(10,10,26,.92);backdrop-filter:blur(12px);
+  padding:10px 14px;border-radius:12px;border:1px solid rgba(0,180,255,.15);font-size:12px}
+.stats{bottom:12px;left:10px;min-width:130px}
+.stats h3{font-size:10px;color:rgba(255,255,255,.4);margin-bottom:6px;letter-spacing:1px;text-transform:uppercase}
+.sr{display:flex;justify-content:space-between;padding:2px 0}
+.sr .l{color:rgba(255,255,255,.4)}.sr .v{font-weight:700;font-size:13px}
+.blue{color:#00b4ff}.green{color:#4caf50}.red{color:#ff5252}
+.leg{bottom:12px;right:10px;max-height:200px;overflow-y:auto;max-width:160px}
+.leg h3{font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px;letter-spacing:1px;text-transform:uppercase}
+.li{display:flex;align-items:center;gap:5px;padding:1px 0;font-size:10px;color:rgba(255,255,255,.5)}
+.ld{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.loader{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2000;
+  background:rgba(10,10,26,.95);padding:18px 32px;border-radius:12px;
+  border:1px solid rgba(0,180,255,.2);color:#fff;font-size:13px;display:flex;align-items:center;gap:10px}
+.sp{width:20px;height:20px;border:3px solid rgba(0,180,255,.2);border-top-color:#00b4ff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.leaflet-popup-content-wrapper{background:rgba(10,10,26,.95)!important;color:#fff!important;
+  border:1px solid rgba(0,180,255,.2)!important;border-radius:10px!important}
+.leaflet-popup-tip{background:rgba(10,10,26,.95)!important}
+.pp{min-width:180px}.pp h3{margin:0 0 4px;font-size:13px}
+.pp p{margin:2px 0;font-size:11px;color:rgba(255,255,255,.6)}
+.pp a{color:#00b4ff;text-decoration:none;font-size:11px}
+.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:9px;font-weight:600;color:#fff}
+</style>
+</head>
+<body>
+<div class="hdr"><div class="pulse"></div><div><h1>Пульс города</h1><small>НИЖНЕВАРТОВСК</small></div></div>
+<div id="map"></div>
+<div class="panel stats"><h3>Статистика</h3>
+<div class="sr"><span class="l">Всего</span><span class="v blue" id="st">—</span></div>
+<div class="sr"><span class="l">Открыто</span><span class="v red" id="so">—</span></div>
+<div class="sr"><span class="l">Решено</span><span class="v green" id="sr">—</span></div></div>
+<div class="panel leg" id="leg"><h3>Категории</h3></div>
+<div class="loader" id="ld"><div class="sp"></div>Загрузка…</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"><\/script>
+<script>
+const tg=window.Telegram&&window.Telegram.WebApp;if(tg){tg.ready();tg.expand();tg.BackButton.show();tg.onEvent('backButtonClicked',()=>tg.close())}
+const FB='https://anthropic-proxy.uiredepositionherzo.workers.dev/firebase';
+const C={'Дороги':'#FF5722','ЖКХ':'#2196F3','Освещение':'#FFC107','Транспорт':'#4CAF50',
+'Благоустройство':'#9C27B0','Экология':'#00BCD4','Животные':'#FF9800','Торговля':'#E91E63',
+'Безопасность':'#F44336','Снег/Наледь':'#03A9F4','Медицина':'#009688','Образование':'#673AB7',
+'Связь':'#3F51B5','Строительство':'#607D8B','Парковки':'#9E9E9E','Прочее':'#795548',
+'ЧП':'#D32F2F','Газоснабжение':'#FF6F00','Водоснабжение и канализация':'#0288D1',
+'Отопление':'#D84315','Бытовой мусор':'#689F38','Лифты и подъезды':'#455A64',
+'Парки и скверы':'#388E3C','Спортивные площадки':'#1976D2','Детские площадки':'#F06292'};
+const SL={pending:'Новая',open:'Открыта',in_progress:'В работе',resolved:'Решена'};
+const SC={pending:'#FFC107',open:'#FF5252',in_progress:'#FF9800',resolved:'#4CAF50'};
+const map=L.map('map',{zoomControl:false}).setView([60.9344,76.5531],13);
+L.control.zoom({position:'topright'}).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:19}).addTo(map);
+const cl=L.markerClusterGroup({maxClusterRadius:50,showCoverageOnHover:false,
+iconCreateFunction(c){const n=c.getChildCount(),s=n<10?34:n<50?42:50;
+return L.divIcon({html:'<div style="width:'+s+'px;height:'+s+'px;border-radius:50%;background:rgba(0,140,255,.85);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;border:2px solid rgba(255,255,255,.4);box-shadow:0 2px 10px rgba(0,140,255,.5)">'+n+'</div>',className:'',iconSize:[s,s]})}});
+function ic(cat){const c=C[cat]||'#795548';return L.divIcon({className:'',
+html:'<div style="width:24px;height:24px;border-radius:50%;background:'+c+';border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',
+iconSize:[24,24],iconAnchor:[12,12]})}
+function fd(s){if(!s)return'—';return new Date(s).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'})}
+async function load(){try{
+const r=await fetch(FB+'/complaints.json');if(!r.ok)throw new Error(r.status);
+const d=await r.json();if(!d){document.getElementById('ld').innerHTML='📭 Нет жалоб';return}
+const items=Object.values(d);cl.clearLayers();
+let t=0,o=0,rv=0;const cats={};
+items.forEach(c=>{const lat=c.lat,lng=c.lng;if(!lat||!lng)return;t++;
+const st=c.status||'open';if(st==='open'||st==='pending')o++;if(st==='resolved')rv++;
+cats[c.category]=(cats[c.category]||0)+1;
+const col=C[c.category]||'#795548',stC=SC[st]||'#9E9E9E',stL=SL[st]||st;
+const m=L.marker([lat,lng],{icon:ic(c.category)});
+let pp='<div class="pp"><h3 style="color:'+col+'">'+(c.category||'Прочее')+'</h3>';
+pp+='<p><b>'+((c.summary||c.description||'—').substring(0,100))+'</b></p>';
+pp+='<p>📍 '+(c.address||'—')+'</p><p>📅 '+fd(c.created_at)+'</p>';
+pp+='<span class="badge" style="background:'+stC+'">'+stL+'</span>';
+if(lat&&lng){pp+='<p><a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+lat+','+lng+'" target="_blank">👁 Street View</a> · <a href="https://www.google.com/maps/search/?api=1&query='+lat+','+lng+'" target="_blank">📌 Maps</a></p>'}
+if(c.source_name)pp+='<p>📢 '+c.source_name+'</p>';
+pp+='</div>';m.bindPopup(pp);cl.addLayer(m)});
+map.addLayer(cl);if(t)try{map.fitBounds(cl.getBounds(),{padding:[40,40]})}catch(_){}
+document.getElementById('st').textContent=t;
+document.getElementById('so').textContent=o;
+document.getElementById('sr').textContent=rv;
+const leg=document.getElementById('leg');leg.innerHTML='<h3>Категории</h3>';
+Object.entries(cats).sort((a,b)=>b[1]-a[1]).forEach(([cat,n])=>{
+leg.innerHTML+='<div class="li"><div class="ld" style="background:'+(C[cat]||'#795548')+'"></div>'+cat+' ('+n+')</div>'});
+document.getElementById('ld').style.display='none';
+}catch(e){document.getElementById('ld').innerHTML='❌ '+e.message}}
+load();setInterval(load,30000);
+<\/script></body></html>`;
+
+

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пульс города — Карта проблем</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Inter',sans-serif; background:#0a0a1a; }
+        #map { width:100%; height:100vh; }
+
+        .header {
+            position:absolute; top:12px; left:50%; transform:translateX(-50%);
+            z-index:1000; background:rgba(10,10,26,.92); backdrop-filter:blur(12px);
+            padding:12px 28px; border-radius:14px;
+            border:1px solid rgba(0,180,255,.2);
+            display:flex; align-items:center; gap:12px;
+        }
+        .header svg { width:28px; height:28px; fill:#00b4ff; }
+        .header h1 { font-size:18px; font-weight:800; color:#fff; }
+        .header span { font-size:12px; color:rgba(255,255,255,.45); letter-spacing:2px; }
+
+        .stats {
+            position:absolute; bottom:20px; left:20px; z-index:1000;
+            background:rgba(10,10,26,.92); backdrop-filter:blur(12px);
+            padding:16px 20px; border-radius:14px;
+            border:1px solid rgba(0,180,255,.15); min-width:180px;
+        }
+        .stats h3 { font-size:13px; color:rgba(255,255,255,.5); margin-bottom:10px; letter-spacing:1px; text-transform:uppercase; }
+        .stat-row { display:flex; justify-content:space-between; padding:5px 0; }
+        .stat-row .label { color:rgba(255,255,255,.5); font-size:13px; }
+        .stat-row .val { color:#fff; font-weight:700; font-size:14px; }
+        .stat-row .val.blue { color:#00b4ff; }
+        .stat-row .val.green { color:#4caf50; }
+        .stat-row .val.red { color:#ff5252; }
+
+        .legend {
+            position:absolute; bottom:20px; right:20px; z-index:1000;
+            background:rgba(10,10,26,.92); backdrop-filter:blur(12px);
+            padding:14px 18px; border-radius:14px;
+            border:1px solid rgba(0,180,255,.15);
+            max-height:260px; overflow-y:auto;
+        }
+        .legend h3 { font-size:13px; color:rgba(255,255,255,.5); margin-bottom:8px; letter-spacing:1px; text-transform:uppercase; }
+        .legend-item { display:flex; align-items:center; gap:8px; padding:3px 0; font-size:12px; color:rgba(255,255,255,.7); }
+        .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+        .loading {
+            position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+            z-index:2000; background:rgba(10,10,26,.95); padding:24px 40px;
+            border-radius:14px; border:1px solid rgba(0,180,255,.2);
+            color:#fff; font-size:14px; display:flex; align-items:center; gap:12px;
+        }
+        .spinner { width:24px; height:24px; border:3px solid rgba(0,180,255,.2);
+            border-top-color:#00b4ff; border-radius:50%; animation:spin .8s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+
+        /* Стиль попапов */
+        .leaflet-popup-content-wrapper {
+            background:rgba(10,10,26,.95)!important; color:#fff!important;
+            border:1px solid rgba(0,180,255,.2)!important; border-radius:12px!important;
+        }
+        .leaflet-popup-tip { background:rgba(10,10,26,.95)!important; }
+        .popup { min-width:220px; }
+        .popup h3 { margin:0 0 8px; font-size:15px; }
+        .popup p { margin:4px 0; font-size:13px; color:rgba(255,255,255,.7); }
+        .popup .badge { display:inline-block; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:600; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+    <div>
+        <h1>Пульс города</h1>
+        <span>НИЖНЕВАРТОВСК</span>
+    </div>
+</div>
+
+<div id="map"></div>
+
+<div class="stats">
+    <h3>Статистика</h3>
+    <div class="stat-row"><span class="label">Всего</span><span class="val blue" id="s-total">—</span></div>
+    <div class="stat-row"><span class="label">Открыто</span><span class="val red" id="s-open">—</span></div>
+    <div class="stat-row"><span class="label">Решено</span><span class="val green" id="s-resolved">—</span></div>
+</div>
+
+<div class="legend" id="legend">
+    <h3>Категории</h3>
+</div>
+
+<div class="loading" id="loading"><div class="spinner"></div>Загрузка данных…</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+const COLORS = {
+    'Дороги':'#FF5722','ЖКХ':'#2196F3','Освещение':'#FFC107','Транспорт':'#4CAF50',
+    'Благоустройство':'#9C27B0','Экология':'#00BCD4','Животные':'#FF9800',
+    'Торговля':'#E91E63','Безопасность':'#F44336','Снег/Наледь':'#03A9F4',
+    'Медицина':'#009688','Образование':'#673AB7','Связь':'#3F51B5',
+    'Строительство':'#607D8B','Парковки':'#9E9E9E','Прочее':'#795548',
+    'ЧП':'#D32F2F','Газоснабжение':'#FF6F00','Водоснабжение и канализация':'#0288D1',
+    'Отопление':'#D84315','Бытовой мусор':'#689F38','Лифты и подъезды':'#455A64',
+    'Парки и скверы':'#388E3C','Спортивные площадки':'#1976D2','Детские площадки':'#F06292',
+};
+
+const STATUS_LABEL = { pending:'Новая', open:'Открыта', in_progress:'В работе', resolved:'Решена', rejected:'Отклонена' };
+const STATUS_COLOR = { pending:'#FFC107', open:'#FF5252', in_progress:'#FF9800', resolved:'#4CAF50', rejected:'#9E9E9E' };
+
+// Определяем базовый URL API (тот же хост, порт 8000)
+const API = window.location.port === '8000'
+    ? window.location.origin
+    : window.location.protocol + '//' + window.location.hostname + ':8000';
+
+const map = L.map('map', { zoomControl: false }).setView([60.9344, 76.5531], 13);
+
+L.control.zoom({ position:'topright' }).addTo(map);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'© OpenStreetMap', maxZoom:19
+}).addTo(map);
+
+const cluster = L.markerClusterGroup({
+    maxClusterRadius:50, spiderfyOnMaxZoom:true,
+    showCoverageOnHover:false, zoomToBoundsOnClick:true,
+    iconCreateFunction(c) {
+        const n = c.getChildCount();
+        const size = n < 10 ? 36 : n < 50 ? 44 : 52;
+        return L.divIcon({
+            html:`<div style="
+                width:${size}px;height:${size}px;border-radius:50%;
+                background:rgba(0,140,255,.85);color:#fff;
+                display:flex;align-items:center;justify-content:center;
+                font-weight:700;font-size:13px;font-family:Inter,sans-serif;
+                border:2px solid rgba(255,255,255,.4);
+                box-shadow:0 2px 12px rgba(0,140,255,.5);
+            ">${n}</div>`,
+            className:'', iconSize:[size,size]
+        });
+    }
+});
+
+function makeIcon(cat) {
+    const c = COLORS[cat] || '#795548';
+    return L.divIcon({
+        className:'',
+        html:`<div style="width:28px;height:28px;border-radius:50%;background:${c};
+            border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);"></div>`,
+        iconSize:[28,28], iconAnchor:[14,14]
+    });
+}
+
+function fmtDate(s) {
+    if (!s) return '—';
+    const d = new Date(s);
+    return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+
+async function load() {
+    try {
+        const r = await fetch(API + '/api/reports');
+        if (!r.ok) throw new Error(r.status);
+        const data = await r.json();
+        render(data);
+    } catch(e) {
+        console.warn('API недоступен, пробуем /complaints…', e);
+        try {
+            const r2 = await fetch(API + '/complaints?per_page=100');
+            if (!r2.ok) throw new Error(r2.status);
+            const j = await r2.json();
+            render(j.data || []);
+        } catch(e2) {
+            console.error('Не удалось загрузить данные', e2);
+            document.getElementById('loading').innerHTML = '❌ Нет данных. Проверьте API.';
+        }
+    }
+}
+
+function render(items) {
+    cluster.clearLayers();
+    let total=0, open=0, resolved=0;
+    const cats = {};
+
+    items.forEach(c => {
+        const lat = c.latitude ?? c.lat;
+        const lng = c.longitude ?? c.lng;
+        if (!lat || !lng) return;
+
+        total++;
+        const st = c.status || 'open';
+        if (st==='open'||st==='pending') open++;
+        if (st==='resolved') resolved++;
+        cats[c.category] = (cats[c.category]||0) + 1;
+
+        const col = COLORS[c.category] || '#795548';
+        const stCol = STATUS_COLOR[st] || '#9E9E9E';
+        const stLbl = STATUS_LABEL[st] || st;
+
+        const m = L.marker([lat, lng], { icon: makeIcon(c.category) });
+        m.bindPopup(`<div class="popup">
+            <h3 style="color:${col}">${c.category || 'Прочее'}</h3>
+            <p><b>${c.title || c.description || '—'}</b></p>
+            <p>📍 ${c.address || 'Адрес не указан'}</p>
+            <p>📅 ${fmtDate(c.created_at)}</p>
+            <span class="badge" style="background:${stCol};color:#fff">${stLbl}</span>
+        </div>`);
+        cluster.addLayer(m);
+    });
+
+    map.addLayer(cluster);
+    if (total) {
+        try { map.fitBounds(cluster.getBounds(), { padding:[40,40] }); } catch(_){}
+    }
+
+    document.getElementById('s-total').textContent = total;
+    document.getElementById('s-open').textContent = open;
+    document.getElementById('s-resolved').textContent = resolved;
+
+    // Легенда
+    const leg = document.getElementById('legend');
+    leg.innerHTML = '<h3>Категории</h3>';
+    Object.entries(cats).sort((a,b)=>b[1]-a[1]).forEach(([cat,n]) => {
+        leg.innerHTML += `<div class="legend-item"><div class="legend-dot" style="background:${COLORS[cat]||'#795548'}"></div>${cat} (${n})</div>`;
+    });
+
+    document.getElementById('loading').style.display = 'none';
+}
+
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>

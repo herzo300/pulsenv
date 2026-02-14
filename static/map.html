@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Карта проблем - СообщиО</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        #map { width: 100vw; height: 100vh; }
+        .legend {
+            position: absolute; top: 20px; right: 20px;
+            background: white; padding: 15px; border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 1000;
+        }
+        .legend-title { font-weight: bold; margin-bottom: 10px; font-size: 14px; }
+        .legend-item { display: flex; align-items: center; margin: 5px 0; font-size: 13px; }
+        .legend-color {
+            width: 16px; height: 16px; border-radius: 50%;
+            margin-right: 8px; border: 2px solid white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .loading {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: white; padding: 30px 50px;
+            border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 2000;
+        }
+        .loading-text { font-size: 18px; font-weight: bold; color: #333; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="legend">
+        <div class="legend-title">Легенда</div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ff6b6b;"></div>
+            <span>Открыто</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ffd93d;"></div>
+            <span>В работе</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #6bcb77;"></div>
+            <span>Решено</span>
+        </div>
+    </div>
+    <div class="loading">
+        <div class="loading-text">Загрузка карты...</div>
+    </div>
+
+    <script>
+        let map = L.map('map').setView([60.5403, 76.5629], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        let markers = [];
+        
+        fetch('/complaints/list?limit=100')
+            .then(response => response.json())
+            .then(data => {
+                data.data.forEach(complaint => {
+                    if (complaint.latitude && complaint.longitude) {
+                        const statusColor = complaint.status === 'open' ? '#ff6b6b' :
+                                          complaint.status === 'pending' ? '#ffd93d' : '#6bcb77';
+                        const marker = L.marker([complaint.latitude, complaint.longitude])
+                            .bindPopup(`
+                                <div style="font-family: 'Segoe UI', sans-serif; max-width: 300px;">
+                                    <h3 style="margin: 0 0 10px 0; color: ${statusColor}; font-size: 16px;">
+                                        ${complaint.category}
+                                    </h3>
+                                    <p style="margin: 0 0 10px 0; font-weight: bold; font-size: 14px;">
+                                        ${complaint.title}
+                                    </p>
+                                    <p style="margin: 0 0 10px 0; font-size: 12px; color: #666;">
+                                        ${complaint.description || 'Нет описания'}
+                                    </p>
+                                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
+                                        <span style="display: inline-block; width: 10px; height: 10px; background: ${statusColor}; border-radius: 50%; margin-right: 5px;"></span>
+                                        <span style="font-size: 11px;">${complaint.status === 'open' ? 'Открыто' : complaint.status === 'pending' ? 'В работе' : 'Решено'}</span>
+                                    </div>
+                                    <div style="margin-top: 10px; font-size: 11px; color: #999;">
+                                        ${complaint.created_at ? 'Дата: ' + new Date(complaint.created_at).toLocaleDateString('ru-RU') : ''}
+                                    </div>
+                                </div>
+                            `);
+                        map.addLayer(marker);
+                        markers.push(marker);
+                    }
+                });
+                document.querySelector('.loading').style.display = 'none';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.querySelector('.loading').innerHTML = '<div class="loading-text">Ошибка загрузки данных</div>';
+            });
+    </script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+name: puls_goroda
+description: Мобильный мониторинг города
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'  # ✅ Dart 3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  
+  # Карта
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  flutter_map_marker_cluster: ^1.4.0
+  
+  # API + данные
+  http: ^1.2.2
+  shared_preferences: ^2.3.2
+  
+  # Медиа
+  image_picker: ^1.1.2
+  geocoding: ^3.0.0
+  
+  # UI
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Карта проблем - СообщиО</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+        }
+        
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: 1;
+        }
+        
+        .stats-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--tg-theme-bg-color, white);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            max-width: 250px;
+            font-size: 14px;
+        }
+        
+        .stats-panel h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: var(--tg-theme-text-color, #000);
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid var(--tg-theme-hint-color, #eee);
+        }
+        
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+        
+        .stat-label {
+            color: var(--tg-theme-hint-color, #999);
+        }
+        
+        .stat-value {
+            font-weight: bold;
+            color: var(--tg-theme-text-color, #000);
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 2000;
+            background: var(--tg-theme-bg-color, white);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .loading-spinner {
+            border: 3px solid var(--tg-theme-hint-color, #f3f3f3);
+            border-top: 3px solid var(--tg-theme-button-color, #3498db);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .category-legend {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: var(--tg-theme-bg-color, white);
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 3px 0;
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+        <div>Загрузка карты...</div>
+    </div>
+    
+    <div id="map"></div>
+    
+    <div class="stats-panel">
+        <h3>📊 Статистика</h3>
+        <div class="stat-item">
+            <span class="stat-label">Всего жалоб:</span>
+            <span class="stat-value" id="total-count">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">🆕 Новые:</span>
+            <span class="stat-value" id="new-count">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">⚙️ В работе:</span>
+            <span class="stat-value" id="progress-count">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">✅ Решены:</span>
+            <span class="stat-value" id="resolved-count">0</span>
+        </div>
+    </div>
+    
+    <div class="category-legend" id="legend">
+        <strong>Категории:</strong>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    
+    <script>
+        // Инициализация Telegram Web App
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+        
+        // Применяем тему Telegram
+        document.body.style.backgroundColor = tg.themeParams.bg_color || '#ffffff';
+        
+        // Категории и цвета
+        const categoryColors = {
+            'Дороги': '#e74c3c',
+            'ЖКХ': '#3498db',
+            'Освещение': '#f39c12',
+            'Транспорт': '#9b59b6',
+            'Благоустройство': '#2ecc71',
+            'Экология': '#27ae60',
+            'Животные': '#e67e22',
+            'Торговля': '#16a085',
+            'Безопасность': '#c0392b',
+            'Снег/Наледь': '#ecf0f1',
+            'Медицина': '#e91e63',
+            'Образование': '#673ab7',
+            'Связь': '#00bcd4',
+            'Строительство': '#795548',
+            'Парковки': '#607d8b',
+            'other': '#95a5a6'
+        };
+        
+        // Инициализация карты
+        const map = L.map('map').setView([60.9344, 76.5531], 13);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+        
+        // Кластеризация маркеров
+        const markers = L.markerClusterGroup({
+            chunkedLoading: true,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true
+        });
+        
+        // Загрузка данных
+        async function loadReports() {
+            try {
+                const response = await fetch('http://localhost:8000/api/reports');
+                const reports = await response.json();
+                
+                // Очищаем маркеры
+                markers.clearLayers();
+                
+                // Статистика
+                let stats = {
+                    total: 0,
+                    pending: 0,
+                    in_progress: 0,
+                    resolved: 0,
+                    categories: {}
+                };
+                
+                // Добавляем маркеры
+                reports.forEach(report => {
+                    if (report.lat && report.lng) {
+                        stats.total++;
+                        
+                        // Подсчет по статусам
+                        if (report.status === 'pending') stats.pending++;
+                        else if (report.status === 'in_progress') stats.in_progress++;
+                        else if (report.status === 'resolved') stats.resolved++;
+                        
+                        // Подсчет по категориям
+                        stats.categories[report.category] = (stats.categories[report.category] || 0) + 1;
+                        
+                        // Цвет маркера по категории
+                        const color = categoryColors[report.category] || categoryColors['other'];
+                        
+                        // Создаем маркер
+                        const marker = L.circleMarker([report.lat, report.lng], {
+                            radius: 8,
+                            fillColor: color,
+                            color: '#fff',
+                            weight: 2,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        });
+                        
+                        // Попап с информацией
+                        const statusEmoji = {
+                            'pending': '🆕',
+                            'in_progress': '⚙️',
+                            'resolved': '✅',
+                            'rejected': '❌'
+                        };
+                        
+                        const popupContent = `
+                            <div style="min-width: 200px;">
+                                <h3 style="margin: 0 0 10px 0; color: ${color};">${report.category}</h3>
+                                <p style="margin: 5px 0;"><strong>Статус:</strong> ${statusEmoji[report.status] || '📋'} ${report.status}</p>
+                                <p style="margin: 5px 0;"><strong>Адрес:</strong> ${report.address || 'Не указан'}</p>
+                                <p style="margin: 5px 0;"><strong>Описание:</strong> ${report.description || report.title}</p>
+                                <p style="margin: 5px 0; font-size: 11px; color: #999;">
+                                    ${new Date(report.created_at).toLocaleDateString('ru-RU')}
+                                </p>
+                            </div>
+                        `;
+                        
+                        marker.bindPopup(popupContent);
+                        markers.addLayer(marker);
+                    }
+                });
+                
+                map.addLayer(markers);
+                
+                // Обновляем статистику
+                document.getElementById('total-count').textContent = stats.total;
+                document.getElementById('new-count').textContent = stats.pending;
+                document.getElementById('progress-count').textContent = stats.in_progress;
+                document.getElementById('resolved-count').textContent = stats.resolved;
+                
+                // Обновляем легенду
+                updateLegend(stats.categories);
+                
+                // Скрываем загрузку
+                document.getElementById('loading').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Ошибка загрузки данных:', error);
+                document.getElementById('loading').innerHTML = '<div>❌ Ошибка загрузки данных</div>';
+            }
+        }
+        
+        // Обновление легенды
+        function updateLegend(categories) {
+            const legend = document.getElementById('legend');
+            legend.innerHTML = '<strong>Категории:</strong>';
+            
+            const sorted = Object.entries(categories).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            
+            sorted.forEach(([category, count]) => {
+                const color = categoryColors[category] || categoryColors['other'];
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                item.innerHTML = `
+                    <div class="legend-color" style="background: ${color};"></div>
+                    <span>${category} (${count})</span>
+                `;
+                legend.appendChild(item);
+            });
+        }
+        
+        // Загружаем данные
+        loadReports();
+        
+        // Автообновление каждые 30 секунд
+        setInterval(loadReports, 30000);
+        
+        // Обработка закрытия
+        tg.onEvent('backButtonClicked', () => {
+            tg.close();
+        });
+    </script>
+</body>
+</html>

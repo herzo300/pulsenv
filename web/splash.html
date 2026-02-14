@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пульс города — Нижневартовск</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0a1a;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .scene {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* Фоновые круги-пульсы */
+        .bg-pulse {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0;
+            animation: bgPulse 4s ease-out infinite;
+        }
+        .bg-pulse:nth-child(1) {
+            width: 600px; height: 600px;
+            border: 1px solid rgba(0, 180, 255, 0.15);
+            animation-delay: 0s;
+        }
+        .bg-pulse:nth-child(2) {
+            width: 900px; height: 900px;
+            border: 1px solid rgba(0, 180, 255, 0.1);
+            animation-delay: 1s;
+        }
+        .bg-pulse:nth-child(3) {
+            width: 1200px; height: 1200px;
+            border: 1px solid rgba(0, 180, 255, 0.06);
+            animation-delay: 2s;
+        }
+
+        @keyframes bgPulse {
+            0%   { transform: scale(0.3); opacity: 0.8; }
+            100% { transform: scale(1.2); opacity: 0; }
+        }
+
+        /* Частицы */
+        .particles {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+        }
+        .particle {
+            position: absolute;
+            width: 3px; height: 3px;
+            background: rgba(0, 200, 255, 0.6);
+            border-radius: 50%;
+            animation: float linear infinite;
+        }
+
+        @keyframes float {
+            0%   { transform: translateY(100vh) scale(0); opacity: 0; }
+            10%  { opacity: 1; }
+            90%  { opacity: 1; }
+            100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+        }
+
+        /* Сердце-пульс */
+        .heart-container {
+            position: relative;
+            width: 120px; height: 120px;
+            margin-bottom: 40px;
+            animation: fadeSlideUp 1s ease-out 0.3s both;
+        }
+
+        .heart-glow {
+            position: absolute;
+            inset: -20px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0, 180, 255, 0.4) 0%, transparent 70%);
+            animation: heartGlow 1.5s ease-in-out infinite;
+        }
+
+        .heart-ring {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 2px solid rgba(0, 200, 255, 0.3);
+            animation: ringPulse 1.5s ease-in-out infinite;
+        }
+
+        .heart-ring-outer {
+            position: absolute;
+            inset: -15px;
+            border-radius: 50%;
+            border: 1px solid rgba(0, 200, 255, 0.15);
+            animation: ringPulse 1.5s ease-in-out 0.3s infinite;
+        }
+
+        .heart-icon {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #00b4ff, #0066ff);
+            border-radius: 50%;
+            animation: heartBeat 1.5s ease-in-out infinite;
+            box-shadow: 0 0 40px rgba(0, 140, 255, 0.5);
+        }
+
+        .heart-icon svg {
+            width: 50px; height: 50px;
+            fill: white;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+
+        @keyframes heartBeat {
+            0%, 100% { transform: scale(1); }
+            15%      { transform: scale(1.15); }
+            30%      { transform: scale(1); }
+            45%      { transform: scale(1.08); }
+        }
+
+        @keyframes heartGlow {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50%      { opacity: 1; transform: scale(1.1); }
+        }
+
+        @keyframes ringPulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50%      { transform: scale(1.15); opacity: 1; }
+        }
+
+        /* Текст */
+        .title {
+            font-size: 52px;
+            font-weight: 900;
+            letter-spacing: -1px;
+            text-align: center;
+            line-height: 1.1;
+            animation: fadeSlideUp 1s ease-out 0.6s both;
+        }
+
+        .title-pulse {
+            background: linear-gradient(135deg, #00d4ff, #0088ff, #00d4ff);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 3s ease infinite;
+        }
+
+        .title-city {
+            display: block;
+            font-size: 28px;
+            font-weight: 300;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 8px;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50%      { background-position: 100% 50%; }
+        }
+
+        /* Пульс-линия (кардиограмма) */
+        .ecg-line {
+            margin-top: 40px;
+            width: 300px;
+            height: 60px;
+            animation: fadeSlideUp 1s ease-out 0.9s both;
+        }
+
+        .ecg-line svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .ecg-path {
+            fill: none;
+            stroke: url(#ecgGradient);
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-dasharray: 400;
+            stroke-dashoffset: 400;
+            animation: drawEcg 2s ease-in-out 1.2s infinite;
+        }
+
+        @keyframes drawEcg {
+            0%   { stroke-dashoffset: 400; opacity: 0.3; }
+            50%  { stroke-dashoffset: 0; opacity: 1; }
+            100% { stroke-dashoffset: -400; opacity: 0.3; }
+        }
+
+        /* Статистика */
+        .stats-row {
+            display: flex;
+            gap: 40px;
+            margin-top: 50px;
+            animation: fadeSlideUp 1s ease-out 1.2s both;
+        }
+
+        .stat-box {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 800;
+            color: #00d4ff;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 400;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 4px;
+        }
+
+        /* Кнопка входа */
+        .enter-btn {
+            margin-top: 50px;
+            padding: 16px 48px;
+            background: linear-gradient(135deg, #00b4ff, #0066ff);
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            letter-spacing: 1px;
+            animation: fadeSlideUp 1s ease-out 1.5s both;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 30px rgba(0, 140, 255, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .enter-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 40px rgba(0, 140, 255, 0.6);
+        }
+
+        .enter-btn:active {
+            transform: translateY(0);
+        }
+
+        .enter-btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%);
+            transform: translateX(-100%);
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0%   { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* Подвал */
+        .footer {
+            position: absolute;
+            bottom: 24px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.2);
+            letter-spacing: 2px;
+            animation: fadeSlideUp 1s ease-out 1.8s both;
+        }
+
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Адаптив */
+        @media (max-width: 600px) {
+            .title { font-size: 36px; }
+            .title-city { font-size: 18px; letter-spacing: 4px; }
+            .stats-row { gap: 24px; }
+            .stat-value { font-size: 28px; }
+            .heart-container { width: 90px; height: 90px; margin-bottom: 30px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="scene">
+        <!-- Фоновые пульсы -->
+        <div class="bg-pulse"></div>
+        <div class="bg-pulse"></div>
+        <div class="bg-pulse"></div>
+
+        <!-- Частицы -->
+        <div class="particles" id="particles"></div>
+
+        <!-- Сердце -->
+        <div class="heart-container">
+            <div class="heart-glow"></div>
+            <div class="heart-ring-outer"></div>
+            <div class="heart-ring"></div>
+            <div class="heart-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            </div>
+        </div>
+
+        <!-- Заголовок -->
+        <h1 class="title">
+            <span class="title-pulse">Пульс города</span>
+            <span class="title-city">Нижневартовск</span>
+        </h1>
+
+        <!-- Кардиограмма -->
+        <div class="ecg-line">
+            <svg viewBox="0 0 300 60">
+                <defs>
+                    <linearGradient id="ecgGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color: rgba(0,180,255,0.1)" />
+                        <stop offset="50%" style="stop-color: rgba(0,200,255,1)" />
+                        <stop offset="100%" style="stop-color: rgba(0,180,255,0.1)" />
+                    </linearGradient>
+                </defs>
+                <path class="ecg-path" d="M0,30 L60,30 L75,30 L85,10 L95,50 L105,5 L115,55 L125,30 L140,30 L200,30 L215,30 L225,12 L235,48 L245,8 L255,52 L265,30 L280,30 L300,30" />
+            </svg>
+        </div>
+
+        <!-- Статистика -->
+        <div class="stats-row">
+            <div class="stat-box">
+                <div class="stat-value" id="stat1">0</div>
+                <div class="stat-label">Жалоб</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="stat2">0</div>
+                <div class="stat-label">Решено</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="stat3">0</div>
+                <div class="stat-label">Каналов</div>
+            </div>
+        </div>
+
+        <!-- Кнопка -->
+        <button class="enter-btn" onclick="window.location.href='simple_map.html'">
+            Открыть карту →
+        </button>
+
+        <!-- Подвал -->
+        <div class="footer">ПУЛЬС ГОРОДА © 2026</div>
+    </div>
+
+    <script>
+        // Генерация частиц
+        const container = document.getElementById('particles');
+        for (let i = 0; i < 40; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.animationDuration = (4 + Math.random() * 6) + 's';
+            p.style.animationDelay = Math.random() * 5 + 's';
+            p.style.width = p.style.height = (2 + Math.random() * 3) + 'px';
+            container.appendChild(p);
+        }
+
+        // Анимация счётчиков
+        function animateCounter(id, target, duration) {
+            const el = document.getElementById(id);
+            const start = performance.now();
+            function tick(now) {
+                const elapsed = now - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                el.textContent = Math.round(target * eased);
+                if (progress < 1) requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+        }
+
+        // Запуск счётчиков с задержкой
+        setTimeout(() => animateCounter('stat1', 47, 2000), 1500);
+        setTimeout(() => animateCounter('stat2', 12, 2000), 1700);
+        setTimeout(() => animateCounter('stat3', 8, 1500), 1900);
+    </script>
+</body>
+</html>

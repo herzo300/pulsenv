@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Пульс города — Карта проблем</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --bg:var(--tg-theme-bg-color,#0a0a1a);
+            --text:var(--tg-theme-text-color,#fff);
+            --hint:var(--tg-theme-hint-color,rgba(255,255,255,.5));
+            --accent:var(--tg-theme-button-color,#00b4ff);
+            --panel:rgba(10,10,26,.92);
+        }
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,sans-serif;
+            background:var(--bg);color:var(--text);overflow:hidden}
+        #map{width:100%;height:100vh}
+
+        .hdr{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:1000;
+            background:var(--panel);backdrop-filter:blur(12px);
+            padding:10px 24px;border-radius:14px;border:1px solid rgba(0,180,255,.2);
+            display:flex;align-items:center;gap:10px;pointer-events:auto}
+        .hdr h1{font-size:16px;font-weight:800;color:var(--text)}
+        .hdr small{font-size:10px;color:var(--hint);letter-spacing:2px;display:block}
+        .hdr .pulse{width:10px;height:10px;border-radius:50%;background:#4caf50;
+            animation:blink 2s infinite}
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+        .panel{position:fixed;z-index:1000;background:var(--panel);backdrop-filter:blur(12px);
+            padding:12px 16px;border-radius:14px;border:1px solid rgba(0,180,255,.15);
+            pointer-events:auto;font-size:13px}
+        .stats{bottom:16px;left:12px;min-width:150px}
+        .stats h3{font-size:11px;color:var(--hint);margin-bottom:8px;letter-spacing:1px;text-transform:uppercase}
+        .sr{display:flex;justify-content:space-between;padding:3px 0}
+        .sr .l{color:var(--hint)}
+        .sr .v{font-weight:700;font-size:14px}
+        .blue{color:#00b4ff}.green{color:#4caf50}.red{color:#ff5252}.yellow{color:#ffc107}
+
+        .leg{bottom:16px;right:12px;max-height:220px;overflow-y:auto;max-width:180px}
+        .leg h3{font-size:11px;color:var(--hint);margin-bottom:6px;letter-spacing:1px;text-transform:uppercase}
+        .li{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:11px;color:var(--hint)}
+        .ld{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+        .loader{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2000;
+            background:var(--panel);padding:20px 36px;border-radius:14px;
+            border:1px solid rgba(0,180,255,.2);color:var(--text);font-size:14px;
+            display:flex;align-items:center;gap:12px}
+        .sp{width:22px;height:22px;border:3px solid rgba(0,180,255,.2);
+            border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        .leaflet-popup-content-wrapper{background:var(--panel)!important;color:var(--text)!important;
+            border:1px solid rgba(0,180,255,.2)!important;border-radius:12px!important}
+        .leaflet-popup-tip{background:var(--panel)!important}
+        .pp{min-width:200px}
+        .pp h3{margin:0 0 6px;font-size:14px}
+        .pp p{margin:3px 0;font-size:12px;color:var(--hint)}
+        .pp a{color:var(--accent);text-decoration:none;font-size:12px}
+        .badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600;color:#fff}
+
+        .filter-bar{position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:1000;
+            display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:95vw}
+        .fbtn{background:var(--panel);border:1px solid rgba(0,180,255,.15);color:var(--hint);
+            padding:5px 12px;border-radius:20px;font-size:11px;cursor:pointer;
+            backdrop-filter:blur(8px);transition:.2s}
+        .fbtn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+        .fbtn:hover{border-color:var(--accent)}
+    </style>
+</head>
+<body>
+
+<div class="hdr">
+    <div class="pulse"></div>
+    <div><h1>Пульс города</h1><small>НИЖНЕВАРТОВСК</small></div>
+</div>
+
+<div id="filters" class="filter-bar"></div>
+
+<div id="map"></div>
+
+<div class="panel stats">
+    <h3>Статистика</h3>
+    <div class="sr"><span class="l">Всего</span><span class="v blue" id="st">—</span></div>
+    <div class="sr"><span class="l">Открыто</span><span class="v red" id="so">—</span></div>
+    <div class="sr"><span class="l">Решено</span><span class="v green" id="sr">—</span></div>
+    <div class="sr"><span class="l">Источник</span><span class="v yellow" id="ss">—</span></div>
+</div>
+
+<div class="panel leg" id="leg"><h3>Категории</h3></div>
+
+<div class="loader" id="ld"><div class="sp"></div>Загрузка карты…</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+// ===== Telegram Web App =====
+const tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+// ===== Firebase RTDB через Cloudflare Worker (всегда доступен) =====
+const FIREBASE_URL = 'https://anthropic-proxy.uiredepositionherzo.workers.dev/firebase';
+
+// ===== Fallback: локальный API =====
+const LOCAL_API = window.location.port === '8000'
+    ? window.location.origin
+    : window.location.protocol + '//' + window.location.hostname + ':8000';
+
+// ===== Цвета категорий =====
+const C = {
+    'Дороги':'#FF5722','ЖКХ':'#2196F3','Освещение':'#FFC107','Транспорт':'#4CAF50',
+    'Благоустройство':'#9C27B0','Экология':'#00BCD4','Животные':'#FF9800',
+    'Торговля':'#E91E63','Безопасность':'#F44336','Снег/Наледь':'#03A9F4',
+    'Медицина':'#009688','Образование':'#673AB7','Связь':'#3F51B5',
+    'Строительство':'#607D8B','Парковки':'#9E9E9E','Прочее':'#795548',
+    'ЧП':'#D32F2F','Газоснабжение':'#FF6F00','Водоснабжение и канализация':'#0288D1',
+    'Отопление':'#D84315','Бытовой мусор':'#689F38','Лифты и подъезды':'#455A64',
+    'Парки и скверы':'#388E3C','Спортивные площадки':'#1976D2','Детские площадки':'#F06292',
+    'Социальная сфера':'#8E24AA','Трудовое право':'#5D4037',
+};
+const SL = {pending:'Новая',open:'Открыта',in_progress:'В работе',resolved:'Решена',rejected:'Отклонена'};
+const SC = {pending:'#FFC107',open:'#FF5252',in_progress:'#FF9800',resolved:'#4CAF50',rejected:'#9E9E9E'};
+
+// ===== Карта =====
+const map = L.map('map', {zoomControl:false}).setView([60.9344, 76.5531], 13);
+L.control.zoom({position:'topright'}).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'© OpenStreetMap', maxZoom:19
+}).addTo(map);
+
+const cluster = L.markerClusterGroup({
+    maxClusterRadius:50, spiderfyOnMaxZoom:true,
+    showCoverageOnHover:false, zoomToBoundsOnClick:true,
+    iconCreateFunction(c) {
+        const n = c.getChildCount();
+        const s = n < 10 ? 34 : n < 50 ? 42 : 50;
+        return L.divIcon({
+            html: `<div style="width:${s}px;height:${s}px;border-radius:50%;
+                background:rgba(0,140,255,.85);color:#fff;display:flex;align-items:center;
+                justify-content:center;font-weight:700;font-size:12px;
+                border:2px solid rgba(255,255,255,.4);
+                box-shadow:0 2px 10px rgba(0,140,255,.5)">${n}</div>`,
+            className:'', iconSize:[s,s]
+        });
+    }
+});
+
+function mkIcon(cat) {
+    const c = C[cat] || '#795548';
+    return L.divIcon({className:'',
+        html:`<div style="width:26px;height:26px;border-radius:50%;background:${c};
+            border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>`,
+        iconSize:[26,26], iconAnchor:[13,13]
+    });
+}
+
+function fmtDate(s) {
+    if (!s) return '—';
+    const d = new Date(s);
+    return d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit', year:'numeric'});
+}
+</script>
+<script>
+// ===== Данные и фильтры =====
+let allItems = [];
+let activeFilter = null;
+
+function buildFilters(cats) {
+    const bar = document.getElementById('filters');
+    bar.innerHTML = '';
+    const btn0 = document.createElement('div');
+    btn0.className = 'fbtn active';
+    btn0.textContent = 'Все';
+    btn0.onclick = () => { activeFilter = null; renderMarkers(); setActiveBtn(btn0); };
+    bar.appendChild(btn0);
+
+    Object.entries(cats).sort((a,b) => b[1]-a[1]).slice(0, 8).forEach(([cat]) => {
+        const btn = document.createElement('div');
+        btn.className = 'fbtn';
+        btn.textContent = cat;
+        btn.onclick = () => { activeFilter = cat; renderMarkers(); setActiveBtn(btn); };
+        bar.appendChild(btn);
+    });
+}
+
+function setActiveBtn(active) {
+    document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
+    active.classList.add('active');
+}
+
+function renderMarkers() {
+    cluster.clearLayers();
+    let total = 0, open = 0, resolved = 0;
+    const cats = {};
+    const items = activeFilter ? allItems.filter(c => c.category === activeFilter) : allItems;
+
+    items.forEach(c => {
+        const lat = c.lat ?? c.latitude;
+        const lng = c.lng ?? c.longitude;
+        if (!lat || !lng) return;
+        total++;
+        const st = c.status || 'open';
+        if (st === 'open' || st === 'pending') open++;
+        if (st === 'resolved') resolved++;
+        cats[c.category] = (cats[c.category] || 0) + 1;
+
+        const col = C[c.category] || '#795548';
+        const stC = SC[st] || '#9E9E9E';
+        const stL = SL[st] || st;
+
+        const m = L.marker([lat, lng], {icon: mkIcon(c.category)});
+
+        let popup = `<div class="pp">
+            <h3 style="color:${col}">${c.category || 'Прочее'}</h3>
+            <p><b>${(c.summary || c.title || c.description || '—').substring(0, 120)}</b></p>
+            <p>📍 ${c.address || 'Адрес не указан'}</p>
+            <p>📅 ${fmtDate(c.created_at)}</p>
+            <span class="badge" style="background:${stC}">${stL}</span>`;
+
+        if (lat && lng) {
+            const svUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
+            const mapUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+            popup += `<p><a href="${svUrl}" target="_blank">👁 Street View</a> · <a href="${mapUrl}" target="_blank">📌 Google Maps</a></p>`;
+        }
+        if (c.source_name) {
+            popup += `<p>📢 ${c.source_name}</p>`;
+        }
+        popup += '</div>';
+
+        m.bindPopup(popup);
+        cluster.addLayer(m);
+    });
+
+    map.addLayer(cluster);
+    if (total && !activeFilter) {
+        try { map.fitBounds(cluster.getBounds(), {padding:[40,40]}); } catch(_){}
+    }
+
+    document.getElementById('st').textContent = total;
+    document.getElementById('so').textContent = open;
+    document.getElementById('sr').textContent = resolved;
+
+    // Легенда
+    const leg = document.getElementById('leg');
+    leg.innerHTML = '<h3>Категории</h3>';
+    Object.entries(cats).sort((a,b) => b[1]-a[1]).forEach(([cat, n]) => {
+        leg.innerHTML += `<div class="li"><div class="ld" style="background:${C[cat]||'#795548'}"></div>${cat} (${n})</div>`;
+    });
+}
+
+// ===== Загрузка данных =====
+async function loadFromFirebase() {
+    const r = await fetch(FIREBASE_URL + '/complaints.json');
+    if (!r.ok) throw new Error('Firebase: ' + r.status);
+    const data = await r.json();
+    if (!data) return [];
+    return Object.entries(data).map(([id, d]) => ({id, ...d}));
+}
+
+async function loadFromAPI() {
+    // Пробуем несколько endpoint-ов
+    for (const path of ['/api/reports', '/complaints/list?limit=500', '/complaints?per_page=500']) {
+        try {
+            const r = await fetch(LOCAL_API + path, {headers:{'Bypass-Tunnel-Reminder':'true'}});
+            if (!r.ok) continue;
+            const j = await r.json();
+            if (Array.isArray(j)) return j;
+            if (j.data && Array.isArray(j.data)) return j.data;
+        } catch(_) {}
+    }
+    return [];
+}
+
+async function load() {
+    try {
+        // Приоритет: Firebase (всегда доступен через CF Worker)
+        let items = await loadFromFirebase();
+        let source = 'Firebase';
+
+        // Если Firebase пуст — пробуем локальный API
+        if (!items.length) {
+            items = await loadFromAPI();
+            source = 'API';
+        }
+
+        if (!items.length) {
+            document.getElementById('ld').innerHTML = '📭 Нет жалоб. Отправьте первую через бота!';
+            return;
+        }
+
+        allItems = items;
+        document.getElementById('ss').textContent = source;
+
+        // Считаем категории для фильтров
+        const cats = {};
+        items.forEach(c => { if (c.category) cats[c.category] = (cats[c.category]||0)+1; });
+        buildFilters(cats);
+
+        renderMarkers();
+        document.getElementById('ld').style.display = 'none';
+
+    } catch(e) {
+        console.error('Load error:', e);
+        document.getElementById('ld').innerHTML = '❌ Ошибка загрузки: ' + e.message;
+    }
+}
+
+load();
+setInterval(load, 30000);
+
+// Telegram back button
+if (tg) {
+    tg.BackButton.show();
+    tg.onEvent('backButtonClicked', () => tg.close());
+}
+</script>
+</body>
+</html>
