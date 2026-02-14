@@ -261,7 +261,7 @@ function dateKey(d){return d.toISOString().slice(0,10)}
 function parseDate(s){try{return new Date(s)}catch(e){return null}}
 
 // ═══ State ═══
-let allItems=[],filterCat=null,filterStatus=null,filterDay=null,knownIds=new Set(),mapReady=false,map,cluster;
+let allItems=[],filterCat=null,filterStatus=null,filterDay=null,filterMonth=null,knownIds=new Set(),mapReady=false,map,cluster;
 
 // ═══ Toast ═══
 let toastT=null;
@@ -270,28 +270,68 @@ function showToast(t){const el=document.getElementById('newToast'),tx=document.g
   toastT=setTimeout(()=>{el.classList.add('hide');setTimeout(()=>el.style.display='none',300)},4000);
   el.onclick=()=>{el.classList.add('hide');setTimeout(()=>el.style.display='none',300)}}
 
-// ═══ Day filter — last 14 days ═══
+// ═══ Date filter — months for year + days when month selected ═══
+function monthKey(d){return d.toISOString().slice(0,7)}
 function buildDayFilters(){
-  const bar=document.getElementById('dayFilters');if(!bar)return;bar.innerHTML='';
-  const today=new Date();today.setHours(0,0,0,0);
-  // "Все дни" chip
-  const all=document.createElement('div');
-  all.className='chip day'+(filterDay===null?' active':'');
+  var bar=document.getElementById('dayFilters');if(!bar)return;bar.innerHTML='';
+  var today=new Date();today.setHours(0,0,0,0);
+  // "Все" chip
+  var all=document.createElement('div');
+  all.className='chip day'+(filterMonth===null&&filterDay===null?' active':'');
   all.innerHTML='<span class="dn">∞</span><span class="dd">все</span>';
-  all.onclick=()=>{filterDay=null;render();buildDayFilters()};
+  all.onclick=function(){filterMonth=null;filterDay=null;render();buildDayFilters()};
   bar.appendChild(all);
-  // Last 14 days
-  for(let i=0;i<14;i++){
-    const d=new Date(today);d.setDate(d.getDate()-i);
-    const key=dateKey(d);
-    const cnt=allItems.filter(c=>{try{return dateKey(new Date(c.created_at))===key}catch(e){return false}}).length;
-    if(cnt===0&&i>3)continue;
-    const chip=document.createElement('div');
-    chip.className='chip day'+(filterDay===key?' active':'')+(i===0?' today':'');
-    const dayName=i===0?'Сегодня':i===1?'Вчера':DAYS_RU[d.getDay()];
-    chip.innerHTML='<span class="dn">'+d.getDate()+'</span><span class="dd">'+dayName+(cnt?' · '+cnt:'')+'</span>';
-    chip.onclick=()=>{filterDay=filterDay===key?null:key;render();buildDayFilters()};
+
+  // Collect months with data (last 12 months)
+  var months={};
+  allItems.forEach(function(c){try{var mk=c.created_at.substring(0,7);if(mk)months[mk]=(months[mk]||0)+1}catch(e){}});
+  var sortedM=Object.keys(months).sort().reverse().slice(0,12).reverse();
+
+  // Month chips
+  sortedM.forEach(function(mk){
+    var chip=document.createElement('div');
+    var parts=mk.split('-');var mIdx=parseInt(parts[1])-1;
+    var isActive=filterMonth===mk;
+    chip.className='chip day'+(isActive?' active':'');
+    chip.innerHTML='<span class="dn">'+MON_RU[mIdx]+'</span><span class="dd">'+parts[0].slice(2)+' · '+months[mk]+'</span>';
+    chip.onclick=function(){
+      if(filterMonth===mk){filterMonth=null;filterDay=null}
+      else{filterMonth=mk;filterDay=null}
+      render();buildDayFilters()};
     bar.appendChild(chip);
+  });
+
+  // If month selected — show days of that month
+  if(filterMonth){
+    var dayBar=document.createElement('div');
+    dayBar.className='fp-row';dayBar.style.marginTop='2px';
+    var daysInMonth={};
+    allItems.forEach(function(c){
+      try{var dk=dateKey(new Date(c.created_at));
+        if(dk.substring(0,7)===filterMonth)daysInMonth[dk]=(daysInMonth[dk]||0)+1}catch(e){}});
+    var sortedD=Object.keys(daysInMonth).sort();
+    // "Весь месяц" chip
+    var allD=document.createElement('div');
+    allD.className='chip day'+(filterDay===null?' active':'');
+    allD.innerHTML='<span class="dn">☰</span><span class="dd">весь</span>';
+    allD.onclick=function(){filterDay=null;render();buildDayFilters()};
+    dayBar.appendChild(allD);
+    sortedD.forEach(function(dk){
+      var chip=document.createElement('div');
+      var d=new Date(dk+'T00:00:00');
+      var isToday=dk===dateKey(today);
+      chip.className='chip day'+(filterDay===dk?' active':'')+(isToday?' today':'');
+      chip.innerHTML='<span class="dn">'+d.getDate()+'</span><span class="dd">'+DAYS_RU[d.getDay()]+' · '+daysInMonth[dk]+'</span>';
+      chip.onclick=function(){filterDay=filterDay===dk?null:dk;render();buildDayFilters()};
+      dayBar.appendChild(chip);
+    });
+    bar.parentNode.insertBefore(dayBar,bar.nextSibling);
+    // Remove old day sub-bar if exists
+    if(bar._dayBar&&bar._dayBar!==dayBar&&bar._dayBar.parentNode)bar._dayBar.parentNode.removeChild(bar._dayBar);
+    bar._dayBar=dayBar;
+  }else{
+    if(bar._dayBar&&bar._dayBar.parentNode)bar._dayBar.parentNode.removeChild(bar._dayBar);
+    bar._dayBar=null;
   }
 }
 
@@ -384,6 +424,7 @@ function render(){
   if(filterCat)items=items.filter(c=>c.category===filterCat);
   if(filterStatus)items=items.filter(c=>c.status===filterStatus);
   if(filterDay)items=items.filter(c=>{try{return dateKey(new Date(c.created_at))===filterDay}catch(e){return false}});
+  else if(filterMonth)items=items.filter(c=>{try{return c.created_at.substring(0,7)===filterMonth}catch(e){return false}});
   const cats={};
   items.forEach(c=>{
     const lat=parseFloat(c.lat||c.latitude),lng=parseFloat(c.lng||c.longitude);
@@ -394,7 +435,7 @@ function render(){
     const m=L.marker([lat,lng],{icon:mkIcon(cat,c._isNew)});
     m.bindPopup(buildPopup(c,lat,lng),{maxWidth:280});cluster.addLayer(m)});
   map.addLayer(cluster);
-  if(total&&!filterCat&&!filterStatus&&!filterDay){try{map.fitBounds(cluster.getBounds(),{padding:[50,50],maxZoom:15})}catch(_){}}
+  if(total&&!filterCat&&!filterStatus&&!filterDay&&!filterMonth){try{map.fitBounds(cluster.getBounds(),{padding:[50,50],maxZoom:15})}catch(_){}}
   // Stats
   document.getElementById('st').textContent=total;
   document.getElementById('so').textContent=open;
