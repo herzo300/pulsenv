@@ -4,6 +4,7 @@ import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math';
+import 'screens/pulse_splash_screen.dart';
 
 void main() {
   runApp(PulsGorodaApp());
@@ -45,11 +46,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with TickerProviderStateMixin {
   final MapController _mapController = MapController();
-  final AnimationController _sheetController = AnimationController(
-    vsync: this,
-    duration: Duration(milliseconds: 300),
-  );
-  final Animation<double> _sheetAnimation;
+  late final AnimationController _sheetController;
+  late final Animation<double> _sheetAnimation;
+  bool _showSplash = true;
 
   // Мок данные жалоб (Нижневартовск)
   final List<Report> reports = [
@@ -60,19 +59,24 @@ class _HomeScreenState extends State<HomeScreen>
     // Добавь больше...
   ];
 
-  _HomeScreenState() : _sheetAnimation = CurvedAnimation(
-          parent: _sheetController,
-          curve: Curves.easeOutCubic,
-        );
-
   @override
   void initState() {
     super.initState();
+    _sheetController = AnimationController(vsync: this, duration: Duration(milliseconds: 300));
+    _sheetAnimation = CurvedAnimation(parent: _sheetController, curve: Curves.easeOutCubic);
     _sheetController.forward();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_showSplash) {
+      return PulseSplashScreen(
+        totalComplaints: reports.length,
+        openComplaints: reports.where((r) => r.urgency == 'high').length,
+        resolvedComplaints: reports.where((r) => r.urgency == 'low').length,
+        onComplete: () => setState(() => _showSplash = false),
+      );
+    }
     return Scaffold(
       body: Stack(
         children: [

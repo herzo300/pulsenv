@@ -3,26 +3,77 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Пульс города — Карта проблем</title>
+<title>Пульс города — Карта</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
 </head>
 <body>
-<div class="hdr"><div class="pulse"></div><div><h1>🗺️ Пульс города</h1><small>НИЖНЕВАРТОВСК</small></div></div>
-<div id="filters" class="filter-bar"></div>
-<div id="map"></div>
-<div class="panel stats" id="statsPanel">
-  <h3>📊 Статистика</h3>
-  <div class="sr"><span class="l">Всего</span><span class="v blue" id="st">—</span></div>
-  <div class="sr"><span class="l">Открыто</span><span class="v red" id="so">—</span></div>
-  <div class="sr"><span class="l">В работе</span><span class="v yellow" id="sw">—</span></div>
-  <div class="sr"><span class="l">Решено</span><span class="v green" id="sr">—</span></div>
-  <div class="sr"><span class="l">Источник</span><span class="v" id="ss" style="color:#aaa;font-size:10px">—</span></div>
+<!-- Splash -->
+<div id="splash">
+  <div class="splash-bg"><canvas id="pulseCanvas"></canvas></div>
+  <div class="splash-content">
+    <div class="city-emblem">
+      <svg viewBox="0 0 120 120" class="emblem-svg">
+        <polygon points="60,8 52,50 68,50" fill="none" stroke="currentColor" stroke-width="2" opacity=".7"/>
+        <line x1="56" y1="28" x2="64" y2="28" stroke="currentColor" stroke-width="1.5" opacity=".5"/>
+        <line x1="54" y1="38" x2="66" y2="38" stroke="currentColor" stroke-width="1.5" opacity=".5"/>
+        <path d="M25,85 L35,55 L30,60 L38,35 L33,42 L38,22 L43,42 L38,35 L46,60 L41,55 L51,85Z" fill="currentColor" opacity=".15" stroke="currentColor" stroke-width="1"/>
+        <path d="M10,95 Q30,88 50,92 Q70,96 90,90 Q105,86 115,88" fill="none" stroke="currentColor" stroke-width="2" opacity=".3" stroke-linecap="round"/>
+        <path d="M10,102 Q35,95 55,99 Q75,103 95,97 Q108,93 115,95" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".2" stroke-linecap="round"/>
+        <path d="M15,15 Q60,-5 105,15" fill="none" stroke="currentColor" stroke-width="1" opacity=".2"/>
+      </svg>
+    </div>
+    <div class="splash-pulse-ring" id="pulseRing">
+      <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+      <div class="pulse-core" id="pulseCore"></div>
+    </div>
+    <h1 class="splash-title">Пульс города</h1>
+    <div class="splash-city">НИЖНЕВАРТОВСК</div>
+    <div class="splash-mood" id="moodText">Анализ настроения...</div>
+    <div class="splash-stats" id="splashStats">
+      <div class="ss-item"><span class="ss-num" id="ssTotal">—</span><span class="ss-label">проблем</span></div>
+      <div class="ss-item"><span class="ss-num" id="ssOpen">—</span><span class="ss-label">открыто</span></div>
+      <div class="ss-item"><span class="ss-num" id="ssResolved">—</span><span class="ss-label">решено</span></div>
+    </div>
+    <div class="splash-loader"><div class="sl-bar"><div class="sl-fill" id="slFill"></div></div><div class="sl-text" id="slText">Загрузка...</div></div>
+  </div>
 </div>
-<div class="panel leg" id="leg"><h3>Категории</h3></div>
-<div class="loader" id="ld"><div class="sp"></div>Загрузка карты…</div>
+<!-- Main -->
+<div id="app" style="display:none">
+  <div id="map"></div>
+  <!-- Top bar: header + stats -->
+  <div id="topBar">
+    <div class="tb-header">
+      <div class="tb-pulse"></div>
+      <div class="tb-title">Пульс города</div>
+      <div class="tb-city">Нижневартовск</div>
+    </div>
+    <div class="tb-stats">
+      <div class="tb-stat"><span class="tb-num" id="st">0</span><span class="tb-lbl">всего</span></div>
+      <div class="tb-stat"><span class="tb-num red" id="so">0</span><span class="tb-lbl">открыто</span></div>
+      <div class="tb-stat"><span class="tb-num yellow" id="sw">0</span><span class="tb-lbl">в работе</span></div>
+      <div class="tb-stat"><span class="tb-num green" id="sr">0</span><span class="tb-lbl">решено</span></div>
+    </div>
+  </div>
+  <!-- Filter panel -->
+  <div id="filterPanel">
+    <div class="fp-row" id="dayFilters"></div>
+    <div class="fp-row" id="catFilters"></div>
+    <div class="fp-row" id="statusFilters"></div>
+  </div>
+  <!-- Timeline chart -->
+  <div id="timeline" class="tl-panel">
+    <canvas id="tlCanvas" height="50"></canvas>
+  </div>
+  <!-- Legend -->
+  <div class="leg-panel" id="leg"></div>
+  <!-- Toast -->
+  <div class="toast" id="newToast" style="display:none">
+    <span class="toast-icon">🔔</span><span class="toast-text" id="toastText"></span>
+  </div>
+</div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 </body>

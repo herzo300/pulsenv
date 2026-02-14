@@ -144,362 +144,563 @@ const MAP_HTML = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Пульс города — Карта проблем</title>
+<title>Пульс города — Карта</title>
 <script src="https://telegram.org/js/telegram-web-app.js"><\/script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
 </head>
 <body>
-<div class="hdr"><div class="pulse"></div><div><h1>🗺️ Пульс города</h1><small>НИЖНЕВАРТОВСК</small></div></div>
-<div id="filters" class="filter-bar"></div>
-<div id="map"></div>
-<div class="panel stats" id="statsPanel">
-  <h3>📊 Статистика</h3>
-  <div class="sr"><span class="l">Всего</span><span class="v blue" id="st">—</span></div>
-  <div class="sr"><span class="l">Открыто</span><span class="v red" id="so">—</span></div>
-  <div class="sr"><span class="l">В работе</span><span class="v yellow" id="sw">—</span></div>
-  <div class="sr"><span class="l">Решено</span><span class="v green" id="sr">—</span></div>
-  <div class="sr"><span class="l">Источник</span><span class="v" id="ss" style="color:#aaa;font-size:10px">—</span></div>
+<!-- Splash -->
+<div id="splash">
+  <div class="splash-bg"><canvas id="pulseCanvas"></canvas></div>
+  <div class="splash-content">
+    <div class="city-emblem">
+      <svg viewBox="0 0 120 120" class="emblem-svg">
+        <polygon points="60,8 52,50 68,50" fill="none" stroke="currentColor" stroke-width="2" opacity=".7"/>
+        <line x1="56" y1="28" x2="64" y2="28" stroke="currentColor" stroke-width="1.5" opacity=".5"/>
+        <line x1="54" y1="38" x2="66" y2="38" stroke="currentColor" stroke-width="1.5" opacity=".5"/>
+        <path d="M25,85 L35,55 L30,60 L38,35 L33,42 L38,22 L43,42 L38,35 L46,60 L41,55 L51,85Z" fill="currentColor" opacity=".15" stroke="currentColor" stroke-width="1"/>
+        <path d="M10,95 Q30,88 50,92 Q70,96 90,90 Q105,86 115,88" fill="none" stroke="currentColor" stroke-width="2" opacity=".3" stroke-linecap="round"/>
+        <path d="M10,102 Q35,95 55,99 Q75,103 95,97 Q108,93 115,95" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".2" stroke-linecap="round"/>
+        <path d="M15,15 Q60,-5 105,15" fill="none" stroke="currentColor" stroke-width="1" opacity=".2"/>
+      </svg>
+    </div>
+    <div class="splash-pulse-ring" id="pulseRing">
+      <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+      <div class="pulse-core" id="pulseCore"></div>
+    </div>
+    <h1 class="splash-title">Пульс города</h1>
+    <div class="splash-city">НИЖНЕВАРТОВСК</div>
+    <div class="splash-mood" id="moodText">Анализ настроения...</div>
+    <div class="splash-stats" id="splashStats">
+      <div class="ss-item"><span class="ss-num" id="ssTotal">—</span><span class="ss-label">проблем</span></div>
+      <div class="ss-item"><span class="ss-num" id="ssOpen">—</span><span class="ss-label">открыто</span></div>
+      <div class="ss-item"><span class="ss-num" id="ssResolved">—</span><span class="ss-label">решено</span></div>
+    </div>
+    <div class="splash-loader"><div class="sl-bar"><div class="sl-fill" id="slFill"></div></div><div class="sl-text" id="slText">Загрузка...</div></div>
+  </div>
 </div>
-<div class="panel leg" id="leg"><h3>Категории</h3></div>
-<div class="loader" id="ld"><div class="sp"></div>Загрузка карты…</div>
+<!-- Main -->
+<div id="app" style="display:none">
+  <div id="map"></div>
+  <!-- Top bar: header + stats -->
+  <div id="topBar">
+    <div class="tb-header">
+      <div class="tb-pulse"></div>
+      <div class="tb-title">Пульс города</div>
+      <div class="tb-city">Нижневартовск</div>
+    </div>
+    <div class="tb-stats">
+      <div class="tb-stat"><span class="tb-num" id="st">0</span><span class="tb-lbl">всего</span></div>
+      <div class="tb-stat"><span class="tb-num red" id="so">0</span><span class="tb-lbl">открыто</span></div>
+      <div class="tb-stat"><span class="tb-num yellow" id="sw">0</span><span class="tb-lbl">в работе</span></div>
+      <div class="tb-stat"><span class="tb-num green" id="sr">0</span><span class="tb-lbl">решено</span></div>
+    </div>
+  </div>
+  <!-- Filter panel -->
+  <div id="filterPanel">
+    <div class="fp-row" id="dayFilters"></div>
+    <div class="fp-row" id="catFilters"></div>
+    <div class="fp-row" id="statusFilters"></div>
+  </div>
+  <!-- Timeline chart -->
+  <div id="timeline" class="tl-panel">
+    <canvas id="tlCanvas" height="50"></canvas>
+  </div>
+  <!-- Legend -->
+  <div class="leg-panel" id="leg"></div>
+  <!-- Toast -->
+  <div class="toast" id="newToast" style="display:none">
+    <span class="toast-icon">🔔</span><span class="toast-text" id="toastText"></span>
+  </div>
+</div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"><\/script>
 <script>
 // ═══════════════════════════════════════════════════════
-// Пульс города — Карта проблем Нижневартовска
-// Leaflet + MarkerCluster + Firebase RTDB
+// Пульс города — Карта + Статистика + Фильтры по дням
 // ═══════════════════════════════════════════════════════
-
 const tg=window.Telegram&&window.Telegram.WebApp;
 if(tg){tg.ready();tg.expand();tg.BackButton.show();tg.onEvent('backButtonClicked',()=>tg.close())}
 
-// ═══ CSS ═══
 const S=document.createElement('style');
 S.textContent=\`
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --bg:var(--tg-theme-bg-color,#0a0a1a);
-  --text:var(--tg-theme-text-color,#fff);
-  --hint:var(--tg-theme-hint-color,rgba(255,255,255,.5));
-  --accent:var(--tg-theme-button-color,#00b4ff);
-  --panel:rgba(10,10,26,.92);
+--bg:#0b0f1a;--text:#e8ecf4;--hint:rgba(255,255,255,.45);
+--accent:#3b82f6;--accentL:#60a5fa;--accentD:#1d4ed8;
+--surface:rgba(15,20,35,.88);--glass:blur(16px) saturate(1.6);
+--green:#22c55e;--red:#ef4444;--yellow:#eab308;--orange:#f97316;
+--purple:#a855f7;--teal:#14b8a6;--pink:#ec4899;
+--r:16px;--rs:10px;
+--shadow:0 2px 12px rgba(0,0,0,.3);
 }
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,sans-serif;
-  background:var(--bg);color:var(--text);overflow:hidden}
-#map{width:100%;height:100vh}
+body{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+background:var(--bg);color:var(--text);overflow:hidden;-webkit-font-smoothing:antialiased}
 
-.hdr{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:1000;
-  background:var(--panel);backdrop-filter:blur(12px);padding:8px 20px;border-radius:14px;
-  border:1px solid rgba(0,180,255,.2);display:flex;align-items:center;gap:8px;pointer-events:auto}
-.hdr h1{font-size:15px;font-weight:800}.hdr small{font-size:9px;color:var(--hint);letter-spacing:2px;display:block}
-.pulse{width:8px;height:8px;border-radius:50%;background:#4caf50;animation:blink 2s infinite}
+/* ═══ SPLASH ═══ */
+#splash{position:fixed;inset:0;z-index:9999;background:#0b0f1a;
+display:flex;align-items:center;justify-content:center;transition:opacity .7s,transform .4s}
+#splash.hide{opacity:0;transform:scale(1.03);pointer-events:none}
+.splash-bg{position:absolute;inset:0;overflow:hidden}
+#pulseCanvas{width:100%;height:100%;opacity:.3}
+.splash-content{position:relative;z-index:1;text-align:center;padding:20px}
+.city-emblem{width:100px;height:100px;margin:0 auto 14px;border-radius:50%;padding:10px;
+background:#0b0f1a;box-shadow:10px 10px 20px rgba(0,0,0,.6),-10px -10px 20px rgba(255,255,255,.04);
+color:var(--accent);display:flex;align-items:center;justify-content:center;
+animation:emblemIn 1s ease .2s both}
+@keyframes emblemIn{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+.emblem-svg{width:65px;height:65px}
+.splash-pulse-ring{position:relative;width:130px;height:130px;margin:0 auto 16px;
+display:flex;align-items:center;justify-content:center}
+.ring{position:absolute;border-radius:50%;border:2px solid var(--accent);opacity:0}
+.r1{width:70px;height:70px;animation:rp 2.5s ease-out infinite}
+.r2{width:100px;height:100px;animation:rp 2.5s ease-out .5s infinite}
+.r3{width:130px;height:130px;animation:rp 2.5s ease-out 1s infinite}
+@keyframes rp{0%{transform:scale(.6);opacity:.7}100%{transform:scale(1.2);opacity:0}}
+.pulse-core{width:44px;height:44px;border-radius:50%;
+background:radial-gradient(circle,var(--accent),transparent 70%);
+box-shadow:0 0 24px var(--accent);animation:cp 1.5s ease-in-out infinite;transition:all .5s}
+@keyframes cp{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.12);opacity:1}}
+.pulse-core.mood-good{background:radial-gradient(circle,var(--green),transparent 70%);box-shadow:0 0 24px var(--green)}
+.pulse-core.mood-ok{background:radial-gradient(circle,var(--yellow),transparent 70%);box-shadow:0 0 24px var(--yellow)}
+.pulse-core.mood-bad{background:radial-gradient(circle,var(--red),transparent 70%);box-shadow:0 0 24px var(--red)}
+.ring.mood-good{border-color:var(--green)}.ring.mood-ok{border-color:var(--yellow)}.ring.mood-bad{border-color:var(--red)}
+.splash-title{font-size:28px;font-weight:800;letter-spacing:.5px;
+text-shadow:0 2px 16px rgba(59,130,246,.3);animation:fadeUp .8s ease .4s both}
+.splash-city{font-size:10px;letter-spacing:4px;color:var(--hint);margin-top:3px;
+text-transform:uppercase;font-weight:600;animation:fadeUp .8s ease .6s both}
+.splash-mood{font-size:12px;color:var(--accent);margin-top:10px;font-weight:600;
+min-height:18px;transition:color .5s;animation:fadeUp .8s ease .8s both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.splash-stats{display:flex;justify-content:center;gap:20px;margin-top:14px}
+.ss-item{text-align:center}
+.ss-num{display:block;font-size:22px;font-weight:800;background:#0b0f1a;border-radius:12px;padding:6px 12px;
+box-shadow:6px 6px 12px rgba(0,0,0,.5),-6px -6px 12px rgba(255,255,255,.03);min-width:54px;
+animation:fadeUp .8s ease 1s both}
+.ss-label{font-size:8px;color:var(--hint);text-transform:uppercase;letter-spacing:1px;margin-top:3px;display:block}
+.splash-loader{margin-top:20px;animation:fadeUp .8s ease 1.2s both}
+.sl-bar{width:180px;height:3px;border-radius:2px;margin:0 auto;background:rgba(255,255,255,.06);overflow:hidden}
+.sl-fill{height:100%;width:0;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--green));transition:width .3s}
+.sl-text{font-size:9px;color:var(--hint);margin-top:6px}
+
+/* ═══ MAP ═══ */
+#map{position:fixed;inset:0;z-index:0}
+
+/* ═══ TOP BAR — header + stats unified ═══ */
+#topBar{position:fixed;top:0;left:0;right:0;z-index:1000;
+background:var(--surface);backdrop-filter:var(--glass);
+border-bottom:1px solid rgba(255,255,255,.06);padding:6px 12px;
+display:flex;align-items:center;gap:10px}
+.tb-header{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.tb-pulse{width:8px;height:8px;border-radius:50%;background:var(--green);animation:blink 2s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.tb-title{font-size:14px;font-weight:800;white-space:nowrap}
+.tb-city{font-size:8px;color:var(--hint);letter-spacing:2px;text-transform:uppercase;display:none}
+.tb-stats{display:flex;gap:8px;margin-left:auto;flex-shrink:0}
+.tb-stat{text-align:center;min-width:36px}
+.tb-num{font-size:16px;font-weight:800;display:block;line-height:1.1}
+.tb-lbl{font-size:7px;color:var(--hint);text-transform:uppercase;letter-spacing:.5px}
+.red{color:var(--red)}.green{color:var(--green)}.yellow{color:var(--yellow)}.blue{color:var(--accent)}
 
-.panel{position:fixed;z-index:1000;background:var(--panel);backdrop-filter:blur(12px);
-  padding:10px 14px;border-radius:14px;border:1px solid rgba(0,180,255,.15);
-  pointer-events:auto;font-size:12px}
-.stats{bottom:12px;left:10px;min-width:130px}
-.stats h3{font-size:10px;color:var(--hint);margin-bottom:6px;letter-spacing:1px;text-transform:uppercase}
-.sr{display:flex;justify-content:space-between;padding:2px 0}
-.sr .l{color:var(--hint);font-size:11px}.sr .v{font-weight:700;font-size:13px}
-.blue{color:#00b4ff}.green{color:#4caf50}.red{color:#ff5252}.yellow{color:#ffc107}
+/* ═══ FILTER PANEL ═══ */
+#filterPanel{position:fixed;top:48px;left:0;right:0;z-index:999;
+padding:4px 8px 2px;background:linear-gradient(var(--surface) 80%,transparent);
+backdrop-filter:var(--glass)}
+.fp-row{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding:2px 0;-webkit-overflow-scrolling:touch}
+.fp-row::-webkit-scrollbar{display:none}
 
-.leg{bottom:12px;right:10px;max-height:220px;overflow-y:auto;max-width:170px}
-.leg h3{font-size:10px;color:var(--hint);margin-bottom:4px;letter-spacing:1px;text-transform:uppercase}
-.li{display:flex;align-items:center;gap:5px;padding:2px 0;font-size:10px;color:var(--hint);cursor:pointer;transition:.2s}
-.li:hover{color:var(--text)}
-.li.dim{opacity:.3}
-.ld{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+/* Filter chips */
+.chip{flex-shrink:0;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:600;
+cursor:pointer;transition:all .2s;white-space:nowrap;user-select:none;
+background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:var(--hint)}
+.chip:active{transform:scale(.94)}
+.chip.active{background:var(--accent);color:#fff;border-color:var(--accent);
+box-shadow:0 2px 8px rgba(59,130,246,.3)}
+.chip.st-open.active{background:var(--red);border-color:var(--red);box-shadow:0 2px 8px rgba(239,68,68,.3)}
+.chip.st-pending.active{background:var(--yellow);border-color:var(--yellow);color:#000;box-shadow:0 2px 8px rgba(234,179,8,.3)}
+.chip.st-progress.active{background:var(--orange);border-color:var(--orange);box-shadow:0 2px 8px rgba(249,115,22,.3)}
+.chip.st-resolved.active{background:var(--green);border-color:var(--green);box-shadow:0 2px 8px rgba(34,197,94,.3)}
+/* Day chips */
+.chip.day{font-size:9px;padding:3px 8px}
+.chip.day .dn{font-weight:800;font-size:11px;display:block;line-height:1}
+.chip.day .dd{font-size:7px;opacity:.7}
+.chip.day.active{background:var(--accentD);border-color:var(--accent)}
+.chip.day.today{border-color:var(--accent);border-width:2px}
 
-.loader{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2000;
-  background:var(--panel);padding:18px 32px;border-radius:14px;
-  border:1px solid rgba(0,180,255,.2);color:var(--text);font-size:13px;display:flex;align-items:center;gap:10px}
-.sp{width:20px;height:20px;border:3px solid rgba(0,180,255,.2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
+/* ═══ TIMELINE ═══ */
+.tl-panel{position:fixed;bottom:0;left:0;right:0;z-index:999;height:54px;
+background:var(--surface);backdrop-filter:var(--glass);
+border-top:1px solid rgba(255,255,255,.06);padding:4px 8px}
+#tlCanvas{width:100%;height:46px;display:block}
 
-.leaflet-popup-content-wrapper{background:var(--panel)!important;color:var(--text)!important;
-  border:1px solid rgba(0,180,255,.2)!important;border-radius:12px!important;max-width:280px!important}
-.leaflet-popup-tip{background:var(--panel)!important}
-.leaflet-popup-content{margin:10px 12px!important}
-.pp{min-width:200px}
-.pp h3{margin:0 0 6px;font-size:14px;line-height:1.3}
-.pp .desc{margin:4px 0;font-size:12px;color:var(--hint);line-height:1.4}
-.pp .meta{margin:3px 0;font-size:11px;color:var(--hint)}
+/* ═══ LEGEND ═══ */
+.leg-panel{position:fixed;bottom:58px;right:6px;z-index:998;
+background:var(--surface);backdrop-filter:var(--glass);
+border:1px solid rgba(255,255,255,.06);border-radius:var(--r);
+padding:6px 10px;max-height:180px;overflow-y:auto;max-width:140px;
+box-shadow:var(--shadow);scrollbar-width:thin}
+.leg-panel h4{font-size:8px;color:var(--hint);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
+.li{display:flex;align-items:center;gap:4px;padding:1px 0;font-size:9px;color:var(--hint);cursor:pointer;transition:.2s}
+.li:hover{color:var(--text)}.li.dim{opacity:.25}
+.ld{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* ═══ POPUPS ═══ */
+.leaflet-popup-content-wrapper{background:var(--surface)!important;color:var(--text)!important;
+border:1px solid rgba(255,255,255,.08)!important;border-radius:14px!important;max-width:280px!important;
+backdrop-filter:var(--glass)!important;box-shadow:0 8px 32px rgba(0,0,0,.4)!important}
+.leaflet-popup-tip{background:var(--surface)!important}
+.leaflet-popup-content{margin:8px 10px!important}
+.pp{min-width:180px}
+.pp h3{margin:0 0 4px;font-size:13px;line-height:1.2}
+.pp .desc{margin:3px 0;font-size:11px;color:var(--hint);line-height:1.3}
+.pp .meta{margin:2px 0;font-size:10px;color:var(--hint)}
 .pp .meta b{color:var(--text);font-weight:600}
-.pp a{color:var(--accent);text-decoration:none;font-size:11px}
+.pp a{color:var(--accentL);text-decoration:none;font-size:10px}
 .pp a:hover{text-decoration:underline}
-.pp .links{margin-top:6px;display:flex;gap:8px;flex-wrap:wrap}
-.badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:9px;font-weight:600;color:#fff;margin-top:4px}
-.pp .source-tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:9px;
-  background:rgba(0,180,255,.15);color:var(--accent);margin-top:4px}
+.pp .links{margin-top:4px;display:flex;gap:6px;flex-wrap:wrap}
+.badge{display:inline-block;padding:2px 7px;border-radius:6px;font-size:8px;font-weight:700;color:#fff;margin-top:3px}
+.pp .src{display:inline-block;padding:1px 5px;border-radius:4px;font-size:8px;
+background:rgba(59,130,246,.12);color:var(--accentL);margin-top:3px;margin-left:4px}
 
-.filter-bar{position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:1000;
-  display:flex;gap:5px;flex-wrap:wrap;justify-content:center;max-width:96vw;padding:4px}
-.fbtn{background:var(--panel);border:1px solid rgba(0,180,255,.15);color:var(--hint);
-  padding:4px 10px;border-radius:16px;font-size:10px;cursor:pointer;
-  backdrop-filter:blur(8px);transition:.2s;white-space:nowrap;user-select:none}
-.fbtn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-.fbtn:hover{border-color:var(--accent)}
-.fbtn:active{transform:scale(.95)}
+/* ═══ TOAST ═══ */
+.toast{position:fixed;top:52px;left:50%;transform:translateX(-50%);z-index:2000;
+background:rgba(34,197,94,.92);color:#fff;padding:7px 14px;border-radius:12px;
+font-size:11px;display:flex;align-items:center;gap:5px;backdrop-filter:blur(8px);
+box-shadow:0 4px 16px rgba(0,0,0,.3);animation:tin .3s ease;cursor:pointer}
+.toast.hide{animation:tout .3s ease forwards}
+@keyframes tin{from{opacity:0;transform:translateX(-50%) translateY(-16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+@keyframes tout{to{opacity:0;transform:translateX(-50%) translateY(-16px)}}
+.toast-icon{font-size:14px}
 
-.status-bar{position:fixed;top:96px;left:50%;transform:translateX(-50%);z-index:1000;
-  display:flex;gap:5px;justify-content:center}
-.sbtn{background:var(--panel);border:1px solid rgba(0,180,255,.1);color:var(--hint);
-  padding:3px 8px;border-radius:12px;font-size:9px;cursor:pointer;transition:.2s;white-space:nowrap}
-.sbtn.active{color:#fff;border-width:2px}
+@keyframes mpop{0%{transform:scale(0)}60%{transform:scale(1.3)}100%{transform:scale(1)}}
+.new-marker{animation:mpop .5s ease}
 \`;
 document.head.appendChild(S);
 
 // ═══ Constants ═══
 const FB='https://anthropic-proxy.uiredepositionherzo.workers.dev/firebase';
-const CAT_COLORS={
-  'Дороги':'#FF5722','ЖКХ':'#2196F3','Освещение':'#FFC107','Транспорт':'#4CAF50',
-  'Благоустройство':'#9C27B0','Экология':'#00BCD4','Животные':'#FF9800','Торговля':'#E91E63',
-  'Безопасность':'#F44336','Снег/Наледь':'#03A9F4','Медицина':'#009688','Образование':'#673AB7',
-  'Связь':'#3F51B5','Строительство':'#607D8B','Парковки':'#9E9E9E','Прочее':'#795548',
-  'ЧП':'#D32F2F','Газоснабжение':'#FF6F00','Водоснабжение и канализация':'#0288D1',
-  'Отопление':'#D84315','Бытовой мусор':'#689F38','Лифты и подъезды':'#455A64',
-  'Парки и скверы':'#388E3C','Спортивные площадки':'#1976D2','Детские площадки':'#F06292',
-  'Социальная сфера':'#8E24AA','Трудовое право':'#5D4037'
-};
-const CAT_EMOJI={
-  'Дороги':'🛣️','ЖКХ':'🏠','Освещение':'💡','Транспорт':'🚌','Благоустройство':'🌳',
-  'Экология':'🌿','Животные':'🐾','Торговля':'🏪','Безопасность':'🔒','Снег/Наледь':'❄️',
-  'Медицина':'🏥','Образование':'🎓','Связь':'📡','Строительство':'🏗️','Парковки':'🅿️',
-  'Прочее':'📌','ЧП':'🚨','Газоснабжение':'🔥','Водоснабжение и канализация':'💧',
-  'Отопление':'🌡️','Бытовой мусор':'🗑️','Лифты и подъезды':'🛗','Парки и скверы':'🌲',
-  'Спортивные площадки':'⚽','Детские площадки':'🎠','Социальная сфера':'👥','Трудовое право':'⚖️'
-};
-const STATUS_LABEL={pending:'🟡 Новая',open:'🔴 Открыта',in_progress:'🟠 В работе',resolved:'🟢 Решена',rejected:'⚪ Отклонена'};
-const STATUS_COLOR={pending:'#FFC107',open:'#FF5252',in_progress:'#FF9800',resolved:'#4CAF50',rejected:'#9E9E9E'};
+const CC={
+'Дороги':'#FF5722','ЖКХ':'#2196F3','Освещение':'#FFC107','Транспорт':'#4CAF50',
+'Благоустройство':'#9C27B0','Экология':'#00BCD4','Животные':'#FF9800','Торговля':'#E91E63',
+'Безопасность':'#F44336','Снег/Наледь':'#03A9F4','Медицина':'#009688','Образование':'#673AB7',
+'Связь':'#3F51B5','Строительство':'#607D8B','Парковки':'#9E9E9E','Прочее':'#795548',
+'ЧП':'#D32F2F','Газоснабжение':'#FF6F00','Водоснабжение и канализация':'#0288D1',
+'Отопление':'#D84315','Бытовой мусор':'#689F38','Лифты и подъезды':'#455A64',
+'Парки и скверы':'#388E3C','Спортивные площадки':'#1976D2','Детские площадки':'#F06292',
+'Социальная сфера':'#8E24AA','Трудовое право':'#5D4037'};
+const CE={
+'Дороги':'🛣️','ЖКХ':'🏠','Освещение':'💡','Транспорт':'🚌','Благоустройство':'🌳',
+'Экология':'🌿','Животные':'🐾','Торговля':'🏪','Безопасность':'🔒','Снег/Наледь':'❄️',
+'Медицина':'🏥','Образование':'🎓','Связь':'📡','Строительство':'🏗️','Парковки':'🅿️',
+'Прочее':'📌','ЧП':'🚨','Газоснабжение':'🔥','Водоснабжение и канализация':'💧',
+'Отопление':'🌡️','Бытовой мусор':'🗑️','Лифты и подъезды':'🛗','Парки и скверы':'🌲',
+'Спортивные площадки':'⚽','Детские площадки':'🎠','Социальная сфера':'👥','Трудовое право':'⚖️'};
+const SL={pending:'🟡 Новая',open:'🔴 Открыта',in_progress:'🟠 В работе',resolved:'🟢 Решена'};
+const SC={pending:'#eab308',open:'#ef4444',in_progress:'#f97316',resolved:'#22c55e'};
+const DAYS_RU=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+const MON_RU=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
 
-// ═══ Map init ═══
-const map=L.map('map',{zoomControl:false}).setView([60.9344,76.5531],13);
-L.control.zoom({position:'topright'}).addTo(map);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:19}).addTo(map);
-
-const clusterGroup=L.markerClusterGroup({
-  maxClusterRadius:50,showCoverageOnHover:false,zoomToBoundsOnClick:true,spiderfyOnMaxZoom:true,
-  iconCreateFunction(c){
-    const n=c.getChildCount(),s=n<10?34:n<50?42:50;
-    return L.divIcon({html:'<div style="width:'+s+'px;height:'+s+'px;border-radius:50%;background:rgba(0,140,255,.85);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;border:2px solid rgba(255,255,255,.4);box-shadow:0 2px 10px rgba(0,140,255,.5)">'+n+'</div>',className:'',iconSize:[s,s]})
-  }
-});
-
-function mkIcon(cat){
-  const c=CAT_COLORS[cat]||'#795548';
-  const e=CAT_EMOJI[cat]||'📌';
-  return L.divIcon({className:'',
-    html:'<div style="width:28px;height:28px;border-radius:50%;background:'+c+';border:3px solid rgba(255,255,255,.9);box-shadow:0 2px 8px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:13px">'+e+'</div>',
-    iconSize:[28,28],iconAnchor:[14,14]})
+// ═══ Splash ═══
+const splashCanvas=document.getElementById('pulseCanvas');
+let splashCtx,splashAnim;
+if(splashCanvas){
+  splashCanvas.width=window.innerWidth;splashCanvas.height=window.innerHeight;
+  splashCtx=splashCanvas.getContext('2d');
+  const waves=[];for(let i=0;i<5;i++)waves.push({x:splashCanvas.width/2,y:splashCanvas.height/2,r:20+i*40,speed:.3+i*.1,op:.15-i*.02});
+  // Частицы
+  const particles=[];for(let i=0;i<40;i++)particles.push({
+    x:Math.random()*splashCanvas.width,y:Math.random()*splashCanvas.height,
+    r:Math.random()*2+.5,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,
+    op:Math.random()*.4+.1});
+  let auroraT=0;
+  (function draw(){
+    splashCtx.clearRect(0,0,splashCanvas.width,splashCanvas.height);
+    // Северное сияние
+    auroraT+=.005;
+    for(let i=0;i<3;i++){
+      var cx=splashCanvas.width*(0.3+0.4*Math.sin(auroraT*2+i*1.05));
+      var cy=splashCanvas.height*0.12+i*35;
+      var grd=splashCtx.createRadialGradient(cx,cy,0,cx,cy,220);
+      var hue=i===0?210:i===1?160:280;
+      grd.addColorStop(0,'hsla('+hue+',80%,55%,.07)');
+      grd.addColorStop(1,'transparent');
+      splashCtx.fillStyle=grd;splashCtx.fillRect(0,0,splashCanvas.width,splashCanvas.height);
+    }
+    // Волны
+    waves.forEach(function(w){w.r+=w.speed;if(w.r>Math.max(splashCanvas.width,splashCanvas.height))w.r=20;
+      splashCtx.beginPath();splashCtx.arc(w.x,w.y,w.r,0,Math.PI*2);
+      splashCtx.strokeStyle='rgba(59,130,246,'+Math.max(0,w.op*(1-w.r/500))+')';splashCtx.lineWidth=1.5;splashCtx.stroke()});
+    // Частицы
+    particles.forEach(function(p){
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0)p.x=splashCanvas.width;if(p.x>splashCanvas.width)p.x=0;
+      if(p.y<0)p.y=splashCanvas.height;if(p.y>splashCanvas.height)p.y=0;
+      splashCtx.beginPath();splashCtx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      splashCtx.fillStyle='rgba(255,255,255,'+p.op+')';splashCtx.fill()});
+    splashAnim=requestAnimationFrame(draw)})();
 }
-
-function fmtDate(s){
-  if(!s)return'—';
-  try{const d=new Date(s);return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}
-  catch(e){return String(s).substring(0,16)}
+function analyzeMood(items){
+  if(!items.length)return{mood:'ok',text:'Нет данных',ratio:.5,total:0,open:0,resolved:0};
+  const t=items.length,res=items.filter(c=>c.status==='resolved').length,
+    op=items.filter(c=>c.status==='open'||c.status==='pending').length,
+    ratio=res/Math.max(t,1),week=Date.now()-7*864e5,
+    recent=items.filter(c=>{try{return new Date(c.created_at)>week}catch(e){return false}}).length;
+  let mood,text;
+  if(ratio>=.5&&recent<10){mood='good';text='😊 Город спокоен — '+Math.round(ratio*100)+'% решено'}
+  else if(ratio>=.3){mood='ok';text='😐 Умеренная активность — '+op+' открытых'}
+  else{mood='bad';text='😟 Повышенная активность — '+recent+' за неделю'}
+  return{mood,text,ratio,total:t,open:op,resolved:res};
 }
-
-function escHtml(s){
-  if(!s)return'';
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+function applyMood(m){
+  const c=document.getElementById('pulseCore'),mt=document.getElementById('moodText');
+  if(c)c.className='pulse-core mood-'+m.mood;
+  document.querySelectorAll('.ring').forEach(r=>{r.className=r.className.replace(/mood-\\w+/g,'');r.classList.add('mood-'+m.mood)});
+  if(mt){mt.textContent=m.text;mt.style.color=m.mood==='good'?'var(--green)':m.mood==='bad'?'var(--red)':'var(--yellow)'}
 }
+function splashStats(m){
+  const $=id=>document.getElementById(id);
+  if($('ssTotal'))$('ssTotal').textContent=m.total;
+  if($('ssOpen'))$('ssOpen').textContent=m.open;
+  if($('ssResolved'))$('ssResolved').textContent=m.resolved;
+}
+function splashProg(p,t){const f=document.getElementById('slFill'),x=document.getElementById('slText');if(f)f.style.width=p+'%';if(x)x.textContent=t}
+function hideSplash(){const s=document.getElementById('splash');if(!s)return;if(splashAnim)cancelAnimationFrame(splashAnim);
+  s.classList.add('hide');document.getElementById('app').style.display='';setTimeout(()=>s.remove(),700)}
+
+// ═══ Helpers ═══
+function mkIcon(cat,isNew){
+  const c=CC[cat]||'#795548',e=CE[cat]||'📌',cls=isNew?'new-marker':'';
+  return L.divIcon({className:cls,
+    html:'<div style="width:28px;height:28px;border-radius:50%;background:'+c+';border:3px solid rgba(255,255,255,.85);box-shadow:0 2px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:13px">'+e+'</div>',
+    iconSize:[28,28],iconAnchor:[14,14]})}
+function fmtDate(s){if(!s)return'—';try{const d=new Date(s);return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}catch(e){return String(s).substring(0,16)}}
+function esc(s){return s?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
+function dateKey(d){return d.toISOString().slice(0,10)}
+function parseDate(s){try{return new Date(s)}catch(e){return null}}
 
 // ═══ State ═══
-let allItems=[];
-let filterCat=null;
-let filterStatus=null;
+let allItems=[],filterCat=null,filterStatus=null,filterDay=null,knownIds=new Set(),mapReady=false,map,cluster;
 
-// ═══ Filters ═══
-function buildFilters(cats){
-  const bar=document.getElementById('filters');
-  bar.innerHTML='';
-  // "Все" button
-  const btn0=document.createElement('div');
-  btn0.className='fbtn active';btn0.textContent='Все ('+allItems.length+')';
-  btn0.onclick=()=>{filterCat=null;renderMarkers();setActive(bar,btn0)};
-  bar.appendChild(btn0);
-  // Top categories
-  Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,10).forEach(([cat,cnt])=>{
-    const btn=document.createElement('div');
-    btn.className='fbtn';
-    btn.textContent=(CAT_EMOJI[cat]||'')+' '+cat+' ('+cnt+')';
-    btn.onclick=()=>{filterCat=cat;renderMarkers();setActive(bar,btn)};
-    bar.appendChild(btn);
-  });
-  // Status filter row
-  buildStatusFilters();
+// ═══ Toast ═══
+let toastT=null;
+function showToast(t){const el=document.getElementById('newToast'),tx=document.getElementById('toastText');if(!el)return;
+  tx.textContent=t;el.style.display='flex';el.classList.remove('hide');clearTimeout(toastT);
+  toastT=setTimeout(()=>{el.classList.add('hide');setTimeout(()=>el.style.display='none',300)},4000);
+  el.onclick=()=>{el.classList.add('hide');setTimeout(()=>el.style.display='none',300)}}
+
+// ═══ Day filter — last 14 days ═══
+function buildDayFilters(){
+  const bar=document.getElementById('dayFilters');if(!bar)return;bar.innerHTML='';
+  const today=new Date();today.setHours(0,0,0,0);
+  // "Все дни" chip
+  const all=document.createElement('div');
+  all.className='chip day'+(filterDay===null?' active':'');
+  all.innerHTML='<span class="dn">∞</span><span class="dd">все</span>';
+  all.onclick=()=>{filterDay=null;render();buildDayFilters()};
+  bar.appendChild(all);
+  // Last 14 days
+  for(let i=0;i<14;i++){
+    const d=new Date(today);d.setDate(d.getDate()-i);
+    const key=dateKey(d);
+    const cnt=allItems.filter(c=>{try{return dateKey(new Date(c.created_at))===key}catch(e){return false}}).length;
+    if(cnt===0&&i>3)continue;
+    const chip=document.createElement('div');
+    chip.className='chip day'+(filterDay===key?' active':'')+(i===0?' today':'');
+    const dayName=i===0?'Сегодня':i===1?'Вчера':DAYS_RU[d.getDay()];
+    chip.innerHTML='<span class="dn">'+d.getDate()+'</span><span class="dd">'+dayName+(cnt?' · '+cnt:'')+'</span>';
+    chip.onclick=()=>{filterDay=filterDay===key?null:key;render();buildDayFilters()};
+    bar.appendChild(chip);
+  }
 }
 
+// ═══ Category filters ═══
+function buildCatFilters(){
+  const bar=document.getElementById('catFilters');if(!bar)return;bar.innerHTML='';
+  const cats={};allItems.forEach(c=>{if(c.category)cats[c.category]=(cats[c.category]||0)+1});
+  const sorted=Object.entries(cats).sort((a,b)=>b[1]-a[1]);
+  // All
+  const all=document.createElement('div');
+  all.className='chip'+(filterCat===null?' active':'');
+  all.textContent='Все категории';
+  all.onclick=()=>{filterCat=null;render();buildCatFilters()};
+  bar.appendChild(all);
+  sorted.slice(0,10).forEach(([cat,cnt])=>{
+    const chip=document.createElement('div');
+    chip.className='chip'+(filterCat===cat?' active':'');
+    chip.textContent=(CE[cat]||'')+''+cat+' '+cnt;
+    chip.onclick=()=>{filterCat=filterCat===cat?null:cat;render();buildCatFilters()};
+    bar.appendChild(chip);
+  });
+}
+
+// ═══ Status filters ═══
 function buildStatusFilters(){
-  let sbar=document.getElementById('statusBar');
-  if(!sbar){sbar=document.createElement('div');sbar.id='statusBar';sbar.className='status-bar';document.body.appendChild(sbar)}
-  sbar.innerHTML='';
-  const statuses=[
-    {id:null,label:'Все статусы',color:'#00b4ff'},
-    {id:'open',label:'🔴 Открыто',color:'#FF5252'},
-    {id:'pending',label:'🟡 Новые',color:'#FFC107'},
-    {id:'in_progress',label:'🟠 В работе',color:'#FF9800'},
-    {id:'resolved',label:'🟢 Решено',color:'#4CAF50'},
+  const bar=document.getElementById('statusFilters');if(!bar)return;bar.innerHTML='';
+  const sts=[
+    {id:null,label:'Все статусы',cls:''},
+    {id:'open',label:'🔴 Открыто',cls:'st-open'},
+    {id:'pending',label:'🟡 Новые',cls:'st-pending'},
+    {id:'in_progress',label:'🟠 В работе',cls:'st-progress'},
+    {id:'resolved',label:'🟢 Решено',cls:'st-resolved'},
   ];
-  statuses.forEach(s=>{
-    const btn=document.createElement('div');
-    btn.className='sbtn'+(filterStatus===s.id?' active':'');
-    btn.textContent=s.label;
-    if(filterStatus===s.id||(!filterStatus&&!s.id))btn.style.borderColor=s.color;
-    btn.onclick=()=>{filterStatus=s.id;renderMarkers();
-      sbar.querySelectorAll('.sbtn').forEach(b=>{b.classList.remove('active');b.style.borderColor=''});
-      btn.classList.add('active');btn.style.borderColor=s.color};
-    sbar.appendChild(btn);
+  sts.forEach(s=>{
+    const chip=document.createElement('div');
+    chip.className='chip '+s.cls+(filterStatus===s.id?' active':'');
+    chip.textContent=s.label;
+    chip.onclick=()=>{filterStatus=filterStatus===s.id?null:s.id;render();buildStatusFilters()};
+    bar.appendChild(chip);
   });
 }
 
-function setActive(bar,active){
-  bar.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
-  active.classList.add('active');
+function buildAllFilters(){buildDayFilters();buildCatFilters();buildStatusFilters()}
+
+// ═══ Timeline chart (bottom bar) ═══
+function drawTimeline(){
+  const canvas=document.getElementById('tlCanvas');if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.parentElement.clientWidth-16;
+  canvas.width=W*2;canvas.height=92;canvas.style.width=W+'px';canvas.style.height='46px';
+  ctx.scale(2,2);ctx.clearRect(0,0,W,46);
+  // Group by day (last 30 days)
+  const today=new Date();today.setHours(0,0,0,0);
+  const days=[];
+  for(let i=29;i>=0;i--){const d=new Date(today);d.setDate(d.getDate()-i);days.push(dateKey(d))}
+  const byDay={};days.forEach(d=>byDay[d]={open:0,resolved:0,total:0});
+  allItems.forEach(c=>{
+    try{const k=dateKey(new Date(c.created_at));
+      if(byDay[k]!==undefined){byDay[k].total++;if(c.status==='resolved')byDay[k].resolved++;else byDay[k].open++}}catch(e){}});
+  const maxV=Math.max(...days.map(d=>byDay[d].total),1);
+  const barW=(W-20)/days.length;
+  // Draw bars
+  days.forEach((d,i)=>{
+    const v=byDay[d];const x=10+i*barW;const h=Math.max(v.total/maxV*30,1);
+    // Resolved (green)
+    const rh=v.resolved/Math.max(v.total,1)*h;
+    ctx.fillStyle='rgba(34,197,94,.6)';
+    ctx.fillRect(x+1,36-h,barW-2,rh);
+    // Open (red)
+    ctx.fillStyle='rgba(239,68,68,.5)';
+    ctx.fillRect(x+1,36-h+rh,barW-2,h-rh);
+    // Highlight selected day
+    if(filterDay===d){ctx.strokeStyle='#3b82f6';ctx.lineWidth=1.5;ctx.strokeRect(x,36-h-1,barW,h+2)}
+    // Day label (every 5th or first/last)
+    if(i%5===0||i===days.length-1){
+      ctx.fillStyle='rgba(255,255,255,.3)';ctx.font='500 7px Inter,sans-serif';ctx.textAlign='center';
+      ctx.fillText(d.slice(8),x+barW/2,44)}
+  });
+  // Y axis label
+  ctx.fillStyle='rgba(255,255,255,.2)';ctx.font='500 7px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText(maxV+'',2,10);
 }
 
 // ═══ Render markers ═══
-function renderMarkers(){
-  clusterGroup.clearLayers();
+function render(){
+  if(!mapReady)return;
+  cluster.clearLayers();
   let total=0,open=0,inWork=0,resolved=0;
-  const cats={};
-
   let items=allItems;
   if(filterCat)items=items.filter(c=>c.category===filterCat);
   if(filterStatus)items=items.filter(c=>c.status===filterStatus);
-
+  if(filterDay)items=items.filter(c=>{try{return dateKey(new Date(c.created_at))===filterDay}catch(e){return false}});
+  const cats={};
   items.forEach(c=>{
-    const lat=parseFloat(c.lat||c.latitude);
-    const lng=parseFloat(c.lng||c.longitude);
+    const lat=parseFloat(c.lat||c.latitude),lng=parseFloat(c.lng||c.longitude);
     if(!lat||!lng||isNaN(lat)||isNaN(lng))return;
-    total++;
-    const st=c.status||'open';
-    if(st==='open'||st==='pending')open++;
-    if(st==='in_progress')inWork++;
-    if(st==='resolved')resolved++;
-    const cat=c.category||'Прочее';
-    cats[cat]=(cats[cat]||0)+1;
-
-    const m=L.marker([lat,lng],{icon:mkIcon(cat)});
-    m.bindPopup(buildPopup(c,lat,lng),{maxWidth:280});
-    clusterGroup.addLayer(m);
-  });
-
-  map.addLayer(clusterGroup);
-  if(total&&!filterCat&&!filterStatus){
-    try{map.fitBounds(clusterGroup.getBounds(),{padding:[50,50],maxZoom:15})}catch(_){}
-  }
-
+    total++;const st=c.status||'open';
+    if(st==='open'||st==='pending')open++;if(st==='in_progress')inWork++;if(st==='resolved')resolved++;
+    const cat=c.category||'Прочее';cats[cat]=(cats[cat]||0)+1;
+    const m=L.marker([lat,lng],{icon:mkIcon(cat,c._isNew)});
+    m.bindPopup(buildPopup(c,lat,lng),{maxWidth:280});cluster.addLayer(m)});
+  map.addLayer(cluster);
+  if(total&&!filterCat&&!filterStatus&&!filterDay){try{map.fitBounds(cluster.getBounds(),{padding:[50,50],maxZoom:15})}catch(_){}}
+  // Stats
   document.getElementById('st').textContent=total;
   document.getElementById('so').textContent=open;
   document.getElementById('sw').textContent=inWork;
   document.getElementById('sr').textContent=resolved;
-
   // Legend
-  const leg=document.getElementById('leg');
-  leg.innerHTML='<h3>Категории</h3>';
+  const leg=document.getElementById('leg');leg.innerHTML='<h4>Категории</h4>';
   Object.entries(cats).sort((a,b)=>b[1]-a[1]).forEach(([cat,n])=>{
     const div=document.createElement('div');
     div.className='li'+(filterCat&&filterCat!==cat?' dim':'');
-    div.innerHTML='<div class="ld" style="background:'+(CAT_COLORS[cat]||'#795548')+'"></div>'+(CAT_EMOJI[cat]||'')+'&nbsp;'+cat+' ('+n+')';
-    div.onclick=()=>{
-      if(filterCat===cat){filterCat=null}else{filterCat=cat}
-      renderMarkers();
-      // Update category filter bar
-      const bar=document.getElementById('filters');
-      bar.querySelectorAll('.fbtn').forEach(b=>{
-        b.classList.remove('active');
-        if(!filterCat&&b.textContent.startsWith('Все'))b.classList.add('active');
-        if(filterCat&&b.textContent.includes(filterCat))b.classList.add('active');
-      });
-    };
-    leg.appendChild(div);
-  });
+    div.innerHTML='<div class="ld" style="background:'+(CC[cat]||'#795548')+'"></div>'+(CE[cat]||'')+cat+' ('+n+')';
+    div.onclick=()=>{filterCat=filterCat===cat?null:cat;render();buildCatFilters()};
+    leg.appendChild(div)});
+  drawTimeline();
 }
 
 function buildPopup(c,lat,lng){
-  const cat=c.category||'Прочее';
-  const col=CAT_COLORS[cat]||'#795548';
-  const emoji=CAT_EMOJI[cat]||'📌';
-  const st=c.status||'open';
-  const stLabel=STATUS_LABEL[st]||st;
-  const stColor=STATUS_COLOR[st]||'#9E9E9E';
-  const title=escHtml(c.summary||c.title||c.description||'Без описания');
-  const desc=escHtml(c.description||'');
-  const addr=escHtml(c.address||'');
-  const src=escHtml(c.source_name||c.telegram_channel||c.source||'');
-
-  let html='<div class="pp">';
-  html+='<h3 style="color:'+col+'">'+emoji+' '+escHtml(cat)+'</h3>';
-  html+='<div class="desc"><b>'+title.substring(0,150)+'</b></div>';
-  if(desc&&desc!==title)html+='<div class="desc">'+desc.substring(0,200)+'</div>';
-  if(addr)html+='<div class="meta">📍 <b>'+addr+'</b></div>';
-  html+='<div class="meta">📅 '+fmtDate(c.created_at)+'</div>';
-  html+='<span class="badge" style="background:'+stColor+'">'+stLabel+'</span>';
-  if(src)html+=' <span class="source-tag">📢 '+src+'</span>';
-  // Links
-  html+='<div class="links">';
-  html+='<a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+lat+','+lng+'" target="_blank">👁 Street View</a>';
-  html+='<a href="https://www.google.com/maps/search/?api=1&query='+lat+','+lng+'" target="_blank">📌 Google Maps</a>';
-  html+='<a href="https://yandex.ru/maps/?pt='+lng+','+lat+'&z=17&l=map" target="_blank">🗺 Яндекс</a>';
-  html+='</div>';
-  // UK info if available
-  if(c.uk_name)html+='<div class="meta" style="margin-top:4px">🏢 УК: <b>'+escHtml(c.uk_name)+'</b></div>';
-  if(c.uk_phone)html+='<div class="meta">📞 <a href="tel:'+c.uk_phone.replace(/[^\\d+]/g,'')+'">'+escHtml(c.uk_phone)+'</a></div>';
-  html+='</div>';
-  return html;
+  const cat=c.category||'Прочее',col=CC[cat]||'#795548',emoji=CE[cat]||'📌',
+    st=c.status||'open',stL=SL[st]||st,stC=SC[st]||'#9E9E9E',
+    title=esc(c.summary||c.title||c.description||'—'),
+    desc=esc(c.description||''),addr=esc(c.address||''),
+    src=esc(c.source_name||c.telegram_channel||c.source||'');
+  let h='<div class="pp"><h3 style="color:'+col+'">'+emoji+' '+esc(cat)+'</h3>';
+  h+='<div class="desc"><b>'+title.substring(0,150)+'</b></div>';
+  if(desc&&desc!==title)h+='<div class="desc">'+desc.substring(0,200)+'</div>';
+  if(addr)h+='<div class="meta">📍 <b>'+addr+'</b></div>';
+  h+='<div class="meta">📅 '+fmtDate(c.created_at)+'</div>';
+  h+='<span class="badge" style="background:'+stC+'">'+stL+'</span>';
+  if(src)h+='<span class="src">📢 '+src+'</span>';
+  h+='<div class="links">';
+  h+='<a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+lat+','+lng+'" target="_blank">👁 Street View</a>';
+  h+='<a href="https://yandex.ru/maps/?pt='+lng+','+lat+'&z=17&l=map" target="_blank">🗺 Яндекс</a>';
+  h+='</div>';
+  if(c.uk_name)h+='<div class="meta" style="margin-top:3px">🏢 <b>'+esc(c.uk_name)+'</b></div>';
+  if(c.uk_phone)h+='<div class="meta">📞 <a href="tel:'+c.uk_phone.replace(/[^\\d+]/g,'')+'">'+esc(c.uk_phone)+'</a></div>';
+  h+='</div>';return h;
 }
 
-// ═══ Data loading ═══
-async function loadFromFirebase(){
+// ═══ Data + Realtime ═══
+async function loadFB(){
   const r=await fetch(FB+'/complaints.json',{signal:AbortSignal.timeout(8000)});
   if(!r.ok)throw new Error('Firebase: '+r.status);
-  const data=await r.json();
-  if(!data)return[];
+  const data=await r.json();if(!data)return[];
   return Object.entries(data).map(([id,d])=>({id,...d}));
+}
+let syncIv=null;
+function startSync(){if(syncIv)return;
+  syncIv=setInterval(async()=>{try{
+    const items=await loadFB();if(!items.length)return;
+    const nw=items.filter(c=>!knownIds.has(c.id));
+    if(nw.length){nw.forEach(c=>{c._isNew=true;allItems.unshift(c);knownIds.add(c.id)});
+      allItems.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+      render();buildAllFilters();
+      showToast(nw.length===1?(CE[nw[0].category]||'📌')+' '+(nw[0].summary||nw[0].category).substring(0,50):'🔔 +'+nw.length+' новых');
+      setTimeout(()=>nw.forEach(c=>c._isNew=false),2000);
+      try{tg?.HapticFeedback?.impactOccurred('medium')}catch(e){}}
+    items.forEach(c=>{if(knownIds.has(c.id)){const ex=allItems.find(a=>a.id===c.id);if(ex&&ex.status!==c.status)ex.status=c.status}});
+  }catch(e){console.warn('Sync:',e)}},15000)}
+
+function initMap(){
+  map=L.map('map',{zoomControl:false}).setView([60.9344,76.5531],13);
+  L.control.zoom({position:'topright'}).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:19}).addTo(map);
+  cluster=L.markerClusterGroup({maxClusterRadius:50,showCoverageOnHover:false,zoomToBoundsOnClick:true,spiderfyOnMaxZoom:true,
+    iconCreateFunction(c){const n=c.getChildCount(),s=n<10?32:n<50?40:48;
+      return L.divIcon({html:'<div style="width:'+s+'px;height:'+s+'px;border-radius:50%;background:rgba(59,130,246,.85);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;border:2px solid rgba(255,255,255,.35);box-shadow:0 2px 10px rgba(59,130,246,.4)">'+n+'</div>',className:'',iconSize:[s,s]})}});
+  mapReady=true;
 }
 
 async function loadData(){
-  const ld=document.getElementById('ld');
+  splashProg(10,'Подключение к Firebase...');
   try{
-    let items=await loadFromFirebase();
-    let source='Firebase RTDB';
-
-    if(!items.length){
-      ld.innerHTML='📭 Нет жалоб. Отправьте первую через бота @pulsenvbot';
-      return;
-    }
-
-    // Sort by date desc
-    items.sort((a,b)=>{
-      const da=new Date(a.created_at||0),db_=new Date(b.created_at||0);
-      return db_-da;
-    });
-
-    allItems=items;
-    document.getElementById('ss').textContent=source+' · '+items.length;
-
-    // Build filters
-    const cats={};
-    items.forEach(c=>{if(c.category)cats[c.category]=(cats[c.category]||0)+1});
-    buildFilters(cats);
-
-    renderMarkers();
-    ld.style.display='none';
-
-  }catch(e){
-    console.error('Load error:',e);
-    ld.innerHTML='❌ Ошибка: '+e.message+'<br><small>Попробуйте обновить страницу</small>';
-  }
+    let items=await loadFB();
+    splashProg(50,'Обработка '+items.length+' жалоб...');
+    if(!items.length){splashProg(100,'Нет данных');setTimeout(()=>{hideSplash();initMap()},800);return}
+    items.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+    allItems=items;items.forEach(c=>knownIds.add(c.id));
+    splashProg(70,'Анализ настроения...');
+    const mood=analyzeMood(items);applyMood(mood);splashStats(mood);
+    splashProg(90,'Карта...');await new Promise(r=>setTimeout(r,600));
+    initMap();buildAllFilters();render();
+    splashProg(100,'Готово!');await new Promise(r=>setTimeout(r,400));
+    hideSplash();startSync();
+  }catch(e){console.error(e);splashProg(100,'Ошибка: '+e.message);setTimeout(()=>{hideSplash();initMap()},1500)}
 }
-
-// ═══ Init ═══
 loadData();
-// Auto-refresh every 60s
-setInterval(()=>{loadData()},60000);
 
 <\/script>
 </body>
@@ -709,6 +910,10 @@ letter-spacing:.8px;padding:16px 4px 6px;grid-column:1/-1}
 .footer{text-align:center;padding:24px 16px;font-size:10px;color:var(--textMuted)}
 .footer a{color:var(--primary);text-decoration:none;font-weight:600}
 
+/* TrendBar mini chart */
+.trend-bar{display:flex;align-items:flex-end;gap:2px;height:40px}
+.trend-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px}
+
 #loader{position:fixed;inset:0;z-index:99;background:var(--bg);display:flex;flex-direction:column;
 align-items:center;justify-content:center;transition:opacity .5s}
 #loader.hide{opacity:0;pointer-events:none}
@@ -908,7 +1113,7 @@ return{init,setWeather(t){weatherType=t},dispose(){renderer?.dispose()}};
 
 // ═══ Data & Weather Loading ═══
 const API='https://anthropic-proxy.uiredepositionherzo.workers.dev';
-const FALLBACK={"updated_at":"2026-02-14","fuel":{"date":"13.02.2026","stations":44,"prices":{"АИ-92":{"min":57,"max":63.7,"avg":60.3,"count":38},"АИ-95":{"min":62,"max":69.9,"avg":65.3,"count":37},"ДТ зимнее":{"min":74,"max":84.1,"avg":79.4,"count":26},"Газ":{"min":23,"max":32.9,"avg":24.2,"count":19}}},"azs":[{"name":"АЗС ОкиС","address":"РЭБ 2П2 №52","org":"ЗАО \\"ОкиС\\", ИП Зипенкова Влада Владимировна ","tel":"89825333444"},{"name":"АЗС","address":"автодорога Нижневартовск - Мегион, 2 ","org":"ООО \\"Фактор\\"","tel":"8 (3466) 480455"},{"name":"АЗС  ОКИС-С","address":"Кузоваткина,41","org":"ООО \\"ОКИС-С\\", ИП Афрасов Анатолий Афрасович","tel":"8 (3466) 55-51-43"},{"name":"АЗС ОКИС-С","address":"Ленина, 3а/П","org":"ЗАО \\"ОкиС\\", ИП Узюма А.А. ","tel":"8 (3466) 41-31-64, 8 (3466) 41-65-65"},{"name":"АЗС ОКИС-С","address":"2П2 ЗПУ, 2","org":"ООО \\"СОДКОР\\", ИП Афрасов А.А.","tel":"(8-3466) 41-31-64,(8-3466) 41-65-65"}],"uk":{"total":42,"houses":904,"top":[{"name":"ООО \\"ПРЭТ №3\\"","houses":186},{"name":"ООО \\"УК \\"Диалог\\"","houses":170},{"name":"АО \\"ЖТ №1\\"","houses":125},{"name":"ООО \\"УК МЖК - Ладья\\"","houses":73},{"name":"АО \\"УК №1\\"","houses":65},{"name":"АО \\"РНУ ЖКХ\\"","houses":55},{"name":"ООО \\"УК Пирс\\"","houses":39},{"name":"ООО \\"УК-Квартал\\"","houses":33},{"name":"ООО \\"Данко\\"","houses":28},{"name":"ООО \\"Ренако-плюс\\"","houses":21}]},"education":{"kindergartens":25,"schools":33,"culture":10,"sport_orgs":4,"sections":155,"sections_free":102,"sections_paid":53,"dod":3},"waste":{"total":500,"groups":[{"name":"Опасные отходы (лампы, термометры, батарейки)","count":289},{"name":"Пластик","count":174},{"name":"Бумага","count":18},{"name":"Лом цветных и черных металлов","count":7},{"name":"Бытовая техника. Оргтехника","count":5},{"name":"Аккумуляторы","count":5},{"name":"Автомобильные шины","count":2}]},"names":{"boys":[{"n":"Артём","c":530},{"n":"Максим","c":428},{"n":"Александр","c":392},{"n":"Дмитрий","c":385},{"n":"Иван","c":311},{"n":"Михаил","c":290},{"n":"Кирилл","c":289},{"n":"Роман","c":273},{"n":"Матвей","c":243},{"n":"Алексей","c":207}],"girls":[{"n":"Виктория","c":392},{"n":"Анна","c":367},{"n":"София","c":356},{"n":"Мария","c":349},{"n":"Анастасия","c":320},{"n":"Дарья","c":308},{"n":"Полина","c":292},{"n":"Алиса","c":290},{"n":"Арина","c":284},{"n":"Ксения","c":279}]},"gkh":[{"name":"АО \\"Горэлектросеть\\" диспетчерская","phone":"8(3466) 26-08-85, 26-07-78"},{"name":"АО \\"Жилищный трест №1\\" диспетчерская","phone":"8(3466) 29-11-99, 64-21-99"},{"name":"АО \\"УК  №1\\" диспетчерская","phone":"8(3466) 24-69-50, 64-20-53"},{"name":"Единая Дежурная Диспетчерская Служба (ЕДДС)","phone":"8(3466) 29-72-50, 112"},{"name":"ООО \\"Нижневартовскгаз\\" диспетчерская","phone":"8(3466) 61-26-12, 61-30-34"},{"name":"ООО \\"Нижневартовские коммунальные системы\\" диспетчерская","phone":"8(3466) 44-77-44, 40-66-88"},{"name":"ООО \\"ПРЭТ №3\\" диспетчерская","phone":"8(3466)27-25-71, 27-33-32"},{"name":"Филиал АО \\"Горэлектросеть\\" Управление теплоснабжением города Нижневартовска диспетчерская","phone":"8(3466) 67-15-03, 24-78-63"}],"tariffs":[{"title":"Полезная информация","desc":""},{"title":"Размер платы за жилое помещение","desc":"Постановления администрации города от 21.12.2012 №1586 &quot;Об утверждении размера платы за содержа"},{"title":"Электроэнергия","desc":""},{"title":"Газоснабжение","desc":""},{"title":"Индексы изменения размера платы граждан за коммунальные услуги","desc":""},{"title":"Услуги в сфере по обращению с твердыми коммунальными отходами","desc":"Постановление администрации города от 19.01.2018 №56 &quot;Об установлении нормативов накопления тве"},{"title":"Водоснабжение, водоотведение","desc":""},{"title":"Тепловая энергия","desc":""}],"transport":{"routes":62,"stops":344,"municipal":34,"commercial":28,"routes_list":[{"num":"1","title":"Железнодорожный вокзал - поселок Дивный","start":"Железнодорожный вокзал","end":"Поселок Дивный(конечная)"},{"num":"2","title":"Поселок Энтузиастов - АСУНефть","start":"Поселок Энтузиастов (конечная)","end":"АСУнефть (в направлении ТК &quot;СЛАВТЭК&quot;)"},{"num":"3","title":"Поселок у северной рощи – МЖК","start":"Поселок у северной рощи","end":"МЖК (конечная)"},{"num":"4","title":"Аэропорт-поселок у северной рощи","start":"Аэропорт (конечная)","end":"Поселок у северной рощи"},{"num":"5К","title":"ДРСУ - СОНТ У озера","start":"ДРСУ","end":"СОНТ &quot;У озера&quot;"},{"num":"5","title":"ДРСУ-поселок у северной рощи","start":"ДРСУ (конечная)","end":"Поселок у северной рощи"},{"num":"6К","title":"Железнодорожный вокзал - Улица 6П","start":"Железнодорожный вокзал","end":"Улица 6П"},{"num":"6","title":"ПАТП №2 - железнодорожный вокзал","start":"ПАТП-2 (конечная)","end":"Железнодорожный вокзал"},{"num":"7","title":"ПАТП №2 –городская больница №3","start":"ПАТП-2 (конечная)","end":"Городская поликлиника №3 (конечная)"},{"num":"8","title":"Авторынок-АСУнефть","start":"Авторынок (конечная)","end":"АСУнефть (в направлении ТК &quot;СЛАВТЭК&quot;)"}]},"road_service":{"total":107,"types":[{"name":"АЗС","count":59},{"name":"Парковка","count":48}]},"road_works":{"total":24,"items":[{"title":"Обустройство разделительного (отбойного) ограждения для разделения транспортных потоков на участке а"},{"title":"улица Интернациональная (на участке от улицы Дзержинского до улицы Нефтяников) - устранение колейнос"},{"title":"улица Интернациональная (в районе дома 74/1 улицы Индустриальная (при движении от «САТУ» на кольцо) "},{"title":"улица Интернациональная (в районе пересечения с улицей Зимней) - устранение колейности"},{"title":"улица Ханты–Мансийская (на участке от улицы Омская до улицы Профсоюзная) - устранение колейности"}]},"building":{"permits":210,"objects":112,"reestr":3},"land_plots":{"total":7,"items":[{"address":"Ханты-Мансийский автономный округ – Югра, г. Нижневартовск, район Нижневартовско","square":"108508"},{"address":"Ханты-Мансийский автономный округ - Югра, г. Нижневартовск, западный промышленны","square":"300000"},{"address":"Ханты-Мансийский автономный округ - Югра, г. Нижневартовск, северо-западный пром","square":"165000"},{"address":"Ханты-Мансийский автономный округ - Югра, г. Нижневартовск, северный промышленны","square":"255000"},{"address":"Ханты-Мансийский автономный округ- Югра, г. Нижневартовск, квартал 20 Восточного","square":"12000"}]},"accessibility":{"total":136,"groups":[{"name":"Учреждения образования","count":30},{"name":"Светофоры со звуковыми сигналами","count":18},{"name":"Дорожный знак «Слепые пешеходы»","count":16},{"name":"Пандусы","count":16},{"name":"Учреждения культуры","count":13},{"name":"Дорожный знак «Инвалиды»","count":12},{"name":"Учреждения физической культуры и спорта","count":12},{"name":"Учреждения здравоохранения и социальной защиты населения","count":11}]},"culture_clubs":{"total":148,"free":125,"paid":23,"items":[{"name":"вокальный коллектив","age":"5-14","pay":"бесплатно"},{"name":"Студия  авторской  песни  «Рио-Рита»","age":"25-29","pay":"бесплатно"},{"name":"Кружок класссического вокала","age":"18-0","pay":"бесплатно"},{"name":"вокальная шоу-группа «Джулия»","age":"8-14","pay":"бесплатно"},{"name":"Ансамбль «Северяне»","age":"18-0","pay":"бесплатно"},{"name":"Почетный коллектив народного творчества, народный самодеятельный коллектив, хор  ветеранов труда «Красная  гвоздика» им. В. Салтысова","age":"45-0","pay":"бесплатно"},{"name":"Народный самодеятельный коллектив, хор русской песни  «Сибирские зори» Ансамбль-спутник «Девчата» ","age":"18-0","pay":"бесплатно"},{"name":"ДЖАЗ-БАЛЕТ","age":"14-35","pay":"бесплатно"}]},"trainers":{"total":191},"salary":{"total":4332,"years":[2020,2021,2022,2023,2024]},"hearings":{"total":543,"recent":[{"date":"12.02.2026","title":"О проведении общественных обсуждений по проекту планировки территории улично-дорожной сети в части у"},{"date":"11.02.2026","title":"О проведении общественных обсуждений по проекту межевания территории планировочного района 30 города"},{"date":"06.02.2026","title":"О проведении общественных обсуждений по проектам о предоставлении разрешения на отклонение от предел"}]},"gmu_phones":[{"org":"Предоставление сведений из реестра муниципального имущества","tel":"(3466) 41-06-26 (3466) 24-19-10"},{"org":"Проведение муниципальной экспертизы проектов освоения лесов,","tel":"(3466) 41-20-26"},{"org":"Предоставление водных объектов, находящихся в собственности ","tel":"(3466) 41-20-26"},{"org":"Предоставление водных объектов, находящихся в собственности ","tel":"(3466) 41-20-26"},{"org":"Государственная регистрация заявлений о проведении обществен","tel":"(3466) 41-53-04"},{"org":"Организация общественных обсуждений среди населения о намеча","tel":"(3466) 41-53-04"},{"org":"Выдача разрешений на снос или пересадку зеленых насаждений н","tel":"(3466) 41-20-26"},{"org":"Предоставление информации о реализации программ начального о","tel":"(3466) 43-75-81 (3466) 43-75-24 (3466) 42-24-10"}],"demography":[{"marriages":"366","birth":"200","boys":"100","girls":"100","date":"09.11.2018"}],"budget_bulletins":{"total":15,"items":[{"title":"2024 год","desc":"1 квартал 2024 года","url":"https://www.n-vartovsk.ru/upload/iblock/f4f/iyrnf9utmz2wl7pvk1a3jcob8dldt5iq/4grze2d6pziz3bzf3vvtbg9iloss6gtg.docx"},{"title":"2023 год","desc":"1 квартал 2023 года","url":"https://www.n-vartovsk.ru/upload/iblock/7d9/vblnpmi1vh1gf1qcrv20kwrbnxilg3sr/9c3zax3mx13yyb3zxncdhhj7zwxi7up4.docx"},{"title":"2022 год","desc":"Финансовый бюллетень за 1 квартал 2022 года","url":"https://www.n-vartovsk.ru/upload/iblock/4a3/i356g0vkyyqft80yschznahxlrx0zeb7/oycg03f3crsrhu7mum89jkyvrap4c6oz.docx"},{"title":"2021 год","desc":"Финансовый бюллетень за 1 квартал 2021 года","url":"https://www.n-vartovsk.ru/upload/iblock/8b6/qxglhnbp9sk9b68gvo5pazs4v16bcplj/5553ffcd956c733ad2b403318d6403a4.docx"},{"title":"2020 год","desc":"Финансовый бюллетень за 1 квартал 2020 года","url":"https://www.n-vartovsk.ru/upload/iblock/232/c03d912c9586247c9703d656b4c32879.docx"}]},"budget_info":{"total":14,"items":[{"title":"2024 год","desc":"январь 2024 года","url":"https://www.n-vartovsk.ru/upload/iblock/3b0/nx0kerqbqi96emliwgctiup4e6cgz4cf/nhvc1qw6m5rxxj63vd4dmlsv55luyp4f.xls"},{"title":"2023 год","desc":"январь 2023 года","url":"https://www.n-vartovsk.ru/upload/iblock/636/ijxbpxgusrszdxfp2ko65lg3v70uiced/cv3z10xzcw7tcj2qudzz3qorlkuhvmz2.xls"},{"title":"2022 год","desc":"Январь 2022 года","url":"https://www.n-vartovsk.ru/upload/iblock/947/qr7plqmr98mqdvpggnbpwylvwsgibkuo/ghafnfiadko3pb3x9qmaxy6cyh0ek50q.xls"},{"title":"2021 год","desc":"январь 2021 года","url":"https://www.n-vartovsk.ru/upload/iblock/ec1/esrcxgu7itynh7sdgr1yz8pgpsqde34d/ccac4fa312a21129efd8600d42cd7c8a.xls"},{"title":"2020 год","desc":"Январь 2020 год","url":"https://www.n-vartovsk.ru/upload/iblock/7ae/1b2f8416e003a9a2010e49640f824378.xls"}]},"agreements":{"total":138,"total_summ":107801.9,"total_inv":15603995.88,"total_gos":3919554.51,"by_type":[{"name":"Энергосервис","count":123},{"name":"ГЧП","count":5},{"name":"КЖЦ","count":3},{"name":"Аренда имущества","count":1},{"name":"Капремонт","count":1},{"name":"Инвестпроекты","count":1},{"name":"Инвестконтракты","count":1},{"name":"РИП","count":1},{"name":"Соцпартнёрство","count":1},{"name":"ЗПК","count":1}],"top":[{"type":"КЖЦ","title":"Акционерное общество «Государственная компания «Северавтодор»","desc":"- работы по строительству объекта и сдаче результата работ Заказчику по Акту приемки за-конченного с","org":"строительство","date":"25.09.2020","summ":41350.7,"vol_inv":0.0,"vol_gos":248104.4,"year":"10"},{"type":"КЖЦ","title":"Акционерное общество «Государственная компания «Северавтодор»","desc":"- работы по разработке проектной документации, в соответствии с Заданием на внесение изменений в про","org":"строительство","date":"12.11.2019","summ":39837.3,"vol_inv":0.0,"vol_gos":239023.8,"year":"9"},{"type":"КЖЦ","title":"Акционерное общество «Государственная компания «Северавтодор»","desc":"- работы по разработке проектной документации, в соответствии с Заданием на внесение изменений в про","org":"строительство","date":"03.06.2019","summ":26076.9,"vol_inv":0.0,"vol_gos":156461.8,"year":"9"},{"type":"Соцпартнёрство","title":"ООО &quot;Пилипака и компания&quot;","desc":"Реализация инвестиционного проекта &quot;Строительство ТК &quot;Станция&quot;","org":"Торговля","date":"15.12.2020","summ":537.0,"vol_inv":1600000.0,"vol_gos":0.0,"year":"6"},{"type":"Энергосервис","title":"АО &quot;ГАЗПРОМ ЭНЕРГОСБЫТ ТЮМЕНЬ&quot;","desc":"оказание услуг, направленных на энергосбережение и повышение энергетической эффективности использова","org":"социальная","date":"07.08.2023","summ":0.0,"vol_inv":5048.008,"vol_gos":0.0,"year":"7"},{"type":"Энергосервис","title":"АО &quot;ГАЗПРОМ ЭНЕРГОСБЫТ ТЮМЕНЬ&quot;","desc":"оказание услуг, направленных на энергосбережение и повышение энергетической эффективности использова","org":"социальная","date":"02.08.2023","summ":0.0,"vol_inv":2028.98661,"vol_gos":0.0,"year":"7"},{"type":"Энергосервис","title":"АО &quot;ГАЗПРОМ ЭНЕРГОСБЫТ ТЮМЕНЬ&quot;","desc":"оказание услуг, направленных на энергосбережение и повышение энергетической эффективности использова","org":"социальная","date":"02.08.2023","summ":0.0,"vol_inv":10507.55601,"vol_gos":0.0,"year":"7"},{"type":"Энергосервис","title":"АО &quot;ГАЗПРОМ ЭНЕРГОСБЫТ ТЮМЕНЬ&quot;","desc":"оказание услуг, направленных на энергосбережение и повышение энергетической эффективности использова","org":"социальная","date":"02.08.2023","summ":0.0,"vol_inv":3255.55993,"vol_gos":0.0,"year":"7"},{"type":"Энергосервис","title":"АО &quot;ГАЗПРОМ ЭНЕРГОСБЫТ ТЮМЕНЬ&quot;","desc":"оказание услуг, направленных на энергосбережение и повышение энергетической эффективности использова","org":"социальная","date":"31.07.2023","summ":0.0,"vol_inv":4476.34425,"vol_gos":0.0,"year":"7"},{"type":"Энергосервис","title":"АО &quot;ГАЗПРОМ ЭНЕРГОСБЫТ ТЮМЕНЬ&quot;","desc":"оказание услуг, направленных на энергосбережение и повышение энергетической эффективности использова","org":"социальная","date":"07.08.2023","summ":0.0,"vol_inv":5728.50495,"vol_gos":0.0,"year":"7"}]},"property":{"lands":688,"movable":978,"realestate":5000,"stoks":13,"privatization":471,"rent":148,"total":6679},"business":{"info":1995,"smp_messages":447,"events":0},"advertising":{"total":128},"communication":{"total":25},"archive":{"expertise":500,"list":1500},"documents":{"docs":5000,"links":5000,"texts":5000},"programs":{"total":5,"items":[{"title":"ПЕРЕЧЕНЬ МУНИЦИПАЛЬНЫХ ПРОГРАММ ГОРОДА НИЖНЕВАРТОВСКА, ДЕЙСТВУЮЩИХ В 2026 ГОДУ"},{"title":"ПЕРЕЧЕНЬ МУНИЦИПАЛЬНЫХ ПРОГРАММ ГОРОДА НИЖНЕВАРТОВСКА, ДЕЙСТВОВАВШИХ В 2025 ГОДУ"},{"title":"ПЛАН МЕРОПРИЯТИЙ ПО РЕАЛИЗАЦИИ СТРАТЕГИИ СОЦИАЛЬНО-ЭКОНОМИЧЕСКОГО РАЗВИТИЯ ГОРОДА НИЖНЕВАРТОВСКА ДО "}]},"news":{"total":18,"rubrics":1332,"photos":0},"ad_places":{"total":414},"territory_plans":{"total":87},"labor_safety":{"total":29},"appeals":{"total":8},"msp":{"total":14,"items":[{"title":""},{"title":""},{"title":""},{"title":""},{"title":""}]},"counts":{"construction":112,"phonebook":576,"admin":157,"sport_places":30,"mfc":11,"msp":14,"trainers":191,"bus_routes":62,"bus_stops":344,"accessibility":136,"culture_clubs":148,"hearings":543,"permits":210,"property_total":6679,"agreements_total":138,"budget_docs":29,"privatization":471,"rent":148,"advertising":128,"documents":5000,"archive":1500,"business_info":1995,"smp_messages":447,"news":18,"territory_plans":87},"datasets_total":72,"datasets_with_data":68};
+const FALLBACK={"updated_at":"2026-02-14","fuel":{"date":"13.02.2026","stations":44,"prices":{"АИ-92":{"min":57,"max":63.7,"avg":60.3,"count":38},"АИ-95":{"min":62,"max":69.9,"avg":65.3,"count":37},"ДТ зимнее":{"min":74,"max":84.1,"avg":79.4,"count":26},"Газ":{"min":23,"max":32.9,"avg":24.2,"count":19}}},"azs":[{"name":"АЗС ОкиС","address":"РЭБ 2П2 №52","org":"ЗАО \\"ОкиС\\", ИП Зипенкова Влада Владимировна ","tel":"89825333444"},{"name":"АЗС","address":"автодорога Нижневартовск - Мегион, 2 ","org":"ООО \\"Фактор\\"","tel":"8 (3466) 480455"},{"name":"АЗС  ОКИС-С","address":"Кузоваткина,41","org":"ООО \\"ОКИС-С\\", ИП Афрасов Анатолий Афрасович","tel":"8 (3466) 55-51-43"},{"name":"АЗС ОКИС-С","address":"Ленина, 3а/П","org":"ЗАО \\"ОкиС\\", ИП Узюма А.А. ","tel":"8 (3466) 41-31-64, 8 (3466) 41-65-65"},{"name":"АЗС ОКИС-С","address":"2П2 ЗПУ, 2","org":"ООО \\"СОДКОР\\", ИП Афрасов А.А.","tel":"(8-3466) 41-31-64,(8-3466) 41-65-65"}],"uk":{"total":42,"houses":904,"top":[{"name":"ООО \\"ПРЭТ №3\\"","houses":186},{"name":"ООО \\"УК \\"Диалог\\"","houses":170},{"name":"АО \\"ЖТ №1\\"","houses":125},{"name":"ООО \\"УК МЖК - Ладья\\"","houses":73},{"name":"АО \\"УК №1\\"","houses":65},{"name":"АО \\"РНУ ЖКХ\\"","houses":55},{"name":"ООО \\"УК Пирс\\"","houses":39},{"name":"ООО \\"УК-Квартал\\"","houses":33},{"name":"ООО \\"Данко\\"","houses":28},{"name":"ООО \\"Ренако-плюс\\"","houses":21}]},"education":{"kindergartens":25,"schools":33,"culture":10,"sport_orgs":4,"sections":155,"sections_free":102,"sections_paid":53,"dod":3},"waste":{"total":500,"groups":[{"name":"Опасные отходы (лампы, термометры, батарейки)","count":289},{"name":"Пластик","count":174},{"name":"Бумага","count":18},{"name":"Лом цветных и черных металлов","count":7},{"name":"Бытовая техника. Оргтехника","count":5},{"name":"Аккумуляторы","count":5},{"name":"Автомобильные шины","count":2}]},"names":{"boys":[{"n":"Артём","c":530},{"n":"Максим","c":428},{"n":"Александр","c":392},{"n":"Дмитрий","c":385},{"n":"Иван","c":311},{"n":"Михаил","c":290},{"n":"Кирилл","c":289},{"n":"Роман","c":273},{"n":"Матвей","c":243},{"n":"Алексей","c":207}],"girls":[{"n":"Виктория","c":392},{"n":"Анна","c":367},{"n":"София","c":356},{"n":"Мария","c":349},{"n":"Анастасия","c":320},{"n":"Дарья","c":308},{"n":"Полина","c":292},{"n":"Алиса","c":290},{"n":"Арина","c":284},{"n":"Ксения","c":279}]},"gkh":[{"name":"АО \\"Горэлектросеть\\" диспетчерская","phone":"8(3466) 26-08-85, 26-07-78"},{"name":"АО \\"Жилищный трест №1\\" диспетчерская","phone":"8(3466) 29-11-99, 64-21-99"},{"name":"АО \\"УК  №1\\" диспетчерская","phone":"8(3466) 24-69-50, 64-20-53"},{"name":"Единая Дежурная Диспетчерская Служба (ЕДДС)","phone":"8(3466) 29-72-50, 112"},{"name":"ООО \\"Нижневартовскгаз\\" диспетчерская","phone":"8(3466) 61-26-12, 61-30-34"},{"name":"ООО \\"Нижневартовские коммунальные системы\\" диспетчерская","phone":"8(3466) 44-77-44, 40-66-88"},{"name":"ООО \\"ПРЭТ №3\\" диспетчерская","phone":"8(3466)27-25-71, 27-33-32"},{"name":"Филиал АО \\"Горэлектросеть\\" Управление теплоснабжением города Нижневартовска диспетчерская","phone":"8(3466) 67-15-03, 24-78-63"}],"tariffs":[{"title":"Полезная информация","desc":""},{"title":"Размер платы за жилое помещение","desc":"Постановления администрации города от 21.12.2012 №1586 &quot;Об утверждении размера платы за содержа"},{"title":"Электроэнергия","desc":""},{"title":"Газоснабжение","desc":""},{"title":"Индексы изменения размера платы граждан за коммунальные услуги","desc":""},{"title":"Услуги в сфере по обращению с твердыми коммунальными отходами","desc":"Постановление администрации города от 19.01.2018 №56 &quot;Об установлении нормативов накопления тве"},{"title":"Водоснабжение, водоотведение","desc":""},{"title":"Тепловая энергия","desc":""}],"transport":{"routes":62,"stops":344,"municipal":34,"commercial":28,"routes_list":[{"num":"1","title":"Железнодорожный вокзал - поселок Дивный","start":"Железнодорожный вокзал","end":"Поселок Дивный(конечная)"},{"num":"2","title":"Поселок Энтузиастов - АСУНефть","start":"Поселок Энтузиастов (конечная)","end":"АСУнефть (в направлении ТК &quot;СЛАВТЭК&quot;)"},{"num":"3","title":"Поселок у северной рощи – МЖК","start":"Поселок у северной рощи","end":"МЖК (конечная)"},{"num":"4","title":"Аэропорт-поселок у северной рощи","start":"Аэропорт (конечная)","end":"Поселок у северной рощи"},{"num":"5К","title":"ДРСУ - СОНТ У озера","start":"ДРСУ","end":"СОНТ &quot;У озера&quot;"},{"num":"5","title":"ДРСУ-поселок у северной рощи","start":"ДРСУ (конечная)","end":"Поселок у северной рощи"},{"num":"6К","title":"Железнодорожный вокзал - Улица 6П","start":"Железнодорожный вокзал","end":"Улица 6П"},{"num":"6","title":"ПАТП №2 - железнодорожный вокзал","start":"ПАТП-2 (конечная)","end":"Железнодорожный вокзал"},{"num":"7","title":"ПАТП №2 –городская больница №3","start":"ПАТП-2 (конечная)","end":"Городская поликлиника №3 (конечная)"},{"num":"8","title":"Авторынок-АСУнефть","start":"Авторынок (конечная)","end":"АСУнефть (в направлении ТК &quot;СЛАВТЭК&quot;)"}]},"road_service":{"total":107,"types":[{"name":"АЗС","count":59},{"name":"Парковка","count":48}]},"road_works":{"total":24,"items":[{"title":"Обустройство разделительного (отбойного) ограждения для разделения транспортных потоков на участке а"},{"title":"улица Интернациональная (на участке от улицы Дзержинского до улицы Нефтяников) - устранение колейнос"},{"title":"улица Интернациональная (в районе дома 74/1 улицы Индустриальная (при движении от «САТУ» на кольцо) "},{"title":"улица Интернациональная (в районе пересечения с улицей Зимней) - устранение колейности"},{"title":"улица Ханты–Мансийская (на участке от улицы Омская до улицы Профсоюзная) - устранение колейности"}]},"building":{"permits":210,"objects":112,"reestr":3,"permits_trend":[{"year":2008,"count":20},{"year":2009,"count":18},{"year":2010,"count":19},{"year":2011,"count":22},{"year":2012,"count":25},{"year":2013,"count":18},{"year":2014,"count":30},{"year":2015,"count":21},{"year":2016,"count":26},{"year":2017,"count":9}]},"land_plots":{"total":7,"items":[{"address":"Ханты-Мансийский автономный округ – Югра, г. Нижневартовск, район Нижневартовско","square":"108508"},{"address":"Ханты-Мансийский автономный округ - Югра, г. Нижневартовск, западный промышленны","square":"300000"},{"address":"Ханты-Мансийский автономный округ - Югра, г. Нижневартовск, северо-западный пром","square":"165000"},{"address":"Ханты-Мансийский автономный округ - Югра, г. Нижневартовск, северный промышленны","square":"255000"},{"address":"Ханты-Мансийский автономный округ- Югра, г. Нижневартовск, квартал 20 Восточного","square":"12000"}]},"accessibility":{"total":136,"groups":[{"name":"Учреждения образования","count":30},{"name":"Светофоры со звуковыми сигналами","count":18},{"name":"Дорожный знак «Слепые пешеходы»","count":16},{"name":"Пандусы","count":16},{"name":"Учреждения культуры","count":13},{"name":"Дорожный знак «Инвалиды»","count":12},{"name":"Учреждения физической культуры и спорта","count":12},{"name":"Учреждения здравоохранения и социальной защиты населения","count":11}]},"culture_clubs":{"total":148,"free":125,"paid":23,"items":[{"name":"вокальный коллектив","age":"5-14","pay":"бесплатно"},{"name":"Студия  авторской  песни  «Рио-Рита»","age":"25-29","pay":"бесплатно"},{"name":"Кружок класссического вокала","age":"18-0","pay":"бесплатно"},{"name":"вокальная шоу-группа «Джулия»","age":"8-14","pay":"бесплатно"},{"name":"Ансамбль «Северяне»","age":"18-0","pay":"бесплатно"},{"name":"Почетный коллектив народного творчества, народный самодеятельный коллектив, хор  ветеранов труда «Красная  гвоздика» им. В. Салтысова","age":"45-0","pay":"бесплатно"},{"name":"Народный самодеятельный коллектив, хор русской песни  «Сибирские зори» Ансамбль-спутник «Девчата» ","age":"18-0","pay":"бесплатно"},{"name":"ДЖАЗ-БАЛЕТ","age":"14-35","pay":"бесплатно"}]},"trainers":{"total":191},"salary":{"total":4332,"years":[2017,2018,2019,2020,2021,2022,2023,2024],"trend":[{"year":2017,"avg":98.6,"count":558},{"year":2018,"avg":106.9,"count":563},{"year":2019,"avg":121.9,"count":584},{"year":2020,"avg":127.5,"count":546},{"year":2021,"avg":134.0,"count":527},{"year":2022,"avg":149.5,"count":517},{"year":2023,"avg":162.4,"count":515},{"year":2024,"avg":177.8,"count":519}],"growth_pct":80.3,"latest_avg":177.8},"hearings":{"total":543,"trend":[{"year":2019,"count":56},{"year":2020,"count":49},{"year":2021,"count":36},{"year":2022,"count":64},{"year":2023,"count":66},{"year":2024,"count":72},{"year":2025,"count":75},{"year":2026,"count":11}],"recent":[{"date":"12.02.2026","title":"О проведении общественных обсуждений по проекту планировки территории улично-дорожной сети в части у"},{"date":"11.02.2026","title":"О проведении общественных обсуждений по проекту межевания территории планировочного района 30 города"},{"date":"06.02.2026","title":"О проведении общественных обсуждений по проектам о предоставлении разрешения на отклонение от предел"}]},"gmu_phones":[{"org":"Предоставление сведений из реестра муниципального имущества","tel":"(3466) 41-06-26 (3466) 24-19-10"},{"org":"Проведение муниципальной экспертизы проектов освоения лесов,","tel":"(3466) 41-20-26"},{"org":"Предоставление водных объектов, находящихся в собственности ","tel":"(3466) 41-20-26"},{"org":"Предоставление водных объектов, находящихся в собственности ","tel":"(3466) 41-20-26"},{"org":"Государственная регистрация заявлений о проведении обществен","tel":"(3466) 41-53-04"},{"org":"Организация общественных обсуждений среди населения о намеча","tel":"(3466) 41-53-04"},{"org":"Выдача разрешений на снос или пересадку зеленых насаждений н","tel":"(3466) 41-20-26"},{"org":"Предоставление информации о реализации программ начального о","tel":"(3466) 43-75-81 (3466) 43-75-24 (3466) 42-24-10"}],"demography":[{"marriages":"366","birth":"200","boys":"100","girls":"100","date":"09.11.2018"}],"budget_bulletins":{"total":15,"items":[{"title":"2024 год","desc":"1 квартал 2024 года","url":"https://www.n-vartovsk.ru/upload/iblock/f4f/iyrnf9utmz2wl7pvk1a3jcob8dldt5iq/4grze2d6pziz3bzf3vvtbg9iloss6gtg.docx"},{"title":"2023 год","desc":"1 квартал 2023 года","url":"https://www.n-vartovsk.ru/upload/iblock/7d9/vblnpmi1vh1gf1qcrv20kwrbnxilg3sr/9c3zax3mx13yyb3zxncdhhj7zwxi7up4.docx"},{"title":"2022 год","desc":"Финансовый бюллетень за 1 квартал 2022 года","url":"https://www.n-vartovsk.ru/upload/iblock/4a3/i356g0vkyyqft80yschznahxlrx0zeb7/oycg03f3crsrhu7mum89jkyvrap4c6oz.docx"},{"title":"2021 год","desc":"Финансовый бюллетень за 1 квартал 2021 года","url":"https://www.n-vartovsk.ru/upload/iblock/8b6/qxglhnbp9sk9b68gvo5pazs4v16bcplj/5553ffcd956c733ad2b403318d6403a4.docx"},{"title":"2020 год","desc":"Финансовый бюллетень за 1 квартал 2020 года","url":"https://www.n-vartovsk.ru/upload/iblock/232/c03d912c9586247c9703d656b4c32879.docx"}]},"budget_info":{"total":14,"items":[{"title":"2024 год","desc":"январь 2024 года","url":"https://www.n-vartovsk.ru/upload/iblock/3b0/nx0kerqbqi96emliwgctiup4e6cgz4cf/nhvc1qw6m5rxxj63vd4dmlsv55luyp4f.xls"},{"title":"2023 год","desc":"январь 2023 года","url":"https://www.n-vartovsk.ru/upload/iblock/636/ijxbpxgusrszdxfp2ko65lg3v70uiced/cv3z10xzcw7tcj2qudzz3qorlkuhvmz2.xls"},{"title":"2022 год","desc":"Январь 2022 года","url":"https://www.n-vartovsk.ru/upload/iblock/947/qr7plqmr98mqdvpggnbpwylvwsgibkuo/ghafnfiadko3pb3x9qmaxy6cyh0ek50q.xls"},{"title":"2021 год","desc":"январь 2021 года","url":"https://www.n-vartovsk.ru/upload/iblock/ec1/esrcxgu7itynh7sdgr1yz8pgpsqde34d/ccac4fa312a21129efd8600d42cd7c8a.xls"},{"title":"2020 год","desc":"Январь 2020 год","url":"https://www.n-vartovsk.ru/upload/iblock/7ae/1b2f8416e003a9a2010e49640f824378.xls"}]},"agreements":{"total":138,"total_summ":107801.9,"total_inv":15603995.88,"total_gos":3919554.51,"by_type":[{"name":"Энергосервис","count":123},{"name":"ГЧП","count":5},{"name":"КЖЦ","count":3},{"name":"Аренда имущества","count":1},{"name":"Капремонт","count":1},{"name":"Инвестпроекты","count":1},{"name":"Инвестконтракты","count":1},{"name":"РИП","count":1},{"name":"Соцпартнёрство","count":1},{"name":"ЗПК","count":1}],"top":[{"type":"КЖЦ","title":"Акционерное общество «Государственная компания «Северавтодор»","desc":"- работы по строительству объекта и сдаче результата работ Заказчику по Акту приемки за-конченного с","org":"строительство","date":"25.09.2020","summ":41350.7,"vol_inv":0.0,"vol_gos":248104.4,"year":"10"},{"type":"КЖЦ","title":"Акционерное общество «Государственная компания «Северавтодор»","desc":"- работы по разработке проектной документации, в соответствии с Заданием на внесение изменений в про","org":"строительство","date":"12.11.2019","summ":39837.3,"vol_inv":0.0,"vol_gos":239023.8,"year":"9"},{"type":"КЖЦ","title":"Акционерное общество «Государственная компания «Северавтодор»","desc":"- работы по разработке проектной документации, в соответствии с Заданием на внесение изменений в про","org":"строительство","date":"03.06.2019","summ":26076.9,"vol_inv":0.0,"vol_gos":156461.8,"year":"9"},{"type":"Соцпартнёрство","title":"ООО &quot;Пилипака и компания&quot;","desc":"Реализация инвестиционного проекта &quot;Строительство ТК &quot;Станция&quot;","org":"Торговля","date":"15.12.2020","summ":537.0,"vol_inv":1600000.0,"vol_gos":0.0,"year":"6"},{"type":"Энергосервис","title":"АО &quot;ГАЗПРОМ ЭНЕРГОСБЫТ ТЮМЕНЬ&quot;","desc":"оказание услуг, направленных на энергосбережение и повышение энергетической эффективности использова","org":"социальная","date":"07.08.2023","summ":0.0,"vol_inv":5048.008,"vol_gos":0.0,"year":"7"},{"type":"Энергосервис","title":"АО &quot;ГАЗПРОМ ЭНЕРГОСБЫТ ТЮМЕНЬ&quot;","desc":"оказание услуг, направленных на энергосбережение и повышение энергетической эффективности использова","org":"социальная","date":"02.08.2023","summ":0.0,"vol_inv":2028.98661,"vol_gos":0.0,"year":"7"},{"type":"Энергосервис","title":"АО &quot;ГАЗПРОМ ЭНЕРГОСБЫТ ТЮМЕНЬ&quot;","desc":"оказание услуг, направленных на энергосбережение и повышение энергетической эффективности использова","org":"социальная","date":"02.08.2023","summ":0.0,"vol_inv":10507.55601,"vol_gos":0.0,"year":"7"},{"type":"Энергосервис","title":"АО &quot;ГАЗПРОМ ЭНЕРГОСБЫТ ТЮМЕНЬ&quot;","desc":"оказание услуг, направленных на энергосбережение и повышение энергетической эффективности использова","org":"социальная","date":"02.08.2023","summ":0.0,"vol_inv":3255.55993,"vol_gos":0.0,"year":"7"},{"type":"Энергосервис","title":"АО &quot;ГАЗПРОМ ЭНЕРГОСБЫТ ТЮМЕНЬ&quot;","desc":"оказание услуг, направленных на энергосбережение и повышение энергетической эффективности использова","org":"социальная","date":"31.07.2023","summ":0.0,"vol_inv":4476.34425,"vol_gos":0.0,"year":"7"},{"type":"Энергосервис","title":"АО &quot;ГАЗПРОМ ЭНЕРГОСБЫТ ТЮМЕНЬ&quot;","desc":"оказание услуг, направленных на энергосбережение и повышение энергетической эффективности использова","org":"социальная","date":"07.08.2023","summ":0.0,"vol_inv":5728.50495,"vol_gos":0.0,"year":"7"}]},"property":{"lands":688,"movable":978,"realestate":8449,"stoks":13,"privatization":471,"rent":148,"total":10128},"business":{"info":1995,"smp_messages":0,"events":0},"advertising":{"total":128},"communication":{"total":25},"archive":{"expertise":0,"list":1500},"documents":{"docs":35385,"links":38500,"texts":35385},"programs":{"total":5,"items":[{"title":"ПЕРЕЧЕНЬ МУНИЦИПАЛЬНЫХ ПРОГРАММ ГОРОДА НИЖНЕВАРТОВСКА, ДЕЙСТВУЮЩИХ В 2026 ГОДУ"},{"title":"ПЕРЕЧЕНЬ МУНИЦИПАЛЬНЫХ ПРОГРАММ ГОРОДА НИЖНЕВАРТОВСКА, ДЕЙСТВОВАВШИХ В 2025 ГОДУ"},{"title":"ПЛАН МЕРОПРИЯТИЙ ПО РЕАЛИЗАЦИИ СТРАТЕГИИ СОЦИАЛЬНО-ЭКОНОМИЧЕСКОГО РАЗВИТИЯ ГОРОДА НИЖНЕВАРТОВСКА ДО "}]},"news":{"total":1018,"rubrics":1332,"photos":0,"trend":[{"year":2020,"count":15},{"year":2021,"count":3},{"year":2025,"count":867},{"year":2026,"count":133}]},"ad_places":{"total":414},"territory_plans":{"total":87},"labor_safety":{"total":29},"appeals":{"total":8},"msp":{"total":14,"items":[{"title":""},{"title":""},{"title":""},{"title":""},{"title":""}]},"counts":{"construction":112,"phonebook":576,"admin":157,"sport_places":30,"mfc":11,"msp":14,"trainers":191,"bus_routes":62,"bus_stops":344,"accessibility":136,"culture_clubs":148,"hearings":543,"permits":210,"property_total":10128,"agreements_total":138,"budget_docs":29,"privatization":471,"rent":148,"advertising":128,"documents":35385,"archive":1500,"business_info":1995,"smp_messages":0,"news":1018,"territory_plans":87},"datasets_total":72,"datasets_with_data":67};
 
 async function loadData(){
   try{const r=await fetch(API+'/firebase/opendata_infographic.json',{signal:AbortSignal.timeout(5000)});
@@ -1388,7 +1593,7 @@ function BudgetCard({agreements,budget_bulletins,budget_info,property}){
       h('div',{style:{marginTop:8,fontSize:10,color:'var(--textMuted)'}},
         'Бюджетных бюллетеней: '+(budget_bulletins?.total||0)+' · Бюджетная информация: '+(budget_info?.total||0))),
     h(ExpandBtn,{expanded,label:'Контракты'}),
-    h(Tip,{color:'red',icon:'📊',text:agr.total_summ>0?'Общий объём контрактов: '+fmtMoney(agr.total_summ)+'. Энергосервис — основная статья расходов':'Данные о суммах контрактов обновляются'}));
+    h(Tip,{color:'red',icon:'📊',text:agr.total_summ>0?'Общий объём контрактов: '+fmtMoney(agr.total_summ)+'. '+(agr.total_gos>0?'Гос. средства: '+fmtMoney(agr.total_gos)+' ('+Math.round(agr.total_gos/agr.total_summ*100)+'% от общей суммы). ':'')+'Энергосервис — основная статья расходов':'Данные о суммах контрактов обновляются'}));
 }
 
 // --- PropertyCard (ИМУЩЕСТВО) ---
@@ -1416,6 +1621,31 @@ function PropertyCard({property}){
       h('div',{style:{flex:1,minWidth:100,padding:'6px 10px',borderRadius:10,background:'var(--tealBg)',fontSize:10}},
         '📋 Аренда: ',h('b',{style:{color:'var(--teal)'}},(p.rent||0)))),
     h(Tip,{color:'blue',icon:'🏛️',text:'В реестре '+(p.total||0).toLocaleString('ru')+' объектов. Недвижимость — '+(p.realestate||0).toLocaleString('ru')+' объектов'}));
+}
+
+// --- TrendBar: mini bar chart for year-by-year data ---
+function TrendBar({data,color,label,valueKey='count'}){
+  if(!data||!data.length)return null;
+  const max=Math.max(...data.map(d=>d[valueKey]||0),1);
+  return h('div',{style:{marginTop:6}},
+    label?h('div',{style:{fontSize:9,color:'var(--textMuted)',marginBottom:4,fontWeight:600,textTransform:'uppercase',letterSpacing:'.3px'}},label):null,
+    h('div',{style:{display:'flex',alignItems:'flex-end',gap:2,height:40}},
+      ...data.map((d,i)=>{
+        const v=d[valueKey]||0;
+        const pct=Math.max(v/max*100,4);
+        return h('div',{key:i,style:{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:1}},
+          h('div',{style:{fontSize:7,color:'var(--textMuted)',fontWeight:600}},v),
+          h('div',{style:{width:'100%',height:pct+'%',minHeight:2,background:color||'var(--primary)',
+            borderRadius:3,transition:'height .5s',opacity:.7+i/data.length*.3}}))
+      })),
+    h('div',{style:{display:'flex',justifyContent:'space-between',marginTop:2}},
+      ...data.map((d,i)=>h('div',{key:i,style:{flex:1,textAlign:'center',fontSize:7,color:'var(--textMuted)'}},
+        String(d.year).slice(-2)))));
+}
+
+// --- ConclusionTip: analytical conclusion ---
+function ConclusionTip({text,icon,color}){
+  return h(Tip,{color:color||'blue',icon:icon||'📈',text:text});
 }
 
 // ═══ Main App ═══
@@ -1527,7 +1757,8 @@ function App(){
         h(StatRow,{items:[
           {value:ed.kindergartens||0,label:'Детсадов',color:'var(--orange)'},
           {value:ed.schools||0,label:'Школ',color:'var(--blue)'},
-          {value:ed.dod||0,label:'ДОД',color:'var(--purple)'}]})),
+          {value:ed.dod||0,label:'ДОД',color:'var(--purple)'}]}),
+        h(ConclusionTip,{text:'В городе '+(ed.kindergartens||0)+' детсадов и '+(ed.schools||0)+' школ. Сеть образования покрывает все районы Нижневартовска',icon:'🎓',color:'blue'})),
       show('edu')&&h(StatCard,{section:'edu',icon:'🎭',iconBg:'var(--purpleBg)',title:'Культура',key:'cult1'},
         h(BigNum,{value:ed.culture||0,label:'учреждений',color:'var(--purple)'}),
         h('div',{style:{marginTop:4,fontSize:10,color:'var(--textMuted)'}},
@@ -1545,7 +1776,8 @@ function App(){
       show('transport')&&h(StatCard,{section:'transport',icon:'🚌',iconBg:'var(--blueBg)',title:'Транспорт',key:'tr1'},
         h(StatRow,{items:[
           {value:tr.routes||0,label:'Маршрутов',color:'var(--blue)'},
-          {value:tr.stops||0,label:'Остановок',color:'var(--teal)'}]})),
+          {value:tr.stops||0,label:'Остановок',color:'var(--teal)'}]}),
+        h(ConclusionTip,{text:tr.municipal+' муниципальных и '+(tr.routes-tr.municipal)+' коммерческих маршрутов. '+(tr.municipal>tr.routes/2?'Муниципальный транспорт преобладает':'Коммерческий транспорт играет значительную роль'),icon:'🚌',color:'blue'})),
       show('transport')&&h(StatCard,{section:'transport',icon:'🛣️',iconBg:'var(--indigoBg)',title:'Дороги',key:'road1'},
         h(StatRow,{items:[
           {value:data.road_service?.total||0,label:'Объектов',color:'var(--indigo)'},
@@ -1578,9 +1810,14 @@ function App(){
       show('city')&&h(StatCard,{section:'city',icon:'🏗️',iconBg:'var(--orangeBg)',title:'Строительство',key:'build'},
         h(StatRow,{items:[
           {value:cn.construction||0,label:'Объектов',color:'var(--orange)'},
-          {value:cn.permits||0,label:'Разрешений',color:'var(--blue)'}]})),
+          {value:cn.permits||0,label:'Разрешений',color:'var(--blue)'}]}),
+        h(TrendBar,{data:data.building?.permits_trend||[],color:'var(--orange)',label:'Разрешения на строительство по годам'}),
+        (data.building?.permits_trend||[]).length>=2?h(ConclusionTip,{text:'Пик строительной активности — '+(
+          (data.building.permits_trend||[]).reduce((a,b)=>b.count>a.count?b:a,{count:0}).year||''
+        )+' год ('+(data.building.permits_trend||[]).reduce((a,b)=>b.count>a.count?b:a,{count:0}).count+' разрешений)',icon:'🏗️',color:'orange'}):null),
       show('city')&&h(StatCard,{section:'city',icon:'♿',iconBg:'var(--pinkBg)',title:'Доступная среда',key:'acc1'},
-        h(BigNum,{value:cn.accessibility||0,label:'объектов',color:'var(--pink)'})),
+        h(BigNum,{value:cn.accessibility||0,label:'объектов',color:'var(--pink)'}),
+        h(ConclusionTip,{text:(cn.accessibility||0)+' объектов доступной среды: пандусы, звуковые светофоры, дорожные знаки. Город развивает инклюзивную инфраструктуру',icon:'♿',color:'pink'})),
       show('city')&&h(AccessibilityCard,{accessibility:data.accessibility,count:cn.accessibility,key:'accc'}),
       show('city')&&h(StatCard,{section:'city',icon:'📋',iconBg:'var(--blueBg)',title:'Справочник',key:'phone'},
         h(BigNum,{value:cn.phonebook||0,label:'телефонов',color:'var(--blue)'}),
@@ -1601,7 +1838,9 @@ function App(){
       show('city')&&h(StatCard,{section:'city',icon:'📰',iconBg:'var(--blueBg)',title:'Новости и СМИ',key:'news'},
         h(StatRow,{items:[
           {value:data.news?.total||0,label:'Новостей',color:'var(--blue)'},
-          {value:data.news?.rubrics||0,label:'Рубрик',color:'var(--teal)'}]})),
+          {value:data.news?.rubrics||0,label:'Рубрик',color:'var(--teal)'}]}),
+        h(TrendBar,{data:data.news?.trend||[],color:'var(--blue)',label:'Публикации по годам'}),
+        (data.news?.trend||[]).length>=1?h(ConclusionTip,{text:'Информационная активность: '+(data.news?.total||0)+' публикаций. Город активно информирует жителей через портал',icon:'📰',color:'blue'}):null),
       show('city')&&h(StatCard,{section:'city',icon:'⚠️',iconBg:'var(--orangeBg)',title:'Охрана труда',key:'labor'},
         h(BigNum,{value:data.labor_safety?.total||0,label:'документов',color:'var(--orange)'})),
       show('city')&&h(StatCard,{section:'city',icon:'📬',iconBg:'var(--pinkBg)',title:'Обращения граждан',key:'appeals'},
@@ -1613,10 +1852,15 @@ function App(){
         h('div',{style:{fontSize:10,color:'var(--textMuted)'}},'Данные обновляются')),
       show('city')&&h(StatCard,{section:'city',icon:'🗣️',iconBg:'var(--indigoBg)',title:'Публичные слушания',key:'hear'},
         h(BigNum,{value:data.hearings?.total||0,label:'слушаний',color:'var(--indigo)'}),
+        h(TrendBar,{data:data.hearings?.trend||[],color:'var(--indigo)',label:'Слушания по годам'}),
+        data.hearings?.trend?.length>=2?h(ConclusionTip,{text:'Активность публичных слушаний '+(
+          (data.hearings.trend.slice(-1)[0]?.count||0)>(data.hearings.trend.slice(-2)[0]?.count||0)?'растёт':'стабильна'
+        )+'. В '+(data.hearings.trend.slice(-1)[0]?.year||'')+' году — '+(data.hearings.trend.slice(-1)[0]?.count||0)+' слушаний',icon:'🗣️',color:'indigo'}):null,
         data.hearings?.recent?.[0]?h(Tip,{color:'indigo',icon:'📅',text:data.hearings.recent[0].date+': '+data.hearings.recent[0].title}):null),
-      show('city')&&h(StatCard,{section:'city',icon:'💵',iconBg:'var(--greenBg)',title:'Зарплаты',key:'sal'},
-        h(BigNum,{value:data.salary?.total||0,label:'записей',color:'var(--green)'}),
-        h('div',{style:{marginTop:4,fontSize:10,color:'var(--textMuted)'}},'Данные за '+(data.salary?.years||[]).join(', '))),
+      show('city')&&h(StatCard,{section:'city',icon:'💵',iconBg:'var(--greenBg)',title:'Зарплаты муниципальных служащих',key:'sal'},
+        h(BigNum,{value:data.salary?.latest_avg||0,label:'тыс. ₽ средняя ('+((data.salary?.trend||[]).slice(-1)[0]?.year||'')+')',color:'var(--green)'}),
+        h(TrendBar,{data:data.salary?.trend||[],color:'var(--green)',label:'Динамика средней зарплаты по годам',valueKey:'avg'}),
+        data.salary?.growth_pct?h(ConclusionTip,{text:'Рост зарплат за '+(data.salary?.trend?.length||0)+' лет: +'+data.salary.growth_pct+'%. Средняя зарплата выросла с '+(data.salary?.trend?.[0]?.avg||0)+' до '+(data.salary?.latest_avg||0)+' тыс. ₽',icon:'📈',color:'green'}):null),
       show('city')&&h(StatCard,{section:'city',icon:'📡',iconBg:'var(--tealBg)',title:'Связь',key:'comm'},
         h(BigNum,{value:data.communication?.total||0,label:'объектов связи',color:'var(--teal)'})),
 
