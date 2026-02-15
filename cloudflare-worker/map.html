@@ -8,104 +8,242 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<!-- Anime.js для продвинутых анимаций -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
+<!-- Particles.js для фона -->
+<script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+<!-- Iconify для иконок -->
+<script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
 </head>
 <body>
-<!-- Splash -->
+<!-- Particles Background -->
+<div id="particles-js"></div>
+
+<!-- Splash Screen -->
 <div id="splash">
-  <div class="splash-bg"><canvas id="pulseCanvas"></canvas></div>
   <div class="splash-content">
-    <div class="city-emblem">
-      <svg viewBox="0 0 120 120" class="emblem-svg">
-        <polygon points="60,8 52,50 68,50" fill="none" stroke="currentColor" stroke-width="2" opacity=".7"/>
-        <line x1="56" y1="28" x2="64" y2="28" stroke="currentColor" stroke-width="1.5" opacity=".5"/>
-        <line x1="54" y1="38" x2="66" y2="38" stroke="currentColor" stroke-width="1.5" opacity=".5"/>
+    <!-- Oil Drop Logo -->
+    <div class="oil-drop-container">
+      <svg class="oil-drop" viewBox="0 0 200 240">
+        <defs>
+          <linearGradient id="oilGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#1a1a2e;stop-opacity:1" />
+            <stop offset="50%" style="stop-color:#16213e;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#0f3460;stop-opacity:1" />
+          </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+        <path class="drop-main" d="M100 20 C100 20, 40 80, 40 140 C40 180, 65 220, 100 220 C135 220, 160 180, 160 140 C160 80, 100 20, 100 20 Z" 
+              fill="url(#oilGradient)" filter="url(#glow)"/>
+        <ellipse class="drop-shine" cx="80" cy="80" rx="20" ry="30" fill="rgba(255,255,255,0.15)"/>
+        <circle class="drop-bubble" cx="100" cy="120" r="8" fill="rgba(255,255,255,0.1)"/>
       </svg>
+      <div class="pulse-rings">
+        <div class="pulse-ring"></div>
+        <div class="pulse-ring"></div>
+        <div class="pulse-ring"></div>
+      </div>
     </div>
-    <div class="splash-pulse-ring" id="pulseRing">
-      <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
-      <div class="pulse-core" id="pulseCore"></div>
+    
+    <h1 class="splash-title">
+      <span class="title-icon" data-icon="mdi:oil"></span>
+      Пульс города
+    </h1>
+    <div class="splash-subtitle">НИЖНЕВАРТОВСК</div>
+    
+    <!-- City Rhythm Visualizer -->
+    <div class="rhythm-container">
+      <canvas id="rhythmCanvas" width="320" height="80"></canvas>
+      <div class="rhythm-info">
+        <div class="rhythm-bpm" id="rhythmBpm">72</div>
+        <div class="rhythm-label">ударов/мин</div>
+        <div class="rhythm-mood" id="rhythmMood">Спокойно</div>
+      </div>
     </div>
-    <h1 class="splash-title">Пульс города</h1>
-    <div class="splash-city">НИЖНЕВАРТОВСК</div>
-    <div class="splash-mood" id="moodText">Анализ настроения...</div>
-    <div class="splash-stats" id="splashStats">
-      <div class="ss-item"><span class="ss-num" id="ssTotal">—</span><span class="ss-label">проблем</span></div>
-      <div class="ss-item"><span class="ss-num" id="ssOpen">—</span><span class="ss-label">открыто</span></div>
-      <div class="ss-item"><span class="ss-num" id="ssResolved">—</span><span class="ss-label">решено</span></div>
+    
+    <div class="splash-stats">
+      <div class="stat-card">
+        <span class="stat-icon" data-icon="mdi:alert-circle"></span>
+        <span class="stat-num" id="statTotal">—</span>
+        <span class="stat-label">проблем</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon" data-icon="mdi:alert"></span>
+        <span class="stat-num" id="statOpen">—</span>
+        <span class="stat-label">открыто</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon" data-icon="mdi:check-circle"></span>
+        <span class="stat-num" id="statResolved">—</span>
+        <span class="stat-label">решено</span>
+      </div>
     </div>
-    <div class="splash-loader"><div class="sl-bar"><div class="sl-fill" id="slFill"></div></div><div class="sl-text" id="slText">Загрузка...</div></div>
+    
+    <div class="splash-progress">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+        <div class="progress-glow"></div>
+      </div>
+      <div class="progress-text" id="progressText">Загрузка данных...</div>
+    </div>
   </div>
 </div>
-<!-- Main -->
+
+<!-- Main App -->
 <div id="app" style="display:none">
   <div id="map"></div>
-  <!-- Top bar -->
+  
+  <!-- Top Bar -->
   <div id="topBar">
-    <div class="tb-header">
-      <div class="tb-pulse"></div>
-      <div class="tb-title">Пульс города</div>
+    <div class="tb-left">
+      <div class="oil-pulse-mini">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path d="M12 2C12 2 6 10 6 15C6 18.31 8.69 21 12 21C15.31 21 18 18.31 18 15C18 10 12 2 12 2Z" 
+                fill="currentColor" opacity="0.8"/>
+        </svg>
+      </div>
+      <span class="tb-title">Пульс города</span>
     </div>
-    <div class="tb-stats">
-      <div class="tb-stat"><span class="tb-num" id="st">0</span><span class="tb-lbl">всего</span></div>
-      <div class="tb-stat"><span class="tb-num red" id="so">0</span><span class="tb-lbl">открыто</span></div>
-      <div class="tb-stat"><span class="tb-num yellow" id="sw">0</span><span class="tb-lbl">новые</span></div>
-      <div class="tb-stat"><span class="tb-num green" id="sr">0</span><span class="tb-lbl">решено</span></div>
+    <div class="tb-right">
+      <div class="stat-mini">
+        <span class="num" id="totalNum">0</span>
+        <span class="lbl">всего</span>
+      </div>
+      <div class="stat-mini red">
+        <span class="num" id="openNum">0</span>
+        <span class="lbl">открыто</span>
+      </div>
+      <div class="stat-mini green">
+        <span class="num" id="resolvedNum">0</span>
+        <span class="lbl">решено</span>
+      </div>
     </div>
   </div>
-  <!-- Filters -->
+
+  <!-- Filter Panel -->
   <div id="filterPanel">
-    <div class="fp-row" id="dayFilters"></div>
-    <div class="fp-row" id="catFilters"></div>
-    <div class="fp-row" id="statusFilters"></div>
+    <div class="filter-row" id="categoryFilter"></div>
+    <div class="filter-row" id="statusFilter"></div>
+    <div class="filter-row" id="dateFilter"></div>
   </div>
-  <!-- Timeline -->
-  <div class="tl-panel"><canvas id="tlCanvas" height="42"></canvas></div>
-  <!-- Toast -->
-  <div class="toast" id="newToast" style="display:none">
-    <span class="toast-icon">🔔</span><span class="toast-text" id="toastText"></span>
-  </div>
-  <!-- Stats button + overlay -->
-  <button class="stats-btn" id="statsBtn" title="Статистика">📊</button>
-  <div class="stats-overlay" id="statsOverlay"></div>
-  <!-- UK Rating button + overlay -->
-  <button class="uk-btn" id="ukBtn" title="Рейтинг УК">🏢</button>
-  <div class="uk-overlay" id="ukOverlay"></div>
-  <!-- FAB — oil drop with pulse -->
-  <button class="fab" id="fabNew" title="Подать жалобу">
+
+  <!-- Action Buttons -->
+  <button class="action-btn stats-btn" id="statsBtn" title="Статистика">
+    <span data-icon="mdi:chart-box"></span>
+  </button>
+  <button class="action-btn uk-btn" id="ukBtn" title="Рейтинг УК">
+    <span data-icon="mdi:office-building"></span>
+  </button>
+  
+  <!-- FAB - Oil Drop -->
+  <button class="fab" id="fabBtn" title="Подать жалобу">
     <div class="fab-drop">
-      <div class="fab-ring"></div><div class="fab-ring2"></div>
-      <svg viewBox="0 0 56 56"><defs><linearGradient id="oilGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#1a1a2e"/><stop offset="50%" stop-color="#16213e"/>
-        <stop offset="100%" stop-color="#0f3460"/></linearGradient></defs>
-        <path class="drop-fill" d="M28 4C28 4 12 22 12 34C12 42.8 19.2 50 28 50C36.8 50 44 42.8 44 34C44 22 28 4 28 4Z"/></svg>
+      <svg viewBox="0 0 56 68">
+        <defs>
+          <linearGradient id="fabOilGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#6366f1"/>
+            <stop offset="100%" style="stop-color:#4f46e5"/>
+          </linearGradient>
+        </defs>
+        <path d="M28 4C28 4 12 20 12 32C12 42 18.5 50 28 50C37.5 50 44 42 44 32C44 20 28 4 28 4Z" 
+              fill="url(#fabOilGrad)"/>
+      </svg>
       <span class="fab-icon">+</span>
     </div>
+    <div class="fab-ripples">
+      <div class="fab-ripple"></div>
+      <div class="fab-ripple"></div>
+    </div>
   </button>
-  <!-- Complaint form -->
-  <div class="cf-overlay" id="cfOverlay">
-    <div class="cf-sheet">
-      <h3>📝 Подать жалобу</h3>
-      <div class="cf-field"><label>Категория</label>
-        <select id="cfCat"></select></div>
-      <div class="cf-field"><label>Описание</label>
-        <textarea id="cfDesc" placeholder="Опишите проблему..." rows="3"></textarea></div>
-      <div class="cf-field"><label>Адрес <span class="cf-gps" id="cfGps">📍 GPS</span></label>
-        <input id="cfAddr" placeholder="ул. Ленина, 5" /></div>
-      <div class="cf-field" style="display:flex;gap:6px">
-        <div style="flex:1"><label>Широта</label><input id="cfLat" type="number" step="0.0001" placeholder="60.9344" /></div>
-        <div style="flex:1"><label>Долгота</label><input id="cfLng" type="number" step="0.0001" placeholder="76.5531" /></div>
+
+  <!-- Timeline -->
+  <div class="timeline-panel">
+    <canvas id="timelineCanvas"></canvas>
+  </div>
+
+  <!-- Stats Overlay -->
+  <div class="overlay" id="statsOverlay">
+    <div class="overlay-header">
+      <h3><span data-icon="mdi:chart-box"></span> Статистика</h3>
+      <button class="close-btn" onclick="closeOverlay('statsOverlay')">
+        <span data-icon="mdi:close"></span>
+      </button>
+    </div>
+    <div class="overlay-content" id="statsContent"></div>
+  </div>
+
+  <!-- UK Rating Overlay -->
+  <div class="overlay left" id="ukOverlay">
+    <div class="overlay-header">
+      <h3><span data-icon="mdi:office-building"></span> Рейтинг УК</h3>
+      <button class="close-btn" onclick="closeOverlay('ukOverlay')">
+        <span data-icon="mdi:close"></span>
+      </button>
+    </div>
+    <div class="overlay-content" id="ukContent"></div>
+  </div>
+
+  <!-- Complaint Form -->
+  <div class="modal" id="complaintModal">
+    <div class="modal-backdrop" onclick="closeModal()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><span data-icon="mdi:file-document-edit"></span> Подать жалобу</h3>
+        <button class="close-btn" onclick="closeModal()">
+          <span data-icon="mdi:close"></span>
+        </button>
       </div>
-      <div class="cf-btns">
-        <button class="cf-btn secondary" id="cfCancel">Отмена</button>
-        <button class="cf-btn primary" id="cfSubmit">Отправить</button>
+      <div class="modal-body">
+        <div class="form-group">
+          <label><span data-icon="mdi:tag"></span> Категория</label>
+          <select id="formCategory"></select>
+        </div>
+        <div class="form-group">
+          <label><span data-icon="mdi:text"></span> Описание проблемы</label>
+          <textarea id="formDescription" rows="4" placeholder="Опишите проблему подробно..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>
+            <span data-icon="mdi:map-marker"></span> Адрес
+            <span class="gps-btn" id="gpsBtn">
+              <span data-icon="mdi:crosshairs-gps"></span> Определить
+            </span>
+          </label>
+          <input type="text" id="formAddress" placeholder="ул. Ленина, 15"/>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label><span data-icon="mdi:latitude"></span> Широта</label>
+            <input type="number" id="formLat" step="0.0001" placeholder="60.9344"/>
+          </div>
+          <div class="form-group">
+            <label><span data-icon="mdi:longitude"></span> Долгота</label>
+            <input type="number" id="formLng" step="0.0001" placeholder="76.5531"/>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">
+          <span data-icon="mdi:close"></span> Отмена
+        </button>
+        <button class="btn btn-primary" onclick="submitComplaint()">
+          <span data-icon="mdi:send"></span> Отправить
+        </button>
       </div>
     </div>
   </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">
+    <span class="toast-icon" id="toastIcon"></span>
+    <span class="toast-text" id="toastText"></span>
+  </div>
 </div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet"/>
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
 </body>
 </html>

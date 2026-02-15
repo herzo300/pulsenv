@@ -36,6 +36,7 @@ from services.realtime_guard import RealtimeGuard
 API_ID = int(os.getenv('TG_API_ID', 0))
 API_HASH = os.getenv('TG_API_HASH', '')
 PHONE = os.getenv('TG_PHONE', '')
+PASSWORD_2FA = os.getenv('TG_2FA_PASSWORD', '')
 TARGET_CHANNEL = '@monitornv'
 
 # Telegram каналы (из start_monitoring.py)
@@ -440,7 +441,13 @@ async def main():
     client = TelegramClient('monitoring_session', API_ID, API_HASH)
 
     try:
-        await client.start(phone=PHONE)
+        # Если сессия валидна — подключится без ввода кода
+        # Если нет — запустите сначала: py auth_telethon.py
+        await client.connect()
+        if not await client.is_user_authorized():
+            logger.warning("⚠️ Сессия не авторизована! Запустите: py auth_telethon.py")
+            logger.info("   Пытаюсь авторизоваться автоматически...")
+            await client.start(phone=PHONE, password=PASSWORD_2FA if PASSWORD_2FA else None)
         logger.info("✅ Telegram подключён")
 
         me = await client.get_me()

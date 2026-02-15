@@ -142,7 +142,7 @@ async def vk_api_call(method: str, params: dict) -> Optional[dict]:
 
 
 async def fetch_group_wall(group_id: int, count: int = 10) -> List[dict]:
-    """Получает последние посты со стены группы"""
+    """Получает последние посты со стены группы (только за сегодня)"""
     result = await vk_api_call("wall.get", {
         "owner_id": group_id,
         "count": count,
@@ -150,25 +150,45 @@ async def fetch_group_wall(group_id: int, count: int = 10) -> List[dict]:
     })
     if not result:
         return []
-    return result.get("items", [])
+    items = result.get("items", [])
+
+    # Фильтруем: только посты за текущий день
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_ts = int(today_start.timestamp())
+    return [p for p in items if p.get("date", 0) >= today_ts]
 
 
 async def fetch_new_posts(group_id: int) -> List[dict]:
-    """Получает только новые посты (которые ещё не обработаны)"""
-    posts = await fetch_group_wall(group_id, count=20)
+    """Получает только новые посты за сегодня (которые ещё не обработаны)"""
+    posts = await fetch_group_wall(group_id, count=10)
     new_posts = []
+
+    # Начало текущего дня (00:00 UTC)
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_ts = int(today_start.timestamp())
+
     for post in posts:
         post_id = post.get("id", 0)
+        post_ts = post.get("date", 0)
         unique_key = f"{group_id}_{post_id}"
-        if unique_key not in _processed_posts:
-            _processed_posts.add(unique_key)
-            new_posts.append(post)
-    # Ограничиваем размер множества (чтобы не росло бесконечно)
-    if len(_processed_posts) > 10000:
-        # Оставляем последние 5000
-        recent = list(_processed_posts)[-5000:]
+
+        # Пропускаем старые посты (до начала текущего дня)
+        if post_ts < today_ts:
+            continue
+
+        # Пропускаем уже обработанные
+        if unique_key in _processed_posts:
+            continue
+
+        _processed_posts.add(unique_key)
+        new_posts.append(post)
+
+    # Ограничиваем размер множества
+    if len(_processed_posts) > 5000:
+        recent = list(_processed_posts)[-2500:]
         _processed_posts.clear()
         _processed_posts.update(recent)
+
     return new_posts
 
 

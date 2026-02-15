@@ -1,6 +1,0 @@
-services:
-  soobshioproject:
-    image: soobshioproject
-    build:
-      context: .
-      dockerfile: ./Dockerfile

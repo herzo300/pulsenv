@@ -1,112 +1,86 @@
 # services/telegram_bot.py
 """
 Telegram Bot «Пульс города — Нижневартовск»
-Все функции: команды, AI анализ текста/фото,
-Street View, УК/администрация, email, анонимные жалобы,
-юридический анализ (Telegram Stars), WebApp карта, Firebase RTDB,
-RealtimeGuard дедупликация, opendata, ЧП.
+AI анализ текста/фото, УК/администрация, email, юр. анализ + письма.
+Первая жалоба бесплатно, далее 50 Stars.
 """
-
-import os
-import sys
-import asyncio
-import json
-import logging
-import tempfile
-import time
-
+import os, sys, asyncio, json, logging, tempfile, time
 import httpx
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from dotenv import load_dotenv
-load_dotenv()
-
+from dotenv import load_dotenv; load_dotenv()
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.types import (
-    ReplyKeyboardMarkup, KeyboardButton,
-    InlineKeyboardMarkup, InlineKeyboardButton,
-    BotCommand, BotCommandScopeDefault,
-    WebAppInfo, LabeledPrice, PreCheckoutQuery,
+    ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton,
+    BotCommand, BotCommandScopeDefault, WebAppInfo, LabeledPrice, PreCheckoutQuery,
 )
-from sqlalchemy import func
 from sqlalchemy.orm import Session
-
 from services.geo_service import get_coordinates, geoparse
 from services.zai_vision_service import analyze_image_with_glm4v
 from services.realtime_guard import RealtimeGuard
 from services.firebase_service import push_complaint as firebase_push
 from services.uk_service import find_uk_by_address, find_uk_by_coords
+from services.zai_service import analyze_complaint
 from backend.database import SessionLocal
 from backend.models import Report, User
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ═══ КОНФИГУРАЦИЯ ═══
 BOT_TOKEN = os.getenv("TG_BOT_TOKEN", "")
 CF_WORKER = "https://anthropic-proxy.uiredepositionherzo.workers.dev"
-
 ADMIN_EMAIL = "nvartovsk@n-vartovsk.ru"
 ADMIN_NAME = "Администрация г. Нижневартовска"
 ADMIN_PHONE = "8 (3466) 24-15-01"
-LEGAL_ANALYSIS_STARS = 50
+COMPLAINT_STARS = 50
 
 EMOJI = {
     "ЖКХ": "🏘️", "Дороги": "🛣️", "Благоустройство": "🌳", "Транспорт": "🚌",
     "Экология": "♻️", "Животные": "🐶", "Торговля": "🛒", "Безопасность": "🚨",
     "Снег/Наледь": "❄️", "Освещение": "💡", "Медицина": "🏥", "Образование": "🏫",
     "Связь": "📶", "Строительство": "🚧", "Парковки": "🅿️", "Социальная сфера": "👥",
-    "Трудовое право": "📄", "Прочее": "❔", "ЧП": "🚨", "Газоснабжение": "🔥",
+    "Трудовое право": "📄", "Прочее": "❔", "Газоснабжение": "🔥",
     "Водоснабжение и канализация": "💧", "Отопление": "🌡️", "Бытовой мусор": "🗑️",
     "Лифты и подъезды": "🏢", "Парки и скверы": "🌲", "Спортивные площадки": "⚽",
     "Детские площадки": "🎠",
 }
 CATEGORIES = list(EMOJI.keys())
 STATUS_ICON = {"open": "🔴", "pending": "🟡", "resolved": "✅"}
+MENU_BUTTONS = {"📝 Новая жалоба", "🗺️ Карта", "📊 Инфографика", "👤 Профиль"}
 
 LEGAL_PROMPT = (
-    "Ты — юрист-консультант по жилищному и муниципальному праву РФ.\n"
-    "Проанализируй жалобу жителя Нижневартовска и дай юридическую оценку.\n\n"
-    "ЖАЛОБА:\nКатегория: {category}\nАдрес: {address}\nОписание: {description}\n\n"
+    "Ты — юрист по жилищному и муниципальному праву РФ, специализация — Нижневартовск (ХМАО-Югра).\n"
+    "Проанализируй жалобу и составь ОФИЦИАЛЬНОЕ ПИСЬМО-ОБРАЩЕНИЕ.\n\n"
+    "ЖАЛОБА:\nКатегория: {category}\nАдрес: {address}\nУК: {uk_name}\nОписание: {description}\n\n"
     "ЗАДАЧА:\n"
-    "1. Определи, какие нормативные акты нарушены\n"
+    "1. Определи нарушенные нормативные акты (ЖК РФ, ПП РФ №491, ПП РФ №354, "
+    "местные НПА г. Нижневартовска, НПА ХМАО-Югры)\n"
     "2. Укажи конкретные статьи и пункты\n"
     "3. Определи ответственного: УК, администрация, ресурсоснабжающая организация\n"
-    "4. Предложи порядок действий\n"
-    "5. Оцени шансы на решение проблемы\n"
-    "6. Укажи сроки рассмотрения\n\n"
-    "Отвечай структурированно, на русском языке."
+    "4. Составь текст официального письма-обращения от имени жителя\n"
+    "5. Укажи сроки рассмотрения по закону\n"
+    "6. Предложи порядок действий при отказе\n\n"
+    "ФОРМАТ ОТВЕТА:\n"
+    "Сначала краткий юридический анализ (3-5 пунктов),\n"
+    "затем ПОЛНЫЙ ТЕКСТ ПИСЬМА (готовый к отправке).\n"
+    "Отвечай на русском языке."
 )
 
-# Кнопки главного меню (обновлённые)
-MENU_BUTTONS = {
-    "📝 Новая жалоба", "🗺️ Карта", "📂 Данные города",
-    "👤 Профиль", "🚨 ЧП",
-}
-
-# ═══ ИНИЦИАЛИЗАЦИЯ ═══
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 bot_guard = RealtimeGuard()
 user_sessions: dict = {}
 
-
-# ═══ ХЕЛПЕРЫ ═══
-
+# ═══ HELPERS ═══
 def _get_webapp_url() -> str:
     url = os.getenv("WEBAPP_URL", "")
-    if url:
-        return url
+    if url: return url
     tunnel = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tunnel_url.txt")
     if os.path.exists(tunnel):
-        with open(tunnel, "r") as f:
-            return f.read().strip()
+        with open(tunnel, "r") as f: return f.read().strip()
     return CF_WORKER
 
-def _db():
-    return SessionLocal()
+def _db(): return SessionLocal()
 
 def get_or_create_user(db: Session, tg_user: types.User) -> User:
     user = db.query(User).filter(User.telegram_id == tg_user.id).first()
@@ -116,32 +90,27 @@ def get_or_create_user(db: Session, tg_user: types.User) -> User:
         db.add(user); db.commit(); db.refresh(user)
     return user
 
-def _emoji(cat: str) -> str:
-    return EMOJI.get(cat, "❔")
+def _user_complaint_count(db: Session, user_id: int) -> int:
+    return db.query(Report).filter(Report.user_id == user_id).count()
 
-def _sv_url(lat: float, lon: float) -> str:
-    return f"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={lat},{lon}&heading=0&pitch=0&fov=90"
+def _emoji(cat: str) -> str: return EMOJI.get(cat, "❔")
+def _sv_url(lat, lon): return f"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={lat},{lon}"
+def _map_url(lat, lon): return f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
 
-def _map_url(lat: float, lon: float) -> str:
-    return f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+def _geo_buttons(lat, lon):
+    return [InlineKeyboardButton(text="👁 Street View", url=_sv_url(lat, lon)),
+            InlineKeyboardButton(text="📌 Карта", url=_map_url(lat, lon))]
 
-def _geo_buttons(lat: float, lon: float) -> list:
-    return [
-        InlineKeyboardButton(text="👁 Street View", url=_sv_url(lat, lon)),
-        InlineKeyboardButton(text="📌 Карта", url=_map_url(lat, lon)),
-    ]
-
-def _confirm_buttons(lat=None, lon=None) -> list:
+def _confirm_buttons(lat=None, lon=None):
     rows = []
-    if lat and lon:
-        rows.append(_geo_buttons(lat, lon))
+    if lat and lon: rows.append(_geo_buttons(lat, lon))
     rows.append([InlineKeyboardButton(text="✅ Подтвердить", callback_data="confirm")])
-    rows.append([InlineKeyboardButton(text="🔒 Отправить анонимно", callback_data="confirm_anon")])
+    rows.append([InlineKeyboardButton(text="🔒 Анонимно", callback_data="confirm_anon")])
     rows.append([InlineKeyboardButton(text="🏷️ Изменить категорию", callback_data="change_cat")])
     rows.append([InlineKeyboardButton(text="❌ Отменить", callback_data="cancel")])
     return rows
 
-def _uk_text(uk_info: dict | None) -> str:
+def _uk_text(uk_info):
     if uk_info:
         t = f"\n🏢 *УК: {uk_info['name']}*\n"
         if uk_info.get("email"): t += f"📧 {uk_info['email']}\n"
@@ -150,41 +119,27 @@ def _uk_text(uk_info: dict | None) -> str:
         return t
     return f"\n🏛️ *{ADMIN_NAME}*\n📧 {ADMIN_EMAIL}\n📞 {ADMIN_PHONE}\n"
 
-async def _find_uk(lat, lon, address) -> dict | None:
-    if lat and lon:
-        return await find_uk_by_coords(lat, lon)
-    if address:
-        return find_uk_by_address(address)
+async def _find_uk(lat, lon, address):
+    if lat and lon: return await find_uk_by_coords(lat, lon)
+    if address: return find_uk_by_address(address)
     return None
 
-def _truncate_msg(text: str, limit: int = 4000) -> str:
-    return text[:limit - 50] + "\n```" if len(text) > limit else text
-
-# ═══ КЛАВИАТУРЫ ═══
-
 def main_kb():
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="📝 Новая жалоба"), KeyboardButton(text="🗺️ Карта")],
-            [KeyboardButton(text="📂 Данные города"), KeyboardButton(text="🚨 ЧП")],
-            [KeyboardButton(text="👤 Профиль")],
-        ],
-        resize_keyboard=True,
-    )
+    return ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text="📝 Новая жалоба"), KeyboardButton(text="🗺️ Карта")],
+        [KeyboardButton(text="📊 Инфографика"), KeyboardButton(text="👤 Профиль")],
+    ], resize_keyboard=True)
 
 def categories_kb():
     buttons, row = [], []
     for cat in CATEGORIES:
         row.append(InlineKeyboardButton(text=f"{_emoji(cat)} {cat}", callback_data=f"cat:{cat}"))
-        if len(row) == 2:
-            buttons.append(row); row = []
-    if row:
-        buttons.append(row)
+        if len(row) == 2: buttons.append(row); row = []
+    if row: buttons.append(row)
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 # ═══ EMAIL ═══
-
-def _build_complaint_email(session: dict, recipient_name: str) -> tuple[str, str]:
+def _build_complaint_email(session, recipient_name):
     rid = session.get("report_id", "?")
     cat = session.get("category", "Прочее")
     addr = session.get("address") or "не указан"
@@ -196,103 +151,105 @@ def _build_complaint_email(session: dict, recipient_name: str) -> tuple[str, str
     lines = [f"Уважаемый {recipient_name},", "",
              "Через систему «Пульс города — Нижневартовск» поступила жалоба:"]
     if anon: lines.append("(отправлено анонимно)")
-    lines += ["", f"📋 Номер: #{rid}", f"🏷️ Категория: {cat}", f"📍 Адрес: {addr}"]
+    lines += ["", f"Номер: #{rid}", f"Категория: {cat}", f"Адрес: {addr}"]
     if lat and lon:
-        lines.append(f"🗺️ Координаты: {lat:.5f}, {lon:.5f}")
-        lines.append(f"🔗 Карта: {_map_url(lat, lon)}")
-    lines += ["", "📝 Описание проблемы:", title, "", desc, "",
+        lines.append(f"Координаты: {lat:.5f}, {lon:.5f}")
+        lines.append(f"Карта: {_map_url(lat, lon)}")
+    lines += ["", "Описание проблемы:", title, "", desc, "",
               "---", "Просим рассмотреть обращение и принять меры.",
               "С уважением, система «Пульс города — Нижневартовск»"]
     return subject, "\n".join(lines)
 
-async def _send_email_via_worker(to_email: str, subject: str, body: str) -> dict:
-    proxy = os.getenv("CLOUDFLARE_PROXY_URL", CF_WORKER)
+def _build_legal_email(session, recipient_name, legal_text):
+    """Составляет юридическое письмо на основе AI-анализа."""
+    rid = session.get("report_id", "?")
+    cat = session.get("category", "Прочее")
+    addr = session.get("address") or "не указан"
+    subject = f"Обращение №{rid} — {cat} — юридический анализ — Пульс города"
+    lines = [f"Уважаемый {recipient_name},", "",
+             "Через систему «Пульс города — Нижневартовск» направляется обращение",
+             "с юридическим обоснованием:", "",
+             legal_text, "",
+             "---", "Просим рассмотреть в установленные законом сроки.",
+             "С уважением, система «Пульс города — Нижневартовск»"]
+    return subject, "\n".join(lines)
+
+async def _send_email_via_worker(to_email, subject, body):
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            r = await client.post(f"{proxy}/send-email", json={
-                "to_email": to_email, "to_name": "",
-                "subject": subject, "body": body,
-                "from_name": "Пульс города — Нижневартовск",
-            })
+            r = await client.post(f"{CF_WORKER}/send-email", json={
+                "to_email": to_email, "to_name": "", "subject": subject,
+                "body": body, "from_name": "Пульс города — Нижневартовск"})
         data = r.json()
-        if data.get("ok") and not data.get("fallback"):
-            return {"ok": True, "fallback": False, "mailto": None}
-        return {"ok": False, "fallback": data.get("fallback", False), "mailto": data.get("mailto")}
+        return {"ok": data.get("ok") and not data.get("fallback")}
     except Exception as e:
-        logger.error(f"CF email error: {e}")
-        return {"ok": False, "fallback": False, "mailto": None}
+        logger.error(f"Email error: {e}")
+        return {"ok": False}
 
+async def _notify_subscribers(report):
+    db = _db()
+    try:
+        subs = db.query(User).filter(User.notify_new == 1).all()
+        text = (f"🔔 *Новая проблема*\n\n{_emoji(report.category)} *{report.category}*\n"
+                f"📍 {report.address or '—'}\n📝 {(report.title or '')[:100]}")
+        sent = 0
+        for u in subs:
+            if not u.telegram_id or u.id == report.user_id: continue
+            try: await bot.send_message(u.telegram_id, text, parse_mode="Markdown"); sent += 1
+            except: pass
+            if sent >= 50: break
+    except Exception as e: logger.error(f"Notify: {e}")
+    finally: db.close()
 
-# ═══ КОМАНДЫ ═══
-
+# ═══ COMMANDS ═══
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    webapp_url = _get_webapp_url()
-    buttons = []
-    if webapp_url:
-        buttons.append([InlineKeyboardButton(
-            text="📊 Инфографика города",
-            web_app=WebAppInfo(url=f"{CF_WORKER}/info?v={int(time.time())}"),
-        )])
-        buttons.append([InlineKeyboardButton(
-            text="🗺️ Открыть карту",
-            web_app=WebAppInfo(url=f"{webapp_url}/map?v={int(time.time())}"),
-        )])
+    buttons = [
+        [InlineKeyboardButton(text="📊 Инфографика", web_app=WebAppInfo(url=f"{CF_WORKER}/info?v={int(time.time())}"))],
+        [InlineKeyboardButton(text="🗺️ Карта", web_app=WebAppInfo(url=f"{CF_WORKER}/map?v={int(time.time())}"))],
+    ]
     await message.answer(
         "🏙️ *Пульс города — Нижневартовск*\n\n"
-        "Система мониторинга городских проблем в реальном времени.\n"
-        "AI анализирует жалобы, определяет категорию, адрес и ответственную УК.\n"
-        "Мониторинг 8 Telegram-каналов и 8 VK-пабликов.\n\n"
+        "AI мониторинг городских проблем.\n"
+        "8 TG-каналов + 8 VK-пабликов.\n\n"
         "📝 Отправьте текст или фото — создам жалобу\n"
-        "🗺️ Карта — все проблемы на карте с рейтингом УК\n"
-        "🚨 ЧП — серьёзные происшествия\n\n"
-        "👇 Выберите действие:",
+        "🗺️ Карта — проблемы + рейтинг УК\n"
+        "📊 Инфографика — бюджет, статистика\n\n"
+        "Первая жалоба — бесплатно, далее 50 ⭐",
         parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons) if buttons else None,
-    )
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
     await message.answer("Меню:", reply_markup=main_kb())
-
 
 @dp.message(Command("help"))
 async def cmd_help(message: types.Message):
     await message.answer(
-        "❓ *Справка — Пульс города*\n\n"
-        "📝 /new — Создать жалобу\n"
-        "🗺️ /map — Карта проблем + статистика + рейтинг УК\n"
-        "🚨 /chp — Чрезвычайные происшествия\n"
-        "📂 /opendata — Данные города\n"
-        "👤 /profile — Профиль, мои жалобы, о проекте\n"
+        "❓ *Справка*\n\n"
+        "📝 /new — Новая жалоба\n"
+        "🗺️ /map — Карта + рейтинг УК\n"
+        "📊 /info — Инфографика города\n"
+        "👤 /profile — Профиль\n"
         "🔄 /sync — Синхронизация Firebase\n\n"
         "*Как подать жалобу:*\n"
         "1. Отправьте текст или фото\n"
         "2. AI определит категорию, адрес и УК\n"
-        "3. Подтвердите — жалоба на карте",
-        parse_mode="Markdown", reply_markup=main_kb(),
-    )
-
+        "3. Выберите: анонимное письмо или юр. анализ + письмо\n\n"
+        "Первая жалоба бесплатно, далее 50 ⭐",
+        parse_mode="Markdown", reply_markup=main_kb())
 
 @dp.message(Command("map"))
 async def cmd_map(message: types.Message):
-    webapp_url = _get_webapp_url()
-    buttons = []
-    if webapp_url:
-        buttons.append([InlineKeyboardButton(
-            text="🗺️ Открыть карту",
-            web_app=WebAppInfo(url=f"{webapp_url}/map?v={int(time.time())}"),
-        )])
-    buttons.append([InlineKeyboardButton(
-        text="🌍 OpenStreetMap",
-        url="https://www.openstreetmap.org/#map=13/60.9344/76.5531",
-    )])
-    await message.answer(
-        "🗺️ *Карта проблем Нижневартовска*\n\n"
-        "На карте: жалобы, статистика в реальном времени,\n"
-        "рейтинг всех 42 управляющих компаний,\n"
-        "фильтры по датам, категориям и статусу.",
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
-    )
+    buttons = [
+        [InlineKeyboardButton(text="🗺️ Открыть карту", web_app=WebAppInfo(url=f"{CF_WORKER}/map?v={int(time.time())}"))],
+        [InlineKeyboardButton(text="🌍 OpenStreetMap", url="https://www.openstreetmap.org/#map=13/60.9344/76.5531")],
+    ]
+    await message.answer("🗺️ *Карта проблем*\n\nЖалобы, рейтинг 42 УК, фильтры.",
+        parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
 
+@dp.message(Command("info"))
+async def cmd_info(message: types.Message):
+    buttons = [[InlineKeyboardButton(text="📊 Инфографика", web_app=WebAppInfo(url=f"{CF_WORKER}/info?v={int(time.time())}"))]]
+    await message.answer("📊 *Инфографика Нижневартовска*\n\n72 датасета: бюджет, ЖКХ, транспорт, образование.",
+        parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
 
 @dp.message(Command("profile"))
 async def cmd_profile(message: types.Message):
@@ -304,180 +261,61 @@ async def cmd_profile(message: types.Message):
         balance = user.balance or 0
         reg_date = user.created_at.strftime("%d.%m.%Y") if user.created_at else "—"
         notify_on = getattr(user, "notify_new", 0) == 1
-
-        text = (
-            f"👤 *Профиль*\n\n"
-            f"👋 {message.from_user.first_name or ''} {message.from_user.last_name or ''}\n"
-            f"🆔 @{message.from_user.username or '—'}\n"
-            f"📅 Регистрация: {reg_date}\n\n"
-            f"📊 *Активность:*\n"
-            f"📝 Жалоб подано: {my_reports}\n"
-            f"✅ Решено: {my_resolved}\n\n"
-            f"💰 *Баланс: {balance} ⭐*\n"
-            f"🔔 Уведомления: {'✅ Вкл' if notify_on else '❌ Выкл'}\n"
-        )
-
-        notify_btn = "🔕 Выкл уведомления" if notify_on else "🔔 Вкл уведомления"
+        free = "✅ Да" if my_reports == 0 else "❌ Использована"
+        text = (f"👤 *Профиль*\n\n"
+                f"👋 {message.from_user.first_name or ''}\n"
+                f"📅 Регистрация: {reg_date}\n\n"
+                f"📝 Жалоб: {my_reports} · ✅ Решено: {my_resolved}\n"
+                f"💰 Баланс: {balance} ⭐\n"
+                f"🎁 Бесплатная жалоба: {free}\n"
+                f"🔔 Уведомления: {'✅' if notify_on else '❌'}")
+        notify_btn = "🔕 Выкл" if notify_on else "🔔 Вкл уведомления"
         buttons = [
             [InlineKeyboardButton(text="📋 Мои жалобы", callback_data="my_complaints")],
-            [InlineKeyboardButton(text="💳 Пополнить баланс", callback_data="topup_menu")],
+            [InlineKeyboardButton(text="💳 Пополнить", callback_data="topup_menu")],
             [InlineKeyboardButton(text=notify_btn, callback_data="toggle_notify")],
             [InlineKeyboardButton(text="ℹ️ О проекте", callback_data="about_project")],
         ]
-        webapp_url = _get_webapp_url()
-        if webapp_url:
-            buttons.insert(0, [InlineKeyboardButton(
-                text="🗺️ Карта моих жалоб", web_app=WebAppInfo(url=f"{webapp_url}/map?v={int(time.time())}"))])
-
         await message.answer(text, parse_mode="Markdown",
                              reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-    finally:
-        db.close()
-
-
-@dp.message(Command("chp"))
-async def cmd_chp(message: types.Message):
-    """ЧП — серьёзные происшествия из мониторинга."""
-    db = _db()
-    try:
-        # Ищем жалобы категории ЧП + Безопасность + серьёзные
-        chp_cats = ["ЧП", "Безопасность"]
-        reports = (
-            db.query(Report)
-            .filter(Report.category.in_(chp_cats))
-            .order_by(Report.created_at.desc()).limit(15).all()
-        )
-        if not reports:
-            await message.answer("🚨 *ЧП*\n\nСерьёзных происшествий не зафиксировано.",
-                                 parse_mode="Markdown", reply_markup=main_kb())
-            return
-
-        text = f"🚨 *Чрезвычайные происшествия*\n📊 Найдено: {len(reports)}\n\n"
-        for r in reports:
-            st = STATUS_ICON.get(r.status, "⚪")
-            date = r.created_at.strftime("%d.%m %H:%M") if r.created_at else "—"
-            text += f"{st} *{r.category}* · {date}\n"
-            text += f"   {(r.title or r.description or '—')[:80]}\n"
-            if r.address:
-                text += f"   📍 {r.address[:50]}\n"
-            text += "\n"
-
-        await message.answer(text, parse_mode="Markdown", reply_markup=main_kb())
-    finally:
-        db.close()
-
+    finally: db.close()
 
 @dp.message(Command("new"))
 async def cmd_new(message: types.Message):
     user_sessions[message.from_user.id] = {"state": "waiting_complaint"}
-    await message.answer(
-        "📝 *Новая жалоба*\n\n"
-        "Отправьте:\n• Текст с описанием проблемы\n• Или фото\n\n"
-        "AI определит категорию, адрес и УК.\n/cancel — отмена",
-        parse_mode="Markdown",
-    )
-
-
-@dp.message(Command("my"))
-async def cmd_my(message: types.Message):
-    db = _db()
-    try:
-        user = db.query(User).filter(User.telegram_id == message.from_user.id).first()
-        if not user:
-            await message.answer("📋 У вас пока нет жалоб.", reply_markup=main_kb())
-            return
-        reports = db.query(Report).filter(Report.user_id == user.id).order_by(Report.created_at.desc()).limit(10).all()
-        if not reports:
-            await message.answer("📋 У вас пока нет жалоб.", reply_markup=main_kb())
-            return
-        text = f"📋 *Ваши жалобы ({len(reports)}):*\n\n"
-        for r in reports:
-            st = STATUS_ICON.get(r.status, "⚪")
-            text += f"{st} #{r.id} {_emoji(r.category)} {r.category}\n"
-            text += f"   {(r.title or '')[:60]}\n"
-            if r.address: text += f"   📍 {r.address}\n"
-            text += "\n"
-        await message.answer(text, parse_mode="Markdown", reply_markup=main_kb())
-    finally:
-        db.close()
-
+    await message.answer("📝 *Новая жалоба*\n\nОтправьте текст или фото.\nAI определит категорию, адрес и УК.\n/cancel — отмена",
+        parse_mode="Markdown")
 
 @dp.message(Command("cancel"))
 async def cmd_cancel(message: types.Message):
     user_sessions.pop(message.from_user.id, None)
     await message.answer("❌ Отменено.", reply_markup=main_kb())
 
-
 @dp.message(Command("sync"))
 async def cmd_sync(message: types.Message):
-    await message.answer("🔄 Синхронизация с Firebase...")
+    await message.answer("🔄 Синхронизация...")
     db = _db()
     try:
         reports = db.query(Report).order_by(Report.created_at.desc()).limit(100).all()
-        if not reports:
-            await message.answer("📋 Нет жалоб.", reply_markup=main_kb()); return
+        if not reports: await message.answer("Нет жалоб.", reply_markup=main_kb()); return
         pushed, errors = 0, 0
         for r in reports:
             try:
-                fb_data = {
-                    "category": r.category, "summary": r.title,
-                    "text": (r.description or "")[:2000],
-                    "address": r.address, "lat": r.lat, "lng": r.lng,
-                    "source": r.source or "sqlite",
-                    "source_name": getattr(r, "telegram_channel", None) or "bot",
-                    "post_link": "", "provider": "sync", "report_id": r.id,
-                    "supporters": r.supporters or 0, "supporters_notified": r.supporters_notified or 0,
-                }
-                if r.uk_name: fb_data["uk_name"] = r.uk_name
-                if r.uk_email: fb_data["uk_email"] = r.uk_email
-                doc_id = await firebase_push(fb_data)
-                pushed += 1 if doc_id else 0
-                errors += 0 if doc_id else 1
-            except Exception: errors += 1
+                fb = {"category": r.category, "summary": r.title, "text": (r.description or "")[:2000],
+                      "address": r.address, "lat": r.lat, "lng": r.lng, "source": r.source or "sqlite",
+                      "source_name": "bot", "post_link": "", "provider": "sync", "report_id": r.id,
+                      "supporters": r.supporters or 0}
+                if r.uk_name: fb["uk_name"] = r.uk_name
+                if r.uk_email: fb["uk_email"] = r.uk_email
+                doc_id = await firebase_push(fb)
+                pushed += 1 if doc_id else 0; errors += 0 if doc_id else 1
+            except: errors += 1
             await asyncio.sleep(0.1)
-        await message.answer(f"✅ Синхронизация: {pushed} отправлено, {errors} ошибок", reply_markup=main_kb())
-    except Exception as e:
-        await message.answer(f"❌ Ошибка: {e}", reply_markup=main_kb())
-    finally:
-        db.close()
+        await message.answer(f"✅ {pushed} отправлено, {errors} ошибок", reply_markup=main_kb())
+    except Exception as e: await message.answer(f"❌ {e}", reply_markup=main_kb())
+    finally: db.close()
 
-
-@dp.message(Command("opendata"))
-async def cmd_opendata(message: types.Message):
-    await message.answer("📂 Загружаю данные...")
-    try:
-        from services.opendata_service import get_all_summaries
-        result = await get_all_summaries()
-        if not result.get("success"):
-            await message.answer("❌ Ошибка загрузки", reply_markup=main_kb()); return
-        datasets = result.get("datasets", {})
-        text = f"📂 *Открытые данные Нижневартовска*\n\n"
-        total_rows = 0
-        for key, ds in datasets.items():
-            total_rows += ds.get("total_rows", 0)
-            text += f"{ds.get('icon', '📄')} *{ds.get('name', key)}*: {ds.get('total_rows', 0)}\n"
-        text += f"\n📊 *{len(datasets)}* датасетов, *{total_rows}* записей"
-
-        buttons, row = [], []
-        for key, ds in datasets.items():
-            row.append(InlineKeyboardButton(
-                text=f"{ds.get('icon', '📄')} {ds.get('name', key)[:16]}",
-                callback_data=f"od:{key}"))
-            if len(row) == 2: buttons.append(row); row = []
-        if row: buttons.append(row)
-        buttons.append([InlineKeyboardButton(text="🔄 Обновить", callback_data="od:refresh")])
-        buttons.insert(0, [InlineKeyboardButton(
-            text="📊 Инфографика города",
-            web_app=WebAppInfo(url=f"{CF_WORKER}/info?v={int(time.time())}"),
-        )])
-        await message.answer(text, parse_mode="Markdown",
-                             reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-    except Exception as e:
-        await message.answer(f"❌ Ошибка: {e}", reply_markup=main_kb())
-
-
-# ═══ КНОПКИ МЕНЮ ═══
-
+# ═══ MENU BUTTON HANDLERS ═══
 @dp.message(F.text == "📝 Новая жалоба")
 async def btn_new(message: types.Message):
     await cmd_new(message)
@@ -486,555 +324,586 @@ async def btn_new(message: types.Message):
 async def btn_map(message: types.Message):
     await cmd_map(message)
 
-@dp.message(F.text == "📂 Данные города")
-async def btn_opendata(message: types.Message):
-    await cmd_opendata(message)
-
-@dp.message(F.text == "🚨 ЧП")
-async def btn_chp(message: types.Message):
-    await cmd_chp(message)
+@dp.message(F.text == "📊 Инфографика")
+async def btn_info(message: types.Message):
+    await cmd_info(message)
 
 @dp.message(F.text == "👤 Профиль")
 async def btn_profile(message: types.Message):
     await cmd_profile(message)
 
-
-# ═══ CALLBACKS: ПРОФИЛЬ ═══
-
+# ═══ PROFILE CALLBACKS ═══
 @dp.callback_query(F.data == "about_project")
 async def cb_about_project(callback: types.CallbackQuery):
-    await callback.answer()
-    await callback.message.answer(
+    await callback.message.edit_text(
         "ℹ️ *Пульс города — Нижневартовск*\n\n"
-        "Система мониторинга городских проблем.\n\n"
-        "🎯 *Основные задачи:*\n"
-        "• Сбор жалоб жителей через AI-анализ текста и фото\n"
-        "• Автоматическое определение категории, адреса и ответственной УК\n"
-        "• Мониторинг 8 Telegram-каналов + 8 VK-пабликов в реальном времени\n"
-        "• Отображение всех проблем на интерактивной карте\n"
-        "• Рейтинг 42 управляющих компаний по количеству жалоб\n"
-        "• Автоматическая отправка жалоб в УК при 10+ поддержавших\n"
-        "• Юридический AI-анализ с указанием статей законов\n\n"
-        "⚙️ *Функционал:*\n"
-        "• 27 категорий проблем\n"
-        "• EXIF GPS из фото + геокодинг перекрёстков\n"
-        "• Google Street View ссылки\n"
-        "• Анонимные жалобы\n"
-        "• Push-уведомления о новых проблемах\n"
-        "• Открытые данные Нижневартовска (72 датасета)\n"
-        "• Инфографика с бюджетом и статистикой\n\n"
-        "🤖 AI: Z.AI GLM-4.7-Flash (текст) + GLM-4.6V-Flash (фото)\n"
-        "© 2026 Пульс города",
-        parse_mode="Markdown", reply_markup=main_kb(),
-    )
-
+        "AI мониторинг городских проблем.\n"
+        "8 TG-каналов + 8 VK-пабликов.\n\n"
+        "🤖 AI: Z.AI (GLM-4.7)\n"
+        "📊 72 датасета opendata\n"
+        "🏢 42 управляющих компании\n"
+        "📧 Автоматическая отправка жалоб\n"
+        "⚖️ Юридический анализ + письма",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="back_profile")]
+        ]))
+    await callback.answer()
 
 @dp.callback_query(F.data == "topup_menu")
 async def cb_topup_menu(callback: types.CallbackQuery):
     buttons = [
-        [InlineKeyboardButton(text="⭐ 50 Stars", callback_data="topup_50"),
-         InlineKeyboardButton(text="⭐ 100 Stars", callback_data="topup_100")],
-        [InlineKeyboardButton(text="⭐ 200 Stars", callback_data="topup_200"),
-         InlineKeyboardButton(text="⭐ 500 Stars", callback_data="topup_500")],
+        [InlineKeyboardButton(text="⭐ 50 Stars", callback_data="topup_50")],
+        [InlineKeyboardButton(text="⭐ 100 Stars", callback_data="topup_100")],
+        [InlineKeyboardButton(text="⭐ 200 Stars", callback_data="topup_200")],
         [InlineKeyboardButton(text="◀️ Назад", callback_data="back_profile")],
     ]
     await callback.message.edit_text(
-        "💳 *Пополнение баланса*\n\n50 ⭐ = 1 юридический анализ",
-        parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+        "💳 *Пополнение баланса*\n\nВыберите сумму:",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
     await callback.answer()
-
 
 @dp.callback_query(F.data.startswith("topup_"))
 async def cb_topup(callback: types.CallbackQuery):
     amount = int(callback.data.split("_")[1])
     await bot.send_invoice(
-        chat_id=callback.from_user.id,
-        title=f"Пополнение — {amount} ⭐",
-        description=f"Пополнение на {amount} Stars",
-        payload=f"topup_{amount}", currency="XTR",
-        prices=[LabeledPrice(label=f"{amount} Stars", amount=amount)],
-    )
+        chat_id=callback.message.chat.id,
+        title=f"Пополнение {amount} ⭐",
+        description=f"Пополнение баланса на {amount} Stars для отправки жалоб",
+        payload=f"topup_{amount}",
+        currency="XTR",
+        prices=[LabeledPrice(label=f"{amount} Stars", amount=amount)])
     await callback.answer()
-
 
 @dp.callback_query(F.data == "back_profile")
 async def cb_back_profile(callback: types.CallbackQuery):
+    db = _db()
+    try:
+        user = get_or_create_user(db, callback.from_user)
+        my_reports = db.query(Report).filter(Report.user_id == user.id).count()
+        my_resolved = db.query(Report).filter(Report.user_id == user.id, Report.status == "resolved").count()
+        balance = user.balance or 0
+        reg_date = user.created_at.strftime("%d.%m.%Y") if user.created_at else "—"
+        notify_on = getattr(user, "notify_new", 0) == 1
+        free = "✅ Да" if my_reports == 0 else "❌ Использована"
+        text = (f"👤 *Профиль*\n\n"
+                f"👋 {callback.from_user.first_name or ''}\n"
+                f"📅 Регистрация: {reg_date}\n\n"
+                f"📝 Жалоб: {my_reports} · ✅ Решено: {my_resolved}\n"
+                f"💰 Баланс: {balance} ⭐\n"
+                f"🎁 Бесплатная жалоба: {free}\n"
+                f"🔔 Уведомления: {'✅' if notify_on else '❌'}")
+        notify_btn = "🔕 Выкл" if notify_on else "🔔 Вкл уведомления"
+        buttons = [
+            [InlineKeyboardButton(text="📋 Мои жалобы", callback_data="my_complaints")],
+            [InlineKeyboardButton(text="💳 Пополнить", callback_data="topup_menu")],
+            [InlineKeyboardButton(text=notify_btn, callback_data="toggle_notify")],
+            [InlineKeyboardButton(text="ℹ️ О проекте", callback_data="about_project")],
+        ]
+        await callback.message.edit_text(text, parse_mode="Markdown",
+                                         reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    finally:
+        db.close()
     await callback.answer()
-    await cmd_profile(callback.message)
-
 
 @dp.callback_query(F.data == "my_complaints")
 async def cb_my_complaints(callback: types.CallbackQuery):
-    await callback.answer()
     db = _db()
     try:
         user = get_or_create_user(db, callback.from_user)
         reports = db.query(Report).filter(Report.user_id == user.id).order_by(Report.created_at.desc()).limit(10).all()
         if not reports:
-            await callback.message.answer("📭 У вас пока нет жалоб.", reply_markup=main_kb()); return
-        text = f"📋 *Ваши жалобы ({len(reports)}):*\n\n"
+            await callback.message.edit_text("📋 У вас пока нет жалоб.\n\nОтправьте текст или фото для создания.",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="◀️ Назад", callback_data="back_profile")]]))
+            await callback.answer(); return
+        lines = ["📋 *Мои жалобы* (последние 10):\n"]
         for r in reports:
-            st = STATUS_ICON.get(r.status, "⚪")
-            text += f"{st} {_emoji(r.category)} *{r.category}*\n"
-            text += f"   {(r.title or r.description or '—')[:60]}\n"
-            text += f"   📅 {r.created_at.strftime('%d.%m.%Y') if r.created_at else '—'}\n\n"
-        await callback.message.answer(text, parse_mode="Markdown", reply_markup=main_kb())
+            icon = STATUS_ICON.get(r.status, "⚪")
+            date = r.created_at.strftime("%d.%m") if r.created_at else ""
+            lines.append(f"{icon} {_emoji(r.category)} #{r.id} {(r.title or '')[:40]} ({date})")
+        await callback.message.edit_text("\n".join(lines), parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="◀️ Назад", callback_data="back_profile")]]))
     finally:
         db.close()
-
+    await callback.answer()
 
 @dp.callback_query(F.data == "toggle_notify")
 async def cb_toggle_notify(callback: types.CallbackQuery):
     db = _db()
     try:
         user = get_or_create_user(db, callback.from_user)
-        current = getattr(user, "notify_new", 0) or 0
-        user.notify_new = 0 if current else 1
+        user.notify_new = 0 if getattr(user, "notify_new", 0) == 1 else 1
         db.commit()
-        await callback.answer(f"🔔 {'Включены' if user.notify_new else 'Выключены'}")
-        await cmd_profile(callback.message)
+        state = "включены ✅" if user.notify_new == 1 else "выключены ❌"
+        await callback.answer(f"🔔 Уведомления {state}", show_alert=True)
     finally:
         db.close()
 
-
-async def _notify_subscribers(report: Report):
-    db = _db()
-    try:
-        subscribers = db.query(User).filter(User.notify_new == 1).all()
-        if not subscribers: return
-        text = (f"🔔 *Новая проблема*\n\n{_emoji(report.category)} *{report.category}*\n"
-                f"📍 {report.address or '—'}\n📝 {(report.title or report.description or '')[:100]}")
-        sent = 0
-        for u in subscribers:
-            if not u.telegram_id or u.id == report.user_id: continue
-            try:
-                await bot.send_message(u.telegram_id, text, parse_mode="Markdown"); sent += 1
-            except Exception: pass
-            if sent >= 50: break
-        if sent: logger.info(f"🔔 Push: {sent} уведомлены о #{report.id}")
-    except Exception as e: logger.error(f"Notify error: {e}")
-    finally: db.close()
-
-
-# ═══ ОБРАБОТКА ФОТО ═══
-
+# ═══ PHOTO HANDLER ═══
 @dp.message(F.photo)
 async def handle_photo(message: types.Message):
     uid = message.from_user.id
-    if bot_guard.is_duplicate(f"bot_photo:{uid}", message.message_id): return
-    await message.answer("🤖 Анализирую фото через AI...")
+    session = user_sessions.get(uid, {})
+    if session.get("state") not in (None, "waiting_complaint"):
+        user_sessions[uid] = {"state": "waiting_complaint"}
 
-    category, description, address = "Прочее", message.caption or "Фото проблемы", None
-    severity, has_vehicle, plates = "средняя", False, None
-    location_hints, exif_lat, exif_lon = None, None, None
-
+    wait_msg = await message.answer("📸 Анализирую фото...")
     try:
         photo = message.photo[-1]
         file = await bot.get_file(photo.file_id)
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
-        await bot.download_file(file.file_path, tmp.name); tmp.close()
-        result = await analyze_image_with_glm4v(tmp.name, message.caption or "")
-        os.unlink(tmp.name)
+        await bot.download_file(file.file_path, tmp.name)
+        tmp.close()
+
+        # Vision analysis
+        vision_result = await analyze_image_with_glm4v(tmp.name, "Опиши городскую проблему на фото. Укажи категорию, адрес если виден, описание проблемы.")
+        caption = message.caption or ""
+        combined_text = f"{caption}\n\nАнализ фото: {vision_result}" if vision_result else caption
+
+        if not combined_text.strip():
+            await wait_msg.edit_text("❌ Не удалось распознать фото. Добавьте описание.")
+            return
+
+        # AI analysis
+        result = await analyze_complaint(combined_text)
+        if not result.get("relevant", True):
+            await wait_msg.edit_text("🤔 Не похоже на городскую проблему. Попробуйте описать подробнее.")
+            user_sessions.pop(uid, None)
+            return
+
         category = result.get("category", "Прочее")
-        description = result.get("description", message.caption or "Фото проблемы")
         address = result.get("address")
-        severity = result.get("severity", "средняя")
-        has_vehicle = result.get("has_vehicle_violation", False)
-        plates = result.get("plates")
-        location_hints = result.get("location_hints")
-        exif_lat = result.get("exif_lat"); exif_lon = result.get("exif_lon")
-    except Exception as e: logger.error(f"Photo analysis error: {e}")
+        summary = result.get("summary", combined_text[:150])
+        lat, lon = None, None
 
-    lat, lon, geo_source = None, None, None
-    if exif_lat and exif_lon:
-        lat, lon, geo_source = exif_lat, exif_lon, "exif_gps"
-        if not address:
-            try:
-                from services.geo_service import reverse_geocode
-                address = await reverse_geocode(exif_lat, exif_lon) or address
-            except Exception: pass
-    else:
-        geo_text = f"{message.caption or ''} {description}"
-        geo = await geoparse(geo_text, ai_address=address, location_hints=location_hints)
-        lat, lon = geo.get("lat"), geo.get("lng")
-        geo_source = geo.get("geo_source")
-        if geo.get("address"): address = geo["address"]
+        if address:
+            coords = await get_coordinates(address)
+            if coords:
+                lat, lon = coords["lat"], coords["lon"]
 
-    if has_vehicle:
-        prefix = f"🚗 Нарушение парковки (гос.номер: {plates}). " if plates else "🚗 Нарушение парковки. "
-        description = prefix + description
+        # Find UK
+        uk_info = await _find_uk(lat, lon, address)
 
-    uk_info = await _find_uk(lat, lon, address)
-    user_sessions[uid] = {
-        "state": "confirm", "category": category, "description": description,
-        "address": address, "lat": lat, "lon": lon, "severity": severity, "uk_info": uk_info,
-    }
-    bot_guard.mark_processed(f"bot_photo:{uid}", message.message_id)
+        user_sessions[uid] = {
+            "state": "confirming",
+            "category": category, "address": address, "description": combined_text[:2000],
+            "title": summary[:200], "lat": lat, "lon": lon,
+            "uk_info": uk_info, "photo_file_id": photo.file_id,
+            "is_anonymous": False, "vision_text": vision_result,
+        }
 
-    e = _emoji(category)
-    lines = [f"📸 *Результат анализа:*\n", f"{e} Категория: *{category}*",
-             f"📍 Адрес: {address or 'Не определён'}"]
-    if lat and lon:
-        lines.append(f"🗺️ {lat:.5f}, {lon:.5f}")
-        if geo_source == "exif_gps": lines.append("📡 _Из EXIF фото_")
-    lines.append(f"⚠️ Серьёзность: {severity}")
-    if has_vehicle:
-        lines.append("🚗 *Нарушение парковки*")
-        if plates: lines.append(f"🔢 Номер: *{plates}*")
-    lines.append(_uk_text(uk_info))
-    lines.append(f"📝 {description[:200]}")
-    await message.answer("\n".join(lines), parse_mode="Markdown",
-                         reply_markup=InlineKeyboardMarkup(inline_keyboard=_confirm_buttons(lat, lon)))
+        text = (f"📸 *Анализ фото*\n\n"
+                f"{_emoji(category)} Категория: *{category}*\n"
+                f"📍 Адрес: {address or 'не определён'}\n"
+                f"📝 {summary[:300]}")
+        if uk_info:
+            text += _uk_text(uk_info)
+        text += "\n\nПодтвердите или измените:"
 
+        await wait_msg.edit_text(text, parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=_confirm_buttons(lat, lon)))
+        os.unlink(tmp.name)
+    except Exception as e:
+        logger.error(f"Photo error: {e}")
+        await wait_msg.edit_text(f"❌ Ошибка: {e}")
 
-# ═══ ОБРАБОТКА ТЕКСТА ═══
-
+# ═══ TEXT HANDLER ═══
 @dp.message(F.text)
 async def handle_text(message: types.Message):
     uid = message.from_user.id
     text = message.text.strip()
-    if text.startswith("/") or text in MENU_BUTTONS: return
-    if bot_guard.is_duplicate(f"bot:{uid}", message.message_id): return
-    if len(text) < 5:
-        await message.answer("Текст слишком короткий.", reply_markup=main_kb()); return
 
-    await message.answer("🤖 Анализирую через AI...")
-    category, address, summary, location_hints = "Прочее", None, text[:100], None
+    # Skip menu buttons
+    if text in MENU_BUTTONS:
+        return
+
+    session = user_sessions.get(uid, {})
+    if session.get("state") not in (None, "waiting_complaint"):
+        return
+
+    if len(text) < 5:
+        await message.answer("✏️ Слишком короткое сообщение. Опишите проблему подробнее.")
+        return
+
+    wait_msg = await message.answer("🤖 Анализирую...")
     try:
         result = await analyze_complaint(text)
+        if not result.get("relevant", True):
+            await wait_msg.edit_text("🤔 Не похоже на городскую проблему.\nОпишите конкретную проблему: что, где, когда.")
+            user_sessions.pop(uid, None)
+            return
+
         category = result.get("category", "Прочее")
         address = result.get("address")
-        summary = result.get("summary", text[:100])
-        location_hints = result.get("location_hints")
-    except Exception as e: logger.error(f"Text analysis error: {e}")
+        summary = result.get("summary", text[:150])
+        lat, lon = None, None
 
-    geo = await geoparse(text, ai_address=address, location_hints=location_hints)
-    lat, lon = geo.get("lat"), geo.get("lng")
-    if geo.get("address"): address = geo["address"]
+        if address:
+            coords = await get_coordinates(address)
+            if coords:
+                lat, lon = coords["lat"], coords["lon"]
 
-    uk_info = await _find_uk(lat, lon, address)
-    user_sessions[uid] = {
-        "state": "confirm", "category": category, "description": text,
-        "summary": summary, "address": address, "lat": lat, "lon": lon, "uk_info": uk_info,
-    }
-    bot_guard.mark_processed(f"bot:{uid}", message.message_id)
+        uk_info = await _find_uk(lat, lon, address)
 
-    e = _emoji(category)
-    resp = f"🤖 *AI анализ:*\n\n{e} Категория: *{category}*\n📍 Адрес: {address or 'Не определён'}\n"
-    if lat and lon: resp += f"🗺️ {lat:.4f}, {lon:.4f}\n"
-    resp += _uk_text(uk_info)
-    resp += f"\n📝 {summary}\n"
-    await message.answer(resp, parse_mode="Markdown",
-                         reply_markup=InlineKeyboardMarkup(inline_keyboard=_confirm_buttons(lat, lon)))
+        user_sessions[uid] = {
+            "state": "confirming",
+            "category": category, "address": address, "description": text[:2000],
+            "title": summary[:200], "lat": lat, "lon": lon,
+            "uk_info": uk_info, "is_anonymous": False,
+        }
 
+        resp = (f"🤖 *AI анализ*\n\n"
+                f"{_emoji(category)} Категория: *{category}*\n"
+                f"📍 Адрес: {address or 'не определён'}\n"
+                f"📝 {summary[:300]}")
+        if uk_info:
+            resp += _uk_text(uk_info)
+        resp += "\n\nПодтвердите или измените:"
 
-# ═══ CALLBACK: ПОДТВЕРЖДЕНИЕ ЖАЛОБЫ ═══
+        await wait_msg.edit_text(resp, parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=_confirm_buttons(lat, lon)))
+    except Exception as e:
+        logger.error(f"Text error: {e}")
+        await wait_msg.edit_text(f"❌ Ошибка: {e}")
 
-@dp.callback_query(F.data.in_({"confirm", "confirm_anon"}))
+# ═══ CONFIRM / PAYMENT / SEND ═══
+async def _save_report(uid, is_anonymous=False):
+    """Сохраняет жалобу в БД и Firebase, возвращает (report, db, user)."""
+    session = user_sessions.get(uid, {})
+    session["is_anonymous"] = is_anonymous
+    db = _db()
+    user = db.query(User).filter(User.telegram_id == uid).first()
+    if not user:
+        user = User(telegram_id=uid); db.add(user); db.commit(); db.refresh(user)
+
+    report = Report(
+        user_id=user.id,
+        title=(session.get("title") or "")[:200],
+        description=(session.get("description") or "")[:2000],
+        lat=session.get("lat"), lng=session.get("lon"),
+        address=session.get("address"),
+        category=session.get("category", "Прочее"),
+        status="open", source="bot",
+    )
+    uk_info = session.get("uk_info")
+    if uk_info:
+        report.uk_name = uk_info.get("name")
+        report.uk_email = uk_info.get("email")
+    db.add(report); db.commit(); db.refresh(report)
+    session["report_id"] = report.id
+    user_sessions[uid] = session
+
+    # Firebase
+    try:
+        await firebase_push({
+            "category": report.category, "summary": report.title,
+            "text": (report.description or "")[:2000],
+            "address": report.address, "lat": report.lat, "lng": report.lng,
+            "source": "bot", "source_name": "telegram_bot",
+            "provider": "user", "report_id": report.id,
+        })
+    except: pass
+
+    # Notify subscribers
+    try: await _notify_subscribers(report)
+    except: pass
+
+    return report, db, user
+
+async def _show_send_options(target, session):
+    """Показывает кнопки отправки: анонимное письмо / юр. анализ."""
+    uk_info = session.get("uk_info")
+    text = f"✅ Жалоба #{session.get('report_id')} сохранена.\n\n"
+    if uk_info:
+        text += _uk_text(uk_info)
+        text += "\nВыберите способ отправки:"
+    else:
+        text += f"🏛️ УК не определена. Письмо будет направлено в администрацию.\n\n{ADMIN_NAME}\n📧 {ADMIN_EMAIL}\n\nВыберите способ отправки:"
+
+    buttons = [
+        [InlineKeyboardButton(text="✉️ Отправить анонимно", callback_data="send_anon")],
+        [InlineKeyboardButton(text="⚖️ Юр. анализ + письмо", callback_data="legal_send")],
+        [InlineKeyboardButton(text="❌ Не отправлять", callback_data="skip_send")],
+    ]
+    if hasattr(target, 'edit_text'):
+        await target.edit_text(text, parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    else:
+        await target.answer(text, parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+
+@dp.callback_query(F.data == "confirm")
 async def cb_confirm(callback: types.CallbackQuery):
     uid = callback.from_user.id
     session = user_sessions.get(uid)
-    is_anon = callback.data == "confirm_anon"
-    if not session or session.get("state") != "confirm":
-        await callback.answer("Сессия истекла."); return
-    db = _db()
+    if not session or session.get("state") != "confirming":
+        await callback.answer("Сессия истекла. /new", show_alert=True); return
+
+    # Save report
+    report, db, user = await _save_report(uid, is_anonymous=False)
+    complaint_count = _user_complaint_count(db, user.id)
+    db.close()
+
+    # First complaint free, else 50 Stars
+    if complaint_count <= 1:
+        # First complaint — free
+        await _show_send_options(callback.message, session)
+    else:
+        # Need payment
+        session["state"] = "awaiting_payment"
+        user_sessions[uid] = session
+        await bot.send_invoice(
+            chat_id=callback.message.chat.id,
+            title="Отправка жалобы — 50 ⭐",
+            description=f"Жалоба #{report.id}: {session.get('category')} — {(session.get('address') or 'адрес не указан')[:50]}",
+            payload=f"complaint_{report.id}",
+            currency="XTR",
+            prices=[LabeledPrice(label="Отправка жалобы", amount=COMPLAINT_STARS)])
+    await callback.answer()
+
+@dp.callback_query(F.data == "confirm_anon")
+async def cb_confirm_anon(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    session = user_sessions.get(uid)
+    if not session or session.get("state") != "confirming":
+        await callback.answer("Сессия истекла. /new", show_alert=True); return
+
+    report, db, user = await _save_report(uid, is_anonymous=True)
+    complaint_count = _user_complaint_count(db, user.id)
+    db.close()
+
+    if complaint_count <= 1:
+        await _show_send_options(callback.message, session)
+    else:
+        session["state"] = "awaiting_payment"
+        user_sessions[uid] = session
+        await bot.send_invoice(
+            chat_id=callback.message.chat.id,
+            title="Отправка жалобы — 50 ⭐",
+            description=f"Жалоба #{report.id} (анонимно): {session.get('category')}",
+            payload=f"complaint_{report.id}",
+            currency="XTR",
+            prices=[LabeledPrice(label="Отправка жалобы", amount=COMPLAINT_STARS)])
+    await callback.answer()
+
+@dp.callback_query(F.data == "send_anon")
+async def cb_send_anon(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    session = user_sessions.get(uid)
+    if not session:
+        await callback.answer("Сессия истекла.", show_alert=True); return
+
+    uk_info = session.get("uk_info")
+    to_email = uk_info.get("email") if uk_info and uk_info.get("email") else ADMIN_EMAIL
+    to_name = uk_info.get("name") if uk_info else ADMIN_NAME
+
+    subject, body = _build_complaint_email(session, to_name)
+    result = await _send_email_via_worker(to_email, subject, body)
+
+    if result.get("ok"):
+        text = f"✅ Анонимное письмо отправлено!\n\n📧 Получатель: {to_name}\n✉️ {to_email}"
+    else:
+        text = f"⚠️ Не удалось отправить email.\nЖалоба #{session.get('report_id')} сохранена в системе."
+
+    await callback.message.edit_text(text, reply_markup=None)
+    user_sessions.pop(uid, None)
+    await callback.answer()
+
+@dp.callback_query(F.data == "legal_send")
+async def cb_legal_send(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    session = user_sessions.get(uid)
+    if not session:
+        await callback.answer("Сессия истекла.", show_alert=True); return
+
+    await callback.message.edit_text("⚖️ Юридический анализ...\nСоставляю официальное письмо...")
+
+    uk_info = session.get("uk_info")
+    uk_name = uk_info.get("name") if uk_info else ADMIN_NAME
+
+    # AI legal analysis
+    prompt = LEGAL_PROMPT.format(
+        category=session.get("category", "Прочее"),
+        address=session.get("address") or "не указан",
+        uk_name=uk_name,
+        description=(session.get("description") or "")[:1500],
+    )
     try:
-        if is_anon:
-            db_user_id, source_label = None, "Аноним"
-        else:
-            db_user = get_or_create_user(db, callback.from_user)
-            db_user_id = db_user.id
-            source_label = f"@{callback.from_user.username or callback.from_user.first_name}"
-        report = Report(
-            user_id=db_user_id,
-            title=(session.get("summary") or session["description"])[:200],
-            description=session["description"],
-            lat=session.get("lat"), lng=session.get("lon"),
-            address=session.get("address"), category=session["category"],
-            status="open", source="anonymous" if is_anon else f"telegram_bot:{uid}",
-        )
-        db.add(report); db.commit(); db.refresh(report)
-        try:
-            uk_info = await _find_uk(report.lat, report.lng, report.address)
-            fb_data = {
-                "category": report.category, "summary": report.title,
-                "text": report.description, "address": report.address,
-                "lat": report.lat, "lng": report.lng,
-                "source": "anonymous" if is_anon else f"telegram_bot:{uid}",
-                "source_name": source_label, "post_link": "", "provider": "bot",
-                "report_id": report.id, "supporters": 0, "supporters_notified": 0,
-            }
-            if uk_info:
-                fb_data["uk_name"] = uk_info.get("name", "")
-                fb_data["uk_email"] = uk_info.get("email", "")
-                fb_data["uk_phone"] = uk_info.get("phone", "")
-                report.uk_name = uk_info.get("name", "")
-                report.uk_email = uk_info.get("email", "")
-                db.commit()
-            await firebase_push(fb_data)
-        except Exception as fb_err: logger.error(f"Firebase: {fb_err}")
-        try: asyncio.create_task(_notify_subscribers(report))
-        except Exception: pass
-        uk_info = session.get("uk_info")
-        anon_badge = "🔒 _Анонимная_\n" if is_anon else ""
-        text = (f"✅ *Жалоба #{report.id}!*\n\n{anon_badge}"
-                f"{_emoji(report.category)} *{report.category}*\n📍 {report.address or '—'}\n")
-        if report.lat and report.lng: text += f"🗺️ {report.lat:.4f}, {report.lng:.4f}\n"
-        kb_rows = []
-        if report.lat and report.lng: kb_rows.append(_geo_buttons(report.lat, report.lng))
-        user_sessions[uid] = {
-            "state": "ask_send", "report_id": report.id,
-            "category": report.category, "title": report.title,
-            "description": report.description, "address": report.address,
-            "lat": report.lat, "lon": report.lng, "uk_info": uk_info, "is_anonymous": is_anon,
-        }
-        if uk_info and uk_info.get("email"):
-            text += f"\n🏢 *{uk_info['name']}*\n📧 {uk_info['email']}\n"
-            if uk_info.get("phone"): text += f"📞 {uk_info['phone']}\n"
-            text += "\n📩 *Отправить в УК?*"
-            kb_rows.append([
-                InlineKeyboardButton(text="✅ В УК", callback_data="send_to_uk:yes"),
-                InlineKeyboardButton(text="❌ Нет", callback_data="send_to_uk:no")])
-            kb_rows.append([InlineKeyboardButton(text="🏛️ В администрацию", callback_data="send_to_admin:yes")])
-        else:
-            text += f"\n🏛️ *{ADMIN_NAME}*\n📧 {ADMIN_EMAIL}\n\n📩 *Отправить?*"
-            kb_rows.append([
-                InlineKeyboardButton(text="✅ Отправить", callback_data="send_to_admin:yes"),
-                InlineKeyboardButton(text="❌ Нет", callback_data="send_to_uk:no")])
-        kb_rows.append([InlineKeyboardButton(text="⚖️ Юр. анализ (50 ⭐)", callback_data="legal_analysis")])
-        await callback.message.edit_text(text, parse_mode="Markdown",
-                                         reply_markup=InlineKeyboardMarkup(inline_keyboard=kb_rows))
-        logger.info(f"✅ Жалоба #{report.id} от {source_label}")
+        legal_result = await analyze_complaint(prompt)
+        legal_text = legal_result.get("summary", "")
+        # If AI returned structured data instead of text, use description
+        if len(legal_text) < 100:
+            # Direct Z.AI call for legal text
+            import httpx as _hx
+            async with _hx.AsyncClient(timeout=60.0) as client:
+                r = await client.post(
+                    f"https://api.z.ai/api/paas/v4/chat/completions",
+                    json={"model": "glm-4.7-flash",
+                          "messages": [{"role": "user", "content": prompt}],
+                          "max_tokens": 4096},
+                    headers={"Authorization": f"Bearer {os.getenv('ZAI_API_KEY', '')}",
+                             "Content-Type": "application/json"})
+                if r.status_code == 200:
+                    d = r.json()
+                    legal_text = d["choices"][0]["message"].get("content", "")
+                    if not legal_text:
+                        legal_text = d["choices"][0]["message"].get("reasoning_content", "")
     except Exception as e:
-        logger.error(f"DB error: {e}"); await callback.answer("❌ Ошибка")
-    finally: db.close()
+        logger.error(f"Legal analysis error: {e}")
+        legal_text = ""
 
+    if not legal_text or len(legal_text) < 50:
+        await callback.message.edit_text(
+            "⚠️ Не удалось выполнить юридический анализ.\n"
+            "Жалоба сохранена. Попробуйте отправить анонимно.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="✉️ Отправить анонимно", callback_data="send_anon")]]))
+        return
 
+    # Show analysis to user
+    preview = legal_text[:3000]
+    await callback.message.edit_text(
+        f"⚖️ *Юридический анализ*\n\n{preview}",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📨 Отправить в УК + администрацию", callback_data="legal_confirm")],
+            [InlineKeyboardButton(text="❌ Не отправлять", callback_data="skip_send")]]))
+
+    session["legal_text"] = legal_text
+    user_sessions[uid] = session
+
+@dp.callback_query(F.data == "legal_confirm")
+async def cb_legal_confirm(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    session = user_sessions.get(uid)
+    if not session or not session.get("legal_text"):
+        await callback.answer("Сессия истекла.", show_alert=True); return
+
+    legal_text = session["legal_text"]
+    uk_info = session.get("uk_info")
+    results = []
+
+    # Send to UK
+    if uk_info and uk_info.get("email"):
+        subj, body = _build_legal_email(session, uk_info["name"], legal_text)
+        r = await _send_email_via_worker(uk_info["email"], subj, body)
+        results.append(f"📧 {uk_info['name']}: {'✅' if r.get('ok') else '❌'}")
+
+    # Send to administration
+    subj, body = _build_legal_email(session, ADMIN_NAME, legal_text)
+    r = await _send_email_via_worker(ADMIN_EMAIL, subj, body)
+    results.append(f"📧 {ADMIN_NAME}: {'✅' if r.get('ok') else '❌'}")
+
+    text = "📨 *Результат отправки:*\n\n" + "\n".join(results)
+    text += f"\n\n⚖️ Жалоба #{session.get('report_id')} с юридическим обоснованием отправлена."
+    await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=None)
+    user_sessions.pop(uid, None)
+    await callback.answer()
+
+@dp.callback_query(F.data == "skip_send")
+async def cb_skip_send(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    session = user_sessions.get(uid)
+    rid = session.get("report_id", "?") if session else "?"
+    await callback.message.edit_text(f"📋 Жалоба #{rid} сохранена в системе.\nПисьмо не отправлено.", reply_markup=None)
+    user_sessions.pop(uid, None)
+    await callback.answer()
+
+# ═══ CATEGORY CHANGE ═══
 @dp.callback_query(F.data == "change_cat")
 async def cb_change_cat(callback: types.CallbackQuery):
-    await callback.message.edit_text("🏷️ Выберите:", reply_markup=categories_kb())
+    await callback.message.edit_text("🏷️ Выберите категорию:", reply_markup=categories_kb())
+    await callback.answer()
 
 @dp.callback_query(F.data.startswith("cat:"))
 async def cb_select_cat(callback: types.CallbackQuery):
     uid = callback.from_user.id
-    cat = callback.data.split(":", 1)[1]
     session = user_sessions.get(uid)
-    if not session: await callback.answer("Сессия истекла."); return
-    session["category"] = cat
-    text = f"🏷️ *{_emoji(cat)} {cat}*\n📍 {session.get('address') or '—'}\n📝 {session.get('summary', session['description'][:100])}"
+    if not session:
+        await callback.answer("Сессия истекла.", show_alert=True); return
+    new_cat = callback.data[4:]
+    session["category"] = new_cat
+    user_sessions[uid] = session
+
+    lat, lon = session.get("lat"), session.get("lon")
+    text = (f"🏷️ Категория изменена: *{_emoji(new_cat)} {new_cat}*\n"
+            f"📍 Адрес: {session.get('address') or 'не определён'}\n"
+            f"📝 {(session.get('title') or '')[:200]}")
+    uk_info = session.get("uk_info")
+    if uk_info:
+        text += _uk_text(uk_info)
+    text += "\n\nПодтвердите:"
     await callback.message.edit_text(text, parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="✅ Подтвердить", callback_data="confirm")],
-            [InlineKeyboardButton(text="🔒 Анонимно", callback_data="confirm_anon")],
-            [InlineKeyboardButton(text="🏷️ Изменить", callback_data="change_cat")],
-            [InlineKeyboardButton(text="❌ Отменить", callback_data="cancel")]]))
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=_confirm_buttons(lat, lon)))
+    await callback.answer()
 
 @dp.callback_query(F.data == "cancel")
 async def cb_cancel(callback: types.CallbackQuery):
     user_sessions.pop(callback.from_user.id, None)
-    await callback.message.edit_text("❌ Отменено.")
-    await callback.message.answer("Меню:", reply_markup=main_kb())
-
-@dp.callback_query(F.data == "send_to_uk:yes")
-async def cb_send_to_uk(callback: types.CallbackQuery):
-    uid = callback.from_user.id
-    session = user_sessions.get(uid)
-    if not session or session.get("state") != "ask_send":
-        await callback.answer("Сессия истекла."); return
-    uk_info = session.get("uk_info")
-    if not uk_info or not uk_info.get("email"):
-        await callback.answer("❌ Email УК не найден"); return
-    subject, body = _build_complaint_email(session, uk_info.get("name", "УК"))
-    await callback.answer("📧 Отправляю...")
-    result = await _send_email_via_worker(uk_info["email"], subject, body)
-    if result["ok"]:
-        await callback.message.edit_text(f"✅ *Отправлено в {uk_info['name']}!*\n📋 #{session.get('report_id')}", parse_mode="Markdown")
-        await callback.message.answer("📩 *Также в администрацию?*", parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
-                InlineKeyboardButton(text="✅ Да", callback_data="send_to_admin:yes"),
-                InlineKeyboardButton(text="❌ Нет", callback_data="send_to_uk:no")]]))
-    else:
-        await callback.message.edit_text("📧 Не удалось отправить.", parse_mode="Markdown")
-        await callback.message.answer("Меню:", reply_markup=main_kb())
-
-@dp.callback_query(F.data == "send_to_admin:yes")
-async def cb_send_to_admin(callback: types.CallbackQuery):
-    uid = callback.from_user.id
-    session = user_sessions.get(uid)
-    if not session or session.get("state") != "ask_send":
-        await callback.answer("Сессия истекла."); return
-    subject, body = _build_complaint_email(session, ADMIN_NAME)
-    await callback.answer("📧 Отправляю...")
-    result = await _send_email_via_worker(ADMIN_EMAIL, subject, body)
-    if result["ok"]:
-        await callback.message.edit_text(f"✅ *Отправлено в администрацию!*\n📋 #{session.get('report_id')}", parse_mode="Markdown")
-    else:
-        await callback.message.edit_text("📧 Не удалось отправить.", parse_mode="Markdown")
-    user_sessions.pop(uid, None)
-    await callback.message.answer("Меню:", reply_markup=main_kb())
-
-@dp.callback_query(F.data == "send_to_uk:no")
-async def cb_send_skip(callback: types.CallbackQuery):
-    user_sessions.pop(callback.from_user.id, None)
-    await callback.message.edit_text("👌 Жалоба сохранена.")
-    await callback.message.answer("Меню:", reply_markup=main_kb())
-
-
-# ═══ ЮРИДИЧЕСКИЙ АНАЛИЗ (Telegram Stars) ═══
-
-@dp.callback_query(F.data == "legal_analysis")
-async def cb_legal_analysis(callback: types.CallbackQuery):
-    uid = callback.from_user.id
-    session = user_sessions.get(uid)
-    if not session or session.get("state") != "ask_send":
-        await callback.answer("Сессия истекла."); return
-    rid = session.get("report_id", 0)
+    await callback.message.edit_text("❌ Отменено.", reply_markup=None)
     await callback.answer()
-    await bot.send_invoice(chat_id=uid, title="⚖️ Юр. анализ",
-        description=f"Жалоба #{rid}: законы, статьи, порядок действий",
-        payload=f"legal_{rid}_{uid}", currency="XTR",
-        prices=[LabeledPrice(label="Анализ", amount=LEGAL_ANALYSIS_STARS)], provider_token="")
 
+# ═══ PAYMENT HANDLERS ═══
 @dp.pre_checkout_query()
-async def on_pre_checkout(pre_checkout: PreCheckoutQuery):
-    p = pre_checkout.invoice_payload
-    if p.startswith("legal_") or p.startswith("topup_"):
-        await bot.answer_pre_checkout_query(pre_checkout.id, ok=True)
-    else:
-        await bot.answer_pre_checkout_query(pre_checkout.id, ok=False, error_message="Неизвестный тип")
+async def on_pre_checkout(query: PreCheckoutQuery):
+    await bot.answer_pre_checkout_query(query.id, ok=True)
 
 @dp.message(F.successful_payment)
 async def on_successful_payment(message: types.Message):
     payload = message.successful_payment.invoice_payload
+    amount = message.successful_payment.total_amount
+    uid = message.from_user.id
+
     if payload.startswith("topup_"):
-        amount = int(payload.split("_")[1])
+        # Balance top-up
         db = _db()
         try:
             user = get_or_create_user(db, message.from_user)
-            user.balance = (user.balance or 0) + amount; db.commit()
-            await message.answer(f"✅ +{amount} ⭐ (итого {user.balance})", reply_markup=main_kb())
-        finally: db.close()
-        return
-    if not payload.startswith("legal_"): return
-    uid = message.from_user.id
-    session = user_sessions.get(uid)
-    if not session:
-        await message.answer("❌ Сессия истекла.", reply_markup=main_kb()); return
-    rid = session.get("report_id", "?")
-    cat = session.get("category", "Прочее")
-    addr = session.get("address") or "не указан"
-    desc = session.get("description", "")[:2000]
-    await message.answer(f"✅ Оплата ({LEGAL_ANALYSIS_STARS} ⭐)\n⚖️ Анализирую...")
-    try:
-        prompt = LEGAL_PROMPT.format(category=cat, address=addr, description=desc)
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            r = await client.post("https://api.z.ai/api/paas/v4/chat/completions",
-                json={"model": "glm-4.7-flash",
-                      "messages": [{"role": "system", "content": "Юрист по жилищному праву РФ."},
-                                   {"role": "user", "content": prompt}], "max_tokens": 4096},
-                headers={"Authorization": f"Bearer {os.getenv('ZAI_API_KEY', '')}",
-                         "Content-Type": "application/json"})
-        if r.status_code != 200: raise Exception(f"Z.AI: {r.status_code}")
-        analysis = r.json()["choices"][0]["message"].get("content", "")
-        if not analysis: raise Exception("Пустой ответ")
-        full = f"⚖️ *Анализ #{rid}*\n{cat} | {addr}\n{'─'*30}\n\n{analysis}"
-        while full:
-            chunk = full[:4000]; full = full[4000:]
-            try: await message.answer(chunk, parse_mode="Markdown")
-            except: await message.answer(chunk)
-    except Exception as e:
-        await message.answer(f"❌ {e}", reply_markup=main_kb())
-    await message.answer("Меню:", reply_markup=main_kb())
+            user.balance = (user.balance or 0) + amount
+            db.commit()
+            await message.answer(f"✅ Баланс пополнен на {amount} ⭐\n💰 Текущий баланс: {user.balance} ⭐",
+                reply_markup=main_kb())
+        finally:
+            db.close()
 
+    elif payload.startswith("complaint_"):
+        # Complaint payment — show send options
+        session = user_sessions.get(uid)
+        if session:
+            session["state"] = "paid"
+            user_sessions[uid] = session
+            await message.answer(f"✅ Оплата {amount} ⭐ принята!", reply_markup=main_kb())
+            await _show_send_options(message, session)
+        else:
+            await message.answer("✅ Оплата принята. Сессия истекла — жалоба сохранена в системе.",
+                reply_markup=main_kb())
 
-# ═══ CALLBACK: КАРТА + OPENDATA ═══
-
-@dp.callback_query(F.data == "map_points")
-async def cb_map_points(callback: types.CallbackQuery):
-    db = _db()
-    try:
-        recent = db.query(Report).filter(Report.lat.isnot(None), Report.lng.isnot(None)).order_by(Report.created_at.desc()).limit(5).all()
-        if not recent: await callback.answer("Нет точек"); return
-        await callback.answer("📍 Отправляю...")
-        for r in recent:
-            await callback.message.answer_venue(
-                latitude=float(r.lat), longitude=float(r.lng),
-                title=f"{_emoji(r.category)} {r.category} #{r.id}",
-                address=r.address or f"{r.lat:.4f}, {r.lng:.4f}")
-            await asyncio.sleep(0.3)
-        await callback.message.answer(f"📍 {len(recent)} точек", reply_markup=main_kb())
-    finally: db.close()
-
+# ═══ OPENDATA CALLBACKS ═══
 @dp.callback_query(F.data.startswith("od:"))
 async def cb_opendata(callback: types.CallbackQuery):
-    key = callback.data.split(":", 1)[1]
-    if key == "refresh":
-        await callback.answer("🔄 Обновляю...")
-        try:
-            from services.opendata_service import refresh_all_datasets
-            await refresh_all_datasets(); await callback.answer("✅ Обновлено")
-        except Exception as e: await callback.answer(f"❌ {e}")
-        return
-    if key == "back":
-        await callback.answer(); await cmd_opendata(callback.message); return
-    await callback.answer("📂 Загружаю...")
-    try:
-        data_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "opendata_full.json")
-        if not os.path.exists(data_file):
-            await callback.message.answer("❌ Данные не загружены.", reply_markup=main_kb()); return
-        with open(data_file, "r", encoding="utf-8") as f: all_data = json.load(f)
-        ds = all_data.get(key)
-        if not ds: await callback.message.answer(f"❌ Не найден", reply_markup=main_kb()); return
-        rows = ds.get("rows", [])
-        total = ds.get("total", len(rows))
-        text = f"{ds.get('icon','📄')} *{ds.get('name',key)}*\n📊 Записей: *{total}*\n\n"
-        for i, row in enumerate(rows[:10], 1):
-            title = (row.get("TITLE") or row.get("TITLESM") or row.get("NAME") or
-                     row.get("FIO") or row.get("DEPARTMENT") or row.get("ORGANIZATION") or
-                     row.get("STREET") or row.get("OBJECT") or row.get("SECTION") or
-                     row.get("FUEL_TYPE") or row.get("PERIOD") or "")
-            if not title:
-                for v in row.values():
-                    if isinstance(v, str) and 2 < len(v) < 100: title = v; break
-            text += f"*{i}.* {str(title)[:70]}\n"
-            addr = row.get("ADR") or row.get("ADDRESS") or row.get("ADRESS") or ""
-            if addr: text += f"   📍 {str(addr)[:50]}\n"
-            tel = row.get("TEL") or row.get("PHONE") or ""
-            if tel: text += f"   📞 {tel}\n"
-            fio = row.get("FIO") or row.get("DIRECTOR") or ""
-            if fio and fio != title: text += f"   👤 {fio[:40]}\n"
-            text += "\n"
-        if total > 10: text += f"_...и ещё {total - 10}_"
-        if len(text) > 4000: text = text[:3950] + "\n_...обрезано_"
-        await callback.message.answer(text, parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="← Назад", callback_data="od:back")]]))
-    except Exception as e:
-        logger.error(f"OD error: {e}"); await callback.message.answer(f"❌ {e}", reply_markup=main_kb())
+    dataset = callback.data[3:]
+    url = f"{CF_WORKER}/info?dataset={dataset}&v={int(time.time())}"
+    buttons = [[InlineKeyboardButton(text="📊 Открыть", web_app=WebAppInfo(url=url))]]
+    await callback.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    await callback.answer()
 
-
-# ═══ ЗАПУСК ═══
-
+# ═══ SETUP & MAIN ═══
 async def setup_menu():
     commands = [
-        BotCommand(command="start", description="🏠 Главное меню"),
-        BotCommand(command="help", description="❓ Помощь"),
+        BotCommand(command="start", description="🏠 Главная"),
+        BotCommand(command="help", description="❓ Справка"),
         BotCommand(command="new", description="📝 Новая жалоба"),
-        BotCommand(command="map", description="🗺️ Карта + статистика + рейтинг УК"),
-        BotCommand(command="chp", description="🚨 ЧП — происшествия"),
-        BotCommand(command="opendata", description="📂 Данные города"),
+        BotCommand(command="map", description="🗺️ Карта"),
+        BotCommand(command="info", description="📊 Инфографика"),
         BotCommand(command="profile", description="👤 Профиль"),
-        BotCommand(command="sync", description="🔄 Синхронизация Firebase"),
     ]
     await bot.set_my_commands(commands, scope=BotCommandScopeDefault())
-    logger.info(f"✅ Меню бота установлено ({len(commands)} команд)")
+    logger.info("✅ Меню бота установлено")
 
 async def main():
-    logger.info("🚀 Запуск бота Пульс города...")
-    logger.info(f"⏱️ RealtimeGuard: {bot_guard.startup_time.isoformat()}")
     await setup_menu()
-    try:
-        from services.opendata_updater import auto_update_loop
-        asyncio.create_task(auto_update_loop())
-    except Exception as e: logger.warning(f"⚠️ Opendata updater: {e}")
+    logger.info("🚀 Бот запущен — Пульс города Нижневартовск")
     await dp.start_polling(bot)

@@ -1,5 +1,72 @@
-"""Update GitHub CF_API_TOKEN and trigger deploy"""
-import ctypes, ctypes.wintypes, json, urllib.request, base64, os
+"""Update GitHub CF_API_TOKEN and trigger deploy via SOCKS5 proxy"""
+import ctypes, ctypes.wintypes, json, os, socket, ssl, struct
+
+# === SOCKS5 proxy ===
+PROXY_HOST = "46.183.30.125"
+PROXY_PORT = 14520
+PROXY_USER = "user360810"
+PROXY_PASS = "0dkmyj"
+
+def socks5_connect(target_host, target_port, timeout=15):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(timeout)
+    s.connect((PROXY_HOST, PROXY_PORT))
+    s.send(b"\x05\x01\x02")
+    s.recv(2)
+    auth = b"\x01" + bytes([len(PROXY_USER)]) + PROXY_USER.encode()
+    auth += bytes([len(PROXY_PASS)]) + PROXY_PASS.encode()
+    s.send(auth)
+    ar = s.recv(2)
+    if ar[1] != 0:
+        raise Exception("SOCKS5 auth failed")
+    req = b"\x05\x01\x00\x03" + bytes([len(target_host)]) + target_host.encode()
+    req += struct.pack("!H", target_port)
+    s.send(req)
+    resp = s.recv(10)
+    if resp[1] != 0:
+        raise Exception(f"SOCKS5 connect failed: {resp[1]}")
+    return s
+
+def https_request(host, method, path, body=None, headers=None, timeout=15):
+    raw = socks5_connect(host, 443, timeout)
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    s = ctx.wrap_socket(raw, server_hostname=host)
+    
+    hdrs = headers or {}
+    hdrs["Host"] = host
+    hdrs["Connection"] = "close"
+    if body and "Content-Type" not in hdrs:
+        hdrs["Content-Type"] = "application/json"
+    
+    req = f"{method} {path} HTTP/1.1\r\n"
+    for k, v in hdrs.items():
+        req += f"{k}: {v}\r\n"
+    if body:
+        req += f"Content-Length: {len(body)}\r\n"
+    req += "\r\n"
+    
+    s.send(req.encode())
+    if body:
+        s.send(body if isinstance(body, bytes) else body.encode())
+    
+    data = b""
+    while True:
+        try:
+            chunk = s.recv(8192)
+            if not chunk: break
+            data += chunk
+        except: break
+    s.close()
+    
+    header_end = data.find(b"\r\n\r\n")
+    resp_headers = data[:header_end].decode("utf-8", errors="ignore") if header_end > 0 else ""
+    resp_body = data[header_end + 4:] if header_end > 0 else data
+    status_line = resp_headers.split("\r\n")[0] if resp_headers else ""
+    status = int(status_line.split(" ")[1]) if " " in status_line else 0
+    
+    return status, resp_body
 
 # === Get GitHub token from Windows Credential Manager ===
 class CREDENTIAL(ctypes.Structure):
@@ -39,32 +106,37 @@ for line in content.split('\n'):
 print(f"CF token: {cf_token[:20]}...")
 
 # === Update GitHub secret ===
-headers = {'Authorization': f'token {gh_token}', 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'deploy'}
+gh_headers = {
+    "Authorization": f"token {gh_token}",
+    "Accept": "application/vnd.github.v3+json",
+    "User-Agent": "deploy"
+}
 
-req = urllib.request.Request('https://api.github.com/repos/herzo300/pulsenv/actions/secrets/public-key', headers=headers)
-with urllib.request.urlopen(req) as resp:
-    pk_data = json.loads(resp.read())
+# Get public key
+status, body = https_request("api.github.com", "GET",
+    "/repos/herzo300/pulsenv/actions/secrets/public-key",
+    headers=gh_headers)
+print(f"Public key: {status}")
+pk_data = json.loads(body)
 
+# Encrypt secret
+import base64
 from nacl import encoding, public
 public_key = public.PublicKey(pk_data['key'].encode("utf-8"), encoding.Base64Encoder())
 sealed_box = public.SealedBox(public_key)
 encrypted = sealed_box.encrypt(cf_token.encode("utf-8"))
 encrypted_b64 = base64.b64encode(encrypted).decode("utf-8")
 
-payload = json.dumps({"encrypted_value": encrypted_b64, "key_id": pk_data['key_id']}).encode()
-req2 = urllib.request.Request(
-    'https://api.github.com/repos/herzo300/pulsenv/actions/secrets/CF_API_TOKEN',
-    data=payload, headers={**headers, 'Content-Type': 'application/json'}, method='PUT'
-)
-with urllib.request.urlopen(req2) as resp2:
-    print(f"Secret updated: {resp2.status}")
+# Update secret
+payload = json.dumps({"encrypted_value": encrypted_b64, "key_id": pk_data['key_id']})
+status2, _ = https_request("api.github.com", "PUT",
+    "/repos/herzo300/pulsenv/actions/secrets/CF_API_TOKEN",
+    body=payload, headers=gh_headers)
+print(f"Secret updated: {status2}")
 
 # === Trigger workflow ===
-req3 = urllib.request.Request(
-    'https://api.github.com/repos/herzo300/pulsenv/actions/workflows/deploy-worker.yml/dispatches',
-    data=json.dumps({"ref": "main"}).encode(),
-    headers={**headers, 'Content-Type': 'application/json'}, method='POST'
-)
-with urllib.request.urlopen(req3) as resp3:
-    print(f"Workflow triggered: {resp3.status}")
+status3, _ = https_request("api.github.com", "POST",
+    "/repos/herzo300/pulsenv/actions/workflows/deploy-worker.yml/dispatches",
+    body=json.dumps({"ref": "main"}), headers=gh_headers)
+print(f"Workflow triggered: {status3}")
 print("Done! Check https://github.com/herzo300/pulsenv/actions")
