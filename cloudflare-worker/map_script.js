@@ -499,33 +499,142 @@ function buildStatsOverlay(){
   ov.innerHTML='<button class="so-close" onclick="document.getElementById(\'statsOverlay\').classList.remove(\'open\')">&times;</button>'+html;
 }
 
+// ═══ UK competence categories (only these count for UK rating) ═══
+var UK_CATS=['ЖКХ','Отопление','Водоснабжение и канализация','Газоснабжение','Лифты и подъезды','Бытовой мусор','Освещение'];
+var ADMIN_CATS=['Дороги','Благоустройство','Транспорт','Экология','Снег/Наледь','Парковки','Строительство','Парки и скверы','Спортивные площадки','Детские площадки','Безопасность','ЧП'];
+var allUkData=null;
+
+function loadUkOpendata(){
+  if(allUkData)return Promise.resolve(allUkData);
+  return fetch(FB+'/opendata_infographic.json',{signal:AbortSignal.timeout(6000)})
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d&&d.uk&&d.uk.top){
+        allUkData=d.uk;return allUkData}
+      return null})
+    .catch(function(){return null});
+}
+
+function sendAnonEmail(ukName,ukEmail){
+  var desc=prompt('Опишите проблему для '+ukName+':');
+  if(!desc||!desc.trim())return;
+  var addr=prompt('Адрес (необязательно):','');
+  showToast('📧 Отправляю...');
+  var body='Уважаемая '+ukName+',\n\nЧерез систему «Пульс города» поступила анонимная жалоба:\n\n'+desc;
+  if(addr)body+='\n\nАдрес: '+addr;
+  body+='\n\nПросим рассмотреть и принять меры.\nС уважением, Пульс города — Нижневартовск';
+  fetch(FB.replace('/firebase','')+'/send-email',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({to_email:ukEmail,to_name:ukName,subject:'Анонимная жалоба — Пульс города',body:body,from_name:'Пульс города'})
+  }).then(function(r){return r.json()}).then(function(d){
+    showToast(d.ok?'✅ Отправлено в '+ukName:'❌ Ошибка отправки')
+  }).catch(function(){showToast('❌ Ошибка сети')});
+}
+function legalAnalysis(ukName){
+  var desc=prompt('Опишите проблему для юридического анализа ('+ukName+'):');
+  if(!desc||!desc.trim())return;
+  var msg='/legal '+ukName+': '+desc;
+  var url='https://t.me/pulsenvbot?start=legal_'+encodeURIComponent(ukName.substring(0,30));
+  window.open(url,'_blank');
+  showToast('⚖️ Откройте бот @pulsenvbot и отправьте описание проблемы');
+}
+function ukDetails(idx){
+  var el=document.getElementById('ukDet_'+idx);
+  if(!el)return;
+  el.style.display=el.style.display==='none'?'block':'none';
+}
+
 // ═══ UK Rating overlay ═══
 function buildUkRating(){
   var ov=document.getElementById('ukOverlay');if(!ov)return;
-  var ukStats={};
+  // Count only UK-competence complaints per UK
+  var ukStats={},adminStats={total:0,open:0,resolved:0};
   allItems.forEach(function(c){
-    if(c.uk_name){
-      if(!ukStats[c.uk_name])ukStats[c.uk_name]={total:0,open:0,resolved:0};
+    var isUkCat=UK_CATS.indexOf(c.category)>=0;
+    var isAdminCat=ADMIN_CATS.indexOf(c.category)>=0;
+    if(isAdminCat){adminStats.total++;if(c.status==='resolved')adminStats.resolved++;else adminStats.open++}
+    if(c.uk_name&&isUkCat){
+      if(!ukStats[c.uk_name])ukStats[c.uk_name]={total:0,open:0,resolved:0,cats:{}};
       ukStats[c.uk_name].total++;
-      if(c.status==='resolved')ukStats[c.uk_name].resolved++;
-      else ukStats[c.uk_name].open++;
+      if(c.status==='resolved')ukStats[c.uk_name].resolved++;else ukStats[c.uk_name].open++;
+      ukStats[c.uk_name].cats[c.category]=(ukStats[c.uk_name].cats[c.category]||0)+1;
     }
   });
   var sorted=Object.entries(ukStats).sort(function(a,b){return b[1].total-a[1].total});
   var maxUk=sorted.length?sorted[0][1].total:1;
-  var html='<h3>🏢 Рейтинг УК ('+sorted.length+')</h3>';
-  html+='<div style="font-size:9px;color:var(--hint);margin-bottom:8px">По количеству жалоб жителей</div>';
+  var html='<h3>🏢 Рейтинг УК</h3>';
+  html+='<div style="font-size:9px;color:var(--hint);margin-bottom:4px">Только жалобы по компетенции УК (ЖКХ, отопление, вода, газ, лифты, мусор, свет)</div>';
+  // Admin rating
+  var apct=adminStats.total?Math.round(adminStats.resolved/adminStats.total*100):0;
+  html+='<div class="uk-item" style="background:rgba(99,102,241,.08);border-radius:10px;padding:8px;margin-bottom:8px">';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center">';
+  html+='<span class="uk-name" style="color:var(--accentL)">🏛️ Администрация города</span>';
+  html+='<span class="uk-count" style="color:var(--accentL)">'+adminStats.total+'</span></div>';
+  html+='<div class="uk-info">Дороги, благоустройство, транспорт, экология, безопасность, ЧП</div>';
+  html+='<div class="uk-info">✅ '+adminStats.resolved+' ('+apct+'%) · 🔴 '+adminStats.open+'</div>';
+  html+='<div class="uk-bar"><div class="uk-bar-fill" style="width:100%;background:'+(apct>50?'var(--green)':apct>20?'var(--yellow)':'var(--red)')+'"></div></div>';
+  html+='<div style="margin-top:4px"><span onclick="sendAnonEmail(\'Администрация г. Нижневартовска\',\'nvartovsk@n-vartovsk.ru\')" style="font-size:9px;color:var(--accentL);cursor:pointer;text-decoration:underline">✉️ Написать анонимно</span></div>';
+  html+='</div>';
+  html+='<div style="font-size:10px;font-weight:700;margin:8px 0 4px;color:var(--text)">Управляющие компании ('+sorted.length+' с жалобами)</div>';
   sorted.forEach(function(e,i){
     var uk=e[1];var pct=uk.total?Math.round(uk.resolved/uk.total*100):0;
-    html+='<div class="uk-item">';
+    var topCat=Object.entries(uk.cats).sort(function(a,b){return b[1]-a[1]});
+    var catLine=topCat.slice(0,3).map(function(c){return(CE[c[0]]||'')+c[1]}).join(' ');
+    html+='<div class="uk-item" id="uk_'+i+'">';
     html+='<div style="display:flex;justify-content:space-between;align-items:center">';
     html+='<span class="uk-name">'+(i+1)+'. '+esc(e[0])+'</span>';
     html+='<span class="uk-count">'+uk.total+'</span></div>';
-    html+='<div class="uk-info">✅ Решено: '+uk.resolved+' ('+pct+'%) · 🔴 Открыто: '+uk.open+'</div>';
+    html+='<div class="uk-info">'+catLine+' · ✅ '+uk.resolved+' ('+pct+'%) · 🔴 '+uk.open+'</div>';
     html+='<div class="uk-bar"><div class="uk-bar-fill" style="width:'+Math.round(uk.total/maxUk*100)+'%;background:'+(pct>50?'var(--green)':pct>20?'var(--yellow)':'var(--red)')+'"></div></div>';
+    html+='<div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">';
+    html+='<span onclick="legalAnalysis(\''+esc(e[0]).replace(/'/g,"\\'")+'\')\" style="font-size:9px;color:var(--yellow);cursor:pointer;text-decoration:underline">⚖️ Юр. анализ</span>';
+    html+='<span onclick="ukDetails('+i+')" style="font-size:9px;color:var(--hint);cursor:pointer;text-decoration:underline">📋 Подробнее</span>';
+    html+='</div>';
+    html+='<div id="ukDet_'+i+'" style="display:none;margin-top:4px;padding:4px 6px;background:rgba(255,255,255,.03);border-radius:6px;font-size:9px;color:var(--hint)">Загрузка...</div>';
     html+='</div>';
   });
-  if(!sorted.length)html+='<div style="font-size:11px;color:var(--hint);padding:20px 0;text-align:center">Нет данных об УК</div>';
+  // Load all 42 UKs from opendata
+  loadUkOpendata().then(function(ukOd){
+    if(!ukOd||!ukOd.top)return;
+    var existing=new Set(sorted.map(function(e){return e[0]}));
+    var allUks=ukOd.top||[];
+    // Fill details for UKs with complaints
+    sorted.forEach(function(e,i){
+      var det=document.getElementById('ukDet_'+i);
+      if(!det)return;
+      var match=allUks.find(function(u){return u.name===e[0]});
+      if(match){
+        var d='';
+        if(match.address)d+='📍 '+esc(match.address)+'<br>';
+        if(match.phone)d+='📞 '+esc(match.phone)+'<br>';
+        if(match.director)d+='👤 '+esc(match.director)+'<br>';
+        if(match.houses)d+='🏠 '+match.houses+' домов<br>';
+        if(match.url)d+='🌐 <a href="'+match.url+'" target="_blank" style="color:var(--accentL)">Сайт</a><br>';
+        if(match.email)d+='<span onclick="sendAnonEmail(\''+esc(match.name).replace(/'/g,"\\'")+'\',\''+match.email+'\')" style="color:var(--accentL);cursor:pointer;text-decoration:underline">✉️ '+match.email+'</span>';
+        det.innerHTML=d||'Нет данных';
+      }else{det.innerHTML='Нет данных в реестре'}
+    });
+    var noComplaints=allUks.filter(function(u){return !existing.has(u.name)});
+    if(!noComplaints.length)return;
+    var extra='<div style="font-size:10px;font-weight:700;margin:12px 0 4px;color:var(--hint)">Без жалоб ('+noComplaints.length+')</div>';
+    noComplaints.forEach(function(u){
+      extra+='<div class="uk-item" style="opacity:.7">';
+      extra+='<div style="display:flex;justify-content:space-between;align-items:center">';
+      extra+='<span class="uk-name" style="font-size:10px">✅ '+esc(u.name)+'</span>';
+      extra+='<span style="font-size:9px;color:var(--green)">'+u.houses+' домов</span></div>';
+      if(u.address)extra+='<div style="font-size:8px;color:var(--hint);margin-top:1px">📍 '+esc(u.address)+'</div>';
+      if(u.phone)extra+='<div style="font-size:8px;color:var(--hint)">📞 '+esc(u.phone)+'</div>';
+      extra+='<div style="display:flex;gap:8px;margin-top:2px;flex-wrap:wrap">';
+      if(u.email)extra+='<span onclick="sendAnonEmail(\''+esc(u.name).replace(/'/g,"\\'")+'\',\''+u.email+'\')" style="font-size:9px;color:var(--accentL);cursor:pointer;text-decoration:underline">✉️ Написать</span>';
+      extra+='<span onclick="legalAnalysis(\''+esc(u.name).replace(/'/g,"\\'")+'\')\" style="font-size:9px;color:var(--yellow);cursor:pointer;text-decoration:underline">⚖️ Юр. анализ</span>';
+      extra+='</div>';
+      extra+='</div>';
+    });
+    var container=document.getElementById('ukExtraList');
+    if(container)container.innerHTML=extra;
+  });
+  html+='<div id="ukExtraList"></div>';
+  if(!sorted.length&&!allUkData)html+='<div style="font-size:11px;color:var(--hint);padding:20px 0;text-align:center">Загрузка данных УК...</div>';
   ov.innerHTML='<button class="uk-close" onclick="document.getElementById(\'ukOverlay\').classList.remove(\'open\')">&times;</button>'+html;
 }
 

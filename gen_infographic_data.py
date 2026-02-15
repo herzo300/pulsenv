@@ -44,10 +44,16 @@ info["azs"] = [{"name": a.get("NUM", ""), "address": a.get("ADDRESS", ""),
 
 # ═══ УК ═══
 uk = rows("listoumd")
-top_uk = sorted(uk, key=lambda x: safe_int(x.get("CNT", 0)), reverse=True)[:10]
+top_uk = sorted(uk, key=lambda x: safe_int(x.get("CNT", 0)), reverse=True)
 info["uk"] = {"total": len(uk),
               "houses": sum(safe_int(u.get("CNT", 0)) for u in uk),
-              "top": [{"name": u.get("TITLESM", ""), "houses": safe_int(u.get("CNT", 0))} for u in top_uk]}
+              "top": [{"name": u.get("TITLESM") or u.get("TITLE", ""),
+                       "houses": safe_int(u.get("CNT", 0)),
+                       "email": u.get("EMAIL", ""),
+                       "phone": u.get("TEL", ""),
+                       "address": u.get("ADR", ""),
+                       "director": u.get("FIO", ""),
+                       "url": u.get("URL", "")} for u in top_uk]}
 
 # ═══ EDUCATION ═══
 sections = rows("uchsportsection")
