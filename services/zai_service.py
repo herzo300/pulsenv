@@ -23,7 +23,7 @@ CATEGORIES = [
 ZAI_API_KEY = os.getenv("ZAI_API_KEY", "")
 ZAI_BASE = "https://api.z.ai/api/paas/v4"
 ZAI_TEXT_MODEL = "glm-4.7-flash"  # основная модель текстового анализа
-ZAI_VISION_MODEL = "GLM-4.6V-Flash"  # бесплатная vision-модель
+ZAI_VISION_MODEL = "GLM-4.7V"  # vision-модель
 
 if ZAI_API_KEY:
     print(f"✅ Z.AI initialized (text: {ZAI_TEXT_MODEL}, vision: {ZAI_VISION_MODEL})")

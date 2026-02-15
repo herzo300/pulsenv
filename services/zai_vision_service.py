@@ -1,5 +1,5 @@
 # services/zai_vision_service.py
-"""Анализ изображений: Z.AI GLM-4.6V-Flash (основной) → Anthropic Vision → text fallback"""
+"""Анализ изображений: Z.AI GLM-4.7V (основной) → Anthropic Vision → text fallback"""
 
 import os
 import base64
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 ZAI_API_KEY = os.getenv('ZAI_API_KEY', '')
 ZAI_BASE = "https://api.z.ai/api/paas/v4"
-ZAI_VISION_MODEL = "GLM-4.6V-Flash"
+ZAI_VISION_MODEL = "GLM-4.7V"
 
 CATEGORIES = [
     "Дороги", "ЖКХ", "Освещение", "Транспорт", "Благоустройство",
@@ -97,7 +97,7 @@ def _normalize_vision_result(result: Dict[str, Any]) -> Dict[str, Any]:
 
 
 async def _zai_vision(image_b64: str, media_type: str, caption: str = "") -> Dict[str, Any] | None:
-    """Анализ через Z.AI GLM-4.6V-Flash (бесплатная vision-модель)"""
+    """Анализ через Z.AI GLM-4.7V (vision-модель)"""
     if not ZAI_API_KEY:
         return None
     prompt = VISION_PROMPT
