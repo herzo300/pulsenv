@@ -116,11 +116,41 @@ rw = rows("roadworks")
 info["road_works"] = {"total": len(rw),
                       "items": [{"title": x.get("TITLE", "")[:100]} for x in rw[:8]]}
 
-# ═══ BUILDING ═══
+# ═══ BUILDING (с годовой динамикой) ═══
 bp = rows("buildpermission")
 bl = rows("buildlist")
 br = rows("buildreestr")
-info["building"] = {"permits": len(bp), "objects": len(bl), "reestr": len(br)}
+bp_by_year = {}
+for b in bp:
+    dat = b.get("DAT", "")
+    if dat and len(dat) >= 4:
+        y = dat[:4]
+        try:
+            yi = int(y)
+            if 2000 <= yi <= 2030:
+                bp_by_year[yi] = bp_by_year.get(yi, 0) + 1
+        except:
+            pass
+bp_trend = [{"year": y, "count": c} for y, c in sorted(bp_by_year.items())]
+info["building"] = {
+    "permits": len(bp), "objects": len(bl), "reestr": len(br),
+    "permits_trend": bp_trend[-10:],
+}
+
+# ═══ NEWS (с годовой динамикой) ═══
+news_rows = rows("sitelenta") + rows("sitenews")
+news_by_year = {}
+for n in news_rows:
+    dat = n.get("DAT", "")
+    if dat and len(dat) >= 4:
+        y = dat[-4:] if "." in dat else dat[:4]
+        try:
+            yi = int(y)
+            if 2015 <= yi <= 2030:
+                news_by_year[yi] = news_by_year.get(yi, 0) + 1
+        except:
+            pass
+news_trend = [{"year": y, "count": c} for y, c in sorted(news_by_year.items())]
 
 # ═══ LAND PLOTS ═══
 lp = rows("landplotsreestr")
@@ -146,15 +176,55 @@ info["culture_clubs"] = {"total": len(clubs), "free": free_clubs, "paid": len(cl
 # ═══ TRAINERS ═══
 info["trainers"] = {"total": len(rows("uchsporttrainers"))}
 
-# ═══ SALARY ═══
+# ═══ SALARY (с годовой динамикой) ═══
 salary = rows("averagesalary")
-years = sorted(set(s.get("YEAR") for s in salary if s.get("YEAR")))
-info["salary"] = {"total": len(salary), "years": years[-5:] if years else []}
+years = sorted(set(s.get("YEAR") for s in salary if s.get("YEAR") and s.get("YEAR") > 0))
+sal_by_year = {}
+for s in salary:
+    y = s.get("YEAR", 0)
+    if y <= 0:
+        continue
+    sv = s.get("SALARY", "0")
+    try:
+        v = float(str(sv).replace(",", ".").replace(" ", ""))
+        if v > 0:
+            sal_by_year.setdefault(y, []).append(v)
+    except:
+        pass
+sal_trend = []
+for y in sorted(sal_by_year.keys()):
+    vals = sal_by_year[y]
+    sal_trend.append({"year": y, "avg": round(sum(vals) / len(vals), 1), "count": len(vals)})
+# Growth
+sal_growth = 0
+if len(sal_trend) >= 2:
+    sal_growth = round((sal_trend[-1]["avg"] / sal_trend[0]["avg"] - 1) * 100, 1)
+info["salary"] = {
+    "total": len(salary), "years": years[-8:] if years else [],
+    "trend": sal_trend[-8:],
+    "growth_pct": sal_growth,
+    "latest_avg": sal_trend[-1]["avg"] if sal_trend else 0,
+}
 
-# ═══ PUBLIC HEARINGS ═══
+# ═══ PUBLIC HEARINGS (с годовой динамикой) ═══
 ph = rows("publichearing")
-info["hearings"] = {"total": len(ph),
-                    "recent": [{"date": h.get("DAT", ""), "title": strip_html(h.get("TITLE", ""))[:100]} for h in ph[:5]]}
+ph_by_year = {}
+for p in ph:
+    dat = p.get("DAT", "")
+    if dat and len(dat) >= 4:
+        y = dat[-4:] if "." in dat else dat[:4]
+        try:
+            yi = int(y)
+            if 2010 <= yi <= 2030:
+                ph_by_year[yi] = ph_by_year.get(yi, 0) + 1
+        except:
+            pass
+ph_trend = [{"year": y, "count": c} for y, c in sorted(ph_by_year.items())]
+info["hearings"] = {
+    "total": len(ph),
+    "trend": ph_trend[-8:],
+    "recent": [{"date": h.get("DAT", ""), "title": strip_html(h.get("TITLE", ""))[:100]} for h in ph[:5]],
+}
 
 # ═══ GMU PHONES ═══
 gmu = rows("stvpgmu")
@@ -284,10 +354,10 @@ info["programs"] = {"total": len(prg),
     "items": [{"title": strip_html(p.get("TITLE",""))[:100]} for p in prg[:5]]}
 
 # ═══ NEWS ═══
-news = rows("sitelenta")
-info["news"] = {"total": len(news) + len(rows("sitenews")),
+info["news"] = {"total": len(news_rows),
     "rubrics": len(rows("siterubrics")),
-    "photos": len(rows("photoreports"))}
+    "photos": len(rows("photoreports")),
+    "trend": news_trend[-5:]}
 
 # ═══ PLACES ═══
 placesad = rows("placesad")

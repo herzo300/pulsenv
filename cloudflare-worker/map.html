@@ -19,10 +19,6 @@
         <polygon points="60,8 52,50 68,50" fill="none" stroke="currentColor" stroke-width="2" opacity=".7"/>
         <line x1="56" y1="28" x2="64" y2="28" stroke="currentColor" stroke-width="1.5" opacity=".5"/>
         <line x1="54" y1="38" x2="66" y2="38" stroke="currentColor" stroke-width="1.5" opacity=".5"/>
-        <path d="M25,85 L35,55 L30,60 L38,35 L33,42 L38,22 L43,42 L38,35 L46,60 L41,55 L51,85Z" fill="currentColor" opacity=".15" stroke="currentColor" stroke-width="1"/>
-        <path d="M10,95 Q30,88 50,92 Q70,96 90,90 Q105,86 115,88" fill="none" stroke="currentColor" stroke-width="2" opacity=".3" stroke-linecap="round"/>
-        <path d="M10,102 Q35,95 55,99 Q75,103 95,97 Q108,93 115,95" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".2" stroke-linecap="round"/>
-        <path d="M15,15 Q60,-5 105,15" fill="none" stroke="currentColor" stroke-width="1" opacity=".2"/>
       </svg>
     </div>
     <div class="splash-pulse-ring" id="pulseRing">
@@ -43,37 +39,38 @@
 <!-- Main -->
 <div id="app" style="display:none">
   <div id="map"></div>
-  <!-- Top bar: header + stats -->
+  <!-- Top bar -->
   <div id="topBar">
     <div class="tb-header">
       <div class="tb-pulse"></div>
       <div class="tb-title">Пульс города</div>
-      <div class="tb-city">Нижневартовск</div>
     </div>
     <div class="tb-stats">
       <div class="tb-stat"><span class="tb-num" id="st">0</span><span class="tb-lbl">всего</span></div>
       <div class="tb-stat"><span class="tb-num red" id="so">0</span><span class="tb-lbl">открыто</span></div>
-      <div class="tb-stat"><span class="tb-num yellow" id="sw">0</span><span class="tb-lbl">в работе</span></div>
+      <div class="tb-stat"><span class="tb-num yellow" id="sw">0</span><span class="tb-lbl">новые</span></div>
       <div class="tb-stat"><span class="tb-num green" id="sr">0</span><span class="tb-lbl">решено</span></div>
     </div>
   </div>
-  <!-- Filter panel -->
+  <!-- Filters -->
   <div id="filterPanel">
     <div class="fp-row" id="dayFilters"></div>
     <div class="fp-row" id="catFilters"></div>
     <div class="fp-row" id="statusFilters"></div>
   </div>
-  <!-- Timeline chart -->
-  <div id="timeline" class="tl-panel">
-    <canvas id="tlCanvas" height="50"></canvas>
-  </div>
-  <!-- Legend -->
-  <div class="leg-panel" id="leg"></div>
+  <!-- Timeline -->
+  <div class="tl-panel"><canvas id="tlCanvas" height="42"></canvas></div>
   <!-- Toast -->
   <div class="toast" id="newToast" style="display:none">
     <span class="toast-icon">🔔</span><span class="toast-text" id="toastText"></span>
   </div>
-  <!-- FAB — подать жалобу -->
+  <!-- Stats button + overlay -->
+  <button class="stats-btn" id="statsBtn" title="Статистика">📊</button>
+  <div class="stats-overlay" id="statsOverlay"></div>
+  <!-- UK Rating button + overlay -->
+  <button class="uk-btn" id="ukBtn" title="Рейтинг УК">🏢</button>
+  <div class="uk-overlay" id="ukOverlay"></div>
+  <!-- FAB -->
   <button class="fab" id="fabNew" title="Подать жалобу">+</button>
   <!-- Complaint form -->
   <div class="cf-overlay" id="cfOverlay">
@@ -83,9 +80,9 @@
         <select id="cfCat"></select></div>
       <div class="cf-field"><label>Описание</label>
         <textarea id="cfDesc" placeholder="Опишите проблему..." rows="3"></textarea></div>
-      <div class="cf-field"><label>Адрес <span class="cf-gps" id="cfGps">📍 Определить по GPS</span></label>
+      <div class="cf-field"><label>Адрес <span class="cf-gps" id="cfGps">📍 GPS</span></label>
         <input id="cfAddr" placeholder="ул. Ленина, 5" /></div>
-      <div class="cf-field" style="display:flex;gap:8px">
+      <div class="cf-field" style="display:flex;gap:6px">
         <div style="flex:1"><label>Широта</label><input id="cfLat" type="number" step="0.0001" placeholder="60.9344" /></div>
         <div style="flex:1"><label>Долгота</label><input id="cfLng" type="number" step="0.0001" placeholder="76.5531" /></div>
       </div>
