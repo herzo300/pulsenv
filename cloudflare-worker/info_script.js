@@ -113,11 +113,13 @@ const S=document.createElement('style');
 S.textContent=`
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
---bg:#0c1222;--surface:rgba(26,35,50,.85);--surfaceS:rgba(26,35,50,.95);
+--bg:#0c1222;--surface:rgba(12,18,34,.95);--surfaceS:rgba(12,18,34,.98);
 --primary:#14b8a6;--primaryL:#2dd4bf;--primaryBg:rgba(20,184,166,.1);
 --accent:#e8804c;--accentBg:rgba(232,128,76,.08);
 --text:#e2e8f0;--textSec:#94a3b8;--textMuted:#64748b;
---border:rgba(255,255,255,.06);--shadow:0 1px 3px rgba(0,0,0,.2),0 6px 24px rgba(0,0,0,.3);
+--border:rgba(255,255,255,.04);
+--shadow:6px 6px 16px rgba(0,0,0,.5),-4px -4px 12px rgba(255,255,255,.02);
+--shadowInset:inset 3px 3px 8px rgba(0,0,0,.4),inset -2px -2px 6px rgba(255,255,255,.02);
 --green:#10b981;--greenBg:rgba(16,185,129,.12);--red:#ef4444;--redBg:rgba(239,68,68,.12);
 --orange:#f97316;--orangeBg:rgba(249,115,22,.1);--blue:#3b82f6;--blueBg:rgba(59,130,246,.1);
 --purple:#a855f7;--purpleBg:rgba(168,85,247,.1);--teal:#14b8a6;--tealBg:rgba(20,184,166,.1);
@@ -171,20 +173,22 @@ color:var(--teal);font-size:9px;font-weight:700;padding:3px 10px;border-radius:1
 .tabs{display:flex;gap:6px;padding:8px 0;overflow-x:auto;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
 .tab{flex-shrink:0;padding:7px 14px;border-radius:12px;font-size:11px;font-weight:600;
-background:var(--surface);border:1px solid var(--border);color:var(--textSec);cursor:pointer;
+background:var(--surface);border:none;color:var(--textSec);cursor:pointer;
+box-shadow:4px 4px 10px rgba(0,0,0,.4),-3px -3px 8px rgba(255,255,255,.02);
 transition:all .25s;white-space:nowrap}
-.tab.active{background:var(--primary);color:#fff;border-color:var(--primary);
-box-shadow:0 2px 12px rgba(20,184,166,.35);transform:scale(1.04)}
-.tab:active{transform:scale(.95)}
+.tab.active{background:var(--primary);color:#fff;
+box-shadow:inset 3px 3px 8px rgba(0,0,0,.3),inset -2px -2px 6px rgba(255,255,255,.05);transform:scale(1.04)}
+.tab:active{box-shadow:var(--shadowInset);transform:scale(.95)}
 
 /* Grid & Cards */
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:6px}
-.card{background:var(--surface);backdrop-filter:blur(16px);border:1px solid var(--border);
-border-radius:var(--r);padding:14px;position:relative;overflow:hidden;box-shadow:var(--shadow);
+.card{background:var(--surface);border:1px solid var(--border);
+border-radius:var(--r);padding:14px;position:relative;overflow:hidden;
+box-shadow:var(--shadow);
 opacity:0;transform:translateY(24px);transition:all .5s cubic-bezier(.4,0,.2,1);cursor:pointer}
 .card.visible{opacity:1;transform:translateY(0)}
-.card:hover{border-color:var(--primary);box-shadow:0 4px 20px rgba(20,184,166,.15)}
-.card:active{transform:scale(.97)!important}
+.card:hover{box-shadow:8px 8px 20px rgba(0,0,0,.6),-6px -6px 16px rgba(255,255,255,.03)}
+.card:active{transform:scale(.97)!important;box-shadow:var(--shadowInset)}
 .card.full{grid-column:1/-1}
 .card[data-section="budget"]{border-left:3px solid var(--orange)}
 .card[data-section="fuel"]{border-left:3px solid var(--red)}
@@ -199,7 +203,8 @@ opacity:0;transform:translateY(24px);transition:all .5s cubic-bezier(.4,0,.2,1);
 
 .card-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
 .card-icon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;
-justify-content:center;font-size:18px;flex-shrink:0;transition:transform .3s}
+justify-content:center;font-size:18px;flex-shrink:0;transition:transform .3s;
+box-shadow:3px 3px 8px rgba(0,0,0,.3),-2px -2px 6px rgba(255,255,255,.02)}
 .card:hover .card-icon{transform:scale(1.1) rotate(-3deg)}
 .card-title{font-size:13px;font-weight:700;line-height:1.2}
 .card-sub{font-size:10px;color:var(--textMuted);font-weight:500;margin-top:1px}
@@ -441,22 +446,104 @@ function renderApp(data,weather){
     if(show('budget')){
       h+='<div class="section-title">💰 Бюджет и контракты</div>';
       const agr=data.agreements||{};
-      const byType=(agr.by_type||[]).slice(0,6);
+      const byType=(agr.by_type||[]).slice(0,10);
       const maxC=byType[0]?.count||1;
       const ukC=['#dc2626','#ea580c','#0f766e','#2563eb','#7c3aed','#16a34a','#0d9488','#d946ef','#4f46e5','#64748b'];
+
+      // 1. Overview card — key budget numbers
+      const totalInv=(agr.total_inv||0);
+      const totalGos=(agr.total_gos||0);
+      const totalSumm=(agr.total_summ||0);
       h+=card('budget',true,
-        cardHead('💰','var(--redBg)','Муниципальные контракты',(agr.total||0)+' договоров')+
-        makeStatRow([{value:agr.total||0,label:'Договоров',color:'var(--red)'},{value:Math.round((agr.total_inv||0)/1000),label:'тыс ₽ инвест.',color:'var(--blue)'}])+
-        makeBarRows(byType,maxC,ukC)+
-        makeTip('red','📊','Общий объём контрактов: '+fmtMoney(agr.total_summ)+'. Энергосервис — основная статья'),
+        cardHead('💰','var(--orangeBg)','Бюджет города','Обзор финансов')+
+        makeStatRow([
+          {value:Math.round(totalSumm),label:'тыс ₽ контракты',color:'var(--orange)'},
+          {value:Math.round(totalInv/1e3),label:'тыс ₽ инвестиции',color:'var(--blue)'},
+          {value:Math.round(totalGos/1e3),label:'тыс ₽ госрасходы',color:'var(--red)'}
+        ])+
+        '<div style="margin-top:8px;display:flex;gap:6px">'+
+        '<div style="flex:1;padding:8px;border-radius:10px;background:var(--blueBg);text-align:center">'+
+        '<div style="font-size:18px;font-weight:900;color:var(--blue)">'+fmtMoney(totalInv)+'</div>'+
+        '<div style="font-size:8px;color:var(--textMuted);margin-top:2px">ИНВЕСТИЦИИ</div></div>'+
+        '<div style="flex:1;padding:8px;border-radius:10px;background:var(--redBg);text-align:center">'+
+        '<div style="font-size:18px;font-weight:900;color:var(--red)">'+fmtMoney(totalGos)+'</div>'+
+        '<div style="font-size:8px;color:var(--textMuted);margin-top:2px">ГОСРАСХОДЫ</div></div></div>'+
+        (totalInv>0&&totalGos>0?'<div style="margin-top:6px;height:8px;border-radius:4px;overflow:hidden;display:flex">'+
+        '<div style="width:'+Math.round(totalInv/(totalInv+totalGos)*100)+'%;background:var(--blue)"></div>'+
+        '<div style="width:'+Math.round(totalGos/(totalInv+totalGos)*100)+'%;background:var(--red)"></div></div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:8px;color:var(--textMuted);margin-top:2px">'+
+        '<span>Инвестиции '+Math.round(totalInv/(totalInv+totalGos)*100)+'%</span>'+
+        '<span>Госрасходы '+Math.round(totalGos/(totalInv+totalGos)*100)+'%</span></div>':'')+
+        makeTip('orange','💡','Соотношение инвестиций и госрасходов показывает приоритеты бюджетной политики'),
         null);
+
+      // 2. Agreements by type
+      h+=card('budget',true,
+        cardHead('📋','var(--redBg)','Муниципальные контракты',(agr.total||0)+' договоров')+
+        makeBarRows(byType,maxC,ukC)+
+        makeTip('red','📊','Энергосервис — '+((byType[0]?.count||0))+' из '+(agr.total||0)+' договоров ('+Math.round((byType[0]?.count||0)/(agr.total||1)*100)+'%)'),
+        null);
+
+      // 3. Top contracts
+      const topContracts=(agr.top||[]).slice(0,5);
+      if(topContracts.length){
+        let tcRows='';
+        topContracts.forEach(function(tc,i){
+          const s=tc.summ||0;const inv=tc.vol_inv||0;const gos=tc.vol_gos||0;
+          tcRows+='<div style="padding:6px 0;border-bottom:1px solid var(--border)">';
+          tcRows+='<div style="display:flex;justify-content:space-between;align-items:flex-start">';
+          tcRows+='<div style="flex:1"><div style="font-size:10px;font-weight:700">'+(i+1)+'. '+esc((tc.title||'').substring(0,60))+'</div>';
+          tcRows+='<div style="font-size:8px;color:var(--textMuted);margin-top:1px">'+esc(tc.type||'')+' · '+esc(tc.org||'')+' · '+esc(tc.date||'')+'</div></div>';
+          tcRows+='<div style="text-align:right;min-width:60px">';
+          if(s>0)tcRows+='<div style="font-size:11px;font-weight:800;color:var(--orange)">'+fmtMoney(s*1000)+'</div>';
+          if(gos>0)tcRows+='<div style="font-size:9px;color:var(--red)">гос: '+fmtMoney(gos*1000)+'</div>';
+          if(inv>0)tcRows+='<div style="font-size:9px;color:var(--blue)">инв: '+fmtMoney(inv)+'</div>';
+          tcRows+='</div></div>';
+          if(tc.desc)tcRows+='<div style="font-size:8px;color:var(--textMuted);margin-top:2px;line-height:1.3">'+esc((tc.desc||'').substring(0,120))+'</div>';
+          tcRows+='</div>';
+        });
+        h+=card('budget',true,
+          cardHead('🏆','var(--yellowBg)','Крупнейшие контракты','Топ-5 по сумме')+tcRows+
+          makeTip('orange','🏗️','Строительство дорог (КЖЦ) — крупнейшие контракты города'),
+          null);
+      }
+
+      // 4. Budget bulletins trend
+      const bb=data.budget_bulletins||{};
+      const bi=data.budget_info||{};
+      if(bb.total||bi.total){
+        const bbYears=(bb.items||[]).map(function(b){return{year:parseInt(b.title)||0,count:1}}).filter(function(b){return b.year>0}).reverse();
+        h+=card('budget',false,
+          cardHead('📰','var(--indigoBg)','Бюджетные бюллетени',(bb.total||0)+' выпусков')+
+          makeStatRow([{value:bb.total||0,label:'Бюллетеней',color:'var(--indigo)'},{value:bi.total||0,label:'Отчётов',color:'var(--teal)'}])+
+          '<div style="margin-top:6px;font-size:9px;color:var(--textMuted)">Публикуются ежеквартально с 2015 года</div>'+
+          makeTip('indigo','📊','Финансовая отчётность доступна на data.n-vartovsk.ru'),
+          null);
+      }
+
+      // 5. Property
       const p=data.property||{};
       h+=card('budget',true,
         cardHead('🏛️','var(--blueBg)','Муниципальное имущество',(p.total||0).toLocaleString('ru')+' объектов')+
         makeStatRow([{value:p.realestate||0,label:'Недвижимость',color:'var(--blue)'},{value:p.lands||0,label:'Земля',color:'var(--green)'},
           {value:p.movable||0,label:'Движимое',color:'var(--teal)'}])+
-        makeTip('blue','🏛️','В реестре '+(p.total||0).toLocaleString('ru')+' объектов. Приватизировано '+(p.privatization||0)),
+        '<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap">'+
+        '<div style="padding:4px 8px;border-radius:8px;background:var(--purpleBg);font-size:9px"><span style="font-weight:700;color:var(--purple)">'+(p.privatization||0)+'</span> приватизировано</div>'+
+        '<div style="padding:4px 8px;border-radius:8px;background:var(--tealBg);font-size:9px"><span style="font-weight:700;color:var(--teal)">'+(p.rent||0)+'</span> в аренде</div>'+
+        '<div style="padding:4px 8px;border-radius:8px;background:var(--blueBg);font-size:9px"><span style="font-weight:700;color:var(--blue)">'+(p.stoks||0)+'</span> акций</div></div>'+
+        makeTip('blue','🏛️','Общий реестр: '+(p.total||0).toLocaleString('ru')+' объектов муниципальной собственности'),
         null);
+
+      // 6. Municipal programs
+      const prg=data.programs||{};
+      if(prg.total){
+        h+=card('budget',false,
+          cardHead('📜','var(--greenBg)','Муниципальные программы',prg.total+' программ')+
+          bigNum(prg.total,'действующих программ','var(--green)')+
+          '<div style="margin-top:4px;font-size:9px;color:var(--textMuted)">Стратегия развития до 2036 года</div>'+
+          makeTip('green','📜','Включая план мероприятий и госпрограммы ХМАО-Югры'),
+          null);
+      }
     }
 
     // FUEL

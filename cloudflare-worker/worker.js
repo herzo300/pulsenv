@@ -270,8 +270,17 @@ const MAP_HTML = `<!DOCTYPE html>
   <!-- UK Rating button + overlay -->
   <button class="uk-btn" id="ukBtn" title="Рейтинг УК">🏢</button>
   <div class="uk-overlay" id="ukOverlay"></div>
-  <!-- FAB -->
-  <button class="fab" id="fabNew" title="Подать жалобу">+</button>
+  <!-- FAB — oil drop with pulse -->
+  <button class="fab" id="fabNew" title="Подать жалобу">
+    <div class="fab-drop">
+      <div class="fab-ring"></div><div class="fab-ring2"></div>
+      <svg viewBox="0 0 56 56"><defs><linearGradient id="oilGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#1a1a2e"/><stop offset="50%" stop-color="#16213e"/>
+        <stop offset="100%" stop-color="#0f3460"/></linearGradient></defs>
+        <path class="drop-fill" d="M28 4C28 4 12 22 12 34C12 42.8 19.2 50 28 50C36.8 50 44 42.8 44 34C44 22 28 4 28 4Z"/></svg>
+      <span class="fab-icon">+</span>
+    </div>
+  </button>
   <!-- Complaint form -->
   <div class="cf-overlay" id="cfOverlay">
     <div class="cf-sheet">
@@ -357,7 +366,6 @@ box-shadow:5px 5px 10px rgba(0,0,0,.5),-5px -5px 10px rgba(255,255,255,.02);min-
 .sl-fill{height:100%;width:0;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--green));transition:width .3s}
 .sl-text{font-size:8px;color:var(--hint);margin-top:4px}
 #map{position:fixed;inset:0;z-index:0}
-.maplibregl-canvas{filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(1.1)}
 #topBar{position:fixed;top:0;left:0;right:0;z-index:1000;
 background:var(--surface);backdrop-filter:var(--glass);
 border-bottom:1px solid rgba(255,255,255,.05);padding:5px 10px;display:flex;align-items:center;gap:8px}
@@ -409,6 +417,13 @@ backdrop-filter:var(--glass)!important;box-shadow:0 8px 32px rgba(0,0,0,.4)!impo
 .pp .meta b{color:var(--text);font-weight:600}
 .pp a{color:var(--accentL);text-decoration:none;font-size:9px}
 .pp .links{margin-top:3px;display:flex;gap:5px;flex-wrap:wrap}
+.pp .vote-row{display:flex;align-items:center;gap:8px;margin-top:5px}
+.pp .vote-btn{padding:3px 10px;border-radius:14px;border:1px solid rgba(255,255,255,.1);
+background:rgba(255,255,255,.04);color:var(--hint);font-size:10px;font-weight:700;cursor:pointer;
+transition:all .2s;display:flex;align-items:center;gap:3px}
+.pp .vote-btn:active{transform:scale(.9)}
+.pp .vote-btn.liked{background:rgba(16,185,129,.15);border-color:var(--green);color:var(--green)}
+.pp .vote-btn.disliked{background:rgba(239,68,68,.15);border-color:var(--red);color:var(--red)}
 .badge{display:inline-block;padding:2px 6px;border-radius:5px;font-size:7px;font-weight:700;color:#fff;margin-top:2px}
 .pp .src{display:inline-block;padding:1px 4px;border-radius:3px;font-size:7px;
 background:rgba(99,102,241,.12);color:var(--accentL);margin-top:2px;margin-left:3px}
@@ -422,11 +437,12 @@ box-shadow:0 4px 16px rgba(0,0,0,.3);animation:tin .3s ease;cursor:pointer}
 @keyframes mpop{0%{transform:scale(0)}60%{transform:scale(1.3)}100%{transform:scale(1)}}
 .new-marker{animation:mpop .5s ease}
 /* ═══ Stats overlay ═══ */
-.stats-btn{position:fixed;top:46px;right:8px;z-index:1001;width:36px;height:36px;border-radius:50%;
+.stats-btn{position:fixed;top:4px;right:52px;z-index:1001;width:42px;height:42px;border-radius:14px;
 background:var(--surface);backdrop-filter:var(--glass);border:1px solid rgba(255,255,255,.08);
-color:var(--accentL);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-box-shadow:var(--shadow);transition:.2s}
-.stats-btn:active{transform:scale(.9)}
+color:var(--accentL);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+box-shadow:var(--shadow);transition:all .25s}
+.stats-btn:active{transform:scale(.85) rotate(-8deg)}
+.stats-btn:hover{box-shadow:0 0 16px rgba(99,102,241,.4)}
 .stats-overlay{position:fixed;top:0;right:-320px;width:300px;height:100%;z-index:2500;
 background:var(--surface);backdrop-filter:var(--glass);border-left:1px solid rgba(255,255,255,.06);
 transition:right .3s ease;overflow-y:auto;padding:50px 14px 20px}
@@ -443,11 +459,12 @@ color:var(--hint);font-size:18px;cursor:pointer}
 .so-bar{height:4px;border-radius:2px;background:rgba(255,255,255,.06);margin-top:1px;overflow:hidden}
 .so-bar-fill{height:100%;border-radius:2px;transition:width .5s}
 /* ═══ UK Rating overlay ═══ */
-.uk-btn{position:fixed;bottom:60px;left:8px;z-index:1001;width:36px;height:36px;border-radius:50%;
+.uk-btn{position:fixed;top:4px;right:8px;z-index:1001;width:42px;height:42px;border-radius:14px;
 background:var(--surface);backdrop-filter:var(--glass);border:1px solid rgba(255,255,255,.08);
-color:var(--accentL);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-box-shadow:var(--shadow);transition:.2s}
-.uk-btn:active{transform:scale(.9)}
+color:var(--accentL);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+box-shadow:var(--shadow);transition:all .25s}
+.uk-btn:active{transform:scale(.85) rotate(8deg)}
+.uk-btn:hover{box-shadow:0 0 16px rgba(99,102,241,.4)}
 .uk-overlay{position:fixed;top:0;left:-320px;width:300px;height:100%;z-index:2500;
 background:var(--surface);backdrop-filter:var(--glass);border-right:1px solid rgba(255,255,255,.06);
 transition:left .3s ease;overflow-y:auto;padding:50px 14px 20px}
@@ -461,12 +478,20 @@ color:var(--hint);font-size:18px;cursor:pointer}
 .uk-item .uk-bar{height:4px;border-radius:2px;background:rgba(255,255,255,.06);margin-top:3px;overflow:hidden}
 .uk-item .uk-bar-fill{height:100%;border-radius:2px;background:var(--red);transition:width .5s}
 .uk-item .uk-count{font-size:10px;font-weight:800;color:var(--red);float:right}
-/* ═══ FAB ═══ */
-.fab{position:fixed;bottom:60px;right:8px;z-index:1001;width:44px;height:44px;border-radius:50%;
-background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff;border:none;
-font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-box-shadow:0 4px 16px rgba(99,102,241,.4);transition:.2s;line-height:1}
-.fab:active{transform:scale(.9)}
+/* ═══ FAB — oil drop with pulse ═══ */
+.fab{position:fixed;bottom:60px;right:8px;z-index:1001;width:56px;height:56px;border:none;
+cursor:pointer;display:flex;align-items:center;justify-content:center;
+background:transparent;padding:0;transition:transform .2s}
+.fab:active{transform:scale(.88)}
+.fab-drop{width:56px;height:56px;position:relative;display:flex;align-items:center;justify-content:center}
+.fab-drop svg{width:56px;height:56px;filter:drop-shadow(0 4px 12px rgba(0,0,0,.5))}
+.fab-drop .drop-fill{fill:url(#oilGrad)}
+.fab-ring{position:absolute;inset:-6px;border-radius:50%;border:2px solid var(--accent);
+opacity:0;animation:fabPulse 2s ease-out infinite}
+.fab-ring2{position:absolute;inset:-12px;border-radius:50%;border:1.5px solid var(--accent);
+opacity:0;animation:fabPulse 2s ease-out .5s infinite}
+.fab-icon{position:absolute;font-size:22px;color:#fff;font-weight:900;text-shadow:0 1px 4px rgba(0,0,0,.4)}
+@keyframes fabPulse{0%{transform:scale(.8);opacity:.6}100%{transform:scale(1.3);opacity:0}}
 /* ═══ Complaint form ═══ */
 .cf-overlay{position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
 display:none;align-items:flex-end;justify-content:center}
@@ -720,6 +745,7 @@ function buildPopup(c,lat,lng){
   var col=CC[c.category]||'#6366f1';var e=CE[c.category]||'📌';
   var st=SL[c.status]||c.status;var sc=SC[c.status]||'#94a3b8';
   var sup=c.supporters||0;
+  var likes=c.likes||0;var dislikes=c.dislikes||0;
   var h='<div class="pp">';
   h+='<h3>'+e+' '+esc(c.category)+'</h3>';
   h+='<span class="badge" style="background:'+sc+'">'+st+'</span>';
@@ -727,12 +753,14 @@ function buildPopup(c,lat,lng){
   h+='<div class="desc">'+esc((c.summary||c.text||'').substring(0,200))+'</div>';
   if(c.address)h+='<div class="meta">📍 <b>'+esc(c.address)+'</b></div>';
   h+='<div class="meta">📅 '+fmtDate(c.created_at)+'</div>';
-  h+='<div style="display:flex;align-items:center;gap:6px;margin-top:3px">';
-  h+='<span style="font-size:11px;font-weight:700;color:var(--accent)">👥 '+sup+'</span>';
+  // Like/Dislike row
+  h+='<div class="vote-row">';
+  h+='<button class="vote-btn" onclick="voteComplaint(\\''+c.id+'\\',1,this)" title="Проблема решена хорошо">👍 <span id="vl_'+c.id+'">'+likes+'</span></button>';
+  h+='<button class="vote-btn" onclick="voteComplaint(\\''+c.id+'\\',-1,this)" title="Проблема не решена">👎 <span id="vd_'+c.id+'">'+dislikes+'</span></button>';
   if(c.status!=='resolved'){
     h+='<button onclick="joinComplaint(\\''+c.id+'\\')" id="jbtn_'+c.id+'" style="';
     h+='padding:3px 8px;border-radius:14px;border:1px solid var(--accent);background:rgba(99,102,241,.12);';
-    h+='color:var(--accentL);font-size:9px;font-weight:700;cursor:pointer">✊ Присоединиться</button>'}
+    h+='color:var(--accentL);font-size:9px;font-weight:700;cursor:pointer">✊ +1</button>'}
   h+='</div>';
   if(sup>=10)h+='<div class="meta" style="color:var(--green);font-size:8px;margin-top:1px">📧 Отправлено в УК</div>';
   h+='<div class="links">';
@@ -751,11 +779,26 @@ function joinComplaint(id){
     body:JSON.stringify({complaint_id:id})
   }).then(function(r){return r.json()}).then(function(d){
     if(d.supporters!==undefined){
-      var el=document.getElementById('sup_'+id);if(el)el.textContent='👥 '+d.supporters;
       if(btn)btn.textContent='✅ +1';
       showToast('✊ Вы присоединились! ('+d.supporters+')')
     }
   }).catch(function(){if(btn)btn.textContent='❌'});
+}
+
+function voteComplaint(id,dir,btn){
+  // dir: 1=like, -1=dislike
+  var item=allItems.find(function(c){return c.id===id});
+  if(!item)return;
+  if(dir===1){item.likes=(item.likes||0)+1;var el=document.getElementById('vl_'+id);if(el)el.textContent=item.likes;btn.classList.add('liked')}
+  else{item.dislikes=(item.dislikes||0)+1;var el2=document.getElementById('vd_'+id);if(el2)el2.textContent=item.dislikes;btn.classList.add('disliked')}
+  // Save to Firebase
+  var patch={};patch[dir===1?'likes':'dislikes']=dir===1?(item.likes||0):(item.dislikes||0);
+  fetch(FB+'/complaints/'+id+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(patch)}).catch(function(){});
+  // Update UK rating
+  buildUkRating();
+  showToast(dir===1?'👍 Спасибо за оценку!':'👎 Учтено в рейтинге');
+  try{tg&&tg.HapticFeedback&&tg.HapticFeedback.impactOccurred('light')}catch(e){}
 }
 
 
@@ -850,16 +893,17 @@ function ukDetails(idx){
 function buildUkRating(){
   var ov=document.getElementById('ukOverlay');if(!ov)return;
   // Count only UK-competence complaints per UK
-  var ukStats={},adminStats={total:0,open:0,resolved:0};
+  var ukStats={},adminStats={total:0,open:0,resolved:0,likes:0,dislikes:0};
   allItems.forEach(function(c){
     var isUkCat=UK_CATS.indexOf(c.category)>=0;
     var isAdminCat=ADMIN_CATS.indexOf(c.category)>=0;
-    if(isAdminCat){adminStats.total++;if(c.status==='resolved')adminStats.resolved++;else adminStats.open++}
+    if(isAdminCat){adminStats.total++;if(c.status==='resolved')adminStats.resolved++;else adminStats.open++;adminStats.likes+=(c.likes||0);adminStats.dislikes+=(c.dislikes||0)}
     if(c.uk_name&&isUkCat){
-      if(!ukStats[c.uk_name])ukStats[c.uk_name]={total:0,open:0,resolved:0,cats:{}};
+      if(!ukStats[c.uk_name])ukStats[c.uk_name]={total:0,open:0,resolved:0,cats:{},likes:0,dislikes:0};
       ukStats[c.uk_name].total++;
       if(c.status==='resolved')ukStats[c.uk_name].resolved++;else ukStats[c.uk_name].open++;
       ukStats[c.uk_name].cats[c.category]=(ukStats[c.uk_name].cats[c.category]||0)+1;
+      ukStats[c.uk_name].likes+=(c.likes||0);ukStats[c.uk_name].dislikes+=(c.dislikes||0);
     }
   });
   var sorted=Object.entries(ukStats).sort(function(a,b){return b[1].total-a[1].total});
@@ -873,7 +917,7 @@ function buildUkRating(){
   html+='<span class="uk-name" style="color:var(--accentL)">🏛️ Администрация города</span>';
   html+='<span class="uk-count" style="color:var(--accentL)">'+adminStats.total+'</span></div>';
   html+='<div class="uk-info">Дороги, благоустройство, транспорт, экология, безопасность, ЧП</div>';
-  html+='<div class="uk-info">✅ '+adminStats.resolved+' ('+apct+'%) · 🔴 '+adminStats.open+'</div>';
+  html+='<div class="uk-info">✅ '+adminStats.resolved+' ('+apct+'%) · 🔴 '+adminStats.open+' · 👍 '+adminStats.likes+' · 👎 '+adminStats.dislikes+'</div>';
   html+='<div class="uk-bar"><div class="uk-bar-fill" style="width:100%;background:'+(apct>50?'var(--green)':apct>20?'var(--yellow)':'var(--red)')+'"></div></div>';
   html+='<div style="margin-top:4px"><span onclick="sendAnonEmail(\\'Администрация г. Нижневартовска\\',\\'nvartovsk@n-vartovsk.ru\\')" style="font-size:9px;color:var(--accentL);cursor:pointer;text-decoration:underline">✉️ Написать анонимно</span></div>';
   html+='</div>';
@@ -886,7 +930,7 @@ function buildUkRating(){
     html+='<div style="display:flex;justify-content:space-between;align-items:center">';
     html+='<span class="uk-name">'+(i+1)+'. '+esc(e[0])+'</span>';
     html+='<span class="uk-count">'+uk.total+'</span></div>';
-    html+='<div class="uk-info">'+catLine+' · ✅ '+uk.resolved+' ('+pct+'%) · 🔴 '+uk.open+'</div>';
+    html+='<div class="uk-info">'+catLine+' · ✅ '+uk.resolved+' ('+pct+'%) · 🔴 '+uk.open+' · 👍 '+uk.likes+' · 👎 '+uk.dislikes+'</div>';
     html+='<div class="uk-bar"><div class="uk-bar-fill" style="width:'+Math.round(uk.total/maxUk*100)+'%;background:'+(pct>50?'var(--green)':pct>20?'var(--yellow)':'var(--red)')+'"></div></div>';
     html+='<div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">';
     html+='<span onclick="legalAnalysis(\\''+esc(e[0]).replace(/'/g,"\\\\'")+'\\')\\" style="font-size:9px;color:var(--yellow);cursor:pointer;text-decoration:underline">⚖️ Юр. анализ</span>';
@@ -1243,11 +1287,13 @@ const S=document.createElement('style');
 S.textContent=\`
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
---bg:#0c1222;--surface:rgba(26,35,50,.85);--surfaceS:rgba(26,35,50,.95);
+--bg:#0c1222;--surface:rgba(12,18,34,.95);--surfaceS:rgba(12,18,34,.98);
 --primary:#14b8a6;--primaryL:#2dd4bf;--primaryBg:rgba(20,184,166,.1);
 --accent:#e8804c;--accentBg:rgba(232,128,76,.08);
 --text:#e2e8f0;--textSec:#94a3b8;--textMuted:#64748b;
---border:rgba(255,255,255,.06);--shadow:0 1px 3px rgba(0,0,0,.2),0 6px 24px rgba(0,0,0,.3);
+--border:rgba(255,255,255,.04);
+--shadow:6px 6px 16px rgba(0,0,0,.5),-4px -4px 12px rgba(255,255,255,.02);
+--shadowInset:inset 3px 3px 8px rgba(0,0,0,.4),inset -2px -2px 6px rgba(255,255,255,.02);
 --green:#10b981;--greenBg:rgba(16,185,129,.12);--red:#ef4444;--redBg:rgba(239,68,68,.12);
 --orange:#f97316;--orangeBg:rgba(249,115,22,.1);--blue:#3b82f6;--blueBg:rgba(59,130,246,.1);
 --purple:#a855f7;--purpleBg:rgba(168,85,247,.1);--teal:#14b8a6;--tealBg:rgba(20,184,166,.1);
@@ -1301,20 +1347,22 @@ color:var(--teal);font-size:9px;font-weight:700;padding:3px 10px;border-radius:1
 .tabs{display:flex;gap:6px;padding:8px 0;overflow-x:auto;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
 .tab{flex-shrink:0;padding:7px 14px;border-radius:12px;font-size:11px;font-weight:600;
-background:var(--surface);border:1px solid var(--border);color:var(--textSec);cursor:pointer;
+background:var(--surface);border:none;color:var(--textSec);cursor:pointer;
+box-shadow:4px 4px 10px rgba(0,0,0,.4),-3px -3px 8px rgba(255,255,255,.02);
 transition:all .25s;white-space:nowrap}
-.tab.active{background:var(--primary);color:#fff;border-color:var(--primary);
-box-shadow:0 2px 12px rgba(20,184,166,.35);transform:scale(1.04)}
-.tab:active{transform:scale(.95)}
+.tab.active{background:var(--primary);color:#fff;
+box-shadow:inset 3px 3px 8px rgba(0,0,0,.3),inset -2px -2px 6px rgba(255,255,255,.05);transform:scale(1.04)}
+.tab:active{box-shadow:var(--shadowInset);transform:scale(.95)}
 
 /* Grid & Cards */
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:6px}
-.card{background:var(--surface);backdrop-filter:blur(16px);border:1px solid var(--border);
-border-radius:var(--r);padding:14px;position:relative;overflow:hidden;box-shadow:var(--shadow);
+.card{background:var(--surface);border:1px solid var(--border);
+border-radius:var(--r);padding:14px;position:relative;overflow:hidden;
+box-shadow:var(--shadow);
 opacity:0;transform:translateY(24px);transition:all .5s cubic-bezier(.4,0,.2,1);cursor:pointer}
 .card.visible{opacity:1;transform:translateY(0)}
-.card:hover{border-color:var(--primary);box-shadow:0 4px 20px rgba(20,184,166,.15)}
-.card:active{transform:scale(.97)!important}
+.card:hover{box-shadow:8px 8px 20px rgba(0,0,0,.6),-6px -6px 16px rgba(255,255,255,.03)}
+.card:active{transform:scale(.97)!important;box-shadow:var(--shadowInset)}
 .card.full{grid-column:1/-1}
 .card[data-section="budget"]{border-left:3px solid var(--orange)}
 .card[data-section="fuel"]{border-left:3px solid var(--red)}
@@ -1329,7 +1377,8 @@ opacity:0;transform:translateY(24px);transition:all .5s cubic-bezier(.4,0,.2,1);
 
 .card-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
 .card-icon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;
-justify-content:center;font-size:18px;flex-shrink:0;transition:transform .3s}
+justify-content:center;font-size:18px;flex-shrink:0;transition:transform .3s;
+box-shadow:3px 3px 8px rgba(0,0,0,.3),-2px -2px 6px rgba(255,255,255,.02)}
 .card:hover .card-icon{transform:scale(1.1) rotate(-3deg)}
 .card-title{font-size:13px;font-weight:700;line-height:1.2}
 .card-sub{font-size:10px;color:var(--textMuted);font-weight:500;margin-top:1px}
@@ -1571,22 +1620,104 @@ function renderApp(data,weather){
     if(show('budget')){
       h+='<div class="section-title">💰 Бюджет и контракты</div>';
       const agr=data.agreements||{};
-      const byType=(agr.by_type||[]).slice(0,6);
+      const byType=(agr.by_type||[]).slice(0,10);
       const maxC=byType[0]?.count||1;
       const ukC=['#dc2626','#ea580c','#0f766e','#2563eb','#7c3aed','#16a34a','#0d9488','#d946ef','#4f46e5','#64748b'];
+
+      // 1. Overview card — key budget numbers
+      const totalInv=(agr.total_inv||0);
+      const totalGos=(agr.total_gos||0);
+      const totalSumm=(agr.total_summ||0);
       h+=card('budget',true,
-        cardHead('💰','var(--redBg)','Муниципальные контракты',(agr.total||0)+' договоров')+
-        makeStatRow([{value:agr.total||0,label:'Договоров',color:'var(--red)'},{value:Math.round((agr.total_inv||0)/1000),label:'тыс ₽ инвест.',color:'var(--blue)'}])+
-        makeBarRows(byType,maxC,ukC)+
-        makeTip('red','📊','Общий объём контрактов: '+fmtMoney(agr.total_summ)+'. Энергосервис — основная статья'),
+        cardHead('💰','var(--orangeBg)','Бюджет города','Обзор финансов')+
+        makeStatRow([
+          {value:Math.round(totalSumm),label:'тыс ₽ контракты',color:'var(--orange)'},
+          {value:Math.round(totalInv/1e3),label:'тыс ₽ инвестиции',color:'var(--blue)'},
+          {value:Math.round(totalGos/1e3),label:'тыс ₽ госрасходы',color:'var(--red)'}
+        ])+
+        '<div style="margin-top:8px;display:flex;gap:6px">'+
+        '<div style="flex:1;padding:8px;border-radius:10px;background:var(--blueBg);text-align:center">'+
+        '<div style="font-size:18px;font-weight:900;color:var(--blue)">'+fmtMoney(totalInv)+'</div>'+
+        '<div style="font-size:8px;color:var(--textMuted);margin-top:2px">ИНВЕСТИЦИИ</div></div>'+
+        '<div style="flex:1;padding:8px;border-radius:10px;background:var(--redBg);text-align:center">'+
+        '<div style="font-size:18px;font-weight:900;color:var(--red)">'+fmtMoney(totalGos)+'</div>'+
+        '<div style="font-size:8px;color:var(--textMuted);margin-top:2px">ГОСРАСХОДЫ</div></div></div>'+
+        (totalInv>0&&totalGos>0?'<div style="margin-top:6px;height:8px;border-radius:4px;overflow:hidden;display:flex">'+
+        '<div style="width:'+Math.round(totalInv/(totalInv+totalGos)*100)+'%;background:var(--blue)"></div>'+
+        '<div style="width:'+Math.round(totalGos/(totalInv+totalGos)*100)+'%;background:var(--red)"></div></div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:8px;color:var(--textMuted);margin-top:2px">'+
+        '<span>Инвестиции '+Math.round(totalInv/(totalInv+totalGos)*100)+'%</span>'+
+        '<span>Госрасходы '+Math.round(totalGos/(totalInv+totalGos)*100)+'%</span></div>':'')+
+        makeTip('orange','💡','Соотношение инвестиций и госрасходов показывает приоритеты бюджетной политики'),
         null);
+
+      // 2. Agreements by type
+      h+=card('budget',true,
+        cardHead('📋','var(--redBg)','Муниципальные контракты',(agr.total||0)+' договоров')+
+        makeBarRows(byType,maxC,ukC)+
+        makeTip('red','📊','Энергосервис — '+((byType[0]?.count||0))+' из '+(agr.total||0)+' договоров ('+Math.round((byType[0]?.count||0)/(agr.total||1)*100)+'%)'),
+        null);
+
+      // 3. Top contracts
+      const topContracts=(agr.top||[]).slice(0,5);
+      if(topContracts.length){
+        let tcRows='';
+        topContracts.forEach(function(tc,i){
+          const s=tc.summ||0;const inv=tc.vol_inv||0;const gos=tc.vol_gos||0;
+          tcRows+='<div style="padding:6px 0;border-bottom:1px solid var(--border)">';
+          tcRows+='<div style="display:flex;justify-content:space-between;align-items:flex-start">';
+          tcRows+='<div style="flex:1"><div style="font-size:10px;font-weight:700">'+(i+1)+'. '+esc((tc.title||'').substring(0,60))+'</div>';
+          tcRows+='<div style="font-size:8px;color:var(--textMuted);margin-top:1px">'+esc(tc.type||'')+' · '+esc(tc.org||'')+' · '+esc(tc.date||'')+'</div></div>';
+          tcRows+='<div style="text-align:right;min-width:60px">';
+          if(s>0)tcRows+='<div style="font-size:11px;font-weight:800;color:var(--orange)">'+fmtMoney(s*1000)+'</div>';
+          if(gos>0)tcRows+='<div style="font-size:9px;color:var(--red)">гос: '+fmtMoney(gos*1000)+'</div>';
+          if(inv>0)tcRows+='<div style="font-size:9px;color:var(--blue)">инв: '+fmtMoney(inv)+'</div>';
+          tcRows+='</div></div>';
+          if(tc.desc)tcRows+='<div style="font-size:8px;color:var(--textMuted);margin-top:2px;line-height:1.3">'+esc((tc.desc||'').substring(0,120))+'</div>';
+          tcRows+='</div>';
+        });
+        h+=card('budget',true,
+          cardHead('🏆','var(--yellowBg)','Крупнейшие контракты','Топ-5 по сумме')+tcRows+
+          makeTip('orange','🏗️','Строительство дорог (КЖЦ) — крупнейшие контракты города'),
+          null);
+      }
+
+      // 4. Budget bulletins trend
+      const bb=data.budget_bulletins||{};
+      const bi=data.budget_info||{};
+      if(bb.total||bi.total){
+        const bbYears=(bb.items||[]).map(function(b){return{year:parseInt(b.title)||0,count:1}}).filter(function(b){return b.year>0}).reverse();
+        h+=card('budget',false,
+          cardHead('📰','var(--indigoBg)','Бюджетные бюллетени',(bb.total||0)+' выпусков')+
+          makeStatRow([{value:bb.total||0,label:'Бюллетеней',color:'var(--indigo)'},{value:bi.total||0,label:'Отчётов',color:'var(--teal)'}])+
+          '<div style="margin-top:6px;font-size:9px;color:var(--textMuted)">Публикуются ежеквартально с 2015 года</div>'+
+          makeTip('indigo','📊','Финансовая отчётность доступна на data.n-vartovsk.ru'),
+          null);
+      }
+
+      // 5. Property
       const p=data.property||{};
       h+=card('budget',true,
         cardHead('🏛️','var(--blueBg)','Муниципальное имущество',(p.total||0).toLocaleString('ru')+' объектов')+
         makeStatRow([{value:p.realestate||0,label:'Недвижимость',color:'var(--blue)'},{value:p.lands||0,label:'Земля',color:'var(--green)'},
           {value:p.movable||0,label:'Движимое',color:'var(--teal)'}])+
-        makeTip('blue','🏛️','В реестре '+(p.total||0).toLocaleString('ru')+' объектов. Приватизировано '+(p.privatization||0)),
+        '<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap">'+
+        '<div style="padding:4px 8px;border-radius:8px;background:var(--purpleBg);font-size:9px"><span style="font-weight:700;color:var(--purple)">'+(p.privatization||0)+'</span> приватизировано</div>'+
+        '<div style="padding:4px 8px;border-radius:8px;background:var(--tealBg);font-size:9px"><span style="font-weight:700;color:var(--teal)">'+(p.rent||0)+'</span> в аренде</div>'+
+        '<div style="padding:4px 8px;border-radius:8px;background:var(--blueBg);font-size:9px"><span style="font-weight:700;color:var(--blue)">'+(p.stoks||0)+'</span> акций</div></div>'+
+        makeTip('blue','🏛️','Общий реестр: '+(p.total||0).toLocaleString('ru')+' объектов муниципальной собственности'),
         null);
+
+      // 6. Municipal programs
+      const prg=data.programs||{};
+      if(prg.total){
+        h+=card('budget',false,
+          cardHead('📜','var(--greenBg)','Муниципальные программы',prg.total+' программ')+
+          bigNum(prg.total,'действующих программ','var(--green)')+
+          '<div style="margin-top:4px;font-size:9px;color:var(--textMuted)">Стратегия развития до 2036 года</div>'+
+          makeTip('green','📜','Включая план мероприятий и госпрограммы ХМАО-Югры'),
+          null);
+      }
     }
 
     // FUEL

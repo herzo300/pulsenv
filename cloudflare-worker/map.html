@@ -70,8 +70,17 @@
   <!-- UK Rating button + overlay -->
   <button class="uk-btn" id="ukBtn" title="Рейтинг УК">🏢</button>
   <div class="uk-overlay" id="ukOverlay"></div>
-  <!-- FAB -->
-  <button class="fab" id="fabNew" title="Подать жалобу">+</button>
+  <!-- FAB — oil drop with pulse -->
+  <button class="fab" id="fabNew" title="Подать жалобу">
+    <div class="fab-drop">
+      <div class="fab-ring"></div><div class="fab-ring2"></div>
+      <svg viewBox="0 0 56 56"><defs><linearGradient id="oilGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#1a1a2e"/><stop offset="50%" stop-color="#16213e"/>
+        <stop offset="100%" stop-color="#0f3460"/></linearGradient></defs>
+        <path class="drop-fill" d="M28 4C28 4 12 22 12 34C12 42.8 19.2 50 28 50C36.8 50 44 42.8 44 34C44 22 28 4 28 4Z"/></svg>
+      <span class="fab-icon">+</span>
+    </div>
+  </button>
   <!-- Complaint form -->
   <div class="cf-overlay" id="cfOverlay">
     <div class="cf-sheet">

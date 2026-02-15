@@ -56,7 +56,6 @@ box-shadow:5px 5px 10px rgba(0,0,0,.5),-5px -5px 10px rgba(255,255,255,.02);min-
 .sl-fill{height:100%;width:0;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--green));transition:width .3s}
 .sl-text{font-size:8px;color:var(--hint);margin-top:4px}
 #map{position:fixed;inset:0;z-index:0}
-.maplibregl-canvas{filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(1.1)}
 #topBar{position:fixed;top:0;left:0;right:0;z-index:1000;
 background:var(--surface);backdrop-filter:var(--glass);
 border-bottom:1px solid rgba(255,255,255,.05);padding:5px 10px;display:flex;align-items:center;gap:8px}
@@ -108,6 +107,13 @@ backdrop-filter:var(--glass)!important;box-shadow:0 8px 32px rgba(0,0,0,.4)!impo
 .pp .meta b{color:var(--text);font-weight:600}
 .pp a{color:var(--accentL);text-decoration:none;font-size:9px}
 .pp .links{margin-top:3px;display:flex;gap:5px;flex-wrap:wrap}
+.pp .vote-row{display:flex;align-items:center;gap:8px;margin-top:5px}
+.pp .vote-btn{padding:3px 10px;border-radius:14px;border:1px solid rgba(255,255,255,.1);
+background:rgba(255,255,255,.04);color:var(--hint);font-size:10px;font-weight:700;cursor:pointer;
+transition:all .2s;display:flex;align-items:center;gap:3px}
+.pp .vote-btn:active{transform:scale(.9)}
+.pp .vote-btn.liked{background:rgba(16,185,129,.15);border-color:var(--green);color:var(--green)}
+.pp .vote-btn.disliked{background:rgba(239,68,68,.15);border-color:var(--red);color:var(--red)}
 .badge{display:inline-block;padding:2px 6px;border-radius:5px;font-size:7px;font-weight:700;color:#fff;margin-top:2px}
 .pp .src{display:inline-block;padding:1px 4px;border-radius:3px;font-size:7px;
 background:rgba(99,102,241,.12);color:var(--accentL);margin-top:2px;margin-left:3px}
@@ -121,11 +127,12 @@ box-shadow:0 4px 16px rgba(0,0,0,.3);animation:tin .3s ease;cursor:pointer}
 @keyframes mpop{0%{transform:scale(0)}60%{transform:scale(1.3)}100%{transform:scale(1)}}
 .new-marker{animation:mpop .5s ease}
 /* ═══ Stats overlay ═══ */
-.stats-btn{position:fixed;top:46px;right:8px;z-index:1001;width:36px;height:36px;border-radius:50%;
+.stats-btn{position:fixed;top:4px;right:52px;z-index:1001;width:42px;height:42px;border-radius:14px;
 background:var(--surface);backdrop-filter:var(--glass);border:1px solid rgba(255,255,255,.08);
-color:var(--accentL);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-box-shadow:var(--shadow);transition:.2s}
-.stats-btn:active{transform:scale(.9)}
+color:var(--accentL);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+box-shadow:var(--shadow);transition:all .25s}
+.stats-btn:active{transform:scale(.85) rotate(-8deg)}
+.stats-btn:hover{box-shadow:0 0 16px rgba(99,102,241,.4)}
 .stats-overlay{position:fixed;top:0;right:-320px;width:300px;height:100%;z-index:2500;
 background:var(--surface);backdrop-filter:var(--glass);border-left:1px solid rgba(255,255,255,.06);
 transition:right .3s ease;overflow-y:auto;padding:50px 14px 20px}
@@ -142,11 +149,12 @@ color:var(--hint);font-size:18px;cursor:pointer}
 .so-bar{height:4px;border-radius:2px;background:rgba(255,255,255,.06);margin-top:1px;overflow:hidden}
 .so-bar-fill{height:100%;border-radius:2px;transition:width .5s}
 /* ═══ UK Rating overlay ═══ */
-.uk-btn{position:fixed;bottom:60px;left:8px;z-index:1001;width:36px;height:36px;border-radius:50%;
+.uk-btn{position:fixed;top:4px;right:8px;z-index:1001;width:42px;height:42px;border-radius:14px;
 background:var(--surface);backdrop-filter:var(--glass);border:1px solid rgba(255,255,255,.08);
-color:var(--accentL);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-box-shadow:var(--shadow);transition:.2s}
-.uk-btn:active{transform:scale(.9)}
+color:var(--accentL);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+box-shadow:var(--shadow);transition:all .25s}
+.uk-btn:active{transform:scale(.85) rotate(8deg)}
+.uk-btn:hover{box-shadow:0 0 16px rgba(99,102,241,.4)}
 .uk-overlay{position:fixed;top:0;left:-320px;width:300px;height:100%;z-index:2500;
 background:var(--surface);backdrop-filter:var(--glass);border-right:1px solid rgba(255,255,255,.06);
 transition:left .3s ease;overflow-y:auto;padding:50px 14px 20px}
@@ -160,12 +168,20 @@ color:var(--hint);font-size:18px;cursor:pointer}
 .uk-item .uk-bar{height:4px;border-radius:2px;background:rgba(255,255,255,.06);margin-top:3px;overflow:hidden}
 .uk-item .uk-bar-fill{height:100%;border-radius:2px;background:var(--red);transition:width .5s}
 .uk-item .uk-count{font-size:10px;font-weight:800;color:var(--red);float:right}
-/* ═══ FAB ═══ */
-.fab{position:fixed;bottom:60px;right:8px;z-index:1001;width:44px;height:44px;border-radius:50%;
-background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff;border:none;
-font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-box-shadow:0 4px 16px rgba(99,102,241,.4);transition:.2s;line-height:1}
-.fab:active{transform:scale(.9)}
+/* ═══ FAB — oil drop with pulse ═══ */
+.fab{position:fixed;bottom:60px;right:8px;z-index:1001;width:56px;height:56px;border:none;
+cursor:pointer;display:flex;align-items:center;justify-content:center;
+background:transparent;padding:0;transition:transform .2s}
+.fab:active{transform:scale(.88)}
+.fab-drop{width:56px;height:56px;position:relative;display:flex;align-items:center;justify-content:center}
+.fab-drop svg{width:56px;height:56px;filter:drop-shadow(0 4px 12px rgba(0,0,0,.5))}
+.fab-drop .drop-fill{fill:url(#oilGrad)}
+.fab-ring{position:absolute;inset:-6px;border-radius:50%;border:2px solid var(--accent);
+opacity:0;animation:fabPulse 2s ease-out infinite}
+.fab-ring2{position:absolute;inset:-12px;border-radius:50%;border:1.5px solid var(--accent);
+opacity:0;animation:fabPulse 2s ease-out .5s infinite}
+.fab-icon{position:absolute;font-size:22px;color:#fff;font-weight:900;text-shadow:0 1px 4px rgba(0,0,0,.4)}
+@keyframes fabPulse{0%{transform:scale(.8);opacity:.6}100%{transform:scale(1.3);opacity:0}}
 /* ═══ Complaint form ═══ */
 .cf-overlay{position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
 display:none;align-items:flex-end;justify-content:center}
@@ -419,6 +435,7 @@ function buildPopup(c,lat,lng){
   var col=CC[c.category]||'#6366f1';var e=CE[c.category]||'📌';
   var st=SL[c.status]||c.status;var sc=SC[c.status]||'#94a3b8';
   var sup=c.supporters||0;
+  var likes=c.likes||0;var dislikes=c.dislikes||0;
   var h='<div class="pp">';
   h+='<h3>'+e+' '+esc(c.category)+'</h3>';
   h+='<span class="badge" style="background:'+sc+'">'+st+'</span>';
@@ -426,12 +443,14 @@ function buildPopup(c,lat,lng){
   h+='<div class="desc">'+esc((c.summary||c.text||'').substring(0,200))+'</div>';
   if(c.address)h+='<div class="meta">📍 <b>'+esc(c.address)+'</b></div>';
   h+='<div class="meta">📅 '+fmtDate(c.created_at)+'</div>';
-  h+='<div style="display:flex;align-items:center;gap:6px;margin-top:3px">';
-  h+='<span style="font-size:11px;font-weight:700;color:var(--accent)">👥 '+sup+'</span>';
+  // Like/Dislike row
+  h+='<div class="vote-row">';
+  h+='<button class="vote-btn" onclick="voteComplaint(\''+c.id+'\',1,this)" title="Проблема решена хорошо">👍 <span id="vl_'+c.id+'">'+likes+'</span></button>';
+  h+='<button class="vote-btn" onclick="voteComplaint(\''+c.id+'\',-1,this)" title="Проблема не решена">👎 <span id="vd_'+c.id+'">'+dislikes+'</span></button>';
   if(c.status!=='resolved'){
     h+='<button onclick="joinComplaint(\''+c.id+'\')" id="jbtn_'+c.id+'" style="';
     h+='padding:3px 8px;border-radius:14px;border:1px solid var(--accent);background:rgba(99,102,241,.12);';
-    h+='color:var(--accentL);font-size:9px;font-weight:700;cursor:pointer">✊ Присоединиться</button>'}
+    h+='color:var(--accentL);font-size:9px;font-weight:700;cursor:pointer">✊ +1</button>'}
   h+='</div>';
   if(sup>=10)h+='<div class="meta" style="color:var(--green);font-size:8px;margin-top:1px">📧 Отправлено в УК</div>';
   h+='<div class="links">';
@@ -450,11 +469,26 @@ function joinComplaint(id){
     body:JSON.stringify({complaint_id:id})
   }).then(function(r){return r.json()}).then(function(d){
     if(d.supporters!==undefined){
-      var el=document.getElementById('sup_'+id);if(el)el.textContent='👥 '+d.supporters;
       if(btn)btn.textContent='✅ +1';
       showToast('✊ Вы присоединились! ('+d.supporters+')')
     }
   }).catch(function(){if(btn)btn.textContent='❌'});
+}
+
+function voteComplaint(id,dir,btn){
+  // dir: 1=like, -1=dislike
+  var item=allItems.find(function(c){return c.id===id});
+  if(!item)return;
+  if(dir===1){item.likes=(item.likes||0)+1;var el=document.getElementById('vl_'+id);if(el)el.textContent=item.likes;btn.classList.add('liked')}
+  else{item.dislikes=(item.dislikes||0)+1;var el2=document.getElementById('vd_'+id);if(el2)el2.textContent=item.dislikes;btn.classList.add('disliked')}
+  // Save to Firebase
+  var patch={};patch[dir===1?'likes':'dislikes']=dir===1?(item.likes||0):(item.dislikes||0);
+  fetch(FB+'/complaints/'+id+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(patch)}).catch(function(){});
+  // Update UK rating
+  buildUkRating();
+  showToast(dir===1?'👍 Спасибо за оценку!':'👎 Учтено в рейтинге');
+  try{tg&&tg.HapticFeedback&&tg.HapticFeedback.impactOccurred('light')}catch(e){}
 }
 
 
@@ -549,16 +583,17 @@ function ukDetails(idx){
 function buildUkRating(){
   var ov=document.getElementById('ukOverlay');if(!ov)return;
   // Count only UK-competence complaints per UK
-  var ukStats={},adminStats={total:0,open:0,resolved:0};
+  var ukStats={},adminStats={total:0,open:0,resolved:0,likes:0,dislikes:0};
   allItems.forEach(function(c){
     var isUkCat=UK_CATS.indexOf(c.category)>=0;
     var isAdminCat=ADMIN_CATS.indexOf(c.category)>=0;
-    if(isAdminCat){adminStats.total++;if(c.status==='resolved')adminStats.resolved++;else adminStats.open++}
+    if(isAdminCat){adminStats.total++;if(c.status==='resolved')adminStats.resolved++;else adminStats.open++;adminStats.likes+=(c.likes||0);adminStats.dislikes+=(c.dislikes||0)}
     if(c.uk_name&&isUkCat){
-      if(!ukStats[c.uk_name])ukStats[c.uk_name]={total:0,open:0,resolved:0,cats:{}};
+      if(!ukStats[c.uk_name])ukStats[c.uk_name]={total:0,open:0,resolved:0,cats:{},likes:0,dislikes:0};
       ukStats[c.uk_name].total++;
       if(c.status==='resolved')ukStats[c.uk_name].resolved++;else ukStats[c.uk_name].open++;
       ukStats[c.uk_name].cats[c.category]=(ukStats[c.uk_name].cats[c.category]||0)+1;
+      ukStats[c.uk_name].likes+=(c.likes||0);ukStats[c.uk_name].dislikes+=(c.dislikes||0);
     }
   });
   var sorted=Object.entries(ukStats).sort(function(a,b){return b[1].total-a[1].total});
@@ -572,7 +607,7 @@ function buildUkRating(){
   html+='<span class="uk-name" style="color:var(--accentL)">🏛️ Администрация города</span>';
   html+='<span class="uk-count" style="color:var(--accentL)">'+adminStats.total+'</span></div>';
   html+='<div class="uk-info">Дороги, благоустройство, транспорт, экология, безопасность, ЧП</div>';
-  html+='<div class="uk-info">✅ '+adminStats.resolved+' ('+apct+'%) · 🔴 '+adminStats.open+'</div>';
+  html+='<div class="uk-info">✅ '+adminStats.resolved+' ('+apct+'%) · 🔴 '+adminStats.open+' · 👍 '+adminStats.likes+' · 👎 '+adminStats.dislikes+'</div>';
   html+='<div class="uk-bar"><div class="uk-bar-fill" style="width:100%;background:'+(apct>50?'var(--green)':apct>20?'var(--yellow)':'var(--red)')+'"></div></div>';
   html+='<div style="margin-top:4px"><span onclick="sendAnonEmail(\'Администрация г. Нижневартовска\',\'nvartovsk@n-vartovsk.ru\')" style="font-size:9px;color:var(--accentL);cursor:pointer;text-decoration:underline">✉️ Написать анонимно</span></div>';
   html+='</div>';
@@ -585,7 +620,7 @@ function buildUkRating(){
     html+='<div style="display:flex;justify-content:space-between;align-items:center">';
     html+='<span class="uk-name">'+(i+1)+'. '+esc(e[0])+'</span>';
     html+='<span class="uk-count">'+uk.total+'</span></div>';
-    html+='<div class="uk-info">'+catLine+' · ✅ '+uk.resolved+' ('+pct+'%) · 🔴 '+uk.open+'</div>';
+    html+='<div class="uk-info">'+catLine+' · ✅ '+uk.resolved+' ('+pct+'%) · 🔴 '+uk.open+' · 👍 '+uk.likes+' · 👎 '+uk.dislikes+'</div>';
     html+='<div class="uk-bar"><div class="uk-bar-fill" style="width:'+Math.round(uk.total/maxUk*100)+'%;background:'+(pct>50?'var(--green)':pct>20?'var(--yellow)':'var(--red)')+'"></div></div>';
     html+='<div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">';
     html+='<span onclick="legalAnalysis(\''+esc(e[0]).replace(/'/g,"\\'")+'\')\" style="font-size:9px;color:var(--yellow);cursor:pointer;text-decoration:underline">⚖️ Юр. анализ</span>';
