@@ -726,3 +726,315 @@ async def handle_text(message: types.Message):
     resp += f"\n📝 {summary}\n"
     await message.answer(resp, parse_mode="Markdown",
                          reply_markup=InlineKeyboardMarkup(inline_keyboard=_confirm_buttons(lat, lon)))
+
+
+# ═══ CALLBACK: ПОДТВЕРЖДЕНИЕ ЖАЛОБЫ ═══
+
+@dp.callback_query(F.data.in_({"confirm", "confirm_anon"}))
+async def cb_confirm(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    session = user_sessions.get(uid)
+    is_anon = callback.data == "confirm_anon"
+    if not session or session.get("state") != "confirm":
+        await callback.answer("Сессия истекла."); return
+    db = _db()
+    try:
+        if is_anon:
+            db_user_id, source_label = None, "Аноним"
+        else:
+            db_user = get_or_create_user(db, callback.from_user)
+            db_user_id = db_user.id
+            source_label = f"@{callback.from_user.username or callback.from_user.first_name}"
+        report = Report(
+            user_id=db_user_id,
+            title=(session.get("summary") or session["description"])[:200],
+            description=session["description"],
+            lat=session.get("lat"), lng=session.get("lon"),
+            address=session.get("address"), category=session["category"],
+            status="open", source="anonymous" if is_anon else f"telegram_bot:{uid}",
+        )
+        db.add(report); db.commit(); db.refresh(report)
+        try:
+            uk_info = await _find_uk(report.lat, report.lng, report.address)
+            fb_data = {
+                "category": report.category, "summary": report.title,
+                "text": report.description, "address": report.address,
+                "lat": report.lat, "lng": report.lng,
+                "source": "anonymous" if is_anon else f"telegram_bot:{uid}",
+                "source_name": source_label, "post_link": "", "provider": "bot",
+                "report_id": report.id, "supporters": 0, "supporters_notified": 0,
+            }
+            if uk_info:
+                fb_data["uk_name"] = uk_info.get("name", "")
+                fb_data["uk_email"] = uk_info.get("email", "")
+                fb_data["uk_phone"] = uk_info.get("phone", "")
+                report.uk_name = uk_info.get("name", "")
+                report.uk_email = uk_info.get("email", "")
+                db.commit()
+            await firebase_push(fb_data)
+        except Exception as fb_err: logger.error(f"Firebase: {fb_err}")
+        try: asyncio.create_task(_notify_subscribers(report))
+        except Exception: pass
+        uk_info = session.get("uk_info")
+        anon_badge = "🔒 _Анонимная_\n" if is_anon else ""
+        text = (f"✅ *Жалоба #{report.id}!*\n\n{anon_badge}"
+                f"{_emoji(report.category)} *{report.category}*\n📍 {report.address or '—'}\n")
+        if report.lat and report.lng: text += f"🗺️ {report.lat:.4f}, {report.lng:.4f}\n"
+        kb_rows = []
+        if report.lat and report.lng: kb_rows.append(_geo_buttons(report.lat, report.lng))
+        user_sessions[uid] = {
+            "state": "ask_send", "report_id": report.id,
+            "category": report.category, "title": report.title,
+            "description": report.description, "address": report.address,
+            "lat": report.lat, "lon": report.lng, "uk_info": uk_info, "is_anonymous": is_anon,
+        }
+        if uk_info and uk_info.get("email"):
+            text += f"\n🏢 *{uk_info['name']}*\n📧 {uk_info['email']}\n"
+            if uk_info.get("phone"): text += f"📞 {uk_info['phone']}\n"
+            text += "\n📩 *Отправить в УК?*"
+            kb_rows.append([
+                InlineKeyboardButton(text="✅ В УК", callback_data="send_to_uk:yes"),
+                InlineKeyboardButton(text="❌ Нет", callback_data="send_to_uk:no")])
+            kb_rows.append([InlineKeyboardButton(text="🏛️ В администрацию", callback_data="send_to_admin:yes")])
+        else:
+            text += f"\n🏛️ *{ADMIN_NAME}*\n📧 {ADMIN_EMAIL}\n\n📩 *Отправить?*"
+            kb_rows.append([
+                InlineKeyboardButton(text="✅ Отправить", callback_data="send_to_admin:yes"),
+                InlineKeyboardButton(text="❌ Нет", callback_data="send_to_uk:no")])
+        kb_rows.append([InlineKeyboardButton(text="⚖️ Юр. анализ (50 ⭐)", callback_data="legal_analysis")])
+        await callback.message.edit_text(text, parse_mode="Markdown",
+                                         reply_markup=InlineKeyboardMarkup(inline_keyboard=kb_rows))
+        logger.info(f"✅ Жалоба #{report.id} от {source_label}")
+    except Exception as e:
+        logger.error(f"DB error: {e}"); await callback.answer("❌ Ошибка")
+    finally: db.close()
+
+
+@dp.callback_query(F.data == "change_cat")
+async def cb_change_cat(callback: types.CallbackQuery):
+    await callback.message.edit_text("🏷️ Выберите:", reply_markup=categories_kb())
+
+@dp.callback_query(F.data.startswith("cat:"))
+async def cb_select_cat(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    cat = callback.data.split(":", 1)[1]
+    session = user_sessions.get(uid)
+    if not session: await callback.answer("Сессия истекла."); return
+    session["category"] = cat
+    text = f"🏷️ *{_emoji(cat)} {cat}*\n📍 {session.get('address') or '—'}\n📝 {session.get('summary', session['description'][:100])}"
+    await callback.message.edit_text(text, parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Подтвердить", callback_data="confirm")],
+            [InlineKeyboardButton(text="🔒 Анонимно", callback_data="confirm_anon")],
+            [InlineKeyboardButton(text="🏷️ Изменить", callback_data="change_cat")],
+            [InlineKeyboardButton(text="❌ Отменить", callback_data="cancel")]]))
+
+@dp.callback_query(F.data == "cancel")
+async def cb_cancel(callback: types.CallbackQuery):
+    user_sessions.pop(callback.from_user.id, None)
+    await callback.message.edit_text("❌ Отменено.")
+    await callback.message.answer("Меню:", reply_markup=main_kb())
+
+@dp.callback_query(F.data == "send_to_uk:yes")
+async def cb_send_to_uk(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    session = user_sessions.get(uid)
+    if not session or session.get("state") != "ask_send":
+        await callback.answer("Сессия истекла."); return
+    uk_info = session.get("uk_info")
+    if not uk_info or not uk_info.get("email"):
+        await callback.answer("❌ Email УК не найден"); return
+    subject, body = _build_complaint_email(session, uk_info.get("name", "УК"))
+    await callback.answer("📧 Отправляю...")
+    result = await _send_email_via_worker(uk_info["email"], subject, body)
+    if result["ok"]:
+        await callback.message.edit_text(f"✅ *Отправлено в {uk_info['name']}!*\n📋 #{session.get('report_id')}", parse_mode="Markdown")
+        await callback.message.answer("📩 *Также в администрацию?*", parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="✅ Да", callback_data="send_to_admin:yes"),
+                InlineKeyboardButton(text="❌ Нет", callback_data="send_to_uk:no")]]))
+    else:
+        await callback.message.edit_text("📧 Не удалось отправить.", parse_mode="Markdown")
+        await callback.message.answer("Меню:", reply_markup=main_kb())
+
+@dp.callback_query(F.data == "send_to_admin:yes")
+async def cb_send_to_admin(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    session = user_sessions.get(uid)
+    if not session or session.get("state") != "ask_send":
+        await callback.answer("Сессия истекла."); return
+    subject, body = _build_complaint_email(session, ADMIN_NAME)
+    await callback.answer("📧 Отправляю...")
+    result = await _send_email_via_worker(ADMIN_EMAIL, subject, body)
+    if result["ok"]:
+        await callback.message.edit_text(f"✅ *Отправлено в администрацию!*\n📋 #{session.get('report_id')}", parse_mode="Markdown")
+    else:
+        await callback.message.edit_text("📧 Не удалось отправить.", parse_mode="Markdown")
+    user_sessions.pop(uid, None)
+    await callback.message.answer("Меню:", reply_markup=main_kb())
+
+@dp.callback_query(F.data == "send_to_uk:no")
+async def cb_send_skip(callback: types.CallbackQuery):
+    user_sessions.pop(callback.from_user.id, None)
+    await callback.message.edit_text("👌 Жалоба сохранена.")
+    await callback.message.answer("Меню:", reply_markup=main_kb())
+
+
+# ═══ ЮРИДИЧЕСКИЙ АНАЛИЗ (Telegram Stars) ═══
+
+@dp.callback_query(F.data == "legal_analysis")
+async def cb_legal_analysis(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    session = user_sessions.get(uid)
+    if not session or session.get("state") != "ask_send":
+        await callback.answer("Сессия истекла."); return
+    rid = session.get("report_id", 0)
+    await callback.answer()
+    await bot.send_invoice(chat_id=uid, title="⚖️ Юр. анализ",
+        description=f"Жалоба #{rid}: законы, статьи, порядок действий",
+        payload=f"legal_{rid}_{uid}", currency="XTR",
+        prices=[LabeledPrice(label="Анализ", amount=LEGAL_ANALYSIS_STARS)], provider_token="")
+
+@dp.pre_checkout_query()
+async def on_pre_checkout(pre_checkout: PreCheckoutQuery):
+    p = pre_checkout.invoice_payload
+    if p.startswith("legal_") or p.startswith("topup_"):
+        await bot.answer_pre_checkout_query(pre_checkout.id, ok=True)
+    else:
+        await bot.answer_pre_checkout_query(pre_checkout.id, ok=False, error_message="Неизвестный тип")
+
+@dp.message(F.successful_payment)
+async def on_successful_payment(message: types.Message):
+    payload = message.successful_payment.invoice_payload
+    if payload.startswith("topup_"):
+        amount = int(payload.split("_")[1])
+        db = _db()
+        try:
+            user = get_or_create_user(db, message.from_user)
+            user.balance = (user.balance or 0) + amount; db.commit()
+            await message.answer(f"✅ +{amount} ⭐ (итого {user.balance})", reply_markup=main_kb())
+        finally: db.close()
+        return
+    if not payload.startswith("legal_"): return
+    uid = message.from_user.id
+    session = user_sessions.get(uid)
+    if not session:
+        await message.answer("❌ Сессия истекла.", reply_markup=main_kb()); return
+    rid = session.get("report_id", "?")
+    cat = session.get("category", "Прочее")
+    addr = session.get("address") or "не указан"
+    desc = session.get("description", "")[:2000]
+    await message.answer(f"✅ Оплата ({LEGAL_ANALYSIS_STARS} ⭐)\n⚖️ Анализирую...")
+    try:
+        prompt = LEGAL_PROMPT.format(category=cat, address=addr, description=desc)
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            r = await client.post("https://api.z.ai/api/paas/v4/chat/completions",
+                json={"model": "glm-4.7-flash",
+                      "messages": [{"role": "system", "content": "Юрист по жилищному праву РФ."},
+                                   {"role": "user", "content": prompt}], "max_tokens": 4096},
+                headers={"Authorization": f"Bearer {os.getenv('ZAI_API_KEY', '')}",
+                         "Content-Type": "application/json"})
+        if r.status_code != 200: raise Exception(f"Z.AI: {r.status_code}")
+        analysis = r.json()["choices"][0]["message"].get("content", "")
+        if not analysis: raise Exception("Пустой ответ")
+        full = f"⚖️ *Анализ #{rid}*\n{cat} | {addr}\n{'─'*30}\n\n{analysis}"
+        while full:
+            chunk = full[:4000]; full = full[4000:]
+            try: await message.answer(chunk, parse_mode="Markdown")
+            except: await message.answer(chunk)
+    except Exception as e:
+        await message.answer(f"❌ {e}", reply_markup=main_kb())
+    await message.answer("Меню:", reply_markup=main_kb())
+
+
+# ═══ CALLBACK: КАРТА + OPENDATA ═══
+
+@dp.callback_query(F.data == "map_points")
+async def cb_map_points(callback: types.CallbackQuery):
+    db = _db()
+    try:
+        recent = db.query(Report).filter(Report.lat.isnot(None), Report.lng.isnot(None)).order_by(Report.created_at.desc()).limit(5).all()
+        if not recent: await callback.answer("Нет точек"); return
+        await callback.answer("📍 Отправляю...")
+        for r in recent:
+            await callback.message.answer_venue(
+                latitude=float(r.lat), longitude=float(r.lng),
+                title=f"{_emoji(r.category)} {r.category} #{r.id}",
+                address=r.address or f"{r.lat:.4f}, {r.lng:.4f}")
+            await asyncio.sleep(0.3)
+        await callback.message.answer(f"📍 {len(recent)} точек", reply_markup=main_kb())
+    finally: db.close()
+
+@dp.callback_query(F.data.startswith("od:"))
+async def cb_opendata(callback: types.CallbackQuery):
+    key = callback.data.split(":", 1)[1]
+    if key == "refresh":
+        await callback.answer("🔄 Обновляю...")
+        try:
+            from services.opendata_service import refresh_all_datasets
+            await refresh_all_datasets(); await callback.answer("✅ Обновлено")
+        except Exception as e: await callback.answer(f"❌ {e}")
+        return
+    if key == "back":
+        await callback.answer(); await cmd_opendata(callback.message); return
+    await callback.answer("📂 Загружаю...")
+    try:
+        data_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "opendata_full.json")
+        if not os.path.exists(data_file):
+            await callback.message.answer("❌ Данные не загружены.", reply_markup=main_kb()); return
+        with open(data_file, "r", encoding="utf-8") as f: all_data = json.load(f)
+        ds = all_data.get(key)
+        if not ds: await callback.message.answer(f"❌ Не найден", reply_markup=main_kb()); return
+        rows = ds.get("rows", [])
+        total = ds.get("total", len(rows))
+        text = f"{ds.get('icon','📄')} *{ds.get('name',key)}*\n📊 Записей: *{total}*\n\n"
+        for i, row in enumerate(rows[:10], 1):
+            title = (row.get("TITLE") or row.get("TITLESM") or row.get("NAME") or
+                     row.get("FIO") or row.get("DEPARTMENT") or row.get("ORGANIZATION") or
+                     row.get("STREET") or row.get("OBJECT") or row.get("SECTION") or
+                     row.get("FUEL_TYPE") or row.get("PERIOD") or "")
+            if not title:
+                for v in row.values():
+                    if isinstance(v, str) and 2 < len(v) < 100: title = v; break
+            text += f"*{i}.* {str(title)[:70]}\n"
+            addr = row.get("ADR") or row.get("ADDRESS") or row.get("ADRESS") or ""
+            if addr: text += f"   📍 {str(addr)[:50]}\n"
+            tel = row.get("TEL") or row.get("PHONE") or ""
+            if tel: text += f"   📞 {tel}\n"
+            fio = row.get("FIO") or row.get("DIRECTOR") or ""
+            if fio and fio != title: text += f"   👤 {fio[:40]}\n"
+            text += "\n"
+        if total > 10: text += f"_...и ещё {total - 10}_"
+        if len(text) > 4000: text = text[:3950] + "\n_...обрезано_"
+        await callback.message.answer(text, parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="← Назад", callback_data="od:back")]]))
+    except Exception as e:
+        logger.error(f"OD error: {e}"); await callback.message.answer(f"❌ {e}", reply_markup=main_kb())
+
+
+# ═══ ЗАПУСК ═══
+
+async def setup_menu():
+    commands = [
+        BotCommand(command="start", description="🏠 Главное меню"),
+        BotCommand(command="help", description="❓ Помощь"),
+        BotCommand(command="new", description="📝 Новая жалоба"),
+        BotCommand(command="map", description="🗺️ Карта + статистика + рейтинг УК"),
+        BotCommand(command="chp", description="🚨 ЧП — происшествия"),
+        BotCommand(command="opendata", description="📂 Данные города"),
+        BotCommand(command="profile", description="👤 Профиль"),
+        BotCommand(command="sync", description="🔄 Синхронизация Firebase"),
+    ]
+    await bot.set_my_commands(commands, scope=BotCommandScopeDefault())
+    logger.info(f"✅ Меню бота установлено ({len(commands)} команд)")
+
+async def main():
+    logger.info("🚀 Запуск бота Пульс города...")
+    logger.info(f"⏱️ RealtimeGuard: {bot_guard.startup_time.isoformat()}")
+    await setup_menu()
+    try:
+        from services.opendata_updater import auto_update_loop
+        asyncio.create_task(auto_update_loop())
+    except Exception as e: logger.warning(f"⚠️ Opendata updater: {e}")
+    await dp.start_polling(bot)
