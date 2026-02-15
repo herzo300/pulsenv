@@ -1,16 +1,17 @@
 # services/geo_service.py
 import re
 import httpx
+from core.http_client import get_http_client
 from typing import Optional, Tuple
 import asyncio
 
 _client: Optional[httpx.AsyncClient] = None
 
 def get_client():
-    """Singleton HTTP client for geo requests"""
+    """Singleton HTTP client for geo requests with SOCKS5 proxy"""
     global _client
     if _client is None:
-        _client = httpx.AsyncClient(
+        _client = get_http_client(
             timeout=30.0,
             limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
         )

@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 import httpx
+from core.http_client import get_http_client
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -67,7 +68,7 @@ async def push_complaint(complaint: Dict[str, Any]) -> Optional[str]:
     url = f"{FIREBASE_RTDB_URL}/complaints/{doc_id}.json"
 
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with get_http_client(timeout=10.0) as client:
             r = await client.put(url, json=doc_data)
             if r.status_code == 200:
                 logger.info(f"🔥 Firebase RTDB: жалоба сохранена ({doc_id})")
@@ -86,7 +87,7 @@ async def _increment_stats(category: str):
     """Обновляет real-time статистику"""
     url = f"{FIREBASE_RTDB_URL}/stats/realtime.json"
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with get_http_client(timeout=10.0) as client:
             # Читаем текущие значения
             r = await client.get(url)
             current = r.json() if r.status_code == 200 and r.text != "null" else {}
@@ -112,7 +113,7 @@ async def get_recent_complaints(limit: int = 50) -> list:
 
     url = f'{FIREBASE_RTDB_URL}/complaints.json'
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with get_http_client(timeout=15.0) as client:
             r = await client.get(url)
             if r.status_code == 200 and r.text != "null":
                 data = r.json()
@@ -134,7 +135,7 @@ async def update_complaint_status(doc_id: str, status: str) -> bool:
 
     url = f"{FIREBASE_RTDB_URL}/complaints/{doc_id}.json"
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with get_http_client(timeout=10.0) as client:
             r = await client.patch(url, json={
                 "status": status,
                 "updated_at": datetime.utcnow().isoformat(),

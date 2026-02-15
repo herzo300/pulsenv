@@ -8,6 +8,7 @@ import re
 import logging
 from typing import Dict, Any, Optional
 import httpx
+from core.http_client import get_http_client
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -104,7 +105,7 @@ async def _zai_vision(image_b64: str, media_type: str, caption: str = "") -> Dic
     if caption:
         prompt += f"\nДополнительно: {caption}"
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with get_http_client(timeout=60.0) as client:
             r = await client.post(
                 f"{ZAI_BASE}/chat/completions",
                 json={
@@ -242,7 +243,7 @@ async def analyze_image_with_glm4v(
 async def analyze_image_url(image_url: str, caption: Optional[str] = None) -> Dict[str, Any]:
     """Анализ изображения по URL"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with get_http_client(timeout=30.0) as client:
             r = await client.get(image_url, timeout=30.0)
             r.raise_for_status()
         import tempfile

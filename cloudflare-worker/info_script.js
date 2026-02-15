@@ -385,14 +385,15 @@ const FB=CF+'/firebase';
 
 
 async function loadData(){
+  // 1. Try CF Worker built-in data
   try{
-    const r=await fetch(FB+'/opendata_infographic.json',{signal:AbortSignal.timeout(8000)});
+    const r=await fetch(CF+'/infographic-data',{signal:AbortSignal.timeout(5000)});
     if(r.ok){const d=await r.json();if(d&&d.updated_at)return d}
   }catch(e){}
-  // Fallback: try direct
+  // 2. Fallback: Firebase
   try{
-    const r2=await fetch(CF+'/infographic-data',{signal:AbortSignal.timeout(5000)});
-    if(r2.ok)return await r2.json();
+    const r2=await fetch(FB+'/opendata_infographic.json',{signal:AbortSignal.timeout(8000)});
+    if(r2.ok){const d=await r2.json();if(d&&d.updated_at)return d}
   }catch(e){}
   return null;
 }

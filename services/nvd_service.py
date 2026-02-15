@@ -2,6 +2,7 @@
 """Сервис для работы с API data.n-vartovsk.ru (8603032896-docagtext)"""
 
 import httpx
+from core.http_client import get_http_client
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import asyncio
@@ -17,9 +18,9 @@ def get_client():
     """Singleton HTTP клиент для API запросов"""
     global _client
     if _client is None:
-        _client = httpx.AsyncClient(
-            base_url=_BASE_URL,
+        _client = get_http_client(
             timeout=30.0,
+            base_url=_BASE_URL,
             headers={
                 "User-Agent": "Soobshio/1.0",
                 "Accept": "application/json",

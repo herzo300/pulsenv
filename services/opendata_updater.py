@@ -10,6 +10,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 import httpx
+from core.http_client import get_http_client
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -145,7 +146,7 @@ async def update_opendata() -> dict:
     result = {}
     now = datetime.now(timezone.utc).isoformat()
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with get_http_client(timeout=30.0) as client:
         for key, ds_id in DATASETS.items():
             try:
                 rows = await _fetch_all_pages(client, ds_id)

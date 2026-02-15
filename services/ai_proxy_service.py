@@ -9,6 +9,7 @@ Unified AI Proxy Service
 """
 
 import httpx
+from core.http_client import get_http_client
 import asyncio
 from typing import Dict, Any, Optional
 
@@ -17,7 +18,7 @@ class AIProxyService:
 
     def __init__(self, proxy_url: str = "http://127.0.0.1:5000"):
         self.proxy_url = proxy_url
-        self.session = httpx.AsyncClient(timeout=30.0)
+        self.session = get_http_client(timeout=30.0)
 
     async def analyze_complaint(
         self,

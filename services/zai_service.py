@@ -6,6 +6,7 @@ import json
 import logging
 from typing import Any, Dict, List
 import httpx
+from core.http_client import get_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +125,7 @@ async def _zai_analyze(text: str) -> Dict[str, Any] | None:
     if not ZAI_API_KEY:
         return None
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with get_http_client(timeout=60.0) as client:
             r = await client.post(
                 f"{ZAI_BASE}/chat/completions",
                 json={

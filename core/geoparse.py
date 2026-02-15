@@ -2,6 +2,7 @@ import os
 import json
 import re
 import httpx
+from core.http_client import get_http_client
 from typing import Tuple, Optional, Dict, Any
 from dotenv import load_dotenv
 from services.zai_service import analyze_complaint
@@ -56,7 +57,7 @@ async def nominatim_geocode(address: str) -> Tuple[float, float]:
     headers = {'User-Agent': 'Soobshio/1.0'}
 
     try:
-        async with httpx.AsyncClient() as client:
+        async with get_http_client(timeout=10.0) as client:
             resp = await client.get(url, params=params, headers=headers, timeout=5.0)
             data = resp.json()
             if data:

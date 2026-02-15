@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import httpx
+from core.http_client import get_http_client
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -127,7 +128,7 @@ async def vk_api_call(method: str, params: dict) -> Optional[dict]:
     params["access_token"] = VK_SERVICE_TOKEN
     params["v"] = VK_API_VERSION
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with get_http_client(timeout=30.0) as client:
             r = await client.get(f"{VK_API_BASE}/{method}", params=params)
             data = r.json()
             if "error" in data:

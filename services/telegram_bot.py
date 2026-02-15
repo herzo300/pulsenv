@@ -6,6 +6,7 @@ AI анализ текста/фото, УК/администрация, email, �
 """
 import os, sys, asyncio, json, logging, tempfile, time
 import httpx
+from core.http_client import get_http_client
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv; load_dotenv()
 from aiogram import Bot, Dispatcher, types, F
@@ -176,7 +177,7 @@ def _build_legal_email(session, recipient_name, legal_text):
 
 async def _send_email_via_worker(to_email, subject, body):
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with get_http_client(timeout=15.0) as client:
             r = await client.post(f"{CF_WORKER}/send-email", json={
                 "to_email": to_email, "to_name": "", "subject": subject,
                 "body": body, "from_name": "Пульс города — Нижневартовск"})
@@ -737,8 +738,7 @@ async def cb_legal_send(callback: types.CallbackQuery):
         # If AI returned structured data instead of text, use description
         if len(legal_text) < 100:
             # Direct Z.AI call for legal text
-            import httpx as _hx
-            async with _hx.AsyncClient(timeout=60.0) as client:
+            async with get_http_client(timeout=60.0) as client:
                 r = await client.post(
                     f"https://api.z.ai/api/paas/v4/chat/completions",
                     json={"model": "glm-4.7-flash",

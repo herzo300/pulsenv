@@ -54,6 +54,17 @@ output = base
 output += "\n\n// ===== Встроенная карта (Telegram Web App) =====\nconst MAP_HTML = `" + full_map_escaped + "`;\n"
 output += "\n// ===== Инфографика — открытые данные Нижневартовска =====\nconst INFO_HTML = `" + full_info_escaped + "`;\n"
 
+# ═══ INFOGRAPHIC DATA ═══
+infographic_path = os.path.join(os.path.dirname(DIR), "infographic_data.json")
+if os.path.exists(infographic_path):
+    with open(infographic_path, "r", encoding="utf-8") as f:
+        infographic_json = f.read().strip()
+    output += "\n// ===== Данные инфографики (JSON) =====\nconst INFOGRAPHIC_DATA = `" + infographic_json.replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${") + "`;\n"
+    print(f"infographic_data.json: {len(infographic_json)} chars")
+else:
+    output += "\n// ===== Данные инфографики (пусто) =====\nconst INFOGRAPHIC_DATA = '{}';\n"
+    print("WARNING: infographic_data.json not found!")
+
 with open(os.path.join(DIR, "worker.js"), "w", encoding="utf-8") as f:
     f.write(output)
 

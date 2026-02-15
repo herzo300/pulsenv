@@ -8,6 +8,7 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 import httpx
+from core.http_client import get_http_client
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -142,7 +143,7 @@ async def fetch_dataset(dataset_id: str, rows: int = 100, page: int = 1) -> Dict
 
     url = f"{BASE_URL}/{dataset_id}/data?api_key={API_KEY}&ROWS={rows}&PAGE={page}"
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with get_http_client(timeout=15.0) as client:
             r = await client.get(url, headers={"User-Agent": "PulsGoroda/1.0"})
             if r.status_code == 200:
                 return r.json()
@@ -158,7 +159,7 @@ async def fetch_passport(dataset_id: str) -> Dict[str, Any]:
 
     url = f"{BASE_URL}/{dataset_id}/passport?api_key={API_KEY}"
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with get_http_client(timeout=15.0) as client:
             r = await client.get(url, headers={"User-Agent": "PulsGoroda/1.0"})
             if r.status_code == 200:
                 return r.json()
