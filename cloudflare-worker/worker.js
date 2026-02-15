@@ -309,7 +309,7 @@ const MAP_HTML = `<!DOCTYPE html>
 <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"><\/script>
 <script>
 // ═══════════════════════════════════════════════════════
-// Пульс города — Карта v3: рейтинг УК, статистика overlay, новая палитра
+// Пульс города — Карта v4: новая заставка, рейтинг УК, статистика
 // ═══════════════════════════════════════════════════════
 var tg=window.Telegram&&window.Telegram.WebApp;
 if(tg){tg.ready();tg.expand();tg.BackButton.show();tg.onEvent('backButtonClicked',function(){tg.close()})}
@@ -327,44 +327,64 @@ S.textContent=\`
 }
 body{font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;
 background:var(--bg);color:var(--text);overflow:hidden;-webkit-font-smoothing:antialiased}
-#splash{position:fixed;inset:0;z-index:9999;background:#0a0e1a;
-display:flex;align-items:center;justify-content:center;transition:opacity .7s,transform .4s}
-#splash.hide{opacity:0;transform:scale(1.03);pointer-events:none}
-.splash-bg{position:absolute;inset:0;overflow:hidden}
-#pulseCanvas{width:100%;height:100%;opacity:.3}
-.splash-content{position:relative;z-index:1;text-align:center;padding:20px}
-.city-emblem{width:90px;height:90px;margin:0 auto 12px;border-radius:50%;padding:10px;
-background:#0a0e1a;box-shadow:8px 8px 16px rgba(0,0,0,.6),-8px -8px 16px rgba(255,255,255,.03);
-color:var(--accent);display:flex;align-items:center;justify-content:center;animation:emblemIn 1s ease .2s both}
-@keyframes emblemIn{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
-.emblem-svg{width:60px;height:60px}
-.splash-pulse-ring{position:relative;width:120px;height:120px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center}
-.ring{position:absolute;border-radius:50%;border:2px solid var(--accent);opacity:0}
-.r1{width:60px;height:60px;animation:rp 2.5s ease-out infinite}
-.r2{width:90px;height:90px;animation:rp 2.5s ease-out .5s infinite}
-.r3{width:120px;height:120px;animation:rp 2.5s ease-out 1s infinite}
-@keyframes rp{0%{transform:scale(.6);opacity:.7}100%{transform:scale(1.2);opacity:0}}
-.pulse-core{width:40px;height:40px;border-radius:50%;
-background:radial-gradient(circle,var(--accent),transparent 70%);
-box-shadow:0 0 20px var(--accent);animation:cp 1.5s ease-in-out infinite;transition:all .5s}
-@keyframes cp{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.12);opacity:1}}
-.pulse-core.mood-good{background:radial-gradient(circle,var(--green),transparent 70%);box-shadow:0 0 20px var(--green)}
-.pulse-core.mood-ok{background:radial-gradient(circle,var(--yellow),transparent 70%);box-shadow:0 0 20px var(--yellow)}
-.pulse-core.mood-bad{background:radial-gradient(circle,var(--red),transparent 70%);box-shadow:0 0 20px var(--red)}
-.ring.mood-good{border-color:var(--green)}.ring.mood-ok{border-color:var(--yellow)}.ring.mood-bad{border-color:var(--red)}
-.splash-title{font-size:26px;font-weight:800;text-shadow:0 2px 12px rgba(99,102,241,.3);animation:fadeUp .8s ease .4s both}
-.splash-city{font-size:9px;letter-spacing:4px;color:var(--hint);margin-top:2px;text-transform:uppercase;font-weight:600;animation:fadeUp .8s ease .6s both}
-.splash-mood{font-size:11px;color:var(--accent);margin-top:8px;font-weight:600;min-height:16px;animation:fadeUp .8s ease .8s both}
-@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.splash-stats{display:flex;justify-content:center;gap:16px;margin-top:12px}
-.ss-item{text-align:center}
-.ss-num{display:block;font-size:20px;font-weight:800;background:#0a0e1a;border-radius:10px;padding:5px 10px;
-box-shadow:5px 5px 10px rgba(0,0,0,.5),-5px -5px 10px rgba(255,255,255,.02);min-width:48px;animation:fadeUp .8s ease 1s both}
-.ss-label{font-size:7px;color:var(--hint);text-transform:uppercase;letter-spacing:1px;margin-top:2px;display:block}
-.splash-loader{margin-top:16px;animation:fadeUp .8s ease 1.2s both}
-.sl-bar{width:160px;height:3px;border-radius:2px;margin:0 auto;background:rgba(255,255,255,.06);overflow:hidden}
-.sl-fill{height:100%;width:0;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--green));transition:width .3s}
-.sl-text{font-size:8px;color:var(--hint);margin-top:4px}
+
+/* ═══ SPLASH ═══ */
+#splash{position:fixed;inset:0;z-index:9999;background:#060a14;
+display:flex;align-items:center;justify-content:center;transition:opacity .8s,transform .5s}
+#splash.hide{opacity:0;transform:scale(1.05);pointer-events:none}
+#splashCanvas{position:absolute;inset:0;width:100%;height:100%}
+.splash-content{position:relative;z-index:1;text-align:center;padding:20px;width:100%;max-width:360px}
+
+.logo-wrap{position:relative;width:140px;height:140px;margin:0 auto 8px}
+.logo-glow{position:absolute;inset:-20px;border-radius:50%;
+background:radial-gradient(circle,rgba(99,102,241,.25) 0%,transparent 70%);
+animation:glowPulse 3s ease-in-out infinite}
+@keyframes glowPulse{0%,100%{opacity:.6;transform:scale(.9)}50%{opacity:1;transform:scale(1.1)}}
+
+.logo-ring{position:absolute;inset:10px;border-radius:50%;animation:ringRotate 8s linear infinite}
+@keyframes ringRotate{to{transform:rotate(360deg)}}
+.ring-seg{position:absolute;inset:0;border-radius:50%;border:2px solid transparent}
+.ring-seg.s1{border-top-color:rgba(99,102,241,.7);border-right-color:rgba(99,102,241,.3)}
+.ring-seg.s2{border-bottom-color:rgba(16,185,129,.5);transform:rotate(120deg)}
+.ring-seg.s3{border-left-color:rgba(245,158,11,.4);transform:rotate(240deg)}
+
+.logo-core{position:absolute;inset:24px;border-radius:50%;
+background:radial-gradient(circle at 40% 35%,#1a1f3a,#0d1020);
+box-shadow:inset 0 2px 12px rgba(0,0,0,.6),0 0 30px rgba(99,102,241,.2);
+display:flex;align-items:center;justify-content:center;
+animation:coreBreathe 2.5s ease-in-out infinite}
+@keyframes coreBreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+.logo-svg{width:50px;height:50px}
+
+.ecg-wrap{width:100%;height:48px;margin:4px 0 8px;opacity:.8}
+#ecgCanvas{width:100%;height:48px;display:block}
+
+.sp-title{font-size:28px;font-weight:900;
+background:linear-gradient(135deg,#818cf8 0%,#6366f1 40%,#a78bfa 100%);
+-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+animation:titleIn .8s ease .3s both;letter-spacing:-.5px}
+@keyframes titleIn{from{opacity:0;transform:translateY(12px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+.sp-city{font-size:10px;letter-spacing:5px;color:rgba(255,255,255,.3);
+text-transform:uppercase;font-weight:700;margin-top:2px;animation:titleIn .8s ease .5s both}
+
+.sp-mood{font-size:12px;font-weight:700;margin-top:10px;min-height:18px;
+animation:titleIn .8s ease .7s both;transition:color .5s}
+
+.sp-stats{display:flex;justify-content:center;gap:14px;margin-top:14px;animation:titleIn .8s ease .9s both}
+.sp-stat{text-align:center}
+.sp-num{display:block;font-size:22px;font-weight:900;
+background:#0c1020;border-radius:12px;padding:6px 12px;min-width:52px;
+box-shadow:6px 6px 14px rgba(0,0,0,.6),-4px -4px 10px rgba(255,255,255,.02);
+font-variant-numeric:tabular-nums}
+.sp-lbl{font-size:7px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:1.5px;margin-top:3px;display:block;font-weight:600}
+
+.sp-loader{margin-top:18px;animation:titleIn .8s ease 1.1s both}
+.sp-bar{width:180px;height:3px;border-radius:2px;margin:0 auto;background:rgba(255,255,255,.06);overflow:hidden}
+.sp-fill{height:100%;width:0;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--green));transition:width .3s}
+.sp-text{font-size:8px;color:rgba(255,255,255,.25);margin-top:5px;font-weight:500}
+
+/* ═══ MAP ═══ */
 #map{position:fixed;inset:0;z-index:0}
 #topBar{position:fixed;top:0;left:0;right:0;z-index:1000;
 background:var(--surface);backdrop-filter:var(--glass);
@@ -436,7 +456,6 @@ box-shadow:0 4px 16px rgba(0,0,0,.3);animation:tin .3s ease;cursor:pointer}
 @keyframes tout{to{opacity:0;transform:translateX(-50%) translateY(-14px)}}
 @keyframes mpop{0%{transform:scale(0)}60%{transform:scale(1.3)}100%{transform:scale(1)}}
 .new-marker{animation:mpop .5s ease}
-/* ═══ Stats overlay ═══ */
 .stats-btn{position:fixed;top:4px;right:52px;z-index:1001;width:42px;height:42px;border-radius:14px;
 background:var(--surface);backdrop-filter:var(--glass);border:1px solid rgba(255,255,255,.08);
 color:var(--accentL);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;
@@ -458,7 +477,6 @@ color:var(--hint);font-size:18px;cursor:pointer}
 .so-bar-label{font-size:9px;color:var(--hint);display:flex;justify-content:space-between}
 .so-bar{height:4px;border-radius:2px;background:rgba(255,255,255,.06);margin-top:1px;overflow:hidden}
 .so-bar-fill{height:100%;border-radius:2px;transition:width .5s}
-/* ═══ UK Rating overlay ═══ */
 .uk-btn{position:fixed;top:4px;right:8px;z-index:1001;width:42px;height:42px;border-radius:14px;
 background:var(--surface);backdrop-filter:var(--glass);border:1px solid rgba(255,255,255,.08);
 color:var(--accentL);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;
@@ -478,7 +496,6 @@ color:var(--hint);font-size:18px;cursor:pointer}
 .uk-item .uk-bar{height:4px;border-radius:2px;background:rgba(255,255,255,.06);margin-top:3px;overflow:hidden}
 .uk-item .uk-bar-fill{height:100%;border-radius:2px;background:var(--red);transition:width .5s}
 .uk-item .uk-count{font-size:10px;font-weight:800;color:var(--red);float:right}
-/* ═══ FAB — oil drop with pulse ═══ */
 .fab{position:fixed;bottom:60px;right:8px;z-index:1001;width:56px;height:56px;border:none;
 cursor:pointer;display:flex;align-items:center;justify-content:center;
 background:transparent;padding:0;transition:transform .2s}
@@ -492,7 +509,6 @@ opacity:0;animation:fabPulse 2s ease-out infinite}
 opacity:0;animation:fabPulse 2s ease-out .5s infinite}
 .fab-icon{position:absolute;font-size:22px;color:#fff;font-weight:900;text-shadow:0 1px 4px rgba(0,0,0,.4)}
 @keyframes fabPulse{0%{transform:scale(.8);opacity:.6}100%{transform:scale(1.3);opacity:0}}
-/* ═══ Complaint form ═══ */
 .cf-overlay{position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
 display:none;align-items:flex-end;justify-content:center}
 .cf-overlay.show{display:flex}
@@ -521,79 +537,6 @@ font-size:11px;font-family:inherit;outline:none;transition:.2s}
 document.head.appendChild(S2);
 
 
-// ═══ Constants ═══
-var FB='https://anthropic-proxy.uiredepositionherzo.workers.dev/firebase';
-var CC={
-'Дороги':'#FF5722','ЖКХ':'#6366f1','Освещение':'#FFC107','Транспорт':'#10b981',
-'Благоустройство':'#a855f7','Экология':'#14b8a6','Животные':'#FF9800','Торговля':'#ec4899',
-'Безопасность':'#ef4444','Снег/Наледь':'#38bdf8','Медицина':'#14b8a6','Образование':'#8b5cf6',
-'Связь':'#6366f1','Строительство':'#64748b','Парковки':'#94a3b8','Прочее':'#78716c',
-'ЧП':'#dc2626','Газоснабжение':'#f97316','Водоснабжение и канализация':'#0ea5e9',
-'Отопление':'#ea580c','Бытовой мусор':'#65a30d','Лифты и подъезды':'#475569',
-'Парки и скверы':'#16a34a','Спортивные площадки':'#2563eb','Детские площадки':'#f472b6',
-'Социальная сфера':'#9333ea','Трудовое право':'#78716c'};
-var CE={
-'Дороги':'🛣️','ЖКХ':'🏠','Освещение':'💡','Транспорт':'🚌','Благоустройство':'🌳',
-'Экология':'🌿','Животные':'🐾','Торговля':'🏪','Безопасность':'🔒','Снег/Наледь':'❄️',
-'Медицина':'🏥','Образование':'🎓','Связь':'📡','Строительство':'🏗️','Парковки':'🅿️',
-'Прочее':'📌','ЧП':'🚨','Газоснабжение':'🔥','Водоснабжение и канализация':'💧',
-'Отопление':'🌡️','Бытовой мусор':'🗑️','Лифты и подъезды':'🛗','Парки и скверы':'🌲',
-'Спортивные площадки':'⚽','Детские площадки':'🎠','Социальная сфера':'👥','Трудовое право':'⚖️'};
-var SL={pending:'🟡 Новая',open:'🔴 Открыта',in_progress:'🟠 В работе',resolved:'🟢 Решена'};
-var SC={pending:'#f59e0b',open:'#ef4444',in_progress:'#f97316',resolved:'#10b981'};
-var MON_RU=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
-
-// ═══ State ═══
-var allItems=[],map=null,cluster=null,mapReady=false,knownIds=new Set();
-var filterCat=null,filterStatus=null,filterMonth=null,filterDay=null;
-var syncIv=null;
-
-// ═══ Splash ═══
-var splashCanvas=document.getElementById('pulseCanvas');
-var splashCtx,splashAnim;
-if(splashCanvas){
-  splashCanvas.width=window.innerWidth;splashCanvas.height=window.innerHeight;
-  splashCtx=splashCanvas.getContext('2d');
-  var waves=[];for(var i=0;i<5;i++)waves.push({x:splashCanvas.width/2,y:splashCanvas.height/2,r:20+i*40,speed:.3+i*.1,op:.15-i*.02});
-  var particles=[];for(var i=0;i<30;i++)particles.push({
-    x:Math.random()*splashCanvas.width,y:Math.random()*splashCanvas.height,
-    r:Math.random()*2+.5,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,op:Math.random()*.3+.1});
-  function draw(){
-    splashCtx.clearRect(0,0,splashCanvas.width,splashCanvas.height);
-    waves.forEach(function(w){w.r+=w.speed;if(w.r>Math.max(splashCanvas.width,splashCanvas.height))w.r=20;
-      splashCtx.beginPath();splashCtx.arc(w.x,w.y,w.r,0,Math.PI*2);
-      splashCtx.strokeStyle='rgba(99,102,241,'+w.op+')';splashCtx.lineWidth=1.5;splashCtx.stroke()});
-    particles.forEach(function(p){p.x+=p.vx;p.y+=p.vy;
-      if(p.x<0)p.x=splashCanvas.width;if(p.x>splashCanvas.width)p.x=0;
-      if(p.y<0)p.y=splashCanvas.height;if(p.y>splashCanvas.height)p.y=0;
-      splashCtx.beginPath();splashCtx.arc(p.x,p.y,p.r,0,Math.PI*2);
-      splashCtx.fillStyle='rgba(99,102,241,'+p.op+')';splashCtx.fill()});
-    splashAnim=requestAnimationFrame(draw)}
-  draw();
-}
-
-function analyzeMood(items){
-  var total=items.length,open=0,resolved=0;
-  items.forEach(function(c){if(c.status==='open'||c.status==='pending')open++;if(c.status==='resolved')resolved++});
-  var ratio=total?resolved/total:0;
-  var mood=ratio>.5?'good':ratio>.2?'ok':'bad';
-  var text=mood==='good'?'Город справляется':mood==='ok'?'Есть нерешённые проблемы':'Много открытых проблем';
-  return {mood:mood,text:text,total:total,open:open,resolved:resolved}
-}
-function applyMood(m){
-  var c=document.getElementById('pulseCore'),mt=document.getElementById('moodText');
-  if(c)c.className='pulse-core mood-'+m.mood;
-  document.querySelectorAll('.ring').forEach(function(r){r.className=r.className.replace(/mood-\\w+/g,'');r.classList.add('mood-'+m.mood)});
-  if(mt){mt.textContent=m.text;mt.style.color=m.mood==='good'?'var(--green)':m.mood==='bad'?'var(--red)':'var(--yellow)'}
-}
-function splashStats(m){
-  var t=document.getElementById('ssTotal'),o=document.getElementById('ssOpen'),r=document.getElementById('ssResolved');
-  if(t)t.textContent=m.total;if(o)o.textContent=m.open;if(r)r.textContent=m.resolved}
-function splashProg(p,t){var f=document.getElementById('slFill'),x=document.getElementById('slText');if(f)f.style.width=p+'%';if(x)x.textContent=t}
-function hideSplash(){var s=document.getElementById('splash');if(!s)return;if(splashAnim)cancelAnimationFrame(splashAnim);
-  s.classList.add('hide');setTimeout(function(){s.style.display='none';document.getElementById('app').style.display='block'},700)}
-
-
 // ═══ Helpers ═══
 function mkIcon(cat,isNew){
   var col=CC[cat]||'#6366f1';var e=CE[cat]||'📌';
@@ -609,14 +552,13 @@ function showToast(t){var el=document.getElementById('newToast'),tx=document.get
   setTimeout(function(){el.classList.add('hide');setTimeout(function(){el.style.display='none'},300)},3000)}
 function monthKey(d){return d.toISOString().slice(0,7)}
 
-// ═══ Day filters — year range with month/day drill-down ═══
+// ═══ Day filters ═══
 function buildDayFilters(){
   var bar=document.getElementById('dayFilters');if(!bar)return;bar.innerHTML='';
   var months={};
   allItems.forEach(function(c){var d=parseDate(c.created_at);if(d){var mk=monthKey(d);months[mk]=(months[mk]||0)+1}});
   var sorted=Object.keys(months).sort().reverse().slice(0,12).reverse();
   if(!sorted.length)return;
-  // All chip
   var all=document.createElement('span');all.className='chip day'+(filterMonth===null&&filterDay===null?' active':'');
   all.innerHTML='<span class="dn">Все</span>';
   all.onclick=function(){filterMonth=null;filterDay=null;buildDayFilters();render();drawTimeline()};
@@ -631,15 +573,13 @@ function buildDayFilters(){
       buildDayFilters();render();drawTimeline()};
     bar.appendChild(ch);
   });
-  // If month selected, show days
   if(filterMonth){
     var dayBar=document.createElement('div');dayBar.className='fp-row';dayBar.style.marginTop='2px';
     var days={};
     allItems.forEach(function(c){var d=parseDate(c.created_at);if(d&&monthKey(d)===filterMonth){var dk=dateKey(d);days[dk]=(days[dk]||0)+1}});
     var sortedDays=Object.keys(days).sort().reverse();
     sortedDays.forEach(function(dk){
-      var ch=document.createElement('span');
-      var dd=new Date(dk);
+      var ch=document.createElement('span');var dd=new Date(dk);
       ch.className='chip day'+(filterDay===dk?' active':'');
       ch.innerHTML='<span class="dn">'+dd.getDate()+'</span><span class="dd">'+days[dk]+'</span>';
       ch.onclick=function(){filterDay=filterDay===dk?null:dk;buildDayFilters();render();drawTimeline()};
@@ -649,7 +589,7 @@ function buildDayFilters(){
   }
 }
 
-// ═══ Category filters — dropdown ═══
+// ═══ Category filters ═══
 function buildCatFilters(){
   var bar=document.getElementById('catFilters');if(!bar)return;bar.innerHTML='';
   var cats={};allItems.forEach(function(c){if(c.category)cats[c.category]=(cats[c.category]||0)+1});
@@ -660,7 +600,6 @@ function buildCatFilters(){
   btn.textContent=filterCat?((CE[filterCat]||'')+' '+filterCat):'🏷️ Категория';
   var menu=document.createElement('div');
   menu.style.cssText='display:none;position:absolute;top:100%;left:0;z-index:2000;background:rgba(12,16,30,.96);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:4px 0;max-height:260px;overflow-y:auto;min-width:200px;box-shadow:0 8px 32px rgba(0,0,0,.5)';
-  // All
   var allOpt=document.createElement('div');
   allOpt.style.cssText='padding:5px 10px;font-size:10px;cursor:pointer;color:'+(filterCat?'var(--hint)':'var(--accentL)');
   allOpt.textContent='Все категории';
@@ -695,7 +634,6 @@ function buildStatusFilters(){
   });
 }
 function buildAllFilters(){buildDayFilters();buildCatFilters();buildStatusFilters()}
-
 
 // ═══ Timeline ═══
 function drawTimeline(){
@@ -753,7 +691,6 @@ function buildPopup(c,lat,lng){
   h+='<div class="desc">'+esc((c.summary||c.text||'').substring(0,200))+'</div>';
   if(c.address)h+='<div class="meta">📍 <b>'+esc(c.address)+'</b></div>';
   h+='<div class="meta">📅 '+fmtDate(c.created_at)+'</div>';
-  // Like/Dislike row
   h+='<div class="vote-row">';
   h+='<button class="vote-btn" onclick="voteComplaint(\\''+c.id+'\\',1,this)" title="Проблема решена хорошо">👍 <span id="vl_'+c.id+'">'+likes+'</span></button>';
   h+='<button class="vote-btn" onclick="voteComplaint(\\''+c.id+'\\',-1,this)" title="Проблема не решена">👎 <span id="vd_'+c.id+'">'+dislikes+'</span></button>';
@@ -786,23 +723,19 @@ function joinComplaint(id){
 }
 
 function voteComplaint(id,dir,btn){
-  // dir: 1=like, -1=dislike
   var item=allItems.find(function(c){return c.id===id});
   if(!item)return;
   if(dir===1){item.likes=(item.likes||0)+1;var el=document.getElementById('vl_'+id);if(el)el.textContent=item.likes;btn.classList.add('liked')}
   else{item.dislikes=(item.dislikes||0)+1;var el2=document.getElementById('vd_'+id);if(el2)el2.textContent=item.dislikes;btn.classList.add('disliked')}
-  // Save to Firebase
   var patch={};patch[dir===1?'likes':'dislikes']=dir===1?(item.likes||0):(item.dislikes||0);
   fetch(FB+'/complaints/'+id+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},
     body:JSON.stringify(patch)}).catch(function(){});
-  // Update UK rating
   buildUkRating();
   showToast(dir===1?'👍 Спасибо за оценку!':'👎 Учтено в рейтинге');
   try{tg&&tg.HapticFeedback&&tg.HapticFeedback.impactOccurred('light')}catch(e){}
 }
 
-
-// ═══ Stats overlay (realtime) ═══
+// ═══ Stats overlay ═══
 function buildStatsOverlay(){
   var ov=document.getElementById('statsOverlay');if(!ov)return;
   var total=allItems.length,open=0,pending=0,resolved=0,inProgress=0;
@@ -826,7 +759,6 @@ function buildStatsOverlay(){
   html+='<div class="so-row"><span class="so-label">📅 За неделю</span><span class="so-val">'+weekly+'</span></div>';
   html+='<div class="so-row"><span class="so-label">📅 За месяц</span><span class="so-val">'+monthly+'</span></div>';
   if(total)html+='<div class="so-row"><span class="so-label">✅ Решено %</span><span class="so-val" style="color:var(--green)">'+Math.round(resolved/total*100)+'%</span></div>';
-  // Top categories
   html+='<div class="so-section"><h4>Топ категорий</h4>';
   var topCats=Object.entries(cats).sort(function(a,b){return b[1]-a[1]}).slice(0,8);
   var maxCat=topCats.length?topCats[0][1]:1;
@@ -835,7 +767,6 @@ function buildStatsOverlay(){
     html+='<div class="so-bar"><div class="so-bar-fill" style="width:'+Math.round(e[1]/maxCat*100)+'%;background:'+(CC[e[0]]||'var(--accent)')+'"></div></div></div>';
   });
   html+='</div>';
-  // Sources
   html+='<div class="so-section"><h4>Источники</h4>';
   Object.entries(sources).sort(function(a,b){return b[1]-a[1]}).slice(0,6).forEach(function(e){
     html+='<div class="so-row"><span class="so-label">'+esc(e[0])+'</span><span class="so-val">'+e[1]+'</span></div>';
@@ -844,7 +775,7 @@ function buildStatsOverlay(){
   ov.innerHTML='<button class="so-close" onclick="document.getElementById(\\'statsOverlay\\').classList.remove(\\'open\\')">&times;</button>'+html;
 }
 
-// ═══ UK competence categories (only these count for UK rating) ═══
+// ═══ UK Rating ═══
 var UK_CATS=['ЖКХ','Отопление','Водоснабжение и канализация','Газоснабжение','Лифты и подъезды','Бытовой мусор','Освещение'];
 var ADMIN_CATS=['Дороги','Благоустройство','Транспорт','Экология','Снег/Наледь','Парковки','Строительство','Парки и скверы','Спортивные площадки','Детские площадки','Безопасность','ЧП'];
 var allUkData=null;
@@ -853,10 +784,7 @@ function loadUkOpendata(){
   if(allUkData)return Promise.resolve(allUkData);
   return fetch(FB+'/opendata_infographic.json',{signal:AbortSignal.timeout(6000)})
     .then(function(r){return r.json()})
-    .then(function(d){
-      if(d&&d.uk&&d.uk.top){
-        allUkData=d.uk;return allUkData}
-      return null})
+    .then(function(d){if(d&&d.uk&&d.uk.top){allUkData=d.uk;return allUkData}return null})
     .catch(function(){return null});
 }
 
@@ -878,7 +806,6 @@ function sendAnonEmail(ukName,ukEmail){
 function legalAnalysis(ukName){
   var desc=prompt('Опишите проблему для юридического анализа ('+ukName+'):');
   if(!desc||!desc.trim())return;
-  var msg='/legal '+ukName+': '+desc;
   var url='https://t.me/pulsenvbot?start=legal_'+encodeURIComponent(ukName.substring(0,30));
   window.open(url,'_blank');
   showToast('⚖️ Откройте бот @pulsenvbot и отправьте описание проблемы');
@@ -892,7 +819,6 @@ function ukDetails(idx){
 // ═══ UK Rating overlay ═══
 function buildUkRating(){
   var ov=document.getElementById('ukOverlay');if(!ov)return;
-  // Count only UK-competence complaints per UK
   var ukStats={},adminStats={total:0,open:0,resolved:0,likes:0,dislikes:0};
   allItems.forEach(function(c){
     var isUkCat=UK_CATS.indexOf(c.category)>=0;
@@ -910,7 +836,6 @@ function buildUkRating(){
   var maxUk=sorted.length?sorted[0][1].total:1;
   var html='<h3>🏢 Рейтинг УК</h3>';
   html+='<div style="font-size:9px;color:var(--hint);margin-bottom:4px">Только жалобы по компетенции УК (ЖКХ, отопление, вода, газ, лифты, мусор, свет)</div>';
-  // Admin rating
   var apct=adminStats.total?Math.round(adminStats.resolved/adminStats.total*100):0;
   html+='<div class="uk-item" style="background:rgba(99,102,241,.08);border-radius:10px;padding:8px;margin-bottom:8px">';
   html+='<div style="display:flex;justify-content:space-between;align-items:center">';
@@ -939,12 +864,10 @@ function buildUkRating(){
     html+='<div id="ukDet_'+i+'" style="display:none;margin-top:4px;padding:4px 6px;background:rgba(255,255,255,.03);border-radius:6px;font-size:9px;color:var(--hint)">Загрузка...</div>';
     html+='</div>';
   });
-  // Load all 42 UKs from opendata
   loadUkOpendata().then(function(ukOd){
     if(!ukOd||!ukOd.top)return;
     var existing=new Set(sorted.map(function(e){return e[0]}));
     var allUks=ukOd.top||[];
-    // Fill details for UKs with complaints
     sorted.forEach(function(e,i){
       var det=document.getElementById('ukDet_'+i);
       if(!det)return;
@@ -973,8 +896,7 @@ function buildUkRating(){
       extra+='<div style="display:flex;gap:8px;margin-top:2px;flex-wrap:wrap">';
       if(u.email)extra+='<span onclick="sendAnonEmail(\\''+esc(u.name).replace(/'/g,"\\\\'")+'\\',\\''+u.email+'\\')" style="font-size:9px;color:var(--accentL);cursor:pointer;text-decoration:underline">✉️ Написать</span>';
       extra+='<span onclick="legalAnalysis(\\''+esc(u.name).replace(/'/g,"\\\\'")+'\\')\\" style="font-size:9px;color:var(--yellow);cursor:pointer;text-decoration:underline">⚖️ Юр. анализ</span>';
-      extra+='</div>';
-      extra+='</div>';
+      extra+='</div></div>';
     });
     var container=document.getElementById('ukExtraList');
     if(container)container.innerHTML=extra;
@@ -983,7 +905,6 @@ function buildUkRating(){
   if(!sorted.length&&!allUkData)html+='<div style="font-size:11px;color:var(--hint);padding:20px 0;text-align:center">Загрузка данных УК...</div>';
   ov.innerHTML='<button class="uk-close" onclick="document.getElementById(\\'ukOverlay\\').classList.remove(\\'open\\')">&times;</button>'+html;
 }
-
 
 // ═══ Data + Realtime ═══
 async function loadFB(){
@@ -1008,7 +929,6 @@ function startSync(){if(syncIv)return;
 function initMap(){
   map=L.map('map',{zoomControl:false}).setView([60.9344,76.5531],13);
   L.control.zoom({position:'topright'}).addTo(map);
-  // Shortbread vector tiles via OpenFreeMap (OpenStreetMap)
   L.maplibreGL({
     style:'https://tiles.openfreemap.org/styles/positron',
     attribution:'© OpenStreetMap contributors',
@@ -1047,15 +967,13 @@ loadData();
   var ukOv=document.getElementById('ukOverlay');
   if(statsBtn&&statsOv){
     statsBtn.onclick=function(){
-      buildStatsOverlay();
-      statsOv.classList.toggle('open');
+      buildStatsOverlay();statsOv.classList.toggle('open');
       if(ukOv)ukOv.classList.remove('open');
     };
   }
   if(ukBtn&&ukOv){
     ukBtn.onclick=function(){
-      buildUkRating();
-      ukOv.classList.toggle('open');
+      buildUkRating();ukOv.classList.toggle('open');
       if(statsOv)statsOv.classList.remove('open');
     };
   }
