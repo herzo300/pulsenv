@@ -1,6 +1,6 @@
-"""Auth monitoring session — request new code"""
-import asyncio, os, sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+#!/usr/bin/env python3
+"""Auth monitoring session - waits for code in _tg_code.txt"""
+import asyncio, os, time
 from dotenv import load_dotenv
 load_dotenv()
 from telethon import TelegramClient

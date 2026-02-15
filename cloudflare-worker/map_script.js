@@ -56,6 +56,7 @@ box-shadow:5px 5px 10px rgba(0,0,0,.5),-5px -5px 10px rgba(255,255,255,.02);min-
 .sl-fill{height:100%;width:0;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--green));transition:width .3s}
 .sl-text{font-size:8px;color:var(--hint);margin-top:4px}
 #map{position:fixed;inset:0;z-index:0}
+.maplibregl-canvas{filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(1.1)}
 #topBar{position:fixed;top:0;left:0;right:0;z-index:1000;
 background:var(--surface);backdrop-filter:var(--glass);
 border-bottom:1px solid rgba(255,255,255,.05);padding:5px 10px;display:flex;align-items:center;gap:8px}
@@ -662,9 +663,12 @@ function startSync(){if(syncIv)return;
 function initMap(){
   map=L.map('map',{zoomControl:false}).setView([60.9344,76.5531],13);
   L.control.zoom({position:'topright'}).addTo(map);
-  // Dark tile layer — new color scheme
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-    attribution:'© OSM © CARTO',maxZoom:19,subdomains:'abcd'}).addTo(map);
+  // Shortbread vector tiles via OpenFreeMap (OpenStreetMap)
+  L.maplibreGL({
+    style:'https://tiles.openfreemap.org/styles/positron',
+    attribution:'© OpenStreetMap contributors',
+    pane:'tilePane'
+  }).addTo(map);
   cluster=L.markerClusterGroup({maxClusterRadius:50,showCoverageOnHover:false,zoomToBoundsOnClick:true,spiderfyOnMaxZoom:true,
     iconCreateFunction:function(c){var n=c.getChildCount(),s=n<10?30:n<50?38:46;
       return L.divIcon({html:'<div style="width:'+s+'px;height:'+s+'px;border-radius:50%;background:rgba(99,102,241,.85);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;border:2px solid rgba(255,255,255,.3);box-shadow:0 2px 10px rgba(99,102,241,.4)">'+n+'</div>',className:'',iconSize:[s,s]})}});
