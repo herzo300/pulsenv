@@ -11,7 +11,11 @@ from telethon.tl.custom import Session
 
 from .nvd_service import get_vulnerabilities, parse_nvd_response
 from .cache_service import get_categories_cached, invalidate_categories_cache
-from .complaint_service import ComplaintService
+
+try:
+    from .complaint_service import ComplaintService
+except ImportError:
+    ComplaintService = None  # опциональная зависимость
 
 
 class TelegramMonitor:
@@ -34,7 +38,7 @@ class TelegramMonitor:
         self.client: Optional[TelegramClient] = None
         self.is_connected = False
         self.monitored_messages: List[Dict[str, Any]] = []
-        self.complaint_service: ComplaintService()
+        self.complaint_service: Optional[Any] = None
         self.statistics = {
             "total_parsed": 0,
             "by_category": {},
@@ -45,7 +49,8 @@ class TelegramMonitor:
     
     async def start(self):
         """Запустить мониторинг каналов"""
-        self.complaint_service = ComplaintService()
+        if ComplaintService is not None:
+            self.complaint_service = ComplaintService()
         
         session_name = "soobshio_monitor"
         
@@ -94,7 +99,7 @@ class TelegramMonitor:
             print(f"❌ Ошибка получения ID чата {channel}: {e}")
             return None
     
-    def parse_message(self, message: types.Message) -> Optional[Dict[str, Any]]:
+    async def parse_message(self, message: types.Message) -> Optional[Dict[str, Any]]:
         """
         Парсинг сообщения для извлечения данных
         Извлекает:
@@ -170,36 +175,57 @@ class TelegramMonitor:
                 
                 if result["vulnerabilities"]:
                     result["has_vulnerabilities"] = True
+            except Exception as e:
+                # Не ломаем парсинг сообщения из‑за ошибок CVE-сервиса
+                print(f"⚠️ Ошибка получения уязвимостей: {e}")
             
         return result
     
+    async def parse_text(self, text: str, message_id: int = 0, channel: str = "") -> Dict[str, Any]:
+        """Парсинг только по тексту (без объекта Message). Возвращает структуру как parse_message."""
+        if not text or not text.strip():
+            return {"category": "Прочее", "category_confidence": "low", "text": "", "message_id": message_id}
+        text_lower = text.lower()
+        result = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "source": "telegram",
+            "channel": channel,
+            "message_id": message_id,
+            "text": text,
+            "has_media": False,
+        }
+        category_keywords = {
+            "Дороги": ["яма", "ямы", "дорога", "светофор", "дорожный"],
+            "Освещение": ["нет света", "свет", "лампа", "фонарь", "освещение", "горит", "отключили"],
+            "ЖКХ": ["мусор", "свалка", "контейнер", "уборка", "жкх", "вода", "трубы", "канализация"],
+            "Транспорт": ["автобус", "маршрут", "трамвай", "остановка", "парковка", "метро"],
+        }
+        detected = None
+        for category, keywords in category_keywords.items():
+            if any(kw in text_lower for kw in keywords):
+                detected = category
+                break
+        result["category"] = detected or "Прочее"
+        result["category_confidence"] = "high" if detected else "low"
+        result["photos"] = []
+        result["vulnerabilities"] = []
+        result["has_vulnerabilities"] = False
+        return result
+
     async def post_message_to_channel(self, channel: str, text: str, photo: Optional[str] = None) -> bool:
         """
-        Отправить сообщение в канал (создание жалобы в БД)
+        Отправить сообщение в канал (опционально создать жалобу в БД через ComplaintService).
         """
         if not self.client or not self.is_connected:
             print("❌ Telegram клиент не подключен")
             return False
-        
+
         try:
-            # Создать жалобу в БД через сервис
-            # Для тестирования создаем без Telegram бота
-            complaint_data = {
-                "title": text[:100] if len(text) > 100 else text,
-                "description": text,
-                "latitude": None,
-                "longitude": None,
-                "category": "Прочее",
-                "status": "open",
-                "source": "telegram_monitoring",
-            }
-            
-            # Парсинг и создание
-            parsed = self.parse_message(message)
-            
-            if parsed["category"] != "Прочее" and parsed["category_confidence"] == "high":
+            parsed = await self.parse_text(text, message_id=0, channel=channel)
+
+            if self.complaint_service is not None and parsed["category"] != "Прочее" and parsed["category_confidence"] == "high":
                 try:
-                    if self.complaint_service.db:
+                    if getattr(self.complaint_service, "db", None):
                         complaint = await self.complaint_service.create_complaint(
                             db=self.complaint_service.db,
                             title=parsed["text"][:100] if len(parsed["text"]) > 100 else parsed["text"],
@@ -214,27 +240,14 @@ class TelegramMonitor:
                             self.statistics["created_complaints"] += 1
                             self.statistics["total_parsed"] += 1
                             print(f"✅ Жалоба создана из {channel}: {parsed['text'][:50]}")
-                            
-                            # Отправляем уведомление в канал
-                            # (будет работать когда добавим бот токен)
-                            pass
                 except Exception as e:
                     print(f"❌ Ошибка создания жалобы: {e}")
-            
-            # Отправляем сообщение в канал
-            try:
-                if photo:
-                    await self.client.send_message(
-                        channel,
-                        text,
-                        file=photo
-                    )
-                else:
-                    await self.client.send_message(
-                        channel,
-                        text
-                    )
-            
+
+            if photo:
+                await self.client.send_message(channel, text, file=photo)
+            else:
+                await self.client.send_message(channel, text)
+
             self.statistics["total_parsed"] += 1
             print(f"✅ Сообщение отправлено в канал {channel}: {text[:50]}")
             return True

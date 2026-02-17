@@ -1,5 +1,5 @@
 # services/zai_vision_service.py
-"""Анализ изображений: Z.AI GLM-4.7V (основной) → Anthropic Vision → text fallback"""
+"""Анализ изображений: OpenRouter (qwen 3.5 plus) → text fallback"""
 
 import os
 import base64
@@ -10,13 +10,21 @@ from typing import Dict, Any, Optional
 import httpx
 from core.http_client import get_http_client
 from dotenv import load_dotenv
+from services.ai_cache import get_cached_image, set_cached_image
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-ZAI_API_KEY = os.getenv('ZAI_API_KEY', '')
-ZAI_BASE = "https://api.z.ai/api/paas/v4"
-ZAI_VISION_MODEL = "GLM-4.7V"
+# OpenRouter для анализа изображений
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_BASE = "https://openrouter.ai/api/v1"
+# qwen 3.5 plus для анализа изображений
+OPENROUTER_VISION_MODEL = os.getenv("OPENROUTER_VISION_MODEL", "qwen/qwen-vl-plus")
+
+if OPENROUTER_API_KEY:
+    print(f"[OK] OpenRouter vision initialized (model: {OPENROUTER_VISION_MODEL})")
+else:
+    print("[WARN] OPENROUTER_API_KEY не задан — анализ изображений будет использовать text fallback")
 
 CATEGORIES = [
     "Дороги", "ЖКХ", "Освещение", "Транспорт", "Благоустройство",
@@ -97,19 +105,26 @@ def _normalize_vision_result(result: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-async def _zai_vision(image_b64: str, media_type: str, caption: str = "") -> Dict[str, Any] | None:
-    """Анализ через Z.AI GLM-4.7V (vision-модель)"""
-    if not ZAI_API_KEY:
+async def _openrouter_vision(image_b64: str, media_type: str, caption: str = "") -> Dict[str, Any] | None:
+    """Анализ через OpenRouter (qwen 3.5 plus для изображений) с кэшированием"""
+    if not OPENROUTER_API_KEY:
         return None
+    
+    # Проверяем кэш
+    cached = get_cached_image(image_b64, caption, OPENROUTER_VISION_MODEL)
+    if cached:
+        logger.debug(f"✅ Using cached result for image analysis")
+        return cached
+    
     prompt = VISION_PROMPT
     if caption:
         prompt += f"\nДополнительно: {caption}"
     try:
-        async with get_http_client(timeout=60.0) as client:
+        async with get_http_client(timeout=60.0, proxy=None) as client:
             r = await client.post(
-                f"{ZAI_BASE}/chat/completions",
+                f"{OPENROUTER_BASE}/chat/completions",
                 json={
-                    "model": ZAI_VISION_MODEL,
+                    "model": OPENROUTER_VISION_MODEL,
                     "messages": [{
                         "role": "user",
                         "content": [
@@ -119,71 +134,41 @@ async def _zai_vision(image_b64: str, media_type: str, caption: str = "") -> Dic
                             }},
                         ],
                     }],
-                    "max_tokens": 1024,
+                    "max_tokens": 2048,
                 },
                 headers={
-                    "Authorization": f"Bearer {ZAI_API_KEY}",
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
                     "Content-Type": "application/json",
+                    "HTTP-Referer": "https://github.com/soobshio/soobshio",
+                    "X-Title": "Soobshio Image Analyzer",
                 },
             )
         if r.status_code != 200:
-            logger.error(f"Z.AI vision error: {r.status_code} {r.text[:200]}")
+            logger.error(f"OpenRouter vision error: {r.status_code} {r.text[:200]}")
             return None
-        msg = r.json()["choices"][0]["message"]
+        d = r.json()
+        msg = d.get("choices", [{}])[0].get("message", {})
         content = msg.get("content", "")
         if not content:
+            logger.warning("OpenRouter vision: empty content")
             return None
         result = _parse_json(content)
         if result:
-            logger.info(f"✅ Z.AI vision [{ZAI_VISION_MODEL}]: {result.get('category')}")
-            return _normalize_vision_result(result)
+            normalized = _normalize_vision_result(result)
+            logger.info(f"✅ OpenRouter vision [{OPENROUTER_VISION_MODEL}]: {normalized.get('category')}")
+            # Сохраняем в кэш
+            set_cached_image(image_b64, normalized, caption, OPENROUTER_VISION_MODEL)
+            return normalized
+        logger.warning(f"OpenRouter vision: failed to parse JSON from: {content[:200]}")
     except Exception as e:
-        logger.error(f"Z.AI vision error: {e}")
-    return None
-
-
-async def _anthropic_vision(image_b64: str, media_type: str, caption: str = "") -> Dict[str, Any] | None:
-    """Анализ через Anthropic Claude Vision"""
-    try:
-        from anthropic import Anthropic
-        key = os.getenv('ANTHROPIC_API_KEY')
-        if not key:
-            return None
-        kwargs = {"api_key": key}
-        base_url = os.getenv('ANTHROPIC_BASE_URL', '')
-        if base_url:
-            kwargs["base_url"] = base_url
-        client = Anthropic(**kwargs)
-        prompt = VISION_PROMPT
-        if caption:
-            prompt += f"\nДополнительно: {caption}"
-        response = client.messages.create(
-            model="claude-3-haiku-20240307",
-            max_tokens=500,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "image", "source": {
-                        "type": "base64", "media_type": media_type, "data": image_b64,
-                    }},
-                    {"type": "text", "text": prompt},
-                ],
-            }],
-        )
-        content = response.content[0].text.strip()
-        result = _parse_json(content)
-        if result:
-            logger.info(f"✅ Anthropic vision: {result.get('category')}")
-            return _normalize_vision_result(result)
-    except Exception as e:
-        logger.error(f"Anthropic vision error: {e}")
+        logger.error(f"OpenRouter vision error: {e}")
     return None
 
 
 async def analyze_image_with_glm4v(
     image_path: str, caption: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Анализ изображения: EXIF GPS + Z.AI Vision → Anthropic → text fallback"""
+    """Анализ изображения: EXIF GPS + OpenRouter Vision (qwen 3.5 plus) → text fallback"""
     # Извлекаем GPS из EXIF
     exif_coords = None
     try:
@@ -203,23 +188,15 @@ async def analyze_image_with_glm4v(
             result["exif_lat"], result["exif_lon"] = exif_coords
         return result
 
-    # 1. Z.AI Vision
-    result = await _zai_vision(image_b64, media_type, caption or "")
+    # 1. OpenRouter Vision (qwen 3.5 plus)
+    result = await _openrouter_vision(image_b64, media_type, caption or "")
     if result:
-        result["provider"] = "z.ai"
+        result["provider"] = f"openrouter:{OPENROUTER_VISION_MODEL}"
         if exif_coords:
             result["exif_lat"], result["exif_lon"] = exif_coords
         return result
 
-    # 2. Anthropic Vision
-    result = await _anthropic_vision(image_b64, media_type, caption or "")
-    if result:
-        result["provider"] = "anthropic"
-        if exif_coords:
-            result["exif_lat"], result["exif_lon"] = exif_coords
-        return result
-
-    # 3. Text fallback (анализируем caption)
+    # 2. Text fallback (анализируем caption)
     if caption:
         from services.zai_service import analyze_complaint
         r = await analyze_complaint(caption)

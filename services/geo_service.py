@@ -1,20 +1,30 @@
 # services/geo_service.py
+import asyncio
 import re
+from typing import Optional, Tuple
+
 import httpx
 from core.http_client import get_http_client
-from typing import Optional, Tuple
-import asyncio
+
+# Nominatim часто блокирует прокси или даёт таймауты — по умолчанию без прокси
+GEO_USE_PROXY = False
+GEO_MAX_RETRIES = 2
+GEO_RETRY_DELAY = 0.5
 
 _client: Optional[httpx.AsyncClient] = None
 
+
 def get_client():
-    """Singleton HTTP client for geo requests with SOCKS5 proxy"""
+    """HTTP-клиент для геозапросов (Nominatim). По умолчанию без прокси для стабильности."""
     global _client
     if _client is None:
-        _client = get_http_client(
-            timeout=30.0,
-            limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
-        )
+        kwargs = {
+            "timeout": 15.0,
+            "limits": httpx.Limits(max_connections=20, max_keepalive_connections=5),
+        }
+        if not GEO_USE_PROXY:
+            kwargs["proxy"] = None
+        _client = get_http_client(**kwargs)
     return _client
 
 # Кэш для геокодинга (адрес -> координаты)
@@ -193,25 +203,36 @@ async def get_coordinates(address: str) -> Optional[Tuple[float, float]]:
             "https://nominatim.openstreetmap.org/search"
             f"?q={quote(full_address)}&format=json&limit=1"
         )
-        
-        resp = await client.get(url, headers=headers)
-        resp.raise_for_status()
-        data = resp.json()
-        
-        if not data:
-            return None
-        
-        lat = float(data[0]["lat"])
-        lon = float(data[0]["lon"])
-        
-        # Сохраняем в кэш
-        _geo_cache[cache_key] = (lat, lon)
-        
-        return lat, lon
-        
-    except Exception as e:
-        print(f"Geo error: {e}")
+
+        last_error = None
+        for attempt in range(GEO_MAX_RETRIES + 1):
+            try:
+                resp = await client.get(url, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+                if not data:
+                    return None
+                lat = float(data[0]["lat"])
+                lon = float(data[0]["lon"])
+                _geo_cache[cache_key] = (lat, lon)
+                return lat, lon
+            except (httpx.TimeoutException, httpx.ConnectError) as e:
+                last_error = e
+                if attempt < GEO_MAX_RETRIES:
+                    await asyncio.sleep(GEO_RETRY_DELAY * (attempt + 1))
+                    continue
+                break
+            except Exception as e:
+                last_error = e
+                break
+
+        if last_error:
+            print(f"Geo error: {last_error}")
         return None
+    except Exception as e:
+        print(f"Geo error (outer): {e}")
+        return None
+
 
 def make_street_view_url(lat: float, lon: float) -> str:
     """
@@ -247,6 +268,12 @@ async def reverse_geocode(lat: float, lon: float) -> Optional[str]:
     except Exception as e:
         print(f"Reverse geo error: {e}")
         return None
+
+
+def close_geo_client():
+    """Сбросить глобальный HTTP-клиент (следующий get_client() создаст новый)."""
+    global _client
+    _client = None
 
 # Для обратной совместимости с синхронным кодом
 def get_coordinates_sync(address: str) -> Optional[Tuple[float, float]]:

@@ -4,32 +4,59 @@ Telegram Bot «Пульс города — Нижневартовск»
 AI анализ текста/фото, УК/администрация, email, юр. анализ + письма.
 Первая жалоба бесплатно, далее 50 Stars.
 """
-import os, sys, asyncio, json, logging, tempfile, time
-import httpx
-from core.http_client import get_http_client
+import os
+import sys
+import asyncio
+import json
+import logging
+import tempfile
+import time
+from datetime import datetime
+from typing import Optional
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from dotenv import load_dotenv; load_dotenv()
+from dotenv import load_dotenv
+load_dotenv()
+
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.types import (
     ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton,
     BotCommand, BotCommandScopeDefault, WebAppInfo, LabeledPrice, PreCheckoutQuery,
+    BufferedInputFile,
 )
 from sqlalchemy.orm import Session
+
+# Импорты сервисов
 from services.geo_service import get_coordinates, geoparse
 from services.zai_vision_service import analyze_image_with_glm4v
 from services.realtime_guard import RealtimeGuard
 from services.firebase_service import push_complaint as firebase_push
 from services.uk_service import find_uk_by_address, find_uk_by_coords
 from services.zai_service import analyze_complaint
+from services.admin_panel import (
+    is_admin, get_stats, get_firebase_stats, format_stats_message,
+    get_recent_reports, format_report_message, get_bot_status,
+    toggle_monitoring, is_monitoring_enabled, export_stats_csv, clear_old_reports
+)
+from services.rate_limiter import check_rate_limit, get_rate_limit_info
 from backend.database import SessionLocal
 from backend.models import Report, User
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.getenv("TG_BOT_TOKEN", "")
-CF_WORKER = "https://anthropic-proxy.uiredepositionherzo.workers.dev"
+# Импорт конфигурации из централизованного модуля
+from core.config import (
+    TG_BOT_TOKEN as BOT_TOKEN,
+    CF_WORKER,
+    ADMIN_TELEGRAM_IDS,
+    RATE_LIMIT_COMPLAINT,
+    RATE_LIMIT_ADMIN,
+    RATE_LIMIT_GENERAL,
+)
+
+# Константы приложения
 ADMIN_EMAIL = "nvartovsk@n-vartovsk.ru"
 ADMIN_NAME = "Администрация г. Нижневартовска"
 ADMIN_PHONE = "8 (3466) 24-15-01"
@@ -126,9 +153,10 @@ async def _find_uk(lat, lon, address):
     return None
 
 def main_kb():
+    """Главное меню бота - только Профиль и Вход"""
     return ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text="📝 Новая жалоба"), KeyboardButton(text="🗺️ Карта")],
-        [KeyboardButton(text="📊 Инфографика"), KeyboardButton(text="👤 Профиль")],
+        [KeyboardButton(text="👤 Профиль")],
+        [KeyboardButton(text="🚪 Вход")],
     ], resize_keyboard=True)
 
 def categories_kb():
@@ -205,21 +233,12 @@ async def _notify_subscribers(report):
 # ═══ COMMANDS ═══
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    buttons = [
-        [InlineKeyboardButton(text="📊 Инфографика", web_app=WebAppInfo(url=f"{CF_WORKER}/info?v={int(time.time())}"))],
-        [InlineKeyboardButton(text="🗺️ Карта", web_app=WebAppInfo(url=f"{CF_WORKER}/map?v={int(time.time())}"))],
-    ]
+    """Команда /start - приветствие с минимальным меню"""
     await message.answer(
         "🏙️ *Пульс города — Нижневартовск*\n\n"
-        "AI мониторинг городских проблем.\n"
-        "8 TG-каналов + 8 VK-пабликов.\n\n"
-        "📝 Отправьте текст или фото — создам жалобу\n"
-        "🗺️ Карта — проблемы + рейтинг УК\n"
-        "📊 Инфографика — бюджет, статистика\n\n"
-        "Первая жалоба — бесплатно, далее 50 ⭐",
+        "Добро пожаловать! Выберите действие:",
         parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-    await message.answer("Меню:", reply_markup=main_kb())
+        reply_markup=main_kb())
 
 @dp.message(Command("help"))
 async def cmd_help(message: types.Message):
@@ -239,8 +258,21 @@ async def cmd_help(message: types.Message):
 
 @dp.message(Command("map"))
 async def cmd_map(message: types.Message):
+    """Команда /map - открывает карту (требует авторизации)"""
+    uid = message.from_user.id
+    
+    # Проверка авторизации
+    if not user_sessions.get(uid, {}).get("authorized"):
+        await message.answer(
+            "🔒 Для доступа к карте необходимо войти.\n"
+            "Нажмите кнопку '🚪 Вход' в меню.",
+            reply_markup=main_kb()
+        )
+        return
+    
+    version = int(time.time())
     buttons = [
-        [InlineKeyboardButton(text="🗺️ Открыть карту", web_app=WebAppInfo(url=f"{CF_WORKER}/map?v={int(time.time())}"))],
+        [InlineKeyboardButton(text="🗺️ Открыть карту", web_app=WebAppInfo(url=f"{CF_WORKER}/app?v={version}"))],
         [InlineKeyboardButton(text="🌍 OpenStreetMap", url="https://www.openstreetmap.org/#map=13/60.9344/76.5531")],
     ]
     await message.answer("🗺️ *Карта проблем*\n\nЖалобы, рейтинг 42 УК, фильтры.",
@@ -248,7 +280,22 @@ async def cmd_map(message: types.Message):
 
 @dp.message(Command("info"))
 async def cmd_info(message: types.Message):
-    buttons = [[InlineKeyboardButton(text="📊 Инфографика", web_app=WebAppInfo(url=f"{CF_WORKER}/info?v={int(time.time())}"))]]
+    """Команда /info - открывает инфографику (требует авторизации)"""
+    uid = message.from_user.id
+    
+    # Проверка авторизации
+    if not user_sessions.get(uid, {}).get("authorized"):
+        await message.answer(
+            "🔒 Для доступа к инфографике необходимо войти.\n"
+            "Нажмите кнопку '🚪 Вход' в меню.",
+            reply_markup=main_kb()
+        )
+        return
+    
+    version = int(time.time())
+    buttons = [
+        [InlineKeyboardButton(text="📊 Инфографика", web_app=WebAppInfo(url=f"{CF_WORKER}/info?v={version}"))],
+    ]
     await message.answer("📊 *Инфографика Нижневартовска*\n\n72 датасета: бюджет, ЖКХ, транспорт, образование.",
         parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
 
@@ -281,8 +328,33 @@ async def cmd_profile(message: types.Message):
                              reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
     finally: db.close()
 
+@dp.callback_query(F.data == "new_complaint")
+async def cb_new_complaint(callback: types.CallbackQuery):
+    """Обработчик создания новой жалобы через кнопку"""
+    await callback.answer()
+    await cmd_new(callback.message)
+
 @dp.message(Command("new"))
 async def cmd_new(message: types.Message):
+    """Создание новой жалобы - требует авторизации"""
+    uid = message.from_user.id
+    
+    # Проверка авторизации
+    if not user_sessions.get(uid, {}).get("authorized"):
+        await message.answer(
+            "🔒 Для создания жалобы необходимо войти.\n"
+            "Нажмите кнопку '🚪 Вход' в меню.",
+            reply_markup=main_kb()
+        )
+        return
+    
+    # Rate limiting
+    if not check_rate_limit(uid, "complaint"):
+        await message.answer(
+            "⏳ Слишком много запросов. Пожалуйста, подождите немного перед созданием новой жалобы.",
+            reply_markup=main_kb()
+        )
+        return
     user_sessions[message.from_user.id] = {"state": "waiting_complaint"}
     await message.answer("📝 *Новая жалоба*\n\nОтправьте текст или фото.\nAI определит категорию, адрес и УК.\n/cancel — отмена",
         parse_mode="Markdown")
@@ -291,6 +363,332 @@ async def cmd_new(message: types.Message):
 async def cmd_cancel(message: types.Message):
     user_sessions.pop(message.from_user.id, None)
     await message.answer("❌ Отменено.", reply_markup=main_kb())
+
+@dp.message(Command("admin"))
+async def cmd_admin(message: types.Message):
+    """Админ-панель — доступ только для администраторов"""
+    uid = message.from_user.id
+    
+    if not is_admin(uid):
+        await message.answer("❌ Доступ запрещён. Эта команда доступна только администраторам.")
+        return
+    
+    # Rate limiting для админов (более мягкий)
+    if not check_rate_limit(uid, "admin"):
+        await message.answer("⏳ Слишком много запросов. Пожалуйста, подождите немного.")
+        return
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📊 Статистика", callback_data="admin:stats")],
+        [InlineKeyboardButton(text="📋 Последние жалобы", callback_data="admin:reports")],
+        [InlineKeyboardButton(text="⚙️ Управление ботом", callback_data="admin:control")],
+        [InlineKeyboardButton(text="📤 Экспорт данных", callback_data="admin:export")],
+        [InlineKeyboardButton(text="🗑️ Очистка данных", callback_data="admin:cleanup")],
+    ])
+    
+    await message.answer(
+        "🔐 *Админ-панель*\n\n"
+        "Выберите действие:",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+
+@dp.callback_query(F.data == "admin:stats")
+async def cb_admin_stats(callback: types.CallbackQuery):
+    """Показать статистику"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён", show_alert=True)
+        return
+    
+    db = _db()
+    try:
+        stats = get_stats(db)
+        firebase_stats = await get_firebase_stats()
+        msg = format_stats_message(stats, firebase_stats)
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:stats")],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")],
+        ])
+        
+        await callback.message.edit_text(msg, reply_markup=keyboard, parse_mode="Markdown")
+    finally:
+        db.close()
+    
+    await callback.answer()
+
+@dp.callback_query(F.data == "admin:reports")
+async def cb_admin_reports(callback: types.CallbackQuery):
+    """Показать последние жалобы"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён", show_alert=True)
+        return
+    
+    db = _db()
+    try:
+        reports = get_recent_reports(db, limit=10)
+        
+        if not reports:
+            await callback.message.edit_text(
+                "📋 *Последние жалобы*\n\nЖалоб пока нет.",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")]
+                ]),
+                parse_mode="Markdown"
+            )
+            await callback.answer()
+            return
+        
+        # Показываем первую жалобу с навигацией
+        report = reports[0]
+        msg = format_report_message(report)
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="◀️", callback_data=f"admin:report:0"),
+                InlineKeyboardButton(text=f"1/{len(reports)}", callback_data="admin:report:info"),
+                InlineKeyboardButton(text="▶️", callback_data=f"admin:report:1"),
+            ],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")],
+        ])
+        
+        await callback.message.edit_text(msg, reply_markup=keyboard, parse_mode="Markdown")
+        callback.message.from_user = callback.from_user  # Сохраняем для навигации
+        callback.message._reports_list = reports  # Временное хранилище
+    finally:
+        db.close()
+    
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("admin:report:"))
+async def cb_admin_report_nav(callback: types.CallbackQuery):
+    """Навигация по жалобам"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён", show_alert=True)
+        return
+    
+    try:
+        idx = int(callback.data.split(":")[-1])
+    except:
+        await callback.answer("❌ Ошибка", show_alert=True)
+        return
+    
+    db = _db()
+    try:
+        reports = get_recent_reports(db, limit=10)
+        
+        if idx < 0 or idx >= len(reports):
+            await callback.answer("❌ Нет такой жалобы", show_alert=True)
+            return
+        
+        report = reports[idx]
+        msg = format_report_message(report)
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="◀️", callback_data=f"admin:report:{max(0, idx-1)}"),
+                InlineKeyboardButton(text=f"{idx+1}/{len(reports)}", callback_data="admin:report:info"),
+                InlineKeyboardButton(text="▶️", callback_data=f"admin:report:{min(len(reports)-1, idx+1)}"),
+            ],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")],
+        ])
+        
+        await callback.message.edit_text(msg, reply_markup=keyboard, parse_mode="Markdown")
+    finally:
+        db.close()
+    
+    await callback.answer()
+
+@dp.callback_query(F.data == "admin:control")
+async def cb_admin_control(callback: types.CallbackQuery):
+    """Управление ботом"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён", show_alert=True)
+        return
+    
+    status = get_bot_status()
+    monitoring_status = "🟢 Включен" if status["monitoring_enabled"] else "🔴 Выключен"
+    
+    msg = (
+        "⚙️ *Управление ботом*\n\n"
+        f"📊 Всего жалоб: *{status['total_reports']}*\n"
+        f"👥 Пользователей: *{status['total_users']}*\n"
+        f"🔴 Открыто: *{status['open_reports']}*\n"
+        f"✅ Решено: *{status['resolved_reports']}*\n\n"
+        f"📡 Мониторинг: {monitoring_status}\n"
+        f"📦 Очередь Firebase: *{status.get('firebase_queue_size', 0)}*\n"
+        f"💾 Кэш AI: *{status.get('ai_cache_valid', 0)}* записей\n"
+    )
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="🟢 Включить" if not status["monitoring_enabled"] else "🔴 Выключить",
+                callback_data="admin:toggle_monitoring"
+            )
+        ],
+        [
+            InlineKeyboardButton(text="🔄 Обработать очередь Firebase", callback_data="admin:process_queue"),
+            InlineKeyboardButton(text="🧹 Очистить кэш AI", callback_data="admin:clear_cache"),
+        ],
+        [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")],
+    ])
+    
+    await callback.message.edit_text(msg, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.answer()
+
+@dp.callback_query(F.data == "admin:toggle_monitoring")
+async def cb_admin_toggle_monitoring(callback: types.CallbackQuery):
+    """Переключить мониторинг"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён", show_alert=True)
+        return
+    
+    new_state = toggle_monitoring()
+    status_text = "🟢 включен" if new_state else "🔴 выключен"
+    
+    await callback.answer(f"Мониторинг {status_text}", show_alert=True)
+    await cb_admin_control(callback)  # Обновляем панель
+
+@dp.callback_query(F.data == "admin:process_queue")
+async def cb_admin_process_queue(callback: types.CallbackQuery):
+    """Обработать очередь Firebase"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён", show_alert=True)
+        return
+    
+    from services.firebase_queue import process_queue, get_queue_stats
+    
+    queue_before = get_queue_stats()["size"]
+    await callback.answer("⏳ Обработка очереди...", show_alert=False)
+    
+    try:
+        await process_queue()
+        queue_after = get_queue_stats()["size"]
+        processed = queue_before - queue_after
+        
+        await callback.answer(f"✅ Обработано: {processed} из {queue_before}", show_alert=True)
+    except Exception as e:
+        logger.error(f"Queue processing error: {e}")
+        await callback.answer(f"❌ Ошибка: {e}", show_alert=True)
+    
+    await cb_admin_control(callback)  # Обновляем панель
+
+@dp.callback_query(F.data == "admin:clear_cache")
+async def cb_admin_clear_cache(callback: types.CallbackQuery):
+    """Очистить кэш AI"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён", show_alert=True)
+        return
+    
+    from services.ai_cache import clear_cache, get_cache_stats
+    
+    cache_before = get_cache_stats()["total"]
+    clear_cache()
+    cache_after = get_cache_stats()["total"]
+    
+    await callback.answer(f"✅ Кэш очищен: {cache_before} → {cache_after}", show_alert=True)
+    await cb_admin_control(callback)  # Обновляем панель
+
+@dp.callback_query(F.data == "admin:export")
+async def cb_admin_export(callback: types.CallbackQuery):
+    """Экспорт данных"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён", show_alert=True)
+        return
+    
+    db = _db()
+    try:
+        csv_data = export_stats_csv(db)
+        
+        # Отправляем как файл
+        from io import BytesIO
+        bio = BytesIO()
+        bio.write(csv_data.encode('utf-8-sig'))  # UTF-8 BOM для Excel
+        bio.seek(0)
+        
+        await callback.message.answer_document(
+            BufferedInputFile(bio.read(), filename=f"stats_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"),
+            caption="📤 Экспорт статистики"
+        )
+        
+        await callback.answer("✅ Данные экспортированы")
+    except Exception as e:
+        logger.error(f"Export error: {e}")
+        await callback.answer(f"❌ Ошибка: {e}", show_alert=True)
+    finally:
+        db.close()
+
+@dp.callback_query(F.data == "admin:cleanup")
+async def cb_admin_cleanup(callback: types.CallbackQuery):
+    """Очистка старых данных"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён", show_alert=True)
+        return
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🗑️ Удалить старше 90 дней", callback_data="admin:cleanup:90"),
+            InlineKeyboardButton(text="🗑️ Удалить старше 180 дней", callback_data="admin:cleanup:180"),
+        ],
+        [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")],
+    ])
+    
+    await callback.message.edit_text(
+        "🗑️ *Очистка данных*\n\n"
+        "⚠️ Будет удалены только решённые жалобы старше указанного периода.\n"
+        "Выберите период:",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("admin:cleanup:"))
+async def cb_admin_cleanup_execute(callback: types.CallbackQuery):
+    """Выполнить очистку"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён", show_alert=True)
+        return
+    
+    try:
+        days = int(callback.data.split(":")[-1])
+    except:
+        await callback.answer("❌ Ошибка", show_alert=True)
+        return
+    
+    db = _db()
+    try:
+        deleted = clear_old_reports(db, days=days)
+        await callback.answer(f"✅ Удалено жалоб: {deleted}", show_alert=True)
+        await cb_admin_control(callback)  # Возвращаемся к управлению
+    except Exception as e:
+        logger.error(f"Cleanup error: {e}")
+        await callback.answer(f"❌ Ошибка: {e}", show_alert=True)
+    finally:
+        db.close()
+
+@dp.callback_query(F.data == "admin:back")
+async def cb_admin_back(callback: types.CallbackQuery):
+    """Вернуться в главное меню админ-панели"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён", show_alert=True)
+        return
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📊 Статистика", callback_data="admin:stats")],
+        [InlineKeyboardButton(text="📋 Последние жалобы", callback_data="admin:reports")],
+        [InlineKeyboardButton(text="⚙️ Управление ботом", callback_data="admin:control")],
+        [InlineKeyboardButton(text="📤 Экспорт данных", callback_data="admin:export")],
+        [InlineKeyboardButton(text="🗑️ Очистка данных", callback_data="admin:cleanup")],
+    ])
+    
+    await callback.message.edit_text(
+        "🔐 *Админ-панель*\n\n"
+        "Выберите действие:",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    await callback.answer()
 
 @dp.message(Command("sync"))
 async def cmd_sync(message: types.Message):
@@ -317,21 +715,35 @@ async def cmd_sync(message: types.Message):
     finally: db.close()
 
 # ═══ MENU BUTTON HANDLERS ═══
-@dp.message(F.text == "📝 Новая жалоба")
-async def btn_new(message: types.Message):
-    await cmd_new(message)
-
-@dp.message(F.text == "🗺️ Карта")
-async def btn_map(message: types.Message):
-    await cmd_map(message)
-
-@dp.message(F.text == "📊 Инфографика")
-async def btn_info(message: types.Message):
-    await cmd_info(message)
-
 @dp.message(F.text == "👤 Профиль")
 async def btn_profile(message: types.Message):
+    """Обработчик кнопки Профиль"""
     await cmd_profile(message)
+
+@dp.message(F.text == "🚪 Вход")
+async def btn_login(message: types.Message):
+    """Обработчик кнопки Вход - открывает главное меню с доступом к функциям"""
+    version = int(time.time())
+    buttons = [
+        [InlineKeyboardButton(text="🗺️ Карта", web_app=WebAppInfo(url=f"{CF_WORKER}/app?v={version}"))],
+        [InlineKeyboardButton(text="📝 Новая жалоба", callback_data="new_complaint")],
+        [InlineKeyboardButton(text="📊 Инфографика", web_app=WebAppInfo(url=f"{CF_WORKER}/info?v={version}"))],
+    ]
+    await message.answer(
+        "🚪 *Вход выполнен*\n\n"
+        "Доступные функции:\n"
+        "🗺️ Карта — проблемы города\n"
+        "📝 Новая жалоба — создать жалобу\n"
+        "📊 Инфографика — статистика\n\n"
+        "Первая жалоба — бесплатно, далее 50 ⭐",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    
+    # Сохраняем сессию как авторизованную
+    uid = message.from_user.id
+    if uid not in user_sessions:
+        user_sessions[uid] = {}
+    user_sessions[uid]["authorized"] = True
 
 # ═══ PROFILE CALLBACKS ═══
 @dp.callback_query(F.data == "about_project")
@@ -892,6 +1304,8 @@ async def cb_opendata(callback: types.CallbackQuery):
 
 # ═══ SETUP & MAIN ═══
 async def setup_menu():
+    # Версия меню для отслеживания обновлений
+    menu_version = int(time.time())
     commands = [
         BotCommand(command="start", description="🏠 Главная"),
         BotCommand(command="help", description="❓ Справка"),
@@ -901,7 +1315,9 @@ async def setup_menu():
         BotCommand(command="profile", description="👤 Профиль"),
     ]
     await bot.set_my_commands(commands, scope=BotCommandScopeDefault())
-    logger.info("✅ Меню бота установлено")
+    logger.info(f"✅ Меню бота установлено (версия: {menu_version})")
+    
+    # Админ-команда не добавляется в публичное меню, доступна только по прямому вызову
 
 async def main():
     await setup_menu()

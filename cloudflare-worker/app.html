@@ -3,36 +3,33 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Пульс города — Карта</title>
+<title>Пульс города — Нижневартовск</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
-<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-<!-- Anime.js для продвинутых анимаций -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
-<!-- Particles.js для фона -->
 <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
-<!-- Iconify для иконок -->
 <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
-<!-- Particles Background -->
-<div id="particles-js"></div>
+<!-- Aurora Background -->
+<canvas id="auroraCanvas"></canvas>
 
 <!-- Splash Screen -->
 <div id="splash">
   <div class="splash-content">
-    <!-- Oil Drop Logo -->
     <div class="oil-drop-container">
       <svg class="oil-drop" viewBox="0 0 200 240">
         <defs>
           <linearGradient id="oilGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style="stop-color:#1a1a2e;stop-opacity:1" />
-            <stop offset="50%" style="stop-color:#16213e;stop-opacity:1" />
-            <stop offset="100%" style="stop-color:#0f3460;stop-opacity:1" />
+            <stop offset="0%" style="stop-color:#0a0a1a;stop-opacity:1" />
+            <stop offset="50%" style="stop-color:#1a1a2e;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#16213e;stop-opacity:1" />
           </linearGradient>
           <filter id="glow">
             <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
@@ -44,8 +41,8 @@
         </defs>
         <path class="drop-main" d="M100 20 C100 20, 40 80, 40 140 C40 180, 65 220, 100 220 C135 220, 160 180, 160 140 C160 80, 100 20, 100 20 Z" 
               fill="url(#oilGradient)" filter="url(#glow)"/>
-        <ellipse class="drop-shine" cx="80" cy="80" rx="20" ry="30" fill="rgba(255,255,255,0.15)"/>
-        <circle class="drop-bubble" cx="100" cy="120" r="8" fill="rgba(255,255,255,0.1)"/>
+        <ellipse class="drop-shine" cx="80" cy="80" rx="20" ry="30" fill="rgba(0,240,255,0.2)"/>
+        <circle class="drop-bubble" cx="100" cy="120" r="8" fill="rgba(0,255,136,0.15)"/>
       </svg>
       <div class="pulse-rings">
         <div class="pulse-ring"></div>
@@ -60,7 +57,6 @@
     </h1>
     <div class="splash-subtitle">НИЖНЕВАРТОВСК</div>
     
-    <!-- City Rhythm Visualizer -->
     <div class="rhythm-container">
       <canvas id="rhythmCanvas" width="320" height="80"></canvas>
       <div class="rhythm-info">
@@ -100,99 +96,101 @@
 
 <!-- Main App -->
 <div id="app" style="display:none">
-  <div id="map"></div>
-  
-  <!-- Top Bar -->
-  <div id="topBar">
-    <div class="tb-left">
-      <div class="oil-pulse-mini">
-        <svg viewBox="0 0 24 24" width="20" height="20">
-          <path d="M12 2C12 2 6 10 6 15C6 18.31 8.69 21 12 21C15.31 21 18 18.31 18 15C18 10 12 2 12 2Z" 
-                fill="currentColor" opacity="0.8"/>
+  <!-- Tab Navigation -->
+  <div id="tabNav">
+    <button class="tab-btn active" data-tab="map">
+      <span data-icon="mdi:map"></span>
+      <span>Карта</span>
+    </button>
+    <button class="tab-btn" data-tab="stats">
+      <span data-icon="mdi:chart-box"></span>
+      <span>Статистика</span>
+    </button>
+    <button class="tab-btn" data-tab="rating">
+      <span data-icon="mdi:office-building"></span>
+      <span>Рейтинг УК</span>
+    </button>
+  </div>
+
+  <!-- Map Tab -->
+  <div id="mapTab" class="tab-content active">
+    <div id="map"></div>
+    
+    <!-- Top Bar -->
+    <div id="topBar">
+      <div class="tb-left">
+        <div class="oil-pulse-mini">
+          <svg viewBox="0 0 24 24" width="20" height="20">
+            <path d="M12 2C12 2 6 10 6 15C6 18.31 8.69 21 12 21C15.31 21 18 18.31 18 15C18 10 12 2 12 2Z" 
+                  fill="currentColor" opacity="0.8"/>
+          </svg>
+        </div>
+        <span class="tb-title">Пульс города</span>
+      </div>
+      <div class="tb-right">
+        <div class="stat-mini">
+          <span class="num" id="totalNum">0</span>
+          <span class="lbl">всего</span>
+        </div>
+        <div class="stat-mini red">
+          <span class="num" id="openNum">0</span>
+          <span class="lbl">открыто</span>
+        </div>
+        <div class="stat-mini green">
+          <span class="num" id="resolvedNum">0</span>
+          <span class="lbl">решено</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter Panel -->
+    <div id="filterPanel">
+      <div class="filter-row" id="categoryFilter"></div>
+      <div class="filter-row" id="statusFilter"></div>
+    </div>
+
+    <!-- FAB -->
+    <button class="fab" id="fabBtn" title="Подать жалобу">
+      <div class="fab-drop">
+        <svg viewBox="0 0 56 68">
+          <defs>
+            <linearGradient id="fabOilGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#00f0ff"/>
+              <stop offset="100%" style="stop-color:#00c8d4"/>
+            </linearGradient>
+          </defs>
+          <path d="M28 4C28 4 12 20 12 32C12 42 18.5 50 28 50C37.5 50 44 42 44 32C44 20 28 4 28 4Z" 
+                fill="url(#fabOilGrad)"/>
         </svg>
+        <span class="fab-icon">+</span>
       </div>
-      <span class="tb-title">Пульс города</span>
-    </div>
-    <div class="tb-right">
-      <div class="stat-mini">
-        <span class="num" id="totalNum">0</span>
-        <span class="lbl">всего</span>
+      <div class="fab-ripples">
+        <div class="fab-ripple"></div>
+        <div class="fab-ripple"></div>
       </div>
-      <div class="stat-mini red">
-        <span class="num" id="openNum">0</span>
-        <span class="lbl">открыто</span>
-      </div>
-      <div class="stat-mini green">
-        <span class="num" id="resolvedNum">0</span>
-        <span class="lbl">решено</span>
-      </div>
+    </button>
+
+    <!-- Timeline -->
+    <div class="timeline-panel">
+      <canvas id="timelineCanvas"></canvas>
     </div>
   </div>
 
-  <!-- Filter Panel -->
-  <div id="filterPanel">
-    <div class="filter-row" id="categoryFilter"></div>
-    <div class="filter-row" id="statusFilter"></div>
-    <div class="filter-row" id="dateFilter"></div>
+  <!-- Stats Tab -->
+  <div id="statsTab" class="tab-content">
+    <div class="stats-container">
+      <div id="statsContent"></div>
+    </div>
   </div>
 
-  <!-- Action Buttons -->
-  <button class="action-btn stats-btn" id="statsBtn" title="Статистика">
-    <span data-icon="mdi:chart-box"></span>
-  </button>
-  <button class="action-btn uk-btn" id="ukBtn" title="Рейтинг УК">
-    <span data-icon="mdi:office-building"></span>
-  </button>
-  
-  <!-- FAB - Oil Drop -->
-  <button class="fab" id="fabBtn" title="Подать жалобу">
-    <div class="fab-drop">
-      <svg viewBox="0 0 56 68">
-        <defs>
-          <linearGradient id="fabOilGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style="stop-color:#6366f1"/>
-            <stop offset="100%" style="stop-color:#4f46e5"/>
-          </linearGradient>
-        </defs>
-        <path d="M28 4C28 4 12 20 12 32C12 42 18.5 50 28 50C37.5 50 44 42 44 32C44 20 28 4 28 4Z" 
-              fill="url(#fabOilGrad)"/>
-      </svg>
-      <span class="fab-icon">+</span>
+  <!-- Rating Tab -->
+  <div id="ratingTab" class="tab-content">
+    <div class="rating-container">
+      <div id="ratingContent"></div>
     </div>
-    <div class="fab-ripples">
-      <div class="fab-ripple"></div>
-      <div class="fab-ripple"></div>
-    </div>
-  </button>
-
-  <!-- Timeline -->
-  <div class="timeline-panel">
-    <canvas id="timelineCanvas"></canvas>
   </div>
 
-  <!-- Stats Overlay -->
-  <div class="overlay" id="statsOverlay">
-    <div class="overlay-header">
-      <h3><span data-icon="mdi:chart-box"></span> Статистика</h3>
-      <button class="close-btn" onclick="closeOverlay('statsOverlay')">
-        <span data-icon="mdi:close"></span>
-      </button>
-    </div>
-    <div class="overlay-content" id="statsContent"></div>
-  </div>
-
-  <!-- UK Rating Overlay -->
-  <div class="overlay left" id="ukOverlay">
-    <div class="overlay-header">
-      <h3><span data-icon="mdi:office-building"></span> Рейтинг УК</h3>
-      <button class="close-btn" onclick="closeOverlay('ukOverlay')">
-        <span data-icon="mdi:close"></span>
-      </button>
-    </div>
-    <div class="overlay-content" id="ukContent"></div>
-  </div>
-
-  <!-- Complaint Form -->
+  <!-- Complaint Form Modal -->
   <div class="modal" id="complaintModal">
     <div class="modal-backdrop" onclick="closeModal()"></div>
     <div class="modal-content">
@@ -248,5 +246,7 @@
     <span class="toast-text" id="toastText"></span>
   </div>
 </div>
+
+<script>
 </body>
 </html>

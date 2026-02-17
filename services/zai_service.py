@@ -1,5 +1,5 @@
 # services/zai_service.py
-# AI анализ жалоб: Z.AI (основной) → Anthropic → OpenAI → keyword fallback
+# AI анализ жалоб: только OpenRouter (qwen 3.5 coder для текста) → keyword fallback
 import os
 import re
 import json
@@ -7,6 +7,7 @@ import logging
 from typing import Any, Dict, List
 import httpx
 from core.http_client import get_http_client
+from services.ai_cache import get_cached_text, set_cached_text
 
 logger = logging.getLogger(__name__)
 
@@ -20,46 +21,16 @@ CATEGORIES = [
     "Спортивные площадки", "Детские площадки",
 ]
 
-# --- Z.AI (основной, бесплатный) ---
-ZAI_API_KEY = os.getenv("ZAI_API_KEY", "")
-ZAI_BASE = "https://api.z.ai/api/paas/v4"
-ZAI_TEXT_MODEL = "glm-4.7-flash"  # основная модель текстового анализа
-ZAI_VISION_MODEL = "GLM-4.7V"  # vision-модель
+# --- OpenRouter (единственный AI провайдер) ---
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_BASE = "https://openrouter.ai/api/v1"
+# qwen 3.5 coder для анализа текста из пабликов
+OPENROUTER_TEXT_MODEL = os.getenv("OPENROUTER_TEXT_MODEL", "qwen/qwen3-coder")
 
-if ZAI_API_KEY:
-    print(f"✅ Z.AI initialized (text: {ZAI_TEXT_MODEL}, vision: {ZAI_VISION_MODEL})")
-
-# --- Anthropic (fallback 1) ---
-_anthropic_client = None
-_anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
-_anthropic_base_url = os.getenv("ANTHROPIC_BASE_URL", "")
-try:
-    if _anthropic_key:
-        from anthropic import Anthropic
-        kwargs = {"api_key": _anthropic_key}
-        if _anthropic_base_url:
-            kwargs["base_url"] = _anthropic_base_url
-        _anthropic_client = Anthropic(**kwargs)
-        proxy_info = f" (proxy: {_anthropic_base_url})" if _anthropic_base_url else ""
-        print(f"✅ Anthropic client initialized{proxy_info}")
-except Exception as e:
-    print(f"Anthropic client error: {e}")
-
-# --- OpenAI (fallback 2) ---
-_openai_client = None
-_openai_key = os.getenv("OPENAI_API_KEY", "")
-try:
-    if _openai_key:
-        from openai import AsyncOpenAI
-        kwargs = {"api_key": _openai_key}
-        _openai_base_url = os.getenv("OPENAI_BASE_URL", "")
-        if _openai_base_url:
-            kwargs["base_url"] = _openai_base_url
-        _openai_client = AsyncOpenAI(**kwargs)
-        proxy_info = f" (proxy: {_openai_base_url})" if _openai_base_url else ""
-        print(f"✅ OpenAI client initialized{proxy_info}")
-except Exception as e:
-    print(f"OpenAI client error: {e}")
+if OPENROUTER_API_KEY:
+    print(f"[OK] OpenRouter initialized (text model: {OPENROUTER_TEXT_MODEL})")
+else:
+    print("[WARN] OPENROUTER_API_KEY не задан — будет использоваться keyword fallback")
 
 
 SYSTEM_PROMPT = (
@@ -120,93 +91,54 @@ def _parse_json(text: str) -> Dict[str, Any] | None:
     return None
 
 
-async def _zai_analyze(text: str) -> Dict[str, Any] | None:
-    """Анализ через Z.AI (glm-4.7-flash)"""
-    if not ZAI_API_KEY:
+async def _openrouter_analyze(text: str) -> Dict[str, Any] | None:
+    """Анализ через OpenRouter (qwen 3.5 coder для текста) с кэшированием"""
+    if not OPENROUTER_API_KEY:
         return None
+    
+    # Проверяем кэш
+    cached = get_cached_text(text, OPENROUTER_TEXT_MODEL)
+    if cached:
+        logger.debug(f"✅ Using cached result for text analysis")
+        return cached
+    
     try:
-        async with get_http_client(timeout=60.0) as client:
+        async with get_http_client(timeout=60.0, proxy=None) as client:
             r = await client.post(
-                f"{ZAI_BASE}/chat/completions",
+                f"{OPENROUTER_BASE}/chat/completions",
                 json={
-                    "model": ZAI_TEXT_MODEL,
+                    "model": OPENROUTER_TEXT_MODEL,
                     "messages": [
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": _make_prompt(text)},
                     ],
-                    "max_tokens": 4096,
+                    "max_tokens": 2048,
                 },
                 headers={
-                    "Authorization": f"Bearer {ZAI_API_KEY}",
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
                     "Content-Type": "application/json",
+                    "HTTP-Referer": "https://github.com/soobshio/soobshio",
+                    "X-Title": "Soobshio Complaint Analyzer",
                 },
             )
         if r.status_code != 200:
-            logger.error(f"Z.AI error: {r.status_code} {r.text[:200]}")
+            logger.error(f"OpenRouter error: {r.status_code} {r.text[:200]}")
             return None
         d = r.json()
-        msg = d["choices"][0]["message"]
+        msg = d.get("choices", [{}])[0].get("message", {})
         content = msg.get("content", "")
-        # glm-4.7-flash reasoning: JSON может быть в reasoning_content
         if not content:
-            reasoning = msg.get("reasoning_content", "")
-            if reasoning:
-                result = _parse_json(reasoning)
-                if result:
-                    logger.info(f"✅ Z.AI анализ (reasoning): {result.get('category')}")
-                    return result
-            logger.warning("Z.AI: empty content")
+            logger.warning("OpenRouter: empty content")
             return None
         result = _parse_json(content)
         if result:
-            logger.info(f"✅ Z.AI анализ: {result.get('category')}")
+            logger.info(f"✅ OpenRouter анализ ({OPENROUTER_TEXT_MODEL}): {result.get('category')}")
+            # Сохраняем в кэш
+            set_cached_text(text, result, OPENROUTER_TEXT_MODEL)
             return result
-        logger.warning(f"Z.AI: failed to parse JSON from: {content[:200]}")
+        logger.warning(f"OpenRouter: failed to parse JSON from: {content[:200]}")
     except Exception as e:
-        logger.error(f"Z.AI error: {e}")
-    return None
-
-
-def _anthropic_analyze(text: str) -> Dict[str, Any] | None:
-    """Анализ через Anthropic Claude (sync)"""
-    if not _anthropic_client:
-        return None
-    try:
-        response = _anthropic_client.messages.create(
-            model="claude-3-haiku-20240307",
-            max_tokens=300,
-            messages=[{"role": "user", "content": _make_prompt(text)}],
-        )
-        content = response.content[0].text.strip()
-        result = _parse_json(content)
-        if result:
-            logger.info(f"✅ Anthropic анализ: {result.get('category')}")
-            return result
-    except Exception as e:
-        logger.error(f"Anthropic error: {e}")
-    return None
-
-
-async def _openai_analyze(text: str) -> Dict[str, Any] | None:
-    """Анализ через OpenAI (async)"""
-    if not _openai_client:
-        return None
-    try:
-        response = await _openai_client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": _make_prompt(text)},
-            ],
-            max_tokens=300,
-        )
-        content = response.choices[0].message.content.strip()
-        result = _parse_json(content)
-        if result:
-            logger.info(f"✅ OpenAI анализ: {result.get('category')}")
-            return result
-    except Exception as e:
-        logger.error(f"OpenAI error: {e}")
+        logger.error(f"OpenRouter error: {e}")
     return None
 
 
@@ -253,29 +185,17 @@ def _keyword_analyze(text: str) -> Dict[str, Any]:
 
 async def analyze_complaint(text: str) -> Dict[str, Any]:
     """
-    Анализ жалобы: Z.AI → Anthropic → OpenAI → keyword fallback.
+    Анализ жалобы: OpenRouter (qwen 3.5 coder) → keyword fallback.
     Возвращает dict с полями: relevant, category, address, summary, location_hints, provider.
     """
-    # 1. Z.AI (бесплатный, основной)
-    result = await _zai_analyze(text)
+    # 1. OpenRouter (qwen 3.5 coder)
+    result = await _openrouter_analyze(text)
     if result:
-        result["provider"] = "z.ai"
+        result["provider"] = f"openrouter:{OPENROUTER_TEXT_MODEL}"
         return _normalize_result(result)
 
-    # 2. Anthropic (через прокси)
-    result = _anthropic_analyze(text)
-    if result:
-        result["provider"] = "anthropic"
-        return _normalize_result(result)
-
-    # 3. OpenAI (через прокси)
-    result = await _openai_analyze(text)
-    if result:
-        result["provider"] = "openai"
-        return _normalize_result(result)
-
-    # 4. Keyword fallback
-    logger.warning("⚠️ AI недоступен, keyword-анализ")
+    # 2. Keyword fallback
+    logger.warning("⚠️ OpenRouter недоступен, keyword-анализ")
     result = _keyword_analyze(text)
     result["provider"] = "keyword"
     return result

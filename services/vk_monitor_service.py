@@ -128,7 +128,8 @@ async def vk_api_call(method: str, params: dict) -> Optional[dict]:
     params["access_token"] = VK_SERVICE_TOKEN
     params["v"] = VK_API_VERSION
     try:
-        async with get_http_client(timeout=30.0) as client:
+        # VK API стабильнее работает без прокси (часть прокси не поддерживает CONNECT для HTTPS).
+        async with get_http_client(timeout=30.0, proxy=None) as client:
             r = await client.get(f"{VK_API_BASE}/{method}", params=params)
             data = r.json()
             if "error" in data:

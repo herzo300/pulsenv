@@ -5,6 +5,7 @@ Firebase Realtime Database — real-time синхронизация жалоб.
 REST API — не требует service account.
 """
 
+import asyncio
 import logging
 import os
 import uuid
@@ -18,6 +19,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+# Повторы при временных ошибках (сетевые таймауты, 5xx)
+FIREBASE_MAX_RETRIES = 3
+FIREBASE_RETRY_DELAY = 1.0
 
 # Firebase config
 FIREBASE_PROJECT_ID = os.getenv("FIREBASE_PROJECT_ID", "soobshio")
@@ -39,13 +44,21 @@ def get_firestore():
     return None
 
 
-async def push_complaint(complaint: Dict[str, Any]) -> Optional[str]:
+async def push_complaint(complaint: Dict[str, Any], use_queue_on_error: bool = True) -> Optional[str]:
     """
     Сохраняет жалобу в Firebase RTDB коллекцию 'complaints'.
     Клиенты с on('child_added') получат обновление в реальном времени.
     Возвращает document ID или None при ошибке.
+    
+    Args:
+        complaint: Данные жалобы
+        use_queue_on_error: Если True, при ошибке сохраняет в очередь для повторной отправки
     """
     if not FIREBASE_RTDB_URL:
+        if use_queue_on_error:
+            from services.firebase_queue import add_to_queue
+            add_to_queue(complaint)
+            logger.info("Firebase URL not configured, added to queue")
         return None
 
     doc_id = str(uuid.uuid4())[:8] + "_" + datetime.utcnow().strftime("%H%M%S")
@@ -67,27 +80,51 @@ async def push_complaint(complaint: Dict[str, Any]) -> Optional[str]:
 
     url = f"{FIREBASE_RTDB_URL}/complaints/{doc_id}.json"
 
-    try:
-        async with get_http_client(timeout=10.0) as client:
-            r = await client.put(url, json=doc_data)
-            if r.status_code == 200:
-                logger.info(f"🔥 Firebase RTDB: жалоба сохранена ({doc_id})")
-                # Обновляем счётчик
-                await _increment_stats(complaint.get("category", "Прочее"))
-                return doc_id
-            else:
-                logger.error(f"Firebase RTDB error: {r.status_code} {r.text[:200]}")
+    last_error = None
+    for attempt in range(FIREBASE_MAX_RETRIES):
+        try:
+            # Firebase уже идёт через Cloudflare Worker прокси, не используем SOCKS5
+            async with get_http_client(timeout=15.0, proxy=None) as client:
+                r = await client.put(url, json=doc_data)
+                if r.status_code == 200:
+                    logger.info("Firebase RTDB: жалоба сохранена (%s)", doc_id)
+                    await _increment_stats(complaint.get("category", "Прочее"))
+                    return doc_id
+                if 500 <= r.status_code < 600 and attempt < FIREBASE_MAX_RETRIES - 1:
+                    last_error = f"{r.status_code} {r.text[:200]}"
+                    await asyncio.sleep(FIREBASE_RETRY_DELAY * (attempt + 1))
+                    continue
+                logger.error("Firebase RTDB error: %s %s", r.status_code, r.text[:200])
                 return None
-    except Exception as e:
-        logger.error(f"Firebase RTDB error: {e}")
-        return None
+        except (httpx.TimeoutException, httpx.ConnectError) as e:
+            last_error = e
+            if attempt < FIREBASE_MAX_RETRIES - 1:
+                await asyncio.sleep(FIREBASE_RETRY_DELAY * (attempt + 1))
+                continue
+            logger.error("Firebase RTDB error (after %d retries): %s", FIREBASE_MAX_RETRIES, e)
+            # Сохраняем в очередь для повторной отправки
+            if use_queue_on_error:
+                from services.firebase_queue import add_to_queue
+                add_to_queue(complaint)
+                logger.info("Firebase unavailable, added to queue for retry")
+            return None
+        except Exception as e:
+            logger.error("Firebase RTDB error: %s", e)
+            # Сохраняем в очередь для повторной отправки
+            if use_queue_on_error:
+                from services.firebase_queue import add_to_queue
+                add_to_queue(complaint)
+                logger.info("Firebase error, added to queue for retry")
+            return None
+    return None
 
 
 async def _increment_stats(category: str):
     """Обновляет real-time статистику"""
     url = f"{FIREBASE_RTDB_URL}/stats/realtime.json"
     try:
-        async with get_http_client(timeout=10.0) as client:
+        # Firebase уже идет через Cloudflare Worker прокси, не используем SOCKS5
+        async with get_http_client(timeout=10.0, proxy=None) as client:
             # Читаем текущие значения
             r = await client.get(url)
             current = r.json() if r.status_code == 200 and r.text != "null" else {}
@@ -107,25 +144,40 @@ async def _increment_stats(category: str):
 
 
 async def get_recent_complaints(limit: int = 50) -> list:
-    """Получает последние жалобы из Firebase RTDB"""
+    """Получает последние жалобы из Firebase RTDB (с повторами при 5xx/таймауте)."""
     if not FIREBASE_RTDB_URL:
         return []
 
-    url = f'{FIREBASE_RTDB_URL}/complaints.json'
-    try:
-        async with get_http_client(timeout=15.0) as client:
-            r = await client.get(url)
-            if r.status_code == 200 and r.text != "null":
-                data = r.json()
-                results = []
-                for doc_id, doc_data in data.items():
-                    doc_data["id"] = doc_id
-                    results.append(doc_data)
-                return sorted(results, key=lambda x: x.get("created_at", ""), reverse=True)
+    url = f"{FIREBASE_RTDB_URL}/complaints.json"
+    for attempt in range(FIREBASE_MAX_RETRIES):
+        try:
+            async with get_http_client(timeout=15.0, proxy=None) as client:
+                r = await client.get(url)
+                if r.status_code == 200 and r.text and r.text.strip() != "null":
+                    data = r.json()
+                    if not isinstance(data, dict):
+                        return []
+                    results = []
+                    for doc_id, doc_data in data.items():
+                        if isinstance(doc_data, dict):
+                            doc_data = dict(doc_data)
+                            doc_data["id"] = doc_id
+                            results.append(doc_data)
+                    return sorted(results, key=lambda x: x.get("created_at", ""), reverse=True)[:limit]
+                if 500 <= getattr(r, "status_code", 0) < 600 and attempt < FIREBASE_MAX_RETRIES - 1:
+                    await asyncio.sleep(FIREBASE_RETRY_DELAY * (attempt + 1))
+                    continue
+                return []
+        except (httpx.TimeoutException, httpx.ConnectError) as e:
+            if attempt < FIREBASE_MAX_RETRIES - 1:
+                await asyncio.sleep(FIREBASE_RETRY_DELAY * (attempt + 1))
+                continue
+            logger.error("Firebase read error (after %d retries): %s", FIREBASE_MAX_RETRIES, e)
             return []
-    except Exception as e:
-        logger.error(f"Firebase read error: {e}")
-        return []
+        except Exception as e:
+            logger.error("Firebase read error: %s", e)
+            return []
+    return []
 
 
 async def update_complaint_status(doc_id: str, status: str) -> bool:
@@ -135,7 +187,8 @@ async def update_complaint_status(doc_id: str, status: str) -> bool:
 
     url = f"{FIREBASE_RTDB_URL}/complaints/{doc_id}.json"
     try:
-        async with get_http_client(timeout=10.0) as client:
+        # Firebase уже идет через Cloudflare Worker прокси, не используем SOCKS5
+        async with get_http_client(timeout=10.0, proxy=None) as client:
             r = await client.patch(url, json={
                 "status": status,
                 "updated_at": datetime.utcnow().isoformat(),
