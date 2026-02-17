@@ -233,12 +233,16 @@ async def _notify_subscribers(report):
 # ═══ COMMANDS ═══
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    """Команда /start - приветствие с минимальным меню"""
+    """Команда /start - приветствие с минимальным меню (Профиль и Вход)"""
+    # Принудительно обновляем меню при каждом /start для гарантии актуальности
     await message.answer(
         "🏙️ *Пульс города — Нижневартовск*\n\n"
         "Добро пожаловать! Выберите действие:",
         parse_mode="Markdown",
         reply_markup=main_kb())
+    
+    # Логируем для отладки
+    logger.info(f"Команда /start от пользователя {message.from_user.id}")
 
 @dp.message(Command("help"))
 async def cmd_help(message: types.Message):
@@ -1304,8 +1308,18 @@ async def cb_opendata(callback: types.CallbackQuery):
 
 # ═══ SETUP & MAIN ═══
 async def setup_menu():
+    """Установка меню бота с принудительным обновлением"""
     # Версия меню для отслеживания обновлений
     menu_version = int(time.time())
+    
+    # Сначала удаляем старые команды для гарантии обновления
+    try:
+        await bot.delete_my_commands(scope=BotCommandScopeDefault())
+        logger.info("Старые команды удалены")
+    except Exception as e:
+        logger.debug(f"Ошибка удаления команд (может быть нормально): {e}")
+    
+    # Устанавливаем новые команды
     commands = [
         BotCommand(command="start", description="🏠 Главная"),
         BotCommand(command="help", description="❓ Справка"),
