@@ -13,8 +13,8 @@ const isDark=!tg||tg.colorScheme==='dark';
   let W,H,particles=[];
   function resize(){W=c.width=window.innerWidth;H=c.height=window.innerHeight}
   resize();window.addEventListener('resize',resize);
-  const colors=isDark?['rgba(99,102,241,.15)','rgba(16,185,129,.12)','rgba(245,158,11,.1)','rgba(236,72,153,.08)']:
-    ['rgba(15,118,110,.1)','rgba(37,99,235,.08)','rgba(234,88,12,.06)','rgba(124,58,237,.06)'];
+  const colors=isDark?['rgba(0,217,255,.2)','rgba(0,255,153,.18)','rgba(255,184,0,.15)','rgba(236,72,153,.12)']:
+    ['rgba(0,217,255,.15)','rgba(0,255,153,.12)','rgba(255,184,0,.1)','rgba(124,58,237,.08)'];
   for(let i=0;i<40;i++)particles.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*60+20,
     vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,c:colors[i%colors.length],phase:Math.random()*Math.PI*2});
   function draw(){
@@ -113,18 +113,18 @@ const S=document.createElement('style');
 S.textContent=`
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
---bg:#0c1222;--surface:rgba(12,18,34,.95);--surfaceS:rgba(12,18,34,.98);
---primary:#14b8a6;--primaryL:#2dd4bf;--primaryBg:rgba(20,184,166,.1);
---accent:#e8804c;--accentBg:rgba(232,128,76,.08);
---text:#e2e8f0;--textSec:#94a3b8;--textMuted:#64748b;
---border:rgba(255,255,255,.04);
---shadow:6px 6px 16px rgba(0,0,0,.5),-4px -4px 12px rgba(255,255,255,.02);
---shadowInset:inset 3px 3px 8px rgba(0,0,0,.4),inset -2px -2px 6px rgba(255,255,255,.02);
---green:#10b981;--greenBg:rgba(16,185,129,.12);--red:#ef4444;--redBg:rgba(239,68,68,.12);
---orange:#f97316;--orangeBg:rgba(249,115,22,.1);--blue:#3b82f6;--blueBg:rgba(59,130,246,.1);
---purple:#a855f7;--purpleBg:rgba(168,85,247,.1);--teal:#14b8a6;--tealBg:rgba(20,184,166,.1);
+--bg:#050508;--surface:rgba(10,15,30,.92);--surfaceS:rgba(10,15,30,.95);
+--primary:#00d9ff;--primaryL:#4de6ff;--primaryBg:rgba(0,217,255,.15);
+--accent:#ffb800;--accentBg:rgba(255,184,0,.12);
+--text:#e0e7ff;--textSec:#a0a8c0;--textMuted:#64748b;
+--border:rgba(0,217,255,.2);
+--shadow:0 0 40px rgba(0,217,255,.4),0 0 60px rgba(0,255,153,.2),6px 6px 16px rgba(0,0,0,.5);
+--shadowInset:inset 3px 3px 8px rgba(0,0,0,.4),inset 0 0 20px rgba(0,217,255,.1);
+--green:#00ff99;--greenBg:rgba(0,255,153,.15);--red:#ff2d5f;--redBg:rgba(255,45,95,.15);
+--orange:#ffb800;--orangeBg:rgba(255,184,0,.12);--blue:#00aaff;--blueBg:rgba(0,170,255,.12);
+--purple:#a855f7;--purpleBg:rgba(168,85,247,.1);--teal:#00d9ff;--tealBg:rgba(0,217,255,.15);
 --pink:#ec4899;--pinkBg:rgba(236,72,153,.1);--indigo:#6366f1;--indigoBg:rgba(99,102,241,.1);
---yellow:#f59e0b;--yellowBg:rgba(245,158,11,.1);
+--yellow:#ffb800;--yellowBg:rgba(255,184,0,.12);
 --r:16px;--rs:10px;
 }
 body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);
@@ -139,9 +139,9 @@ border-bottom:1px solid var(--border);margin:0 -10px}
 #pulseCanvas{flex:1;height:48px;border-radius:8px}
 #pulse-info{display:flex;flex-direction:column;align-items:center;min-width:60px}
 #pulse-bpm{font-size:28px;font-weight:900;color:var(--green);line-height:1;
-font-variant-numeric:tabular-nums;transition:color .5s}
+font-variant-numeric:tabular-nums;transition:color .5s;text-shadow:0 0 15px rgba(0,255,153,.6)}
 .pulse-label{font-size:7px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1px}
-#pulse-mood{font-size:9px;font-weight:700;color:var(--green);transition:color .5s}
+#pulse-mood{font-size:9px;font-weight:700;color:var(--green);transition:color .5s;text-shadow:0 0 10px rgba(0,255,153,.5)}
 
 /* Animations */
 @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}

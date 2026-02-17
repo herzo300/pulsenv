@@ -57,7 +57,7 @@ export default {
       // Добавляем версию в HTML для отслеживания
       const htmlWithVersion = APP_HTML.replace(
         '<title>Пульс города — Нижневартовск</title>',
-        `<title>Пульс города — Нижневартовск</title>\n<meta name="app-version" content="${version}">`
+        `<title>Пульс города — Нижневартовск</title>\n<meta name="app-version" content="1771327547">`
       );
       return new Response(htmlWithVersion, {
         headers: { 
@@ -86,8 +86,20 @@ export default {
 
     // --- Infographic Web App ---
     if (path === "/info" || path === "/info/") {
-      return new Response(INFO_HTML, {
-        headers: { "Content-Type": "text/html;charset=utf-8", "Access-Control-Allow-Origin": "*" },
+      // Версионирование для инфографики
+      const version = url.searchParams.get("v") || Date.now();
+      const infoWithVersion = INFO_HTML.replace(
+        '<title>Нижневартовск · Пульс города</title>',
+        `<title>Нижневартовск · Пульс города</title>\n<meta name="app-version" content="1771327547">`
+      );
+      return new Response(infoWithVersion, {
+        headers: { 
+          "Content-Type": "text/html;charset=utf-8", 
+          "Access-Control-Allow-Origin": "*",
+          "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+          "Pragma": "no-cache",
+          "Expires": "0"
+        },
       });
     }
 
@@ -592,14 +604,14 @@ const state = {
 const styles = \`
 * { margin: 0; padding: 0; box-sizing: border-box; }
 :root {
-  --bg: #0a0a0f; --surface: rgba(10, 15, 30, 0.98); --text: #e0e7ff;
-  --primary: #00f0ff; --primary-light: #33f3ff; --primary-dark: #00c8d4;
-  --success: #00ff88; --danger: #ff3366; --warning: #ffaa00; --info: #00aaff;
-  --neon-cyan: #00f0ff; --neon-pink: #ff00ff; --neon-green: #00ff88; --neon-blue: #0066ff;
+  --bg: #050508; --surface: rgba(10, 15, 30, 0.98); --text: #e0e7ff;
+  --primary: #00d9ff; --primary-light: #4de6ff; --primary-dark: #00b8d4;
+  --success: #00ff99; --danger: #ff2d5f; --warning: #ffb800; --info: #00aaff;
+  --neon-cyan: #00d9ff; --neon-pink: #ff00ff; --neon-green: #00ff99; --neon-blue: #0066ff;
   --oil: #0a0a1a; --oil-light: #1a1a2e; --oil-dark: #050510;
-  --border: rgba(0, 240, 255, 0.2); --shadow: 0 0 30px rgba(0, 240, 255, 0.3), 0 4px 20px rgba(0, 0, 0, 0.8);
+  --border: rgba(0, 217, 255, 0.25); --shadow: 0 0 40px rgba(0, 217, 255, 0.4), 0 0 60px rgba(0, 255, 153, 0.2), 0 4px 20px rgba(0, 0, 0, 0.8);
   --radius: 16px; --radius-sm: 8px; --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --glow: 0 0 20px rgba(0, 240, 255, 0.5), 0 0 40px rgba(0, 240, 255, 0.3);
+  --glow: 0 0 30px rgba(0, 217, 255, 0.6), 0 0 60px rgba(0, 255, 153, 0.4);
 }
 body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
 
@@ -625,7 +637,7 @@ body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont
 .pulse-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--primary); opacity: 0; animation: ringPulse 3s ease-out infinite; }
 .pulse-ring:nth-child(2) { animation-delay: 1s; }
 .pulse-ring:nth-child(3) { animation-delay: 2s; }
-@keyframes ringPulse { 0% { transform: scale(0.8); opacity: 0.6; } 100% { transform: scale(1.5); opacity: 0; } }
+@keyframes ringPulse { 0% { transform: scale(0.8); opacity: 0.75; } 100% { transform: scale(1.5); opacity: 0; } }
 
 /* Title */
 .splash-title { font-size: 32px; font-weight: 900; background: linear-gradient(135deg, #818cf8, #6366f1, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; animation: titleSlide 0.8s ease 0.3s both; display: flex; align-items: center; justify-content: center; gap: 12px; }
@@ -671,8 +683,8 @@ body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont
   position: absolute;
   inset: 0;
   background: 
-    linear-gradient(0deg, transparent 0%, rgba(0, 240, 255, 0.03) 50%, transparent 100%),
-    radial-gradient(circle at 50% 50%, rgba(0, 240, 255, 0.05) 0%, transparent 70%);
+    linear-gradient(0deg, transparent 0%, rgba(0, 217, 255, 0.05) 50%, transparent 100%),
+    radial-gradient(circle at 50% 50%, rgba(0, 217, 255, 0.08) 0%, transparent 70%);
   pointer-events: none;
   z-index: 1000;
   mix-blend-mode: screen;
@@ -680,16 +692,16 @@ body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont
 
 /* Marker pulse animation */
 @keyframes markerPulse {
-  0% { transform: scale(0); opacity: 0; box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.7); }
-  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 30px 10px rgba(0, 240, 255, 0.5); }
-  100% { transform: scale(1); opacity: 1; box-shadow: 0 0 20px rgba(0, 240, 255, 0.3); }
+  0% { transform: scale(0); opacity: 0; box-shadow: 0 0 0 0 rgba(0, 217, 255, 0.8); }
+  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 40px 15px rgba(0, 217, 255, 0.6), 0 0 60px rgba(0, 255, 153, 0.4); }
+  100% { transform: scale(1); opacity: 1; box-shadow: 0 0 25px rgba(0, 217, 255, 0.4), 0 0 40px rgba(0, 255, 153, 0.2); }
 }
 
 .marker-container-new { animation: none !important; }
 .popup-new-badge {
   display: inline-block;
   padding: 2px 8px;
-  background: linear-gradient(135deg, #00f0ff, #00ff88);
+  background: linear-gradient(135deg, #00d9ff, #00ff99);
   color: #000;
   font-size: 9px;
   font-weight: 900;
@@ -697,7 +709,7 @@ body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont
   text-transform: uppercase;
   letter-spacing: 1px;
   animation: neonFlicker 2s ease-in-out infinite;
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.8);
+  box-shadow: 0 0 15px rgba(0, 217, 255, 0.9), 0 0 30px rgba(0, 255, 153, 0.5);
 }
 
 @keyframes neonFlicker {
@@ -712,22 +724,22 @@ body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont
 
 /* Hi-tech marker glow */
 .hi-tech-marker {
-  filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.6));
+  filter: drop-shadow(0 0 12px rgba(0, 217, 255, 0.7)) drop-shadow(0 0 20px rgba(0, 255, 153, 0.4));
 }
 
 /* Cluster markers hi-tech style */
 .marker-cluster {
-  background: linear-gradient(135deg, rgba(0, 240, 255, 0.8), rgba(0, 255, 136, 0.6)) !important;
-  border: 2px solid rgba(0, 240, 255, 0.9) !important;
-  box-shadow: 0 0 20px rgba(0, 240, 255, 0.6), inset 0 0 10px rgba(0, 240, 255, 0.3) !important;
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.85), rgba(0, 255, 153, 0.7)) !important;
+  border: 2px solid rgba(0, 217, 255, 0.95) !important;
+  box-shadow: 0 0 30px rgba(0, 217, 255, 0.7), 0 0 50px rgba(0, 255, 153, 0.4), inset 0 0 15px rgba(0, 217, 255, 0.4) !important;
   color: #000 !important;
   font-weight: 900 !important;
   animation: clusterPulse 2s ease-in-out infinite;
 }
 
 @keyframes clusterPulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(0, 240, 255, 0.6), inset 0 0 10px rgba(0, 240, 255, 0.3); }
-  50% { box-shadow: 0 0 30px rgba(0, 240, 255, 0.9), inset 0 0 15px rgba(0, 240, 255, 0.5); }
+  0%, 100% { box-shadow: 0 0 30px rgba(0, 217, 255, 0.7), 0 0 50px rgba(0, 255, 153, 0.4), inset 0 0 15px rgba(0, 217, 255, 0.4); }
+  50% { box-shadow: 0 0 40px rgba(0, 217, 255, 0.9), 0 0 70px rgba(0, 255, 153, 0.6), inset 0 0 20px rgba(0, 217, 255, 0.6); }
 }
 
 /* Top Bar */
@@ -735,12 +747,12 @@ body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont
   position: fixed; top: 0; left: 0; right: 0; z-index: 1000; 
   background: linear-gradient(180deg, rgba(10, 15, 30, 0.98) 0%, rgba(10, 15, 30, 0.85) 100%);
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(0, 240, 255, 0.3);
+  border-bottom: 1px solid rgba(0, 217, 255, 0.35);
   padding: 10px 14px; 
   display: flex; 
   align-items: center; 
   justify-content: space-between; 
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 240, 255, 0.2);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 217, 255, 0.3), 0 0 50px rgba(0, 255, 153, 0.15);
 }
 .tb-left { display: flex; align-items: center; gap: 10px; }
 .oil-pulse-mini { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; color: var(--primary-light); animation: oilPulseMini 2s ease-in-out infinite; }
@@ -759,7 +771,7 @@ body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont
   background: linear-gradient(to bottom, rgba(10, 15, 30, 0.95) 0%, rgba(10, 15, 30, 0.7) 80%, transparent 100%);
   backdrop-filter: blur(20px);
   padding: 8px 10px; 
-  border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+  border-bottom: 1px solid rgba(0, 217, 255, 0.25);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 .filter-row { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 4px 0; }
@@ -770,9 +782,9 @@ body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont
   background: linear-gradient(135deg, var(--primary), var(--primary-dark)); 
   color: #000; 
   border-color: var(--primary); 
-  box-shadow: 0 0 15px rgba(0, 240, 255, 0.6), 0 2px 10px rgba(0, 240, 255, 0.4);
+  box-shadow: 0 0 20px rgba(0, 217, 255, 0.7), 0 0 40px rgba(0, 255, 153, 0.4), 0 2px 10px rgba(0, 217, 255, 0.5);
   font-weight: 700;
-  text-shadow: 0 0 10px rgba(0, 240, 255, 0.8);
+  text-shadow: 0 0 15px rgba(0, 217, 255, 0.9), 0 0 25px rgba(0, 255, 153, 0.6);
 }
 .filter-chip.status-open.active { background: var(--danger); border-color: var(--danger); }
 .filter-chip.status-pending.active { background: var(--warning); border-color: var(--warning); color: #000; }
@@ -783,7 +795,7 @@ body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont
   position: fixed; z-index: 1001; width: 50px; height: 50px; border-radius: var(--radius); 
   background: linear-gradient(135deg, rgba(10, 15, 30, 0.95), rgba(15, 25, 45, 0.95)); 
   backdrop-filter: blur(20px); 
-  border: 1px solid rgba(0, 240, 255, 0.4); 
+  border: 1px solid rgba(0, 217, 255, 0.5); 
   color: var(--primary); 
   font-size: 24px; 
   cursor: pointer; 
@@ -812,7 +824,7 @@ body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont
 .fab-ripples { position: absolute; inset: -10px; }
 .fab-ripple { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--primary); opacity: 0; animation: fabRipple 2.5s ease-out infinite; }
 .fab-ripple:nth-child(2) { animation-delay: 1.25s; }
-@keyframes fabRipple { 0% { transform: scale(0.8); opacity: 0.6; box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.7); } 100% { transform: scale(1.6); opacity: 0; box-shadow: 0 0 0 20px rgba(0, 240, 255, 0); } }
+@keyframes fabRipple { 0% { transform: scale(0.8); opacity: 0.75; box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.7); } 100% { transform: scale(1.6); opacity: 0; box-shadow: 0 0 0 20px rgba(0, 240, 255, 0); } }
 
 /* Timeline */
 .timeline-panel { position: fixed; bottom: 0; left: 0; right: 0; z-index: 999; height: 70px; background: var(--surface); backdrop-filter: blur(20px); border-top: 1px solid var(--border); padding: 10px; box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3); }
@@ -897,7 +909,7 @@ body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont
   inset: 0;
   border-radius: var(--radius);
   padding: 1px;
-  background: linear-gradient(135deg, rgba(0, 240, 255, 0.5), rgba(0, 255, 136, 0.3));
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.5), rgba(0, 255, 153, 0.4));
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -1968,7 +1980,7 @@ const APP_HTML = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="app-version" content="${Date.now()}">
+<meta name="app-version" content="1771327547">
 <title>Пульс города — Нижневартовск</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -2343,14 +2355,14 @@ const state = {
 const styles = \`
 * { margin: 0; padding: 0; box-sizing: border-box; }
 :root {
-  --bg: #0a0a0f; --surface: rgba(10, 15, 30, 0.95); --text: #e0e7ff;
-  --primary: #00f0ff; --primary-light: #33f3ff; --primary-dark: #00c8d4;
-  --success: #00ff88; --danger: #ff3366; --warning: #ffaa00; --info: #00aaff;
-  --neon-cyan: #00f0ff; --neon-green: #00ff88; --neon-blue: #0066ff;
-  --oil-dark: #0a0a1a; --oil-light: #1a1a2e; --aurora-green: rgba(0, 255, 136, 0.3);
-  --border: rgba(0, 240, 255, 0.2); 
-  --shadow: 0 0 30px rgba(0, 240, 255, 0.3), 0 4px 20px rgba(0, 0, 0, 0.8);
-  --shadow-glow: 0 0 40px rgba(0, 240, 255, 0.5), 0 0 80px rgba(0, 255, 136, 0.3);
+  --bg: #050508; --surface: rgba(10, 15, 30, 0.92); --text: #e0e7ff;
+  --primary: #00d9ff; --primary-light: #4de6ff; --primary-dark: #00b8d4;
+  --success: #00ff99; --danger: #ff2d5f; --warning: #ffb800; --info: #00aaff;
+  --neon-cyan: #00d9ff; --neon-green: #00ff99; --neon-blue: #0066ff;
+  --oil-dark: #0a0a1a; --oil-light: #1a1a2e; --aurora-green: rgba(0, 255, 153, 0.4);
+  --border: rgba(0, 217, 255, 0.25); 
+  --shadow: 0 0 40px rgba(0, 217, 255, 0.4), 0 0 60px rgba(0, 255, 153, 0.2), 0 4px 20px rgba(0, 0, 0, 0.8);
+  --shadow-glow: 0 0 50px rgba(0, 217, 255, 0.6), 0 0 100px rgba(0, 255, 153, 0.4), 0 0 150px rgba(0, 217, 255, 0.2);
   --radius: 16px; --radius-sm: 8px; --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 body { 
@@ -2366,7 +2378,7 @@ body {
   inset: 0; 
   z-index: 0; 
   pointer-events: none;
-  opacity: 0.6;
+  opacity: 0.75;
 }
 
 /* Splash Screen */
@@ -2397,7 +2409,7 @@ body {
 .pulse-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--primary); opacity: 0; animation: ringPulse 3s ease-out infinite; }
 .pulse-ring:nth-child(2) { animation-delay: 1s; }
 .pulse-ring:nth-child(3) { animation-delay: 2s; }
-@keyframes ringPulse { 0% { transform: scale(0.8); opacity: 0.6; } 100% { transform: scale(1.5); opacity: 0; } }
+@keyframes ringPulse { 0% { transform: scale(0.8); opacity: 0.75; } 100% { transform: scale(1.5); opacity: 0; } }
 
 /* Title */
 .splash-title { 
@@ -2435,7 +2447,7 @@ body {
 .rhythm-bpm { font-size: 36px; font-weight: 900; color: var(--success); line-height: 1; font-variant-numeric: tabular-nums; transition: color 0.5s; animation: bpmPulse 1s ease-in-out infinite; text-shadow: 0 0 15px rgba(0, 255, 136, 0.6); }
 @keyframes bpmPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
 .rhythm-label { font-size: 9px; color: rgba(255, 255, 255, 0.4); text-transform: uppercase; letter-spacing: 1px; }
-.rhythm-mood { font-size: 13px; font-weight: 700; color: var(--success); transition: color 0.5s; padding: 4px 12px; background: rgba(0, 255, 136, 0.15); border-radius: 12px; border: 1px solid rgba(0, 255, 136, 0.3); }
+.rhythm-mood { font-size: 13px; font-weight: 700; color: var(--success); transition: color 0.5s; padding: 4px 12px; background: rgba(0, 255, 136, 0.15); border-radius: 12px; border: 1px solid rgba(0, 255, 153, 0.4); }
 
 /* Stats Cards */
 .splash-stats { display: flex; justify-content: center; gap: 12px; margin-bottom: 20px; animation: fadeIn 0.8s ease 0.9s both; }
@@ -2530,8 +2542,8 @@ body {
   position: absolute;
   inset: 0;
   background: 
-    linear-gradient(0deg, transparent 0%, rgba(0, 240, 255, 0.03) 50%, transparent 100%),
-    radial-gradient(circle at 50% 50%, rgba(0, 240, 255, 0.05) 0%, transparent 70%);
+    linear-gradient(0deg, transparent 0%, rgba(0, 217, 255, 0.05) 50%, transparent 100%),
+    radial-gradient(circle at 50% 50%, rgba(0, 217, 255, 0.08) 0%, transparent 70%);
   pointer-events: none;
   z-index: 1000;
   mix-blend-mode: screen;
@@ -2546,12 +2558,12 @@ body {
   z-index: 1000; 
   background: linear-gradient(180deg, rgba(10, 15, 30, 0.98) 0%, rgba(10, 15, 30, 0.85) 100%);
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(0, 240, 255, 0.3);
+  border-bottom: 1px solid rgba(0, 217, 255, 0.35);
   padding: 10px 14px; 
   display: flex; 
   align-items: center; 
   justify-content: space-between; 
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 240, 255, 0.2);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 217, 255, 0.3), 0 0 50px rgba(0, 255, 153, 0.15);
 }
 .tb-left { display: flex; align-items: center; gap: 10px; }
 .oil-pulse-mini { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; color: var(--primary-light); animation: oilPulseMini 2s ease-in-out infinite; }
@@ -2574,7 +2586,7 @@ body {
   background: linear-gradient(to bottom, rgba(10, 15, 30, 0.95) 0%, rgba(10, 15, 30, 0.7) 80%, transparent 100%);
   backdrop-filter: blur(20px);
   padding: 8px 10px; 
-  border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+  border-bottom: 1px solid rgba(0, 217, 255, 0.25);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 .filter-row { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 4px 0; }
@@ -2601,9 +2613,9 @@ body {
   background: linear-gradient(135deg, var(--primary), var(--primary-dark)); 
   color: #000; 
   border-color: var(--primary); 
-  box-shadow: 0 0 15px rgba(0, 240, 255, 0.6), 0 2px 10px rgba(0, 240, 255, 0.4);
+  box-shadow: 0 0 20px rgba(0, 217, 255, 0.7), 0 0 40px rgba(0, 255, 153, 0.4), 0 2px 10px rgba(0, 217, 255, 0.5);
   font-weight: 700;
-  text-shadow: 0 0 10px rgba(0, 240, 255, 0.8);
+  text-shadow: 0 0 15px rgba(0, 217, 255, 0.9), 0 0 25px rgba(0, 255, 153, 0.6);
 }
 .filter-chip.status-open.active { background: var(--danger); border-color: var(--danger); }
 .filter-chip.status-pending.active { background: var(--warning); border-color: var(--warning); color: #000; }
@@ -2633,7 +2645,7 @@ body {
 .fab-ripples { position: absolute; inset: -10px; }
 .fab-ripple { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--primary); opacity: 0; animation: fabRipple 2.5s ease-out infinite; }
 .fab-ripple:nth-child(2) { animation-delay: 1.25s; }
-@keyframes fabRipple { 0% { transform: scale(0.8); opacity: 0.6; box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.7); } 100% { transform: scale(1.6); opacity: 0; box-shadow: 0 0 0 20px rgba(0, 240, 255, 0); } }
+@keyframes fabRipple { 0% { transform: scale(0.8); opacity: 0.75; box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.7); } 100% { transform: scale(1.6); opacity: 0; box-shadow: 0 0 0 20px rgba(0, 240, 255, 0); } }
 
 /* Timeline */
 .timeline-panel { 
@@ -2746,7 +2758,7 @@ body {
   inset: 0;
   border-radius: var(--radius);
   padding: 1px;
-  background: linear-gradient(135deg, rgba(0, 240, 255, 0.5), rgba(0, 255, 136, 0.3));
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.5), rgba(0, 255, 153, 0.4));
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -2767,16 +2779,16 @@ body {
 
 /* Marker pulse animation */
 @keyframes markerPulse {
-  0% { transform: scale(0); opacity: 0; box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.7); }
-  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 30px 10px rgba(0, 240, 255, 0.5); }
-  100% { transform: scale(1); opacity: 1; box-shadow: 0 0 20px rgba(0, 240, 255, 0.3); }
+  0% { transform: scale(0); opacity: 0; box-shadow: 0 0 0 0 rgba(0, 217, 255, 0.8); }
+  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 40px 15px rgba(0, 217, 255, 0.6), 0 0 60px rgba(0, 255, 153, 0.4); }
+  100% { transform: scale(1); opacity: 1; box-shadow: 0 0 25px rgba(0, 217, 255, 0.4), 0 0 40px rgba(0, 255, 153, 0.2); }
 }
 
 .marker-container-new { animation: none !important; }
 .popup-new-badge {
   display: inline-block;
   padding: 2px 8px;
-  background: linear-gradient(135deg, #00f0ff, #00ff88);
+  background: linear-gradient(135deg, #00d9ff, #00ff99);
   color: #000;
   font-size: 9px;
   font-weight: 900;
@@ -2784,7 +2796,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 1px;
   animation: neonFlicker 2s ease-in-out infinite;
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.8);
+  box-shadow: 0 0 15px rgba(0, 217, 255, 0.9), 0 0 30px rgba(0, 255, 153, 0.5);
 }
 
 @keyframes neonFlicker {
@@ -2799,22 +2811,22 @@ body {
 
 /* Hi-tech marker glow */
 .hi-tech-marker {
-  filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.6));
+  filter: drop-shadow(0 0 12px rgba(0, 217, 255, 0.7)) drop-shadow(0 0 20px rgba(0, 255, 153, 0.4));
 }
 
 /* Cluster markers hi-tech style */
 .marker-cluster {
-  background: linear-gradient(135deg, rgba(0, 240, 255, 0.8), rgba(0, 255, 136, 0.6)) !important;
-  border: 2px solid rgba(0, 240, 255, 0.9) !important;
-  box-shadow: 0 0 20px rgba(0, 240, 255, 0.6), inset 0 0 10px rgba(0, 240, 255, 0.3) !important;
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.85), rgba(0, 255, 153, 0.7)) !important;
+  border: 2px solid rgba(0, 217, 255, 0.95) !important;
+  box-shadow: 0 0 30px rgba(0, 217, 255, 0.7), 0 0 50px rgba(0, 255, 153, 0.4), inset 0 0 15px rgba(0, 217, 255, 0.4) !important;
   color: #000 !important;
   font-weight: 900 !important;
   animation: clusterPulse 2s ease-in-out infinite;
 }
 
 @keyframes clusterPulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(0, 240, 255, 0.6), inset 0 0 10px rgba(0, 240, 255, 0.3); }
-  50% { box-shadow: 0 0 30px rgba(0, 240, 255, 0.9), inset 0 0 15px rgba(0, 240, 255, 0.5); }
+  0%, 100% { box-shadow: 0 0 30px rgba(0, 217, 255, 0.7), 0 0 50px rgba(0, 255, 153, 0.4), inset 0 0 15px rgba(0, 217, 255, 0.4); }
+  50% { box-shadow: 0 0 40px rgba(0, 217, 255, 0.9), 0 0 70px rgba(0, 255, 153, 0.6), inset 0 0 20px rgba(0, 217, 255, 0.6); }
 }
 \`;
 
@@ -2916,9 +2928,9 @@ const CityRhythm = {
     ctx.clearRect(0, 0, W, H);
     
     const grad = ctx.createLinearGradient(0, 0, W, 0);
-    grad.addColorStop(0, 'rgba(0, 240, 255, 0.05)');
+    grad.addColorStop(0, 'rgba(0, 217, 255, 0.08)');
     grad.addColorStop(0.5, 'rgba(0, 240, 255, 0.1)');
-    grad.addColorStop(1, 'rgba(0, 240, 255, 0.05)');
+    grad.addColorStop(1, 'rgba(0, 217, 255, 0.08)');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
     
