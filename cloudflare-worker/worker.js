@@ -2675,7 +2675,7 @@ body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont
 .uk-btn { top: 10px; right: 10px; }
 
 /* FAB - Oil Drop */
-.fab { position: fixed; bottom: 80px; right: 14px; z-index: 1001; width: 64px; height: 64px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: var(--transition); }
+.fab { position: fixed; bottom: 20px; right: 14px; z-index: 1001; width: 64px; height: 64px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: var(--transition); }
 .fab:active { transform: scale(0.9); }
 .fab-drop { position: relative; width: 56px; height: 68px; }
 .fab-drop svg { width: 100%; height: 100%; filter: drop-shadow(0 0 20px rgba(0, 240, 255, 0.8)) drop-shadow(0 4px 16px rgba(0, 240, 255, 0.6)); animation: fabFloat 3s ease-in-out infinite; }
