@@ -77,7 +77,7 @@ export default {
 
     // --- Map Web App (для Telegram) - backward compatibility ---
     if (path === "/map" || path === "/map/") {
-      // Версионирование для карты
+      // Версионирование для карты - всегда используем timestamp для обхода кэша
       const version = url.searchParams.get("v") || Date.now();
       let mapWithVersion = MAP_HTML.replace(
         /<meta name="app-version" content="[^"]*">/g,
@@ -88,7 +88,13 @@ export default {
         `<title>🗺️ Карта проблем Нижневартовска — Пульс города</title>\n<meta name="app-version" content="${version}">`
       );
       return new Response(mapWithVersion, {
-        headers: { "Content-Type": "text/html;charset=utf-8", "Access-Control-Allow-Origin": "*", "Cache-Control": "no-cache, no-store, must-revalidate" },
+        headers: { 
+          "Content-Type": "text/html;charset=utf-8", 
+          "Access-Control-Allow-Origin": "*", 
+          "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+          "Pragma": "no-cache",
+          "Expires": "0"
+        },
       });
     }
 
@@ -124,6 +130,9 @@ export default {
         headers: { 
           "Content-Type": "text/html;charset=utf-8", 
           "Access-Control-Allow-Origin": "*",
+          "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+          "Pragma": "no-cache",
+          "Expires": "0",
           "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
           "Pragma": "no-cache",
           "Expires": "0"
@@ -4000,16 +4009,58 @@ function setupEventListeners() {
     };
   }
   
-  // GPS button
+  // GPS button with automatic address detection
   const gpsBtn = document.getElementById('gpsBtn');
   if (gpsBtn) {
     gpsBtn.onclick = () => {
       if (navigator.geolocation) {
         gpsBtn.innerHTML = '<span data-icon="mdi:loading"></span> Определение...';
         navigator.geolocation.getCurrentPosition(
-          (position) => {
-            document.getElementById('formLat').value = position.coords.latitude.toFixed(4);
-            document.getElementById('formLng').value = position.coords.longitude.toFixed(4);
+          async (position) => {
+            const lat = position.coords.latitude.toFixed(6);
+            const lng = position.coords.longitude.toFixed(6);
+            document.getElementById('formLat').value = lat;
+            document.getElementById('formLng').value = lng;
+            
+            // Automatic reverse geocoding to get address
+            gpsBtn.innerHTML = '<span data-icon="mdi:loading"></span> Адрес...';
+            try {
+              // Use Nominatim reverse geocoding
+              const geoUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&accept-language=ru`;
+              const response = await fetch(geoUrl, {
+                headers: { 'User-Agent': 'SoobshioApp/1.0' }
+              });
+              
+              if (response.ok) {
+                const data = await response.json();
+                if (data && data.address) {
+                  // Build address from components
+                  const addr = data.address;
+                  let addressParts = [];
+                  
+                  if (addr.road) addressParts.push(addr.road);
+                  if (addr.house_number) addressParts.push(addr.house_number);
+                  if (addressParts.length === 0 && addr.suburb) addressParts.push(addr.suburb);
+                  if (addr.city || addr.town || addr.village) {
+                    const city = addr.city || addr.town || addr.village;
+                    if (city !== 'Нижневартовск') addressParts.push(city);
+                  }
+                  
+                  const fullAddress = addressParts.length > 0 
+                    ? addressParts.join(', ') + (addr.city === 'Нижневартовск' ? '' : ', Нижневартовск')
+                    : data.display_name || '';
+                  
+                  if (fullAddress) {
+                    document.getElementById('formAddress').value = fullAddress;
+                    showToast('Адрес определен автоматически', 'success');
+                  }
+                }
+              }
+            } catch (error) {
+              console.log('Reverse geocoding failed:', error);
+              // Continue without address - coordinates are set
+            }
+            
             gpsBtn.innerHTML = '<span data-icon="mdi:check"></span> Определено';
             setTimeout(() => {
               gpsBtn.innerHTML = '<span data-icon="mdi:crosshairs-gps"></span> Определить';

@@ -276,7 +276,8 @@ async def cmd_map(message: types.Message):
         )
         return
     
-    version = get_webapp_version()
+    # Always use timestamp to bypass cache
+    version = int(__import__("time").time())
     buttons = [
         [InlineKeyboardButton(text="🗺️ Открыть карту", web_app=WebAppInfo(url=f"{CF_WORKER}/map?v={version}"))],
         [InlineKeyboardButton(text="🌍 OpenStreetMap", url="https://www.openstreetmap.org/#map=13/60.9344/76.5531")],
@@ -305,7 +306,8 @@ async def cmd_info(message: types.Message):
         )
         return
     
-    version = get_webapp_version()
+    # Always use timestamp to bypass cache
+    version = int(__import__("time").time())
     buttons = [
         [InlineKeyboardButton(text="📊 Инфографика", web_app=WebAppInfo(url=f"{CF_WORKER}/info?v={version}"))],
     ]
@@ -837,7 +839,8 @@ async def btn_profile(message: types.Message):
 @dp.message(F.text == "🚪 Вход")
 async def btn_login(message: types.Message):
     """Обработчик кнопки Вход - открывает главное меню с доступом к функциям"""
-    version = get_webapp_version()
+    # Always use timestamp to bypass cache
+    version = int(__import__("time").time())
     buttons = [
         [InlineKeyboardButton(text="🗺️ Карта", web_app=WebAppInfo(url=f"{CF_WORKER}/map?v={version}"))],
         [InlineKeyboardButton(text="📝 Новая жалоба", callback_data="new_complaint")],
@@ -1578,7 +1581,7 @@ async def on_successful_payment(message: types.Message):
 @dp.callback_query(F.data.startswith("od:"))
 async def cb_opendata(callback: types.CallbackQuery):
     dataset = callback.data[3:]
-    url = f"{CF_WORKER}/info?dataset={dataset}&v={get_webapp_version()}"
+    url = f"{CF_WORKER}/info?dataset={dataset}&v={int(__import__('time').time())}"
     buttons = [[InlineKeyboardButton(text="📊 Открыть", web_app=WebAppInfo(url=url))]]
     await callback.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
     await callback.answer()
