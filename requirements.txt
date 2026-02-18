@@ -27,3 +27,6 @@ httpx==0.28.1
 # Безопасность
 fastapi-security>=0.3.0
 slowapi>=0.1.9
+
+# PDF generation
+reportlab>=4.0.0

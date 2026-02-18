@@ -377,6 +377,164 @@ def export_stats_csv(db: Session) -> str:
     return output.getvalue()
 
 
+def export_complaints_pdf(db: Session, days: Optional[int] = None, limit: Optional[int] = None) -> bytes:
+    """Экспортирует краткую сводку по жалобам в формате PDF"""
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import mm
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+        from datetime import datetime, timedelta
+        import io
+        
+        # Подготовка данных
+        query = db.query(Report)
+        
+        if days:
+            cutoff_date = datetime.utcnow() - timedelta(days=days)
+            query = query.filter(Report.created_at >= cutoff_date)
+        
+        reports = query.order_by(Report.created_at.desc()).limit(limit).all() if limit else query.order_by(Report.created_at.desc()).all()
+        
+        # Статистика
+        stats = get_stats(db)
+        
+        # Создание PDF в памяти
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=20*mm, bottomMargin=20*mm)
+        story = []
+        
+        # Стили
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=20,
+            textColor=colors.HexColor('#1a1a2e'),
+            spaceAfter=12,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold'
+        )
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=14,
+            textColor=colors.HexColor('#0f3460'),
+            spaceAfter=8,
+            fontName='Helvetica-Bold'
+        )
+        normal_style = styles['Normal']
+        normal_style.fontSize = 10
+        normal_style.leading = 12
+        
+        # Заголовок
+        story.append(Paragraph("📊 Краткая сводка по жалобам", title_style))
+        story.append(Paragraph(f"<i>Дата формирования: {datetime.now().strftime('%d.%m.%Y %H:%M')}</i>", normal_style))
+        story.append(Spacer(1, 12))
+        
+        # Общая статистика
+        story.append(Paragraph("Общая статистика", heading_style))
+        stats_data = [
+            ["Показатель", "Значение"],
+            ["Всего жалоб", str(stats['total_reports'])],
+            ["Пользователей", str(stats['total_users'])],
+            ["Открыто", str(stats['open'])],
+            ["В обработке", str(stats['pending'])],
+            ["В работе", str(stats['in_progress'])],
+            ["Решено", str(stats['resolved'])],
+            ["За сегодня", str(stats['today'])],
+            ["За неделю", str(stats['week'])],
+            ["За месяц", str(stats['month'])],
+        ]
+        if stats.get('avg_resolution_days'):
+            stats_data.append(["Среднее время решения", f"{stats['avg_resolution_days']} дней"])
+        
+        stats_table = Table(stats_data, colWidths=[120*mm, 70*mm])
+        stats_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0f3460')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+        ]))
+        story.append(stats_table)
+        story.append(Spacer(1, 12))
+        
+        # Топ категорий
+        if stats.get('by_category'):
+            story.append(Paragraph("Топ категорий", heading_style))
+            category_data = [["Категория", "Количество", "%"]]
+            total = stats['total_reports']
+            for cat, cnt in list(stats['by_category'].items())[:10]:
+                pct = round((cnt / total * 100), 1) if total > 0 else 0
+                category_data.append([cat, str(cnt), f"{pct}%"])
+            
+            cat_table = Table(category_data, colWidths=[100*mm, 50*mm, 40*mm])
+            cat_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#16213e')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('ALIGN', (1, 1), (2, -1), 'RIGHT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+            ]))
+            story.append(cat_table)
+            story.append(Spacer(1, 12))
+        
+        # Список жалоб (краткий)
+        if reports:
+            story.append(Paragraph(f"Последние жалобы ({len(reports)} из {stats['total_reports']})", heading_style))
+            complaints_data = [["ID", "Категория", "Статус", "Адрес", "Дата"]]
+            
+            for r in reports[:50]:  # Ограничиваем до 50 для читаемости
+                date_str = r.created_at.strftime("%d.%m.%Y") if r.created_at else ""
+                address = (r.address or "")[:30] + "..." if r.address and len(r.address) > 30 else (r.address or "")
+                complaints_data.append([
+                    str(r.id),
+                    r.category or "—",
+                    r.status or "—",
+                    address,
+                    date_str
+                ])
+            
+            complaints_table = Table(complaints_data, colWidths=[15*mm, 35*mm, 25*mm, 60*mm, 25*mm])
+            complaints_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a1a2e')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('ALIGN', (0, 1), (0, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9f9f9')]),
+            ]))
+            story.append(complaints_table)
+        
+        # Построение PDF
+        doc.build(story)
+        buffer.seek(0)
+        return buffer.getvalue()
+        
+    except ImportError:
+        logger.error("reportlab not installed. Install with: pip install reportlab")
+        raise
+    except Exception as e:
+        logger.error(f"PDF export error: {e}")
+        raise
+
+
 def clear_old_reports(db: Session, days: int = 90) -> int:
     """Удаляет старые решённые жалобы (старше N дней)"""
     from datetime import datetime, timedelta

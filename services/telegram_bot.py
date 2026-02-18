@@ -37,7 +37,7 @@ from services.zai_service import analyze_complaint
 from services.admin_panel import (
     is_admin, get_stats, get_firebase_stats, format_stats_message,
     get_recent_reports, format_report_message, get_bot_status,
-    toggle_monitoring, is_monitoring_enabled, export_stats_csv, clear_old_reports,
+    toggle_monitoring, is_monitoring_enabled, export_stats_csv, export_complaints_pdf, clear_old_reports,
     save_bot_update_report, get_last_bot_update_reports,
     get_webapp_version, bump_webapp_version,
 )
@@ -405,7 +405,8 @@ async def cmd_admin(message: types.Message):
         [InlineKeyboardButton(text="📊 Статистика", callback_data="admin:stats")],
         [InlineKeyboardButton(text="📋 Последние жалобы", callback_data="admin:reports")],
         [InlineKeyboardButton(text="⚙️ Управление ботом", callback_data="admin:control")],
-        [InlineKeyboardButton(text="📤 Экспорт данных", callback_data="admin:export")],
+        [InlineKeyboardButton(text="📤 Экспорт CSV", callback_data="admin:export")],
+        [InlineKeyboardButton(text="📄 Экспорт PDF", callback_data="admin:export_pdf")],
         [InlineKeyboardButton(text="🗑️ Очистка данных", callback_data="admin:cleanup")],
     ])
     
@@ -708,7 +709,7 @@ async def cb_admin_clear_cache(callback: types.CallbackQuery):
 
 @dp.callback_query(F.data == "admin:export")
 async def cb_admin_export(callback: types.CallbackQuery):
-    """Экспорт данных"""
+    """Экспорт данных в CSV"""
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещён", show_alert=True)
         return
@@ -725,12 +726,39 @@ async def cb_admin_export(callback: types.CallbackQuery):
         
         await callback.message.answer_document(
             BufferedInputFile(bio.read(), filename=f"stats_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"),
-            caption="📤 Экспорт статистики"
+            caption="📤 Экспорт статистики (CSV)"
         )
         
         await callback.answer("✅ Данные экспортированы")
     except Exception as e:
         logger.error(f"Export error: {e}")
+        await callback.answer(f"❌ Ошибка: {e}", show_alert=True)
+    finally:
+        db.close()
+
+
+@dp.callback_query(F.data == "admin:export_pdf")
+async def cb_admin_export_pdf(callback: types.CallbackQuery):
+    """Экспорт краткой сводки по жалобам в PDF"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён", show_alert=True)
+        return
+    
+    db = _db()
+    try:
+        # Экспортируем последние 50 жалоб за последние 30 дней
+        pdf_data = export_complaints_pdf(db, days=30, limit=50)
+        
+        await callback.message.answer_document(
+            BufferedInputFile(pdf_data, filename=f"complaints_summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"),
+            caption="📄 Краткая сводка по жалобам (PDF)\n\nВключает:\n• Общую статистику\n• Топ категорий\n• Список последних жалоб"
+        )
+        
+        await callback.answer("✅ PDF сводка создана")
+    except ImportError:
+        await callback.answer("❌ Установите reportlab: pip install reportlab", show_alert=True)
+    except Exception as e:
+        logger.error(f"PDF export error: {e}")
         await callback.answer(f"❌ Ошибка: {e}", show_alert=True)
     finally:
         db.close()
@@ -794,7 +822,8 @@ async def cb_admin_back(callback: types.CallbackQuery):
         [InlineKeyboardButton(text="📊 Статистика", callback_data="admin:stats")],
         [InlineKeyboardButton(text="📋 Последние жалобы", callback_data="admin:reports")],
         [InlineKeyboardButton(text="⚙️ Управление ботом", callback_data="admin:control")],
-        [InlineKeyboardButton(text="📤 Экспорт данных", callback_data="admin:export")],
+        [InlineKeyboardButton(text="📤 Экспорт CSV", callback_data="admin:export")],
+        [InlineKeyboardButton(text="📄 Экспорт PDF", callback_data="admin:export_pdf")],
         [InlineKeyboardButton(text="🗑️ Очистка данных", callback_data="admin:cleanup")],
     ])
     
@@ -883,27 +912,56 @@ async def cb_about_project(callback: types.CallbackQuery):
 @dp.callback_query(F.data == "topup_menu")
 async def cb_topup_menu(callback: types.CallbackQuery):
     buttons = [
-        [InlineKeyboardButton(text="⭐ 50 Stars", callback_data="topup_50")],
-        [InlineKeyboardButton(text="⭐ 100 Stars", callback_data="topup_100")],
-        [InlineKeyboardButton(text="⭐ 200 Stars", callback_data="topup_200")],
+        [InlineKeyboardButton(text="50 ⭐ (1 жалоба)", callback_data="topup_50")],
+        [InlineKeyboardButton(text="100 ⭐ (2 жалобы)", callback_data="topup_100")],
+        [InlineKeyboardButton(text="200 ⭐ (4 жалобы)", callback_data="topup_200")],
+        [InlineKeyboardButton(text="500 ⭐ (10 жалоб)", callback_data="topup_500")],
+        [InlineKeyboardButton(text="1000 ⭐ (20 жалоб) 🎁", callback_data="topup_1000")],
         [InlineKeyboardButton(text="◀️ Назад", callback_data="back_profile")],
     ]
-    await callback.message.edit_text(
-        "💳 *Пополнение баланса*\n\nВыберите сумму:",
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    db = _db()
+    try:
+        user = get_or_create_user(db, callback.from_user)
+        current_balance = user.balance or 0
+        await callback.message.edit_text(
+            f"💳 *Пополнение баланса*\n\n"
+            f"💰 Текущий баланс: *{current_balance} ⭐*\n\n"
+            f"Выберите сумму для пополнения:\n"
+            f"• 50 ⭐ = 1 жалоба\n"
+            f"• 100 ⭐ = 2 жалобы\n"
+            f"• 200 ⭐ = 4 жалобы\n"
+            f"• 500 ⭐ = 10 жалоб\n"
+            f"• 1000 ⭐ = 20 жалоб + бонус 🎁\n\n"
+            f"💡 Первая жалоба всегда бесплатна!",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    finally:
+        db.close()
     await callback.answer()
 
 @dp.callback_query(F.data.startswith("topup_"))
 async def cb_topup(callback: types.CallbackQuery):
     amount = int(callback.data.split("_")[1])
+    
+    # Calculate bonus for large amounts
+    bonus = 0
+    if amount >= 1000:
+        bonus = 100  # 10% bonus
+        description = f"Пополнение баланса на {amount} ⭐ + бонус {bonus} ⭐ = {amount + bonus} ⭐ всего!"
+    elif amount >= 500:
+        bonus = 25  # 5% bonus
+        description = f"Пополнение баланса на {amount} ⭐ + бонус {bonus} ⭐ = {amount + bonus} ⭐ всего!"
+    else:
+        description = f"Пополнение баланса на {amount} ⭐ для отправки жалоб"
+    
     await bot.send_invoice(
         chat_id=callback.message.chat.id,
-        title=f"Пополнение {amount} ⭐",
-        description=f"Пополнение баланса на {amount} Stars для отправки жалоб",
-        payload=f"topup_{amount}",
+        title=f"Пополнение {amount} ⭐" + (f" + {bonus} ⭐ бонус" if bonus > 0 else ""),
+        description=description,
+        payload=f"topup_{amount}_{bonus}",
+        provider_token=None,  # For Telegram Stars, provider_token is not needed
         currency="XTR",
-        prices=[LabeledPrice(label=f"{amount} Stars", amount=amount)])
+        prices=[LabeledPrice(label=f"{amount} Stars" + (f" + {bonus} бонус" if bonus > 0 else ""), amount=amount + bonus)])
     await callback.answer()
 
 @dp.callback_query(F.data == "back_profile")
@@ -1544,8 +1602,9 @@ async def cb_cancel(callback: types.CallbackQuery):
 
 # ═══ PAYMENT HANDLERS ═══
 @dp.pre_checkout_query()
-async def on_pre_checkout(query: PreCheckoutQuery):
-    await bot.answer_pre_checkout_query(query.id, ok=True)
+async def pre_checkout_handler(pre_checkout_query: PreCheckoutQuery):
+    """Handle pre-checkout query for Telegram Payments"""
+    await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
 
 @dp.message(F.successful_payment)
 async def on_successful_payment(message: types.Message):
@@ -1558,9 +1617,21 @@ async def on_successful_payment(message: types.Message):
         db = _db()
         try:
             user = get_or_create_user(db, message.from_user)
+            # Parse bonus from payload if present
+            parts = payload.split("_")
+            base_amount = int(parts[1]) if len(parts) > 1 else amount
+            bonus = int(parts[2]) if len(parts) > 2 else 0
+            
             user.balance = (user.balance or 0) + amount
             db.commit()
-            await message.answer(f"✅ Баланс пополнен на {amount} ⭐\n💰 Текущий баланс: {user.balance} ⭐",
+            
+            bonus_text = f"\n🎁 Бонус: +{bonus} ⭐" if bonus > 0 else ""
+            await message.answer(
+                f"✅ *Платеж успешно выполнен!*\n\n"
+                f"💰 Пополнено: {base_amount} ⭐{bonus_text}\n"
+                f"💵 Текущий баланс: *{user.balance} ⭐*\n\n"
+                f"Теперь вы можете отправлять жалобы!",
+                parse_mode="Markdown",
                 reply_markup=main_kb())
         finally:
             db.close()

@@ -1067,6 +1067,12 @@ body {
 .btn-secondary { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.8); }
 .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
 .btn-secondary:active { transform: scale(0.97); }
+.btn-location { background: linear-gradient(135deg, #00ff88, #00f0ff); color: #000; font-weight: 700; }
+.btn-location:hover { background: linear-gradient(135deg, #00f0ff, #00ff88); box-shadow: 0 4px 12px rgba(0, 255, 136, 0.4); }
+.btn-location:active { transform: scale(0.97); }
+.btn-location:disabled { opacity: 0.6; cursor: not-allowed; }
+.fullscreen-hidden { display: none !important; }
+@keyframes pulse-marker { 0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(0,240,255,0.8); } 50% { transform: scale(1.1); box-shadow: 0 0 30px rgba(0,240,255,1); } }
 
 /* Toast */
 .toast { 
@@ -1583,8 +1589,8 @@ function initMap() {
     zoomControl: false
   });
   
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap',
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
     className: 'hi-tech-tiles'
   }).addTo(state.map);
@@ -2274,6 +2280,9 @@ const MAP_HTML = `<!DOCTYPE html>
   <button class="action-btn uk-btn" id="ukBtn" title="Рейтинг УК">
     <span data-icon="mdi:office-building"></span>
   </button>
+  <button class="action-btn fullscreen-btn" id="fullscreenBtn" title="Полноэкранный режим" onclick="toggleFullscreen()">
+    <span data-icon="mdi:fullscreen"></span>
+  </button>
   
   <!-- FAB - Oil Drop -->
   <button class="fab" id="fabBtn" title="Подать жалобу">
@@ -2671,8 +2680,9 @@ body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont
   border-color: rgba(0, 240, 255, 0.8);
   color: var(--primary-light);
 }
-.stats-btn { top: 10px; right: 68px; }
-.uk-btn { top: 10px; right: 10px; }
+.stats-btn { top: 10px; right: 126px; }
+.uk-btn { top: 10px; right: 68px; }
+.fullscreen-btn { top: 10px; right: 10px; }
 
 /* FAB - Oil Drop */
 .fab { position: fixed; bottom: 90px; right: 14px; z-index: 1001; width: 64px; height: 64px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: var(--transition); }
@@ -2727,6 +2737,12 @@ body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont
 .btn-secondary { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.8); }
 .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
 .btn-secondary:active { transform: scale(0.97); }
+.btn-location { background: linear-gradient(135deg, #00ff88, #00f0ff); color: #000; font-weight: 700; }
+.btn-location:hover { background: linear-gradient(135deg, #00f0ff, #00ff88); box-shadow: 0 4px 12px rgba(0, 255, 136, 0.4); }
+.btn-location:active { transform: scale(0.97); }
+.btn-location:disabled { opacity: 0.6; cursor: not-allowed; }
+.fullscreen-hidden { display: none !important; }
+@keyframes pulse-marker { 0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(0,240,255,0.8); } 50% { transform: scale(1.1); box-shadow: 0 0 30px rgba(0,240,255,1); } }
 
 /* Toast */
 .toast { 
@@ -3505,8 +3521,8 @@ function initMap() {
   });
   
   // Add tile layer with hi-tech dark theme
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap',
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
     className: 'hi-tech-tiles'
   }).addTo(state.map);
@@ -4075,6 +4091,175 @@ function setupEventListeners() {
   }
 }
 
+// ═══ LOCATION SHARING & MARKING ═══
+function shareLocationAndMark() {
+  const shareBtn = document.getElementById('shareLocationBtn');
+  if (!shareBtn) return;
+  
+  if (navigator.geolocation) {
+    shareBtn.innerHTML = '<span data-icon="mdi:loading"></span> Определение...';
+    shareBtn.disabled = true;
+    
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const lat = position.coords.latitude.toFixed(6);
+        const lng = position.coords.longitude.toFixed(6);
+        
+        // Fill form fields
+        document.getElementById('formLat').value = lat;
+        document.getElementById('formLng').value = lng;
+        
+        // Mark on map immediately
+        if (state.map) {
+          // Remove existing marker if any
+          if (window.locationMarker) {
+            state.map.removeLayer(window.locationMarker);
+          }
+          
+          // Add marker at current location
+          const marker = L.marker([lat, lng], {
+            icon: L.divIcon({
+              html: '<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg, #00f0ff, #00ff88);display:flex;align-items:center;justify-content:center;font-size:20px;border:3px solid rgba(255,255,255,0.8);box-shadow:0 0 20px rgba(0,240,255,0.8), 0 4px 12px rgba(0,0,0,0.6);animation:pulse-marker 2s ease-in-out infinite;"><span data-icon="mdi:map-marker"></span></div>',
+              className: 'location-share-marker',
+              iconSize: [40, 40],
+              iconAnchor: [20, 20]
+            }),
+            draggable: true
+          }).addTo(state.map);
+          
+          // Center map on marker
+          state.map.setView([lat, lng], 17);
+          
+          // Store marker reference
+          window.locationMarker = marker;
+          
+          // Update marker position when dragged
+          marker.on('dragend', function() {
+            const pos = marker.getLatLng();
+            document.getElementById('formLat').value = pos.lat.toFixed(6);
+            document.getElementById('formLng').value = pos.lng.toFixed(6);
+          });
+        }
+        
+        // Reverse geocoding for address
+        shareBtn.innerHTML = '<span data-icon="mdi:loading"></span> Адрес...';
+        try {
+          const geoUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&accept-language=ru`;
+          const response = await fetch(geoUrl, {
+            headers: { 'User-Agent': 'SoobshioApp/1.0' }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.address) {
+              const addr = data.address;
+              let addressParts = [];
+              if (addr.road) addressParts.push(addr.road);
+              if (addr.house_number) addressParts.push(addr.house_number);
+              if (addressParts.length === 0 && addr.suburb) addressParts.push(addr.suburb);
+              const fullAddress = addressParts.length > 0 
+                ? addressParts.join(', ') + (addr.city === 'Нижневартовск' ? '' : ', Нижневартовск')
+                : data.display_name || '';
+              if (fullAddress) {
+                document.getElementById('formAddress').value = fullAddress;
+              }
+            }
+          }
+        } catch (error) {
+          console.log('Reverse geocoding failed:', error);
+        }
+        
+        shareBtn.innerHTML = '<span data-icon="mdi:check"></span> Отмечено';
+        shareBtn.disabled = false;
+        showToast('Местоположение отмечено на карте', 'success');
+        
+        // Haptic feedback
+        if (tg && tg.HapticFeedback) {
+          tg.HapticFeedback.impactOccurred('medium');
+        }
+      },
+      (error) => {
+        showToast('Не удалось определить местоположение', 'error');
+        shareBtn.innerHTML = '<span data-icon="mdi:map-marker-radius"></span> Поделиться геолокацией';
+        shareBtn.disabled = false;
+      }
+    );
+  } else {
+    showToast('Геолокация не поддерживается', 'error');
+  }
+}
+
+// ═══ FULLSCREEN MODE ═══
+function toggleFullscreen() {
+  const mapContainer = document.getElementById('map');
+  if (!mapContainer) return;
+  
+  if (!isFullscreen) {
+    // Enter fullscreen
+    if (mapContainer.requestFullscreen) {
+      mapContainer.requestFullscreen();
+    } else if (mapContainer.webkitRequestFullscreen) {
+      mapContainer.webkitRequestFullscreen();
+    } else if (mapContainer.mozRequestFullScreen) {
+      mapContainer.mozRequestFullScreen();
+    } else if (mapContainer.msRequestFullscreen) {
+      mapContainer.msRequestFullscreen();
+    }
+    
+    // Hide UI elements
+    document.getElementById('topBar')?.classList.add('fullscreen-hidden');
+    document.getElementById('filterPanel')?.classList.add('fullscreen-hidden');
+    document.querySelector('.fab')?.classList.add('fullscreen-hidden');
+    document.querySelector('.timeline-panel')?.classList.add('fullscreen-hidden');
+    
+    isFullscreen = true;
+    
+    // Update map size
+    setTimeout(() => {
+      if (state.map) state.map.invalidateSize();
+    }, 100);
+  } else {
+    exitFullscreen();
+  }
+}
+
+function exitFullscreen() {
+  if (document.exitFullscreen) {
+    document.exitFullscreen();
+  } else if (document.webkitExitFullscreen) {
+    document.webkitExitFullscreen();
+  } else if (document.mozCancelFullScreen) {
+    document.mozCancelFullScreen();
+  } else if (document.msExitFullscreen) {
+    document.msExitFullscreen();
+  }
+  
+  // Show UI elements
+  document.getElementById('topBar')?.classList.remove('fullscreen-hidden');
+  document.getElementById('filterPanel')?.classList.remove('fullscreen-hidden');
+  document.querySelector('.fab')?.classList.remove('fullscreen-hidden');
+  document.querySelector('.timeline-panel')?.classList.remove('fullscreen-hidden');
+  
+  isFullscreen = false;
+  
+  // Update map size
+  setTimeout(() => {
+    if (state.map) state.map.invalidateSize();
+  }, 100);
+}
+
+// Listen for fullscreen changes
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement) {
+    exitFullscreen();
+  }
+});
+document.addEventListener('webkitfullscreenchange', () => {
+  if (!document.webkitFullscreenElement) {
+    exitFullscreen();
+  }
+});
+
 // ═══ SUBMIT COMPLAINT ═══
 function submitComplaint() {
   const category = document.getElementById('formCategory').value;
@@ -4085,6 +4270,10 @@ function submitComplaint() {
   
   if (!category || !description) {
     showToast('Заполните все обязательные поля', 'warning');
+    // Haptic feedback for error
+    if (tg && tg.HapticFeedback) {
+      tg.HapticFeedback.notificationOccurred('error');
+    }
     return;
   }
   
@@ -4107,14 +4296,31 @@ function submitComplaint() {
   })
   .then(response => response.json())
   .then(data => {
+    // Haptic feedback on success
+    if (tg && tg.HapticFeedback) {
+      tg.HapticFeedback.notificationOccurred('success');
+      tg.HapticFeedback.impactOccurred('heavy');
+    }
+    
     showToast('Жалоба отправлена!', 'success');
     closeModal();
+    
+    // Remove location marker
+    if (window.locationMarker) {
+      state.map.removeLayer(window.locationMarker);
+      window.locationMarker = null;
+    }
+    
     // Reload data
     loadData().then(() => renderMarkers());
   })
   .catch(error => {
     console.error('Error submitting complaint:', error);
     showToast('Ошибка отправки жалобы', 'error');
+    // Haptic feedback for error
+    if (tg && tg.HapticFeedback) {
+      tg.HapticFeedback.notificationOccurred('error');
+    }
   });
 }
 
