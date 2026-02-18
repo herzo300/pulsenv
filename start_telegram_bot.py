@@ -28,12 +28,23 @@ logger = logging.getLogger(__name__)
 
 
 async def run():
+    from services.bot_single_instance import acquire_lock, release_lock
     from services.telegram_bot import bot, main as bot_main
 
-    info = await bot.get_me()
-    logger.info(f"✅ Бот: @{info.username} (ID: {info.id}, {info.first_name})")
+    if not acquire_lock():
+        logger.error(
+            "Другой экземпляр бота уже запущен (TelegramConflictError). "
+            "Закройте другой терминал или убейте процесс: taskkill /IM python.exe /FI \"WINDOWTITLE eq *start_telegram*\""
+        )
+        sys.exit(1)
 
-    await bot_main()
+    try:
+        info = await bot.get_me()
+        logger.info(f"✅ Бот: @{info.username} (ID: {info.id}, {info.first_name})")
+
+        await bot_main()
+    finally:
+        release_lock()
 
 
 if __name__ == "__main__":

@@ -1,25 +1,31 @@
-"""Собирает worker.js: base + map.html + map_script.js -> MAP_HTML + info.html + info_script.js -> INFO_HTML"""
+"""Собирает worker.js: base + app.html + app_script.js -> APP_HTML + map.html + map_script.js -> MAP_HTML + info.html + info_script.js -> INFO_HTML"""
 import os
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Читаем базу worker.js (всё до MAP_HTML и INFO_HTML)
+# Читаем базу worker.js (всё до APP_HTML, MAP_HTML и INFO_HTML)
 with open(os.path.join(DIR, "worker.js"), "r", encoding="utf-8") as f:
     full = f.read()
 
-# Обрезаем старый MAP_HTML если есть
+# Обрезаем старые HTML константы если есть
+marker_app = "\n// ===== Unified Web App"
 marker_map = "\n// ===== Встроенная карта"
+marker_info = "\n// ===== Инфографика"
+
+idx_app = full.find(marker_app)
 idx_map = full.find(marker_map)
-if idx_map != -1:
-    base = full[:idx_map].rstrip()
+idx_info = full.find(marker_info)
+
+# Находим первый маркер для обрезки
+cut_idx = len(full)
+for idx in [idx_app, idx_map, idx_info]:
+    if idx != -1 and idx < cut_idx:
+        cut_idx = idx
+
+if cut_idx < len(full):
+    base = full[:cut_idx].rstrip()
 else:
-    # Обрезаем старый INFO_HTML если есть
-    marker_info = "\n// ===== Инфографика"
-    idx_info = full.find(marker_info)
-    if idx_info != -1:
-        base = full[:idx_info].rstrip()
-    else:
-        base = full.rstrip()
+    base = full.rstrip()
 
 # ═══ MAP ═══
 with open(os.path.join(DIR, "map.html"), "r", encoding="utf-8") as f:
@@ -40,6 +46,16 @@ def escape_for_template(s):
 
 full_map_escaped = escape_for_template(full_map)
 
+# ═══ APP ═══
+with open(os.path.join(DIR, "app.html"), "r", encoding="utf-8") as f:
+    app_html = f.read()
+with open(os.path.join(DIR, "app_script.js"), "r", encoding="utf-8") as f:
+    app_script = f.read()
+
+# Вставляем скрипт перед </body>
+full_app = app_html.replace("</body>", f"<script>\n{app_script}\n</script>\n</body>")
+full_app_escaped = escape_for_template(full_app)
+
 # ═══ INFO ═══
 with open(os.path.join(DIR, "info.html"), "r", encoding="utf-8") as f:
     info_html = f.read()
@@ -51,7 +67,8 @@ full_info_escaped = escape_for_template(full_info)
 
 # Собираем
 output = base
-output += "\n\n// ===== Встроенная карта (Telegram Web App) =====\nconst MAP_HTML = `" + full_map_escaped + "`;\n"
+output += "\n\n// ===== Unified Web App (Telegram Web App) =====\nconst APP_HTML = `" + full_app_escaped + "`;\n"
+output += "\n// ===== Встроенная карта (Telegram Web App) =====\nconst MAP_HTML = `" + full_map_escaped + "`;\n"
 output += "\n// ===== Инфографика — открытые данные Нижневартовска =====\nconst INFO_HTML = `" + full_info_escaped + "`;\n"
 
 # ═══ INFOGRAPHIC DATA ═══

@@ -11,6 +11,7 @@ load_dotenv()
 
 # ===== Telegram =====
 TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN", "")
+WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "")  # HTTPS URL для webhook (напр. https://example.com)
 TG_API_ID = os.getenv("TG_API_ID", "")
 TG_API_HASH = os.getenv("TG_API_HASH", "")
 TG_PHONE = os.getenv("TG_PHONE", "")
@@ -42,6 +43,11 @@ ADMIN_TELEGRAM_IDS = [
 
 # ===== VK =====
 VK_SERVICE_TOKEN = os.getenv("VK_SERVICE_TOKEN", "")
+
+# ===== MCP Fetch Server =====
+MCP_FETCH_SERVER_URL = os.getenv("MCP_FETCH_SERVER_URL", "http://localhost:3000")
+MCP_FETCH_ENABLED = os.getenv("MCP_FETCH_ENABLED", "false").lower() == "true"
+MCP_FETCH_TIMEOUT = float(os.getenv("MCP_FETCH_TIMEOUT", "30.0"))
 
 # ===== Other =====
 JWT_SECRET = os.getenv("JWT_SECRET", "")

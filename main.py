@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, status as http_status, Query
+from fastapi import FastAPI, Depends, status as http_status, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import uvicorn
@@ -31,6 +31,23 @@ app.mount("/map", StaticFiles(directory="map"), name="map")
 
 # Глобальный мониторинг Telegram (будет инициализирован отдельно)
 _telegram_monitor: Optional[Any] = None
+
+# ═══ Webhook для Telegram бота (альтернатива polling, без конфликта getUpdates) ═══
+@app.post("/webhook/telegram")
+async def telegram_webhook(request: Request):
+    """Приём обновлений от Telegram. Используйте при WEBHOOK_BASE_URL в .env."""
+    try:
+        from services.telegram_bot import bot, dp
+        from aiogram.types import Update
+
+        data = await request.json()
+        update = Update.model_validate(data)
+        await dp.feed_webhook_update(bot, update)
+        return {"ok": True}
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Webhook error: {e}")
+        return {"ok": False, "error": str(e)}
 
 
 @app.get("/")
@@ -940,21 +957,63 @@ async def opendata_infographic():
         total_summ=total_inv=total_gos=0
         agr_by_type={}
         all_agr=[]
+        budget_by_year={}
         for key,type_name in agr_types.items():
             ar=rows(key)
             agr_by_type[type_name]=len(ar)
             for a in ar:
                 s=safe_float(a.get("SUMM",0));vi=safe_float(a.get("VOLUME_INV",0));vg=safe_float(a.get("VOLUME_GOS",0))
                 total_summ+=s;total_inv+=vi;total_gos+=vg
+                year_str=str(a.get("YEAR","") or "")
+                if not year_str or year_str=="0":
+                    dat_str=str(a.get("DAT","") or "")
+                    if dat_str and len(dat_str)>=4:
+                        year_str=dat_str[-4:] if "." in dat_str else dat_str[:4]
+                try:
+                    year=int(year_str) if year_str and year_str.isdigit() else 0
+                    if 2015<=year<=2030:
+                        if year not in budget_by_year:
+                            budget_by_year[year]={"summ":0,"inv":0,"gos":0,"count":0}
+                        budget_by_year[year]["summ"]+=s
+                        budget_by_year[year]["inv"]+=vi
+                        budget_by_year[year]["gos"]+=vg
+                        budget_by_year[year]["count"]+=1
+                except:pass
                 if a.get("TITLE") or a.get("DESCRIPTION"):
                     all_agr.append({"type":type_name,"title":(a.get("TITLE") or "")[:80],
                         "desc":strip_html(a.get("DESCRIPTION",""))[:100],"org":(a.get("ORG") or "")[:60],
-                        "date":a.get("DAT",""),"summ":s,"vol_inv":vi,"vol_gos":vg,"year":a.get("YEAR","")})
+                        "date":a.get("DAT",""),"summ":s,"vol_inv":vi,"vol_gos":vg,"year":year_str})
         all_agr.sort(key=lambda x:x["summ"],reverse=True)
+        budget_trend=[{"year":y,"summ":round(b["summ"],2),"inv":round(b["inv"],2),
+            "gos":round(b["gos"],2),"count":b["count"],"total":round(b["summ"]+b["inv"]+b["gos"],2)}
+            for y in sorted(budget_by_year.keys())]
+        budget_analysis={}
+        if len(budget_trend)>=2:
+            first_year=budget_trend[0]
+            last_year=budget_trend[-1]
+            if first_year["total"]>0:
+                growth_pct=round((last_year["total"]/first_year["total"]-1)*100,1)
+                budget_analysis["growth_pct"]=growth_pct
+            avg_summ=sum(b["summ"] for b in budget_trend)/len(budget_trend)
+            avg_inv=sum(b["inv"] for b in budget_trend)/len(budget_trend)
+            avg_gos=sum(b["gos"] for b in budget_trend)/len(budget_trend)
+            budget_analysis["avg_summ"]=round(avg_summ,2)
+            budget_analysis["avg_inv"]=round(avg_inv,2)
+            budget_analysis["avg_gos"]=round(avg_gos,2)
+            max_year=max(budget_trend,key=lambda x:x["total"])
+            budget_analysis["max_year"]=max_year["year"]
+            budget_analysis["max_total"]=max_year["total"]
+            total_all_inv=sum(b["inv"] for b in budget_trend)
+            total_all_gos=sum(b["gos"] for b in budget_trend)
+            if total_all_inv+total_all_gos>0:
+                inv_ratio=round(total_all_inv/(total_all_inv+total_all_gos)*100,1)
+                gos_ratio=round(total_all_gos/(total_all_inv+total_all_gos)*100,1)
+                budget_analysis["inv_ratio"]=inv_ratio
+                budget_analysis["gos_ratio"]=gos_ratio
         info["agreements"]={"total":sum(agr_by_type.values()),"total_summ":round(total_summ,2),
             "total_inv":round(total_inv,2),"total_gos":round(total_gos,2),
             "by_type":[{"name":k,"count":v} for k,v in sorted(agr_by_type.items(),key=lambda x:-x[1]) if v>0],
-            "top":all_agr[:15]}
+            "top":all_agr[:15],"budget_by_year":budget_trend[-10:],"budget_analysis":budget_analysis}
 
         # Property
         pr_lands=rows("propertyregisterlands");pr_mov=rows("propertyregistermovableproperty")

@@ -73,3 +73,31 @@ cloudflare-worker/.wrangler/
 
 # Large data files
 opendata_full.json
+
+# Runtime data
+data/
+
+# Node (Cloudflare Worker)
+cloudflare-worker/node_modules/
+
+# Test files (moved to scripts/tests/)
+test_*.py
+test_*.html
+check_*.py
+verify_*.py
+
+# Maintenance scripts (moved to scripts/maintenance/)
+fix_*.py
+update_*.py
+force_update_*.py
+optimize_*.py
+
+# Reports (moved to docs/reports/)
+*_COMPLETE.md
+*_REPORT.md
+*_STATUS.md
+*_INSTRUCTIONS.md
+
+# Temporary JSON files
+test_request.json
+*_test*.json

@@ -3,6 +3,9 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../services/mcp_service.dart';
+import '../services/mcp_firebase_service.dart';
+import '../config/mcp_config.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -22,35 +25,114 @@ class _MapScreenState extends State<MapScreen> {
   // Центр Нижневартовска
   final LatLng _center = LatLng(60.9344, 76.5531);
 
+  // MCP Services
+  final MCPService _mcpService = MCPService();
+  final MCPFirebaseService _firebaseService = MCPFirebaseService();
+
   @override
   void initState() {
     super.initState();
+    // Инициализируем MCP сервис
+    MCPConfig.initializeMCPService();
     _loadComplaints();
+    
+    // Начинаем периодическое обновление данных
+    _startPeriodicUpdates();
+  }
+
+  void _startPeriodicUpdates() {
+    // Обновляем данные каждые 30 секунд
+    Future.delayed(const Duration(seconds: 30), () {
+      if (mounted) {
+        _loadComplaints();
+        _startPeriodicUpdates();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    // Отключаемся от MCP серверов при закрытии экрана
+    _mcpService.disconnectAll();
+    super.dispose();
   }
 
   Future<void> _loadComplaints() async {
+    if (!mounted) return;
+    
     setState(() => _isLoading = true);
     
     try {
-      // Пробуем загрузить с API
-      final response = await http.get(
-        Uri.parse('http://127.0.0.1:8000/api/reports'),
-      ).timeout(const Duration(seconds: 5));
+      // Приоритет 1: Firebase через MCP
+      List<Map<String, dynamic>> complaints = [];
       
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        _processComplaints(data);
+      try {
+        print('Загрузка данных из Firebase через MCP...');
+        complaints = await _firebaseService.getComplaints();
+        print('Получено жалоб из Firebase: ${complaints.length}');
+      } catch (firebaseError) {
+        print('Firebase MCP загрузка не удалась: $firebaseError');
+        
+        // Fallback 1: Прямой запрос к Firebase через Worker
+        try {
+          print('Пробуем прямой запрос к Firebase...');
+          final response = await http.get(
+            Uri.parse(
+                'https://anthropic-proxy.uiredepositionherzo.workers.dev/firebase/complaints.json'),
+          ).timeout(const Duration(seconds: 10));
+          
+          if (response.statusCode == 200) {
+            final json = jsonDecode(response.body);
+            // Firebase возвращает объект, преобразуем в список
+            if (json is Map) {
+              json.forEach((key, value) {
+                if (value is Map) {
+                  complaints.add({
+                    ...value as Map<String, dynamic>,
+                    'id': key,
+                  });
+                }
+              });
+            }
+            print('Получено жалоб из Firebase напрямую: ${complaints.length}');
+          }
+        } catch (directError) {
+          print('Прямой запрос к Firebase не удался: $directError');
+          
+          // Fallback 2: Локальный API
+          try {
+            print('Пробуем локальный API...');
+            final response = await http.get(
+              Uri.parse('http://127.0.0.1:8000/api/reports'),
+            ).timeout(const Duration(seconds: 5));
+            
+            if (response.statusCode == 200) {
+              final List<dynamic> data = json.decode(response.body);
+              complaints = data.cast<Map<String, dynamic>>();
+              print('Получено жалоб из локального API: ${complaints.length}');
+            }
+          } catch (localError) {
+            print('Локальный API недоступен: $localError');
+          }
+        }
+      }
+      
+      if (complaints.isNotEmpty) {
+        _processComplaints(complaints);
       } else {
-        // Если API не работает, используем тестовые данные
+        print('Данные не получены, используем тестовые данные');
+        // Если ничего не загрузилось, используем тестовые данные
         _loadTestData();
       }
     } catch (e) {
-      print('Ошибка загрузки данных: $e');
+      print('Критическая ошибка загрузки данных: $e');
       // Используем тестовые данные
       _loadTestData();
     }
     
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   void _loadTestData() {

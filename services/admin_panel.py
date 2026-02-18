@@ -228,6 +228,86 @@ def format_report_message(report: Report) -> str:
 
 # ═══ УПРАВЛЕНИЕ БОТОМ ═══
 
+# Файл для хранения версии Web App (карта/инфографика)
+_WEBAPP_VERSION_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "data", "webapp_version.json"
+)
+
+# Файл для отчётов об обновлениях бота
+_BOT_UPDATE_REPORTS_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "data", "bot_update_reports.json"
+)
+
+def _ensure_data_dir():
+    d = os.path.dirname(_WEBAPP_VERSION_FILE)
+    if not os.path.exists(d):
+        os.makedirs(d, exist_ok=True)
+
+def get_webapp_version() -> int:
+    """Возвращает текущую версию для URL карты и инфографики (обход кэша)."""
+    _ensure_data_dir()
+    try:
+        if os.path.exists(_WEBAPP_VERSION_FILE):
+            with open(_WEBAPP_VERSION_FILE, "r", encoding="utf-8") as f:
+                data = __import__("json").load(f)
+                return int(data.get("version", 1))
+    except Exception:
+        pass
+    return int(__import__("time").time())
+
+def bump_webapp_version() -> int:
+    """Увеличивает версию Web App. Вызывать после деплоя worker."""
+    import time
+    import json
+    _ensure_data_dir()
+    v = max(get_webapp_version(), int(time.time())) + 1
+    try:
+        with open(_WEBAPP_VERSION_FILE, "w", encoding="utf-8") as f:
+            json.dump({"version": v, "updated_at": datetime.utcnow().isoformat()}, f, ensure_ascii=False)
+    except Exception as e:
+        logger.warning(f"Could not save webapp version: {e}")
+    return v
+
+
+def save_bot_update_report(success: bool, webapp_version: int, details: str, error: Optional[str] = None) -> None:
+    """Сохраняет отчёт об обновлении бота для админ-панели."""
+    import json
+    _ensure_data_dir()
+    report = {
+        "success": success,
+        "webapp_version": webapp_version,
+        "details": details,
+        "error": error,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    try:
+        reports = []
+        if os.path.exists(_BOT_UPDATE_REPORTS_FILE):
+            with open(_BOT_UPDATE_REPORTS_FILE, "r", encoding="utf-8") as f:
+                reports = json.load(f)
+        reports.insert(0, report)
+        reports = reports[:50]  # храним последние 50
+        with open(_BOT_UPDATE_REPORTS_FILE, "w", encoding="utf-8") as f:
+            json.dump(reports, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.warning(f"Could not save bot update report: {e}")
+
+
+def get_last_bot_update_reports(limit: int = 5) -> List[Dict[str, Any]]:
+    """Возвращает последние отчёты об обновлениях бота."""
+    import json
+    try:
+        if os.path.exists(_BOT_UPDATE_REPORTS_FILE):
+            with open(_BOT_UPDATE_REPORTS_FILE, "r", encoding="utf-8") as f:
+                reports = json.load(f)
+                return reports[:limit]
+    except Exception:
+        pass
+    return []
+
+
 # Флаг состояния мониторинга (в реальном приложении лучше хранить в БД или Redis)
 _monitoring_enabled = True
 

@@ -37,7 +37,9 @@ from services.zai_service import analyze_complaint
 from services.admin_panel import (
     is_admin, get_stats, get_firebase_stats, format_stats_message,
     get_recent_reports, format_report_message, get_bot_status,
-    toggle_monitoring, is_monitoring_enabled, export_stats_csv, clear_old_reports
+    toggle_monitoring, is_monitoring_enabled, export_stats_csv, clear_old_reports,
+    save_bot_update_report, get_last_bot_update_reports,
+    get_webapp_version, bump_webapp_version,
 )
 from services.rate_limiter import check_rate_limit, get_rate_limit_info
 from backend.database import SessionLocal
@@ -274,12 +276,19 @@ async def cmd_map(message: types.Message):
         )
         return
     
-    version = int(time.time())
+    version = get_webapp_version()
     buttons = [
-        [InlineKeyboardButton(text="🗺️ Открыть карту", web_app=WebAppInfo(url=f"{CF_WORKER}/app?v={version}"))],
+        [InlineKeyboardButton(text="🗺️ Открыть карту", web_app=WebAppInfo(url=f"{CF_WORKER}/map?v={version}"))],
         [InlineKeyboardButton(text="🌍 OpenStreetMap", url="https://www.openstreetmap.org/#map=13/60.9344/76.5531")],
     ]
-    await message.answer("🗺️ *Карта проблем*\n\nЖалобы, рейтинг 42 УК, фильтры.",
+    await message.answer(
+        "🗺️ *Карта проблем Нижневартовска*\n\n"
+        "Интерактивная карта городских проблем:\n"
+        "• Жалобы с real-time обновлениями\n"
+        "• Рейтинг 42 управляющих компаний\n"
+        "• Фильтрация по категориям, статусам и датам\n"
+        "• Северное сияние в фоне\n\n"
+        "Используйте фильтры для поиска нужных проблем.",
         parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
 
 @dp.message(Command("info"))
@@ -296,11 +305,19 @@ async def cmd_info(message: types.Message):
         )
         return
     
-    version = int(time.time())
+    version = get_webapp_version()
     buttons = [
         [InlineKeyboardButton(text="📊 Инфографика", web_app=WebAppInfo(url=f"{CF_WORKER}/info?v={version}"))],
     ]
-    await message.answer("📊 *Инфографика Нижневартовска*\n\n72 датасета: бюджет, ЖКХ, транспорт, образование.",
+    await message.answer(
+        "📊 *Инфографика Нижневартовска*\n\n"
+        "72 датасета открытых данных:\n"
+        "• Бюджет и финансы\n"
+        "• ЖКХ и коммунальные услуги\n"
+        "• Транспорт и дороги\n"
+        "• Образование и здравоохранение\n"
+        "• Благоустройство и экология\n\n"
+        "Северное сияние в фоне ✨",
         parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
 
 @dp.message(Command("profile"))
@@ -503,16 +520,37 @@ async def cb_admin_report_nav(callback: types.CallbackQuery):
     
     await callback.answer()
 
+def _format_last_update_report(reports: list) -> str:
+    """Форматирует блок последних отчётов об обновлениях."""
+    if not reports:
+        return ""
+    r = reports[0]
+    ok = "✅" if r.get("success") else "❌"
+    ts = r.get("timestamp", "")[:19].replace("T", " ")
+    ver = r.get("webapp_version", "—")
+    det = r.get("details", "")
+    err = r.get("error", "")
+    line = f"{ok} {ts} | v{ver}"
+    if det:
+        line += f" | {det}"
+    if err:
+        line += f" | {err}"
+    return f"\n📋 *Последнее обновление:*\n{line}\n"
+
+
 @dp.callback_query(F.data == "admin:control")
-async def cb_admin_control(callback: types.CallbackQuery):
-    """Управление ботом"""
+async def cb_admin_control(callback: types.CallbackQuery, skip_answer: bool = False):
+    """Управление ботом. skip_answer=True если callback.answer() уже вызван."""
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещён", show_alert=True)
         return
-    
+
     status = get_bot_status()
     monitoring_status = "🟢 Включен" if status["monitoring_enabled"] else "🔴 Выключен"
-    
+    webapp_v = get_webapp_version()
+    last_reports = get_last_bot_update_reports(limit=1)
+    update_block = _format_last_update_report(last_reports)
+
     msg = (
         "⚙️ *Управление ботом*\n\n"
         f"📊 Всего жалоб: *{status['total_reports']}*\n"
@@ -522,9 +560,13 @@ async def cb_admin_control(callback: types.CallbackQuery):
         f"📡 Мониторинг: {monitoring_status}\n"
         f"📦 Очередь Firebase: *{status.get('firebase_queue_size', 0)}*\n"
         f"💾 Кэш AI: *{status.get('ai_cache_valid', 0)}* записей\n"
+        f"🗺️ Версия карты/инфографики: *{webapp_v}*"
+        f"{update_block}"
     )
-    
+
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Обновить бота", callback_data="admin:update_bot")],
+        [InlineKeyboardButton(text="📋 История обновлений", callback_data="admin:update_reports")],
         [
             InlineKeyboardButton(
                 text="🟢 Включить" if not status["monitoring_enabled"] else "🔴 Выключить",
@@ -537,9 +579,80 @@ async def cb_admin_control(callback: types.CallbackQuery):
         ],
         [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")],
     ])
-    
+
     await callback.message.edit_text(msg, reply_markup=keyboard, parse_mode="Markdown")
+    if not skip_answer:
+        await callback.answer()
+
+@dp.callback_query(F.data == "admin:update_bot")
+async def cb_admin_update_bot(callback: types.CallbackQuery):
+    """Обновление бота: версия карты/инфографики + меню команд.
+    Не вызываем callback.answer() здесь — cb_admin_control вызовет его один раз.
+    Двойной вызов вызывает ошибку Telegram API «query_id is invalid».
+    """
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён", show_alert=True)
+        return
+
+    try:
+        new_v = bump_webapp_version()
+        await setup_menu()
+        # Проверка: команды действительно обновились
+        cmds = await bot.get_my_commands()
+        expected = {"start", "help", "new", "map", "info", "profile"}
+        have = {c.command for c in cmds}
+        missing = expected - have
+        details = f"Команды: {len(have)}/6. Отсутствуют: {missing or 'нет'}"
+        save_bot_update_report(success=True, webapp_version=new_v, details=details)
+        await callback.message.answer(
+            f"✅ *Бот обновлён*\n\n"
+            f"🗺️ Версия карты/инфографики: *{new_v}*\n"
+            f"📋 Меню команд обновлено\n"
+            f"📋 {details}\n\n"
+            "Все новые ссылки на карту и инфографику будут с актуальной версией.",
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Update bot error: {e}")
+        save_bot_update_report(
+            success=False, webapp_version=get_webapp_version(),
+            details="", error=str(e)
+        )
+        await callback.message.answer(f"❌ Ошибка обновления: {e}")
+    await cb_admin_control(callback, skip_answer=False)
+
+@dp.callback_query(F.data == "admin:update_reports")
+async def cb_admin_update_reports(callback: types.CallbackQuery):
+    """Показать историю обновлений бота"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Доступ запрещён", show_alert=True)
+        return
+
+    reports = get_last_bot_update_reports(limit=10)
+    if not reports:
+        text = "История обновлений пуста."
+    else:
+        lines = ["*История обновлений бота* (последние 10):\n"]
+        for i, r in enumerate(reports, 1):
+            ok = "OK" if r.get("success") else "ERR"
+            ts = (r.get("timestamp") or "")[:19].replace("T", " ")
+            ver = r.get("webapp_version", "-")
+            det = r.get("details", "")
+            err = r.get("error", "")
+            line = f"{i}. [{ok}] {ts} | v{ver}"
+            if det:
+                line += f" | {det}"
+            if err:
+                line += f" | {err[:80]}"
+            lines.append(line)
+        text = "\n".join(lines)
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Назад", callback_data="admin:control")],
+    ])
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
     await callback.answer()
+
 
 @dp.callback_query(F.data == "admin:toggle_monitoring")
 async def cb_admin_toggle_monitoring(callback: types.CallbackQuery):
@@ -552,7 +665,7 @@ async def cb_admin_toggle_monitoring(callback: types.CallbackQuery):
     status_text = "🟢 включен" if new_state else "🔴 выключен"
     
     await callback.answer(f"Мониторинг {status_text}", show_alert=True)
-    await cb_admin_control(callback)  # Обновляем панель
+    await cb_admin_control(callback, skip_answer=True)
 
 @dp.callback_query(F.data == "admin:process_queue")
 async def cb_admin_process_queue(callback: types.CallbackQuery):
@@ -562,21 +675,18 @@ async def cb_admin_process_queue(callback: types.CallbackQuery):
         return
     
     from services.firebase_queue import process_queue, get_queue_stats
-    
+
     queue_before = get_queue_stats()["size"]
-    await callback.answer("⏳ Обработка очереди...", show_alert=False)
-    
     try:
         await process_queue()
         queue_after = get_queue_stats()["size"]
         processed = queue_before - queue_after
-        
-        await callback.answer(f"✅ Обработано: {processed} из {queue_before}", show_alert=True)
+        await callback.answer(f"Обработано: {processed} из {queue_before}", show_alert=True)
     except Exception as e:
         logger.error(f"Queue processing error: {e}")
-        await callback.answer(f"❌ Ошибка: {e}", show_alert=True)
-    
-    await cb_admin_control(callback)  # Обновляем панель
+        await callback.answer(f"Ошибка: {e}", show_alert=True)
+
+    await cb_admin_control(callback, skip_answer=True)
 
 @dp.callback_query(F.data == "admin:clear_cache")
 async def cb_admin_clear_cache(callback: types.CallbackQuery):
@@ -591,8 +701,8 @@ async def cb_admin_clear_cache(callback: types.CallbackQuery):
     clear_cache()
     cache_after = get_cache_stats()["total"]
     
-    await callback.answer(f"✅ Кэш очищен: {cache_before} → {cache_after}", show_alert=True)
-    await cb_admin_control(callback)  # Обновляем панель
+    await callback.answer(f"Кэш очищен: {cache_before} -> {cache_after}", show_alert=True)
+    await cb_admin_control(callback, skip_answer=True)  # Обновляем панель
 
 @dp.callback_query(F.data == "admin:export")
 async def cb_admin_export(callback: types.CallbackQuery):
@@ -663,8 +773,8 @@ async def cb_admin_cleanup_execute(callback: types.CallbackQuery):
     db = _db()
     try:
         deleted = clear_old_reports(db, days=days)
-        await callback.answer(f"✅ Удалено жалоб: {deleted}", show_alert=True)
-        await cb_admin_control(callback)  # Возвращаемся к управлению
+        await callback.answer(f"Удалено жалоб: {deleted}", show_alert=True)
+        await cb_admin_control(callback, skip_answer=True)
     except Exception as e:
         logger.error(f"Cleanup error: {e}")
         await callback.answer(f"❌ Ошибка: {e}", show_alert=True)
@@ -727,9 +837,9 @@ async def btn_profile(message: types.Message):
 @dp.message(F.text == "🚪 Вход")
 async def btn_login(message: types.Message):
     """Обработчик кнопки Вход - открывает главное меню с доступом к функциям"""
-    version = int(time.time())
+    version = get_webapp_version()
     buttons = [
-        [InlineKeyboardButton(text="🗺️ Карта", web_app=WebAppInfo(url=f"{CF_WORKER}/app?v={version}"))],
+        [InlineKeyboardButton(text="🗺️ Карта", web_app=WebAppInfo(url=f"{CF_WORKER}/map?v={version}"))],
         [InlineKeyboardButton(text="📝 Новая жалоба", callback_data="new_complaint")],
         [InlineKeyboardButton(text="📊 Инфографика", web_app=WebAppInfo(url=f"{CF_WORKER}/info?v={version}"))],
     ]
@@ -876,7 +986,12 @@ async def handle_photo(message: types.Message):
         tmp.close()
 
         # Vision analysis
-        vision_result = await analyze_image_with_glm4v(tmp.name, "Опиши городскую проблему на фото. Укажи категорию, адрес если виден, описание проблемы.")
+        try:
+            vision_result = await analyze_image_with_glm4v(tmp.name, "Опиши городскую проблему на фото. Укажи категорию, адрес если виден, описание проблемы.")
+        except Exception as e:
+            logger.warning(f"Vision analysis error: {e}")
+            vision_result = None
+        
         caption = message.caption or ""
         combined_text = f"{caption}\n\nАнализ фото: {vision_result}" if vision_result else caption
 
@@ -885,7 +1000,31 @@ async def handle_photo(message: types.Message):
             return
 
         # AI analysis
-        result = await analyze_complaint(combined_text)
+        try:
+            result = await analyze_complaint(combined_text)
+            if not result:
+                await wait_msg.edit_text(
+                    "⚠️ AI временно недоступен. Продолжаем без анализа.\n\n"
+                    "Выберите категорию вручную:",
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text=cat, callback_data=f"cat:{cat}")]
+                        for cat in CATEGORIES[:10]
+                    ])
+                )
+                user_sessions[uid] = {"state": "manual_category", "description": combined_text[:2000], "photo_file_id": photo.file_id}
+                return
+        except Exception as e:
+            logger.error(f"AI analysis error: {e}", exc_info=True)
+            await wait_msg.edit_text(
+                f"⚠️ Ошибка анализа: {e}\n\nВыберите категорию вручную:",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text=cat, callback_data=f"cat:{cat}")]
+                    for cat in CATEGORIES[:10]
+                ])
+            )
+            user_sessions[uid] = {"state": "manual_category", "description": combined_text[:2000], "photo_file_id": photo.file_id}
+            return
+        
         if not result.get("relevant", True):
             await wait_msg.edit_text("🤔 Не похоже на городскую проблему. Попробуйте описать подробнее.")
             user_sessions.pop(uid, None)
@@ -948,6 +1087,19 @@ async def handle_text(message: types.Message):
     wait_msg = await message.answer("🤖 Анализирую...")
     try:
         result = await analyze_complaint(text)
+        if not result:
+            # Fallback если AI недоступен
+            await wait_msg.edit_text(
+                "⚠️ AI временно недоступен. Продолжаем без анализа.\n\n"
+                "Выберите категорию вручную:",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text=cat, callback_data=f"cat:{cat}")]
+                    for cat in CATEGORIES[:10]
+                ])
+            )
+            user_sessions[uid] = {"state": "manual_category", "description": text[:2000]}
+            return
+        
         if not result.get("relevant", True):
             await wait_msg.edit_text("🤔 Не похоже на городскую проблему.\nОпишите конкретную проблему: что, где, когда.")
             user_sessions.pop(uid, None)
@@ -959,9 +1111,12 @@ async def handle_text(message: types.Message):
         lat, lon = None, None
 
         if address:
-            coords = await get_coordinates(address)
-            if coords:
-                lat, lon = coords["lat"], coords["lon"]
+            try:
+                coords = await get_coordinates(address)
+                if coords:
+                    lat, lon = coords["lat"], coords["lon"]
+            except Exception as e:
+                logger.warning(f"Geocoding error: {e}")
 
         uk_info = await _find_uk(lat, lon, address)
 
@@ -983,8 +1138,15 @@ async def handle_text(message: types.Message):
         await wait_msg.edit_text(resp, parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=_confirm_buttons(lat, lon)))
     except Exception as e:
-        logger.error(f"Text error: {e}")
-        await wait_msg.edit_text(f"❌ Ошибка: {e}")
+        logger.error(f"Text error: {e}", exc_info=True)
+        await wait_msg.edit_text(
+            f"❌ Ошибка анализа: {e}\n\n"
+            "Попробуйте описать проблему более подробно или выберите категорию вручную.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text=cat, callback_data=f"cat:{cat}")]
+                for cat in CATEGORIES[:10]
+            ])
+        )
 
 # ═══ CONFIRM / PAYMENT / SEND ═══
 async def _save_report(uid, is_anonymous=False):
@@ -1235,12 +1397,127 @@ async def cb_change_cat(callback: types.CallbackQuery):
     await callback.answer()
 
 @dp.callback_query(F.data.startswith("cat:"))
+async def cb_category_select(callback: types.CallbackQuery):
+    """Обработчик выбора категории (ручной или при ошибке AI)"""
+    uid = callback.from_user.id
+    session = user_sessions.get(uid, {})
+    
+    if not session:
+        await callback.answer("Сессия истекла.", show_alert=True)
+        return
+    
+    category = callback.data[4:]  # "cat:Категория" -> "Категория"
+    
+    # Если это ручной выбор категории (после ошибки AI)
+    if session.get("state") == "manual_category":
+        description = session.get("description", "")
+        photo_file_id = session.get("photo_file_id")
+        
+        # Пытаемся извлечь адрес из описания
+        address = None
+        lat, lon = None, None
+        
+        if description:
+            try:
+                coords = await get_coordinates(description)
+                if coords:
+                    lat, lon = coords["lat"], coords["lon"]
+            except:
+                pass
+        
+        uk_info = await _find_uk(lat, lon, address)
+        
+        user_sessions[uid] = {
+            "state": "confirming",
+            "category": category,
+            "address": address,
+            "description": description[:2000],
+            "title": description[:200] if description else "Жалоба",
+            "lat": lat,
+            "lon": lon,
+            "uk_info": uk_info,
+            "is_anonymous": False,
+            "photo_file_id": photo_file_id,
+        }
+        
+        resp = (f"📋 *Категория выбрана*\n\n"
+                f"{_emoji(category)} Категория: *{category}*\n"
+                f"📍 Адрес: {address or 'не определён'}\n"
+                f"📝 {description[:300] if description else '—'}")
+        if uk_info:
+            resp += _uk_text(uk_info)
+        resp += "\n\nПодтвердите или измените:"
+        
+        await callback.message.edit_text(resp, parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=_confirm_buttons(lat, lon)))
+        await callback.answer()
+        return
+    
+    # Обычный выбор категории (изменение существующей)
+    session["category"] = category
+    user_sessions[uid] = session
+    
+    await callback.message.edit_reply_markup(
+        reply_markup=categories_kb()
+    )
+    await callback.answer(f"Категория: {category}")
+
+@dp.callback_query(F.data.startswith("cat:"))
 async def cb_select_cat(callback: types.CallbackQuery):
     uid = callback.from_user.id
     session = user_sessions.get(uid)
     if not session:
-        await callback.answer("Сессия истекла.", show_alert=True); return
+        await callback.answer("Сессия истекла.", show_alert=True)
+        return
+    
     new_cat = callback.data[4:]
+    
+    # Если это ручной выбор категории (после ошибки AI)
+    if session.get("state") == "manual_category":
+        description = session.get("description", "")
+        photo_file_id = session.get("photo_file_id")
+        
+        # Пытаемся извлечь адрес из описания
+        address = None
+        lat, lon = None, None
+        
+        if description:
+            try:
+                coords = await get_coordinates(description)
+                if coords:
+                    lat, lon = coords["lat"], coords["lon"]
+            except Exception as e:
+                logger.debug(f"Geocoding error: {e}")
+        
+        uk_info = await _find_uk(lat, lon, address)
+        
+        user_sessions[uid] = {
+            "state": "confirming",
+            "category": new_cat,
+            "address": address,
+            "description": description[:2000],
+            "title": description[:200] if description else "Жалоба",
+            "lat": lat,
+            "lon": lon,
+            "uk_info": uk_info,
+            "is_anonymous": False,
+            "photo_file_id": photo_file_id,
+        }
+        
+        resp = (f"📋 *Категория выбрана*\n\n"
+                f"{_emoji(new_cat)} Категория: *{new_cat}*\n"
+                f"📍 Адрес: {address or 'не определён'}\n"
+                f"📝 {description[:300] if description else '—'}")
+        if uk_info:
+            resp += _uk_text(uk_info)
+        resp += "\n\nПодтвердите или измените:"
+        
+        await callback.message.edit_text(resp, parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=_confirm_buttons(lat, lon)))
+        await callback.answer()
+        return
+    
+    # Обычный выбор категории (изменение существующей)
     session["category"] = new_cat
     user_sessions[uid] = session
 
@@ -1301,39 +1578,60 @@ async def on_successful_payment(message: types.Message):
 @dp.callback_query(F.data.startswith("od:"))
 async def cb_opendata(callback: types.CallbackQuery):
     dataset = callback.data[3:]
-    url = f"{CF_WORKER}/info?dataset={dataset}&v={int(time.time())}"
+    url = f"{CF_WORKER}/info?dataset={dataset}&v={get_webapp_version()}"
     buttons = [[InlineKeyboardButton(text="📊 Открыть", web_app=WebAppInfo(url=url))]]
     await callback.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
     await callback.answer()
 
 # ═══ SETUP & MAIN ═══
 async def setup_menu():
-    """Установка меню бота с принудительным обновлением"""
-    # Версия меню для отслеживания обновлений
+    """Установка меню бота и описания в Telegram"""
     menu_version = int(time.time())
     
-    # Сначала удаляем старые команды для гарантии обновления
+    # Удаляем старые команды
     try:
         await bot.delete_my_commands(scope=BotCommandScopeDefault())
         logger.info("Старые команды удалены")
     except Exception as e:
-        logger.debug(f"Ошибка удаления команд (может быть нормально): {e}")
+        logger.debug(f"Ошибка удаления команд: {e}")
     
-    # Устанавливаем новые команды
+    # Устанавливаем команды
     commands = [
-        BotCommand(command="start", description="🏠 Главная"),
-        BotCommand(command="help", description="❓ Справка"),
-        BotCommand(command="new", description="📝 Новая жалоба"),
-        BotCommand(command="map", description="🗺️ Карта"),
-        BotCommand(command="info", description="📊 Инфографика"),
-        BotCommand(command="profile", description="👤 Профиль"),
+        BotCommand(command="start", description="Главная"),
+        BotCommand(command="help", description="Справка"),
+        BotCommand(command="new", description="Новая жалоба"),
+        BotCommand(command="map", description="Карта проблем"),
+        BotCommand(command="info", description="Инфографика"),
+        BotCommand(command="profile", description="Профиль"),
     ]
     await bot.set_my_commands(commands, scope=BotCommandScopeDefault())
-    logger.info(f"✅ Меню бота установлено (версия: {menu_version})")
     
-    # Админ-команда не добавляется в публичное меню, доступна только по прямому вызову
+    # Описание бота (показывается при открытии чата)
+    try:
+        await bot.set_my_description(
+            description=(
+                "Пульс города — Нижневартовск.\n"
+                "Карта проблем, инфографика, жалобы.\n"
+                "AI-мониторинг, 72 датасета opendata."
+            ),
+            language_code="ru"
+        )
+        await bot.set_my_short_description(
+            short_description="Карта проблем, инфографика, жалобы в УК и администрацию",
+            language_code="ru"
+        )
+        logger.info("Описание бота обновлено")
+    except Exception as e:
+        logger.debug(f"Описание бота: {e}")
+    
+    logger.info(f"Меню бота установлено (версия: {menu_version})")
 
 async def main():
     await setup_menu()
-    logger.info("🚀 Бот запущен — Пульс города Нижневартовск")
+    # Сброс webhook — при polling webhook не должен быть установлен
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+    except Exception as e:
+        logger.debug(f"delete_webhook: {e}")
+    logger.info("Бот запущен - Пульс города Нижневартовск")
     await dp.start_polling(bot)

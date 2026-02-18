@@ -12,7 +12,28 @@ if (tg) {
 
 // ═══ CONFIGURATION ═══
 const CONFIG = {
-  firebase: 'https://anthropic-proxy.uiredepositionherzo.workers.dev/firebase',
+  // Множественные источники данных (fallback chain)
+  dataSources: [
+    {
+      name: 'proxy',
+      url: 'https://anthropic-proxy.uiredepositionherzo.workers.dev/firebase/complaints.json',
+      timeout: 8000,
+      priority: 1
+    },
+    {
+      name: 'firebase-direct',
+      url: 'https://soobshio-default-rtdb.europe-west1.firebasedatabase.app/complaints.json',
+      timeout: 10000,
+      priority: 2
+    },
+    {
+      name: 'local-api',
+      url: 'http://127.0.0.1:8000/api/reports',
+      timeout: 5000,
+      priority: 3
+    }
+  ],
+  firebase: 'https://anthropic-proxy.uiredepositionherzo.workers.dev/firebase', // Для обратной совместимости
   center: [60.9344, 76.5531],
   zoom: 13,
   categories: {
@@ -48,7 +69,13 @@ const state = {
   cityRhythm: { bpm: 60, targetBpm: 60, mood: 'Спокойно', severity: 0 },
   lastUpdateTime: null,
   realtimeInterval: null,
-  knownComplaintIds: new Set()
+  knownComplaintIds: new Set(),
+  connectionStatus: 'checking', // 'online', 'offline', 'checking', 'cached'
+  activeDataSource: null,
+  cacheEnabled: true,
+  cacheKey: 'soobshio_complaints_cache',
+  cacheTimestampKey: 'soobshio_cache_timestamp',
+  cacheMaxAge: 3600000 // 1 час в миллисекундах
 };
 
 // ═══ STYLES ═══
@@ -66,8 +93,8 @@ const styles = `
 }
 body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
 
-/* Particles Background */
-#particles-js { position: fixed; inset: 0; z-index: 0; opacity: 0.3; }
+/* Aurora Canvas (Северное сияние) */
+#auroraCanvas { position: fixed; inset: 0; z-index: 0; }
 
 /* Splash Screen */
 #splash { position: fixed; inset: 0; z-index: 9999; background: linear-gradient(135deg, #0a0e1a 0%, #1e1b4b 50%, #0f3460 100%); display: flex; align-items: center; justify-content: center; transition: opacity 0.6s, transform 0.6s; }
@@ -552,44 +579,66 @@ const CityRhythm = {
   }
 };
 
-// ═══ PARTICLES INIT ═══
-function initParticles() {
-  if (typeof particlesJS === 'undefined') return;
+// ═══ AURORA BACKGROUND — Северное сияние ═══
+function initAurora() {
+  const canvas = document.getElementById('auroraCanvas');
+  if (!canvas) return;
   
-  particlesJS('particles-js', {
-    particles: {
-      number: { value: 50, density: { enable: true, value_area: 800 } },
-      color: { value: '#6366f1' },
-      shape: { type: 'circle' },
-      opacity: { value: 0.3, random: true },
-      size: { value: 3, random: true },
-      line_linked: {
-        enable: true,
-        distance: 150,
-        color: '#6366f1',
-        opacity: 0.2,
-        width: 1
-      },
-      move: {
-        enable: true,
-        speed: 1,
-        direction: 'none',
-        random: true,
-        straight: false,
-        out_mode: 'out',
-        bounce: false
+  const ctx = canvas.getContext('2d');
+  let W, H;
+  let time = 0;
+  
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  
+  function drawAurora() {
+    ctx.clearRect(0, 0, W, H);
+    time += 0.005;
+    
+    const layers = [
+      { color: 'rgba(0, 240, 255, 0.15)', offset: 0, speed: 0.3, height: H * 0.4 },
+      { color: 'rgba(0, 255, 136, 0.12)', offset: Math.PI / 3, speed: 0.4, height: H * 0.35 },
+      { color: 'rgba(99, 102, 241, 0.1)', offset: Math.PI / 1.5, speed: 0.25, height: H * 0.3 }
+    ];
+    
+    layers.forEach((layer) => {
+      ctx.beginPath();
+      ctx.moveTo(0, H);
+      for (let x = 0; x <= W; x += 2) {
+        const wave = Math.sin((x / W) * Math.PI * 4 + time * layer.speed + layer.offset) * 30;
+        const wave2 = Math.sin((x / W) * Math.PI * 8 + time * layer.speed * 2) * 15;
+        const y = H - layer.height + wave + wave2 + Math.sin(time + x * 0.01) * 10;
+        ctx.lineTo(x, y);
       }
-    },
-    interactivity: {
-      detect_on: 'canvas',
-      events: {
-        onhover: { enable: false },
-        onclick: { enable: false },
-        resize: true
-      }
-    },
-    retina_detect: true
-  });
+      ctx.lineTo(W, H);
+      ctx.closePath();
+      const gradient = ctx.createLinearGradient(0, H - layer.height, 0, H);
+      gradient.addColorStop(0, layer.color);
+      gradient.addColorStop(1, 'transparent');
+      ctx.fillStyle = gradient;
+      ctx.fill();
+    });
+    
+    for (let i = 0; i < 20; i++) {
+      const x = (Math.sin(time * 0.5 + i) * 0.5 + 0.5) * W;
+      const y = (Math.cos(time * 0.3 + i * 0.7) * 0.5 + 0.5) * H;
+      const size = Math.sin(time * 2 + i) * 3 + 4;
+      const alpha = Math.sin(time * 3 + i) * 0.3 + 0.4;
+      ctx.beginPath();
+      const grad = ctx.createRadialGradient(x, y, 0, x, y, size * 2);
+      grad.addColorStop(0, `rgba(0, 240, 255, ${alpha})`);
+      grad.addColorStop(1, 'transparent');
+      ctx.fillStyle = grad;
+      ctx.arc(x, y, size * 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    requestAnimationFrame(drawAurora);
+  }
+  drawAurora();
 }
 
 // ═══ OIL DROP ANIMATION (Splash) ═══
@@ -623,7 +672,7 @@ function animateOilDrop() {
 
 // ═══ SPLASH SCREEN ═══
 async function showSplash() {
-  initParticles();
+  initAurora();
   animateOilDrop();
   CityRhythm.init();
   
@@ -662,45 +711,270 @@ async function showSplash() {
   }, 500);
 }
 
-// ═══ DATA LOADING ═══
-async function loadData() {
+// ═══ DATA LOADING WITH FALLBACK ═══
+
+// Проверка доступности источника данных
+async function checkDataSource(source) {
   try {
-    const response = await fetch(CONFIG.firebase + '/complaints.json', {
-      signal: AbortSignal.timeout(8000)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), source.timeout);
+    
+    const response = await fetch(source.url, {
+      signal: controller.signal,
+      method: 'HEAD' // Быстрая проверка доступности
     });
     
-    if (!response.ok) throw new Error('Failed to load data');
+    clearTimeout(timeoutId);
+    return response.ok;
+  } catch (error) {
+    return false;
+  }
+}
+
+// Загрузка данных из источника
+async function fetchFromSource(source) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), source.timeout);
+    
+    const response = await fetch(source.url, {
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
     
     const data = await response.json();
+    return { success: true, data, source: source.name };
+  } catch (error) {
+    console.warn(`[${source.name}] Ошибка загрузки:`, error.message);
+    return { success: false, error: error.message, source: source.name };
+  }
+}
+
+// Сохранение в кэш
+function saveToCache(complaints) {
+  if (!state.cacheEnabled || !window.localStorage) return;
+  
+  try {
+    const cacheData = {
+      complaints,
+      timestamp: Date.now(),
+      version: '1.0'
+    };
+    localStorage.setItem(state.cacheKey, JSON.stringify(cacheData));
+    localStorage.setItem(state.cacheTimestampKey, Date.now().toString());
+    console.log('[Cache] Данные сохранены в кэш');
+  } catch (error) {
+    console.warn('[Cache] Ошибка сохранения в кэш:', error);
+  }
+}
+
+// Загрузка из кэша
+function loadFromCache() {
+  if (!state.cacheEnabled || !window.localStorage) return null;
+  
+  try {
+    const cacheDataStr = localStorage.getItem(state.cacheKey);
+    const cacheTimestamp = localStorage.getItem(state.cacheTimestampKey);
     
-    if (data) {
-      const newComplaints = Object.entries(data).map(([id, complaint]) => ({
-        id,
-        ...complaint
-      }));
-      
-      // Track known IDs for real-time updates
-      newComplaints.forEach(c => state.knownComplaintIds.add(c.id));
-      
-      state.complaints = newComplaints;
-      state.filteredComplaints = [...state.complaints];
-      state.lastUpdateTime = Date.now();
-      
-      // Update splash stats
-      const total = state.complaints.length;
-      const open = state.complaints.filter(c => c.status === 'open').length;
-      const resolved = state.complaints.filter(c => c.status === 'resolved').length;
-      
-      document.getElementById('statTotal').textContent = total;
-      document.getElementById('statOpen').textContent = open;
-      document.getElementById('statResolved').textContent = resolved;
-      
-      // Feed to City Rhythm
-      CityRhythm.feed(state.complaints);
+    if (!cacheDataStr || !cacheTimestamp) return null;
+    
+    const cacheAge = Date.now() - parseInt(cacheTimestamp, 10);
+    if (cacheAge > state.cacheMaxAge) {
+      console.log('[Cache] Кэш устарел, очищаем');
+      localStorage.removeItem(state.cacheKey);
+      localStorage.removeItem(state.cacheTimestampKey);
+      return null;
+    }
+    
+    const cacheData = JSON.parse(cacheDataStr);
+    if (cacheData.complaints && Array.isArray(cacheData.complaints)) {
+      console.log(`[Cache] Загружено ${cacheData.complaints.length} жалоб из кэша (возраст: ${Math.round(cacheAge / 1000)}с)`);
+      return cacheData.complaints;
     }
   } catch (error) {
-    console.error('Error loading data:', error);
-    showToast('Ошибка загрузки данных', 'error');
+    console.warn('[Cache] Ошибка загрузки из кэша:', error);
+  }
+  
+  return null;
+}
+
+// Тестовые данные для полного fallback
+function getTestData() {
+  return [
+    {
+      id: 'test-1',
+      lat: 60.9388,
+      lng: 76.5778,
+      title: 'Яма на дороге',
+      category: 'Дороги',
+      address: 'ул. Ленина 15',
+      status: 'pending',
+      description: 'Большая яма, опасно для автомобилей',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 'test-2',
+      lat: 60.9300,
+      lng: 76.5500,
+      title: 'Сломанный фонарь',
+      category: 'Освещение',
+      address: 'пр. Победы 20',
+      status: 'open',
+      description: 'Фонарь не работает уже неделю',
+      created_at: new Date(Date.now() - 86400000).toISOString()
+    },
+    {
+      id: 'test-3',
+      lat: 60.9400,
+      lng: 76.5600,
+      title: 'Протечка в подъезде',
+      category: 'ЖКХ',
+      address: 'ул. Мира 5',
+      status: 'in_progress',
+      description: 'Течет с потолка в подъезде',
+      created_at: new Date(Date.now() - 172800000).toISOString()
+    }
+  ];
+}
+
+// Обработка данных из разных источников
+function processComplaintsData(data, sourceName) {
+  let complaints = [];
+  
+  // Firebase формат (объект с ключами)
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    complaints = Object.entries(data).map(([id, complaint]) => ({
+      id,
+      ...complaint
+    }));
+  }
+  // Массив
+  else if (Array.isArray(data)) {
+    complaints = data.map((complaint, index) => ({
+      id: complaint.id || `item-${index}`,
+      ...complaint
+    }));
+  }
+  
+  return complaints;
+}
+
+// Обновление статуса подключения в UI
+function updateConnectionStatus(status, source = null) {
+  state.connectionStatus = status;
+  state.activeDataSource = source;
+  
+  const statusEl = document.getElementById('connection-status');
+  if (statusEl) {
+    const statusMap = {
+      'online': { text: 'Онлайн', color: '#10b981', icon: '✓' },
+      'offline': { text: 'Офлайн', color: '#ef4444', icon: '✗' },
+      'checking': { text: 'Проверка...', color: '#f59e0b', icon: '⟳' },
+      'cached': { text: 'Кэш', color: '#6366f1', icon: '💾' }
+    };
+    
+    const statusInfo = statusMap[status] || statusMap['checking'];
+    statusEl.textContent = `${statusInfo.icon} ${statusInfo.text}${source ? ` (${source})` : ''}`;
+    statusEl.style.color = statusInfo.color;
+  }
+  
+  console.log(`[Status] ${status}${source ? ` via ${source}` : ''}`);
+}
+
+// Основная функция загрузки данных с fallback
+async function loadData() {
+  updateConnectionStatus('checking');
+  
+  // Попытка загрузки из всех источников по приоритету
+  let loadedComplaints = null;
+  let loadedSource = null;
+  
+  for (const source of CONFIG.dataSources.sort((a, b) => a.priority - b.priority)) {
+    console.log(`[Load] Пробуем источник: ${source.name} (${source.url})`);
+    
+    const result = await fetchFromSource(source);
+    
+    if (result.success && result.data) {
+      loadedComplaints = processComplaintsData(result.data, result.source);
+      
+      if (loadedComplaints && loadedComplaints.length > 0) {
+        loadedSource = result.source;
+        console.log(`[Load] ✓ Успешно загружено ${loadedComplaints.length} жалоб из ${result.source}`);
+        break;
+      }
+    }
+  }
+  
+  // Fallback 1: Загрузка из кэша
+  if (!loadedComplaints || loadedComplaints.length === 0) {
+    console.log('[Load] Источники недоступны, пробуем кэш...');
+    const cachedComplaints = loadFromCache();
+    
+    if (cachedComplaints && cachedComplaints.length > 0) {
+      loadedComplaints = cachedComplaints;
+      loadedSource = 'cache';
+      updateConnectionStatus('cached', 'cache');
+      showToast('Загружено из кэша', 'warning');
+    }
+  }
+  
+  // Fallback 2: Тестовые данные
+  if (!loadedComplaints || loadedComplaints.length === 0) {
+    console.log('[Load] Кэш пуст, используем тестовые данные');
+    loadedComplaints = getTestData();
+    loadedSource = 'test';
+    updateConnectionStatus('offline', 'test');
+    showToast('Используются тестовые данные', 'warning');
+  }
+  
+  // Обработка загруженных данных
+  if (loadedComplaints && loadedComplaints.length > 0) {
+    // Track known IDs for real-time updates
+    loadedComplaints.forEach(c => state.knownComplaintIds.add(c.id));
+    
+    state.complaints = loadedComplaints;
+    state.filteredComplaints = [...state.complaints];
+    state.lastUpdateTime = Date.now();
+    
+    // Сохраняем в кэш если данные из онлайн источника
+    if (loadedSource !== 'cache' && loadedSource !== 'test') {
+      saveToCache(loadedComplaints);
+      updateConnectionStatus('online', loadedSource);
+    }
+    
+    // Update splash stats
+    const total = state.complaints.length;
+    const open = state.complaints.filter(c => c.status === 'open').length;
+    const resolved = state.complaints.filter(c => c.status === 'resolved').length;
+    
+    const statTotalEl = document.getElementById('statTotal');
+    const statOpenEl = document.getElementById('statOpen');
+    const statResolvedEl = document.getElementById('statResolved');
+    
+    if (statTotalEl) statTotalEl.textContent = total;
+    if (statOpenEl) statOpenEl.textContent = open;
+    if (statResolvedEl) statResolvedEl.textContent = resolved;
+    
+    // Feed to City Rhythm
+    CityRhythm.feed(state.complaints);
+    
+    // Обновляем маркеры на карте
+    if (state.map && state.cluster) {
+      renderMarkers();
+    }
+  } else {
+    console.error('[Load] Не удалось загрузить данные ни из одного источника');
+    showToast('Не удалось загрузить данные', 'error');
+    updateConnectionStatus('offline');
   }
 }
 
@@ -841,10 +1115,24 @@ function startRealtimeUpdates() {
 
 // ═══ MAP INITIALIZATION ═══
 function initMap() {
+  // Проверяем параметр marker из URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const markerParam = urlParams.get('marker');
+  let initialCenter = CONFIG.center;
+  let initialZoom = CONFIG.zoom;
+  
+  if (markerParam) {
+    const [lat, lon] = markerParam.split(',').map(parseFloat);
+    if (!isNaN(lat) && !isNaN(lon)) {
+      initialCenter = [lat, lon];
+      initialZoom = 17; // Увеличенный зум для маркера
+    }
+  }
+  
   // Initialize Leaflet map
   state.map = L.map('map', {
-    center: CONFIG.center,
-    zoom: CONFIG.zoom,
+    center: initialCenter,
+    zoom: initialZoom,
     zoomControl: false
   });
   
@@ -876,6 +1164,24 @@ function initMap() {
   
   // Render markers
   renderMarkers();
+  
+  // Если есть параметр marker, открываем соответствующий маркер
+  if (markerParam) {
+    const [lat, lon] = markerParam.split(',').map(parseFloat);
+    if (!isNaN(lat) && !isNaN(lon)) {
+      setTimeout(() => {
+        // Ищем маркер с такими координатами
+        state.cluster.eachLayer((layer) => {
+          const markerLat = layer.getLatLng().lat;
+          const markerLon = layer.getLatLng().lng;
+          if (Math.abs(markerLat - lat) < 0.0001 && Math.abs(markerLon - lon) < 0.0001) {
+            layer.openPopup();
+            state.map.setView([lat, lon], 17);
+          }
+        });
+      }, 1000);
+    }
+  }
   
   // Initialize filters
   initFilters();
@@ -1039,12 +1345,71 @@ function initFilters() {
       statusFilter.appendChild(chip);
     });
   }
+  
+  // Date range filter
+  const dateFilter = document.getElementById('dateFilter');
+  if (!dateFilter) {
+    // Создаем контейнер для фильтра дат если его нет
+    const filterPanel = document.getElementById('filterPanel');
+    if (filterPanel) {
+      const dateFilterContainer = document.createElement('div');
+      dateFilterContainer.id = 'dateFilter';
+      dateFilterContainer.className = 'filter-row';
+      dateFilterContainer.innerHTML = '<div class="filter-label">Период:</div>';
+      filterPanel.appendChild(dateFilterContainer);
+    }
+  }
+  
+  const dateFilterEl = document.getElementById('dateFilter');
+  if (dateFilterEl) {
+    const allChip = document.createElement('div');
+    allChip.className = 'filter-chip active';
+    allChip.innerHTML = '<span data-icon="mdi:calendar"></span> Все время';
+    allChip.onclick = () => {
+      state.filters.dateRange = null;
+      applyFilters();
+    };
+    dateFilterEl.appendChild(allChip);
+    
+    const dateRanges = [
+      { key: 'today', label: 'Сегодня', icon: 'mdi:calendar-today' },
+      { key: 'week', label: 'Неделя', icon: 'mdi:calendar-week' },
+      { key: 'month', label: 'Месяц', icon: 'mdi:calendar-month' },
+      { key: '3months', label: '3 месяца', icon: 'mdi:calendar-range' }
+    ];
+    
+    dateRanges.forEach(({ key, label, icon }) => {
+      const chip = document.createElement('div');
+      chip.className = `filter-chip date-${key}`;
+      chip.innerHTML = `<span data-icon="${icon}"></span> ${label}`;
+      chip.onclick = () => {
+        state.filters.dateRange = key;
+        applyFilters();
+      };
+      dateFilterEl.appendChild(chip);
+    });
+  }
 }
 
 function applyFilters() {
+  const now = Date.now();
   state.filteredComplaints = state.complaints.filter(c => {
     if (state.filters.category && c.category !== state.filters.category) return false;
     if (state.filters.status && c.status !== state.filters.status) return false;
+    
+    // Фильтрация по датам
+    if (state.filters.dateRange) {
+      const complaintDate = new Date(c.created_at || c.date || 0).getTime();
+      const rangeMs = {
+        'today': 86400000,      // 24 часа
+        'week': 604800000,      // 7 дней
+        'month': 2592000000,    // 30 дней
+        '3months': 7776000000   // 90 дней
+      }[state.filters.dateRange];
+      
+      if (rangeMs && (now - complaintDate) > rangeMs) return false;
+    }
+    
     return true;
   });
   
@@ -1059,6 +1424,7 @@ function updateFilterUI() {
   
   const catFilter = document.getElementById('categoryFilter');
   const statusFilter = document.getElementById('statusFilter');
+  const dateFilter = document.getElementById('dateFilter');
   
   if (catFilter) {
     const chips = catFilter.querySelectorAll('.filter-chip');
@@ -1069,7 +1435,7 @@ function updateFilterUI() {
         }
       });
     } else {
-      chips[0].classList.add('active');
+      chips[0]?.classList.add('active');
     }
   }
   
@@ -1082,7 +1448,20 @@ function updateFilterUI() {
         }
       });
     } else {
-      chips[0].classList.add('active');
+      chips[0]?.classList.add('active');
+    }
+  }
+  
+  if (dateFilter) {
+    const chips = dateFilter.querySelectorAll('.filter-chip');
+    if (state.filters.dateRange) {
+      chips.forEach(chip => {
+        if (chip.className.includes(`date-${state.filters.dateRange}`)) {
+          chip.classList.add('active');
+        }
+      });
+    } else {
+      chips[0]?.classList.add('active');
     }
   }
 }

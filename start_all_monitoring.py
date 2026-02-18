@@ -40,6 +40,7 @@ from services.vk_monitor_service import (
     VK_GROUPS, poll_all_groups, vk_stats, VK_SERVICE_TOKEN,
 )
 from services.realtime_guard import RealtimeGuard
+from services.admin_panel import get_webapp_version
 
 # Telegram config
 API_ID = int(os.getenv('TG_API_ID', 0))
@@ -171,12 +172,74 @@ stats = {
 guard: RealtimeGuard = None
 
 
+def _check_duplicate(db, text, address, lat, lon, category):
+    """Проверяет дубликаты жалоб по тексту, адресу и координатам"""
+    from sqlalchemy import func, and_, or_
+    from backend.models import Report
+    from datetime import datetime, timedelta
+    
+    # Проверка за последние 7 дней
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    
+    # По координатам (если есть)
+    if lat and lon:
+        # Радиус ~100 метров
+        lat_diff = 0.0009  # ~100м
+        lon_diff = 0.0012  # ~100м
+        similar_coords = db.query(Report).filter(
+            and_(
+                Report.lat.between(lat - lat_diff, lat + lat_diff),
+                Report.lng.between(lon - lon_diff, lon + lon_diff),
+                Report.category == category,
+                Report.created_at >= week_ago
+            )
+        ).first()
+        if similar_coords:
+            return True
+    
+    # По адресу (если есть)
+    if address:
+        # Нормализуем адрес для сравнения
+        addr_normalized = address.lower().strip()
+        similar_addr = db.query(Report).filter(
+            and_(
+                func.lower(Report.address).like(f"%{addr_normalized[:30]}%"),
+                Report.category == category,
+                Report.created_at >= week_ago
+            )
+        ).first()
+        if similar_addr:
+            return True
+    
+    # По тексту (первые 100 символов)
+    if text and len(text) > 20:
+        text_snippet = text[:100].lower().strip()
+        similar_text = db.query(Report).filter(
+            and_(
+                func.lower(Report.description).like(f"%{text_snippet[:50]}%"),
+                Report.category == category,
+                Report.created_at >= week_ago
+            )
+        ).first()
+        if similar_text:
+            return True
+    
+    return False
+
+
 async def save_to_db(summary, text, lat, lng, address, category, source, msg_id=None, channel=None):
-    """Сохраняет жалобу в SQLite"""
+    """Сохраняет жалобу в SQLite с проверкой дубликатов"""
     try:
         from backend.database import SessionLocal
         from backend.models import Report
         db = SessionLocal()
+        
+        # Проверка дубликатов
+        if _check_duplicate(db, text, address, lat, lng, category):
+            logger.info(f"⏭️ Дубликат пропущен: {category} @ {address or f'{lat},{lng}'}")
+            db.close()
+            return None
+        
         report = Report(
             title=summary[:200],
             description=text[:2000],
@@ -198,10 +261,73 @@ async def save_to_db(summary, text, lat, lng, address, category, source, msg_id=
         return None
 
 
-async def publish_to_telegram(client, category, report_id, summary, address, lat, lon, source_label, source_link, timestamp):
-    """Публикует жалобу в @monitornv"""
+def _truncate_summary(summary: str, max_len: int = 150) -> str:
+    """Обрезает сводку до max_len символов. В служебный канал — только краткая сводка, не весь пост."""
+    if not summary or len(summary) <= max_len:
+        return summary or ""
+    return summary[: max_len - 3].rstrip() + "..."
+
+
+def _get_source_icon(source_label, source_link):
+    """Возвращает иконку соцсети для источника"""
+    source_lower = source_label.lower()
+    if "telegram" in source_lower or "tg:" in source_lower or source_link.startswith("https://t.me"):
+        return "🔵"  # Telegram
+    elif "vk" in source_lower or "vkontakte" in source_lower or "vk.com" in source_link:
+        return "🔷"  # VK
+    elif "instagram" in source_lower or "inst" in source_lower:
+        return "📷"  # Instagram
+    elif "facebook" in source_lower or "fb" in source_lower:
+        return "📘"  # Facebook
+    elif "twitter" in source_lower or "x.com" in source_lower:
+        return "🐦"  # Twitter/X
+    else:
+        return "📢"  # Общая иконка
+
+
+async def _check_duplicate_post(client, summary, address, lat, lon, category):
+    """Проверяет дубликаты постов в канале перед публикацией"""
+    try:
+        from datetime import datetime, timedelta
+        # Получаем последние сообщения из канала (за последние 24 часа)
+        messages = await client.get_messages(TARGET_CHANNEL, limit=50)
+        now = datetime.now()
+        
+        for msg in messages:
+            if not msg.text:
+                continue
+            
+            # Проверка по тексту сводки
+            if summary and summary[:50].lower() in msg.text.lower():
+                return True
+            
+            # Проверка по адресу
+            if address and address.lower() in msg.text.lower():
+                return True
+            
+            # Проверка по координатам (если есть)
+            if lat and lon:
+                coord_str = f"{lat:.4f}, {lon:.4f}"
+                if coord_str in msg.text or f"{lat:.3f}" in msg.text:
+                    return True
+        
+        return False
+    except Exception as e:
+        logger.debug(f"Duplicate check error: {e}")
+        return False
+
+
+async def publish_to_telegram(client, category, report_id, summary, address, lat, lon, source_label, source_link, timestamp, geo_accuracy=None):
+    """Публикует жалобу в @monitornv с иконками соцсетей и ссылкой на маркер карты"""
+    # Проверка дубликатов перед публикацией
+    if await _check_duplicate_post(client, summary, address, lat, lon, category):
+        logger.info(f"⏭️ Дубликат поста пропущен: {category} @ {address or f'{lat},{lon}'}")
+        return False
+    
+    summary = _truncate_summary(summary, 150)
     emoji = EMOJI.get(category, "❔")
     tag = TAG.get(category, category.replace(" ", "_"))
+    source_icon = _get_source_icon(source_label, source_link)
 
     lines = [f"{emoji} {category}"]
     if report_id:
@@ -210,14 +336,26 @@ async def publish_to_telegram(client, category, report_id, summary, address, lat
     lines.append(f"📝 {summary}")
     if address:
         lines.append(f"📍 {address}")
+    
+    # Ссылка на маркер карты (если адрес определен со 100% точностью или есть координаты)
+    map_marker_url = None
+    if lat and lon and (geo_accuracy == "high" or geo_accuracy is None):
+        # URL для открытия маркера на карте в веб-апп
+        from core.config import CF_WORKER
+        version = get_webapp_version()
+        map_marker_url = f"{CF_WORKER}/map?v={version}&marker={lat},{lon}"
+    
     if lat and lon:
         lines.append(f"🗺️ {lat:.4f}, {lon:.4f}")
         sv_url = f"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={lat},{lon}&heading=0&pitch=0&fov=90"
         map_url = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
-        lines.append(f'👁 <a href="{sv_url}">Street View</a> | 📌 <a href="{map_url}">Карта</a>')
+        map_links = f'👁 <a href="{sv_url}">Street View</a> | 📌 <a href="{map_url}">Google Maps</a>'
+        if map_marker_url:
+            map_links += f' | 🗺️ <a href="{map_marker_url}">Маркер на карте</a>'
+        lines.append(map_links)
     lines.append("")
-    lines.append(f"📢 {source_label}")
-    lines.append(f"🔗 {source_link}")
+    # Источник с иконкой вместо текстовой ссылки
+    lines.append(f"{source_icon} <a href=\"{source_link}\">{source_label}</a>")
     lines.append(f"🕐 {timestamp}")
     lines.append("")
     lines.append(f"#{tag} #ПульсГорода #Нижневартовск")
@@ -278,11 +416,21 @@ async def process_complaint(client, text, category, address, summary, provider, 
         logger.error(f"Firebase error: {e}")
         stats['firebase_errors'] += 1
 
+    # Определяем точность геолокации
+    geo_accuracy = None
+    if lat and lon:
+        if exif_lat and exif_lon:
+            geo_accuracy = "high"  # EXIF GPS = 100% точность
+        elif address and len(address.split()) >= 3:  # Полный адрес с домом
+            geo_accuracy = "high"
+        else:
+            geo_accuracy = "medium"
+    
     # Telegram @monitornv
     timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
     published = await publish_to_telegram(
         client, category, report_id, summary, address, lat, lon,
-        source_label, source_link, timestamp
+        source_label, source_link, timestamp, geo_accuracy=geo_accuracy
     )
 
     stats['by_category'][category] = stats['by_category'].get(category, 0) + 1

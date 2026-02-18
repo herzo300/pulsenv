@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 import httpx
-from core.http_client import get_http_client
+from core.http_client import get_http_client, get_proxy_url
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -81,64 +81,58 @@ async def push_complaint(complaint: Dict[str, Any], use_queue_on_error: bool = T
     url = f"{FIREBASE_RTDB_URL}/complaints/{doc_id}.json"
 
     last_error = None
+    proxy_url = get_proxy_url()
     for attempt in range(FIREBASE_MAX_RETRIES):
-        try:
-            # Firebase уже идёт через Cloudflare Worker прокси, не используем SOCKS5
-            async with get_http_client(timeout=15.0, proxy=None) as client:
-                r = await client.put(url, json=doc_data)
+        for use_proxy, label in [(False, "без прокси"), (True, "с прокси")]:
+            if use_proxy and not proxy_url:
+                continue
+            try:
+                async with get_http_client(timeout=15.0, proxy=proxy_url if use_proxy else None) as client:
+                    r = await client.put(url, json=doc_data)
                 if r.status_code == 200:
-                    logger.info("Firebase RTDB: жалоба сохранена (%s)", doc_id)
+                    logger.info("Firebase RTDB: жалоба сохранена (%s) [%s]", doc_id, label)
                     await _increment_stats(complaint.get("category", "Прочее"))
                     return doc_id
-                if 500 <= r.status_code < 600 and attempt < FIREBASE_MAX_RETRIES - 1:
-                    last_error = f"{r.status_code} {r.text[:200]}"
-                    await asyncio.sleep(FIREBASE_RETRY_DELAY * (attempt + 1))
-                    continue
-                logger.error("Firebase RTDB error: %s %s", r.status_code, r.text[:200])
-                return None
-        except (httpx.TimeoutException, httpx.ConnectError) as e:
-            last_error = e
-            if attempt < FIREBASE_MAX_RETRIES - 1:
-                await asyncio.sleep(FIREBASE_RETRY_DELAY * (attempt + 1))
-                continue
-            logger.error("Firebase RTDB error (after %d retries): %s", FIREBASE_MAX_RETRIES, e)
-            # Сохраняем в очередь для повторной отправки
-            if use_queue_on_error:
-                from services.firebase_queue import add_to_queue
-                add_to_queue(complaint)
-                logger.info("Firebase unavailable, added to queue for retry")
-            return None
-        except Exception as e:
-            logger.error("Firebase RTDB error: %s", e)
-            # Сохраняем в очередь для повторной отправки
-            if use_queue_on_error:
-                from services.firebase_queue import add_to_queue
-                add_to_queue(complaint)
-                logger.info("Firebase error, added to queue for retry")
-            return None
+                last_error = f"{r.status_code} {r.text[:200]}"
+                if 500 <= r.status_code < 600:
+                    break
+                logger.error("Firebase RTDB error [%s]: %s %s", label, r.status_code, r.text[:200])
+            except (httpx.TimeoutException, httpx.ConnectError) as e:
+                last_error = e
+                logger.debug("Firebase [%s] ConnectError: %s", label, e)
+        if attempt < FIREBASE_MAX_RETRIES - 1:
+            await asyncio.sleep(FIREBASE_RETRY_DELAY * (attempt + 1))
+    logger.error("Firebase RTDB error (after %d retries): %s", FIREBASE_MAX_RETRIES, last_error)
+    if use_queue_on_error:
+        from services.firebase_queue import add_to_queue
+        add_to_queue(complaint)
+        logger.info("Firebase unavailable, added to queue for retry")
     return None
 
 
 async def _increment_stats(category: str):
     """Обновляет real-time статистику"""
     url = f"{FIREBASE_RTDB_URL}/stats/realtime.json"
+    proxy_url = get_proxy_url()
     try:
-        # Firebase уже идет через Cloudflare Worker прокси, не используем SOCKS5
-        async with get_http_client(timeout=10.0, proxy=None) as client:
-            # Читаем текущие значения
-            r = await client.get(url)
-            current = r.json() if r.status_code == 200 and r.text != "null" else {}
-
-            total = (current.get("total_complaints") or 0) + 1
-            by_cat = current.get("by_category") or {}
-            by_cat[category] = (by_cat.get(category) or 0) + 1
-
-            # Записываем обновлённые
-            await client.put(url, json={
-                "total_complaints": total,
-                "by_category": by_cat,
-                "last_updated": datetime.utcnow().isoformat(),
-            })
+        for use_proxy in [False, True]:
+            if use_proxy and not proxy_url:
+                continue
+            try:
+                async with get_http_client(timeout=10.0, proxy=proxy_url if use_proxy else None) as client:
+                    r = await client.get(url)
+                    current = r.json() if r.status_code == 200 and r.text != "null" else {}
+                    total = (current.get("total_complaints") or 0) + 1
+                    by_cat = current.get("by_category") or {}
+                    by_cat[category] = (by_cat.get(category) or 0) + 1
+                    await client.put(url, json={
+                        "total_complaints": total,
+                        "by_category": by_cat,
+                        "last_updated": datetime.utcnow().isoformat(),
+                    })
+                return
+            except Exception:
+                continue
     except Exception as e:
         logger.debug(f"Stats update error: {e}")
 
@@ -149,34 +143,40 @@ async def get_recent_complaints(limit: int = 50) -> list:
         return []
 
     url = f"{FIREBASE_RTDB_URL}/complaints.json"
+    proxy_url = get_proxy_url()
     for attempt in range(FIREBASE_MAX_RETRIES):
-        try:
-            async with get_http_client(timeout=15.0, proxy=None) as client:
-                r = await client.get(url)
-                if r.status_code == 200 and r.text and r.text.strip() != "null":
-                    data = r.json()
-                    if not isinstance(data, dict):
-                        return []
-                    results = []
-                    for doc_id, doc_data in data.items():
-                        if isinstance(doc_data, dict):
-                            doc_data = dict(doc_data)
-                            doc_data["id"] = doc_id
-                            results.append(doc_data)
-                    return sorted(results, key=lambda x: x.get("created_at", ""), reverse=True)[:limit]
-                if 500 <= getattr(r, "status_code", 0) < 600 and attempt < FIREBASE_MAX_RETRIES - 1:
-                    await asyncio.sleep(FIREBASE_RETRY_DELAY * (attempt + 1))
-                    continue
-                return []
-        except (httpx.TimeoutException, httpx.ConnectError) as e:
-            if attempt < FIREBASE_MAX_RETRIES - 1:
-                await asyncio.sleep(FIREBASE_RETRY_DELAY * (attempt + 1))
+        for use_proxy in [False, True]:
+            if use_proxy and not proxy_url:
                 continue
-            logger.error("Firebase read error (after %d retries): %s", FIREBASE_MAX_RETRIES, e)
-            return []
-        except Exception as e:
-            logger.error("Firebase read error: %s", e)
-            return []
+            try:
+                async with get_http_client(timeout=15.0, proxy=proxy_url if use_proxy else None) as client:
+                    r = await client.get(url)
+                    if r.status_code == 200 and r.text and r.text.strip() != "null":
+                        data = r.json()
+                        if not isinstance(data, dict):
+                            return []
+                        results = []
+                        for doc_id, doc_data in data.items():
+                            if isinstance(doc_data, dict):
+                                doc_data = dict(doc_data)
+                                doc_data["id"] = doc_id
+                                results.append(doc_data)
+                        return sorted(results, key=lambda x: x.get("created_at", ""), reverse=True)[:limit]
+                    if 500 <= getattr(r, "status_code", 0) < 600 and attempt < FIREBASE_MAX_RETRIES - 1:
+                        await asyncio.sleep(FIREBASE_RETRY_DELAY * (attempt + 1))
+                        break
+                    return []
+            except (httpx.TimeoutException, httpx.ConnectError) as e:
+                if attempt < FIREBASE_MAX_RETRIES - 1:
+                    await asyncio.sleep(FIREBASE_RETRY_DELAY * (attempt + 1))
+                    break
+                logger.error("Firebase read error (after %d retries): %s", FIREBASE_MAX_RETRIES, e)
+                return []
+            except Exception as e:
+                logger.error("Firebase read error: %s", e)
+                continue
+        if attempt < FIREBASE_MAX_RETRIES - 1:
+            await asyncio.sleep(FIREBASE_RETRY_DELAY)
     return []
 
 

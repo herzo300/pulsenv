@@ -20,6 +20,14 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+# MCP Fetch интеграция
+try:
+    from .mcp_fetch_service import get_mcp_fetch_service, fetch_with_fallback
+    MCP_FETCH_AVAILABLE = True
+except ImportError:
+    MCP_FETCH_AVAILABLE = False
+    logger.warning("MCP Fetch Service недоступен")
+
 # VK API
 VK_SERVICE_TOKEN = os.getenv("VK_SERVICE_TOKEN", "")
 VK_API_VERSION = "5.199"
@@ -121,12 +129,33 @@ def is_vk_relevant(text: str, category: str) -> bool:
 
 
 async def vk_api_call(method: str, params: dict) -> Optional[dict]:
-    """Вызов VK API"""
+    """Вызов VK API с fallback на MCP Fetch"""
     if not VK_SERVICE_TOKEN:
         logger.error("VK_SERVICE_TOKEN не задан в .env")
         return None
     params["access_token"] = VK_SERVICE_TOKEN
     params["v"] = VK_API_VERSION
+    
+    # Пробуем через MCP Fetch если доступен
+    if MCP_FETCH_AVAILABLE:
+        try:
+            service = get_mcp_fetch_service()
+            url = f"{VK_API_BASE}/{method}"
+            result = await service.fetch_url(url, params=params)
+            if result and result.get("status") == 200:
+                try:
+                    import json
+                    data = json.loads(result.get("text", "{}"))
+                    if "error" in data:
+                        logger.error(f"VK API error: {data['error']}")
+                        return None
+                    return data.get("response")
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.debug(f"MCP Fetch fallback failed: {e}")
+    
+    # Стандартный способ через httpx
     try:
         # VK API стабильнее работает без прокси (часть прокси не поддерживает CONNECT для HTTPS).
         async with get_http_client(timeout=30.0, proxy=None) as client:
@@ -144,12 +173,34 @@ async def vk_api_call(method: str, params: dict) -> Optional[dict]:
 
 
 async def fetch_group_wall(group_id: int, count: int = 10) -> List[dict]:
-    """Получает последние посты со стены группы (только за сегодня)"""
+    """Получает последние посты со стены группы (только за сегодня) с fallback на веб-парсинг"""
     result = await vk_api_call("wall.get", {
         "owner_id": group_id,
         "count": count,
         "filter": "owner",  # только посты от имени группы
     })
+    
+    # Fallback на веб-парсинг через MCP если API недоступен
+    if not result and MCP_FETCH_AVAILABLE:
+        try:
+            service = get_mcp_fetch_service()
+            group_short_name = get_group_short_name(group_id)
+            web_posts = await service.fetch_vk_group_web(group_short_name)
+            
+            if web_posts:
+                logger.info(f"✅ Получено {len(web_posts)} постов через MCP веб-парсинг для группы {group_id}")
+                # Конвертируем формат веб-постов в формат API
+                items = []
+                for post in web_posts:
+                    items.append({
+                        "id": post.get("post_id", 0),
+                        "date": int(post.get("timestamp", 0)) if post.get("timestamp") else 0,
+                        "text": post.get("text", ""),
+                    })
+                result = {"items": items}
+        except Exception as e:
+            logger.debug(f"MCP веб-парсинг VK не удался: {e}")
+    
     if not result:
         return []
     items = result.get("items", [])

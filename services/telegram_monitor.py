@@ -5,6 +5,7 @@ import asyncio
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import json
+import logging
 
 from telethon import TelegramClient, events, types
 from telethon.tl.custom import Session
@@ -12,10 +13,19 @@ from telethon.tl.custom import Session
 from .nvd_service import get_vulnerabilities, parse_nvd_response
 from .cache_service import get_categories_cached, invalidate_categories_cache
 
+# MCP Fetch интеграция
+try:
+    from .mcp_fetch_service import get_mcp_fetch_service
+    MCP_FETCH_AVAILABLE = True
+except ImportError:
+    MCP_FETCH_AVAILABLE = False
+
 try:
     from .complaint_service import ComplaintService
 except ImportError:
     ComplaintService = None  # опциональная зависимость
+
+logger = logging.getLogger(__name__)
 
 
 class TelegramMonitor:
@@ -88,6 +98,16 @@ class TelegramMonitor:
                     print(f"✅ Подключен к каналу: {channel}")
             except Exception as e:
                 print(f"❌ Ошибка подключения к {channel}: {e}")
+                # Fallback на веб-парсинг через MCP если доступен
+                if MCP_FETCH_AVAILABLE:
+                    try:
+                        service = get_mcp_fetch_service()
+                        channel_name = channel.lstrip("@")
+                        web_messages = await service.fetch_telegram_channel_web(channel_name)
+                        if web_messages:
+                            logger.info(f"✅ Получено {len(web_messages)} сообщений через MCP веб-парсинг для {channel}")
+                    except Exception as web_error:
+                        logger.debug(f"MCP веб-парсинг Telegram не удался: {web_error}")
     
     async def get_chat_id(self, channel: str) -> Optional[int]:
         """Получить ID чата по имени канала"""

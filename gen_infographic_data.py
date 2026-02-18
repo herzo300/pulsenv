@@ -255,6 +255,9 @@ bi = rows("budgetinfo")
 info["budget_info"] = {"total": len(bi),
     "items": [{"title": b.get("TITLE",""), "desc": b.get("DESCRIPTION",""), "url": b.get("URL","")} for b in bi[:10]]}
 
+# Budget reports (если есть)
+br = rows("budgetreport")
+
 # ═══ AGREEMENTS (КОНТРАКТЫ) ═══
 all_agreements = []
 agr_types = {
@@ -273,6 +276,8 @@ total_summ = 0
 total_inv = 0
 total_gos = 0
 agr_by_type = {}
+budget_by_year = {}  # Группировка по годам для анализа бюджета
+
 for key, type_name in agr_types.items():
     agr_rows = rows(key)
     agr_by_type[type_name] = len(agr_rows)
@@ -283,6 +288,27 @@ for key, type_name in agr_types.items():
         total_summ += summ
         total_inv += vol_inv
         total_gos += vol_gos
+        
+        # Извлечение года из поля YEAR или DAT
+        year_str = str(a.get("YEAR", "") or "")
+        if not year_str or year_str == "0":
+            dat_str = str(a.get("DAT", "") or "")
+            if dat_str and len(dat_str) >= 4:
+                # Пытаемся извлечь год из даты (формат может быть разный)
+                year_str = dat_str[-4:] if "." in dat_str else dat_str[:4]
+        
+        try:
+            year = int(year_str) if year_str and year_str.isdigit() else 0
+            if 2015 <= year <= 2030:  # Валидный диапазон лет
+                if year not in budget_by_year:
+                    budget_by_year[year] = {"summ": 0, "inv": 0, "gos": 0, "count": 0}
+                budget_by_year[year]["summ"] += summ
+                budget_by_year[year]["inv"] += vol_inv
+                budget_by_year[year]["gos"] += vol_gos
+                budget_by_year[year]["count"] += 1
+        except:
+            pass
+        
         if a.get("TITLE") or a.get("DESCRIPTION"):
             all_agreements.append({
                 "type": type_name,
@@ -293,11 +319,57 @@ for key, type_name in agr_types.items():
                 "summ": summ,
                 "vol_inv": vol_inv,
                 "vol_gos": vol_gos,
-                "year": a.get("YEAR", ""),
+                "year": year_str,
             })
 
 # Sort by summ descending
 all_agreements.sort(key=lambda x: x["summ"], reverse=True)
+
+# Формирование тренда бюджета по годам
+budget_trend = []
+for year in sorted(budget_by_year.keys()):
+    b = budget_by_year[year]
+    budget_trend.append({
+        "year": year,
+        "summ": round(b["summ"], 2),
+        "inv": round(b["inv"], 2),
+        "gos": round(b["gos"], 2),
+        "count": b["count"],
+        "total": round(b["summ"] + b["inv"] + b["gos"], 2),
+    })
+
+# Анализ динамики бюджета
+budget_analysis = {}
+if len(budget_trend) >= 2:
+    first_year = budget_trend[0]
+    last_year = budget_trend[-1]
+    
+    # Рост/снижение расходов
+    if first_year["total"] > 0:
+        growth_pct = round((last_year["total"] / first_year["total"] - 1) * 100, 1)
+        budget_analysis["growth_pct"] = growth_pct
+    
+    # Средние значения
+    avg_summ = sum(b["summ"] for b in budget_trend) / len(budget_trend)
+    avg_inv = sum(b["inv"] for b in budget_trend) / len(budget_trend)
+    avg_gos = sum(b["gos"] for b in budget_trend) / len(budget_trend)
+    budget_analysis["avg_summ"] = round(avg_summ, 2)
+    budget_analysis["avg_inv"] = round(avg_inv, 2)
+    budget_analysis["avg_gos"] = round(avg_gos, 2)
+    
+    # Максимальные значения
+    max_year = max(budget_trend, key=lambda x: x["total"])
+    budget_analysis["max_year"] = max_year["year"]
+    budget_analysis["max_total"] = max_year["total"]
+    
+    # Соотношение инвестиций и госрасходов
+    total_all_inv = sum(b["inv"] for b in budget_trend)
+    total_all_gos = sum(b["gos"] for b in budget_trend)
+    if total_all_inv + total_all_gos > 0:
+        inv_ratio = round(total_all_inv / (total_all_inv + total_all_gos) * 100, 1)
+        gos_ratio = round(total_all_gos / (total_all_inv + total_all_gos) * 100, 1)
+        budget_analysis["inv_ratio"] = inv_ratio
+        budget_analysis["gos_ratio"] = gos_ratio
 
 info["agreements"] = {
     "total": sum(agr_by_type.values()),
@@ -306,6 +378,8 @@ info["agreements"] = {
     "total_gos": round(total_gos, 2),
     "by_type": [{"name": k, "count": v} for k, v in sorted(agr_by_type.items(), key=lambda x: -x[1]) if v > 0],
     "top": all_agreements[:15],
+    "budget_by_year": budget_trend[-10:],  # Последние 10 лет
+    "budget_analysis": budget_analysis,
 }
 
 # ═══ PROPERTY (ИМУЩЕСТВО) ═══
