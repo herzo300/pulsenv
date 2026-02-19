@@ -867,29 +867,38 @@ async def btn_profile(message: types.Message):
 
 @dp.message(F.text == "🚪 Вход")
 async def btn_login(message: types.Message):
-    """Обработчик кнопки Вход - открывает главное меню с доступом к функциям"""
-    # Always use timestamp to bypass cache
+    """Обработчик кнопки Вход - список: Карта проблем, Инфографика, Профиль"""
     version = int(__import__("time").time())
     buttons = [
-        [InlineKeyboardButton(text="🗺️ Карта", web_app=WebAppInfo(url=f"{CF_WORKER}/map?v={version}"))],
-        [InlineKeyboardButton(text="📝 Новая жалоба", callback_data="new_complaint")],
+        [InlineKeyboardButton(text="🗺️ Карта проблем", web_app=WebAppInfo(url=f"{CF_WORKER}/map?v={version}"))],
         [InlineKeyboardButton(text="📊 Инфографика", web_app=WebAppInfo(url=f"{CF_WORKER}/info?v={version}"))],
+        [InlineKeyboardButton(text="👤 Профиль", callback_data="show_profile")],
     ]
     await message.answer(
         "🚪 *Вход выполнен*\n\n"
-        "Доступные функции:\n"
-        "🗺️ Карта — проблемы города\n"
-        "📝 Новая жалоба — создать жалобу\n"
-        "📊 Инфографика — статистика\n\n"
-        "Первая жалоба — бесплатно, далее 50 ⭐",
+        "Доступные разделы:\n"
+        "🗺️ Карта проблем — проблемы города\n"
+        "📊 Инфографика — статистика\n"
+        "👤 Профиль — жалобы, баланс, настройки",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
     
-    # Сохраняем сессию как авторизованную
     uid = message.from_user.id
     if uid not in user_sessions:
         user_sessions[uid] = {}
     user_sessions[uid]["authorized"] = True
+
+
+@dp.callback_query(F.data == "show_profile")
+async def cb_show_profile(callback: types.CallbackQuery):
+    """Показать профиль по кнопке из меню входа"""
+    await callback.answer()
+    # Переиспользуем cmd_profile: нужен объект с from_user и answer
+    class _Msg:
+        from_user = callback.from_user
+        async def answer(self, *a, **k):
+            return await callback.message.answer(*a, **k)
+    await cmd_profile(_Msg())
 
 # ═══ PROFILE CALLBACKS ═══
 @dp.callback_query(F.data == "about_project")

@@ -21,19 +21,36 @@
 
 ### `deployment/`
 Скрипты развертывания:
-- `deploy_now.py` - развертывание на сервер
+- `deploy_now.py` — обновление секрета CF_API_TOKEN и запуск деплоя Cloudflare Worker
+- `full_update.py` — полный цикл: деплой Worker + обновление бота (версия и меню)
+
+## Обновление бота и Web App
+
+Несколько способов (подробнее в [docs/ALTERNATIVE_BOT_UPDATE.md](../docs/ALTERNATIVE_BOT_UPDATE.md)):
+
+| Способ | Команда |
+|--------|--------|
+| Полный цикл (деплой + бот) | `py scripts/deployment/full_update.py` |
+| Только деплой Worker | `py scripts/deployment/deploy_now.py` или `full_update.py --deploy-only` |
+| Только бот (меню + версия) | `py scripts/maintenance/update_and_verify_bot.py` или `full_update.py --no-deploy` |
+| Из Telegram | Админ-панель → Управление ботом → «Обновить бота» |
+
+Ссылки на карту/инфографику в боте уже с `?v=timestamp`, поэтому после деплоя Worker пользователи получают свежую версию при следующем открытии; bump версии и обновление меню — по желанию.
 
 ## Использование
 
 Все скрипты запускаются из корня проекта:
 
 ```bash
+# Полный цикл: деплой Worker и обновление бота
+py scripts/deployment/full_update.py
+
+# Только обновление бота
+py scripts/maintenance/update_and_verify_bot.py
+
+# Только деплой Worker
+py scripts/deployment/deploy_now.py
+
 # Тесты
-python scripts/tests/test_map_online.py
-
-# Обслуживание
-python scripts/maintenance/update_bot.py
-
-# Развертывание
-python scripts/deployment/deploy_now.py
+py scripts/tests/test_map_online.py
 ```
