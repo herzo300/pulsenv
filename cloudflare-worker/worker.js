@@ -565,6 +565,9 @@ const APP_HTML = `<!DOCTYPE html>
         <button class="btn btn-secondary" onclick="closeModal()">
           <span data-icon="mdi:close"></span> Отмена
         </button>
+        <button class="btn btn-location" id="shareLocationBtn" onclick="shareLocationAndMark()">
+          <span data-icon="mdi:map-marker-radius"></span> Поделиться геолокацией
+        </button>
         <button class="btn btn-primary" onclick="submitComplaint()">
           <span data-icon="mdi:send"></span> Отправить
         </button>
@@ -2374,6 +2377,9 @@ const MAP_HTML = `<!DOCTYPE html>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal()">
           <span data-icon="mdi:close"></span> Отмена
+        </button>
+        <button class="btn btn-location" id="shareLocationBtn" onclick="shareLocationAndMark()">
+          <span data-icon="mdi:map-marker-radius"></span> Поделиться геолокацией
         </button>
         <button class="btn btn-primary" onclick="submitComplaint()">
           <span data-icon="mdi:send"></span> Отправить
