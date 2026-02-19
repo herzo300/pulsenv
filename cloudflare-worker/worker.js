@@ -2232,6 +2232,9 @@ const MAP_HTML = `<!DOCTYPE html>
 <div id="app" style="display:none">
   <div id="map"></div>
   
+  <!-- City Pulse Overlay -->
+  <canvas id="cityPulseOverlay"></canvas>
+  
   <!-- Top Bar -->
   <div id="topBar">
     <div class="tb-left">
@@ -2424,18 +2427,22 @@ const CONFIG = {
   center: [60.9344, 76.5531],
   zoom: 13,
   categories: {
-    'ЖКХ': { emoji: '🏘️', color: '#14b8a6', icon: 'mdi:home-city' },
-    'Дороги': { emoji: '🛣️', color: '#ef4444', icon: 'mdi:road' },
-    'Благоустройство': { emoji: '🌳', color: '#10b981', icon: 'mdi:tree' },
-    'Транспорт': { emoji: '🚌', color: '#3b82f6', icon: 'mdi:bus' },
-    'Экология': { emoji: '♻️', color: '#22c55e', icon: 'mdi:recycle' },
-    'Безопасность': { emoji: '🚨', color: '#dc2626', icon: 'mdi:shield-alert' },
-    'Освещение': { emoji: '💡', color: '#f59e0b', icon: 'mdi:lightbulb' },
-    'Снег/Наледь': { emoji: '❄️', color: '#06b6d4', icon: 'mdi:snowflake' },
-    'Медицина': { emoji: '🏥', color: '#ec4899', icon: 'mdi:hospital-box' },
-    'Образование': { emoji: '🏫', color: '#8b5cf6', icon: 'mdi:school' },
-    'Парковки': { emoji: '🅿️', color: '#6366f1', icon: 'mdi:parking' },
-    'Прочее': { emoji: '❔', color: '#64748b', icon: 'mdi:help-circle' }
+    'ЖКХ': { emoji: '🏘️', color: '#14b8a6', icon: 'mdi:home-city', dangerLevel: 2 },
+    'Дороги': { emoji: '🛣️', color: '#ef4444', icon: 'mdi:road', dangerLevel: 3 },
+    'Благоустройство': { emoji: '🌳', color: '#10b981', icon: 'mdi:tree', dangerLevel: 1 },
+    'Транспорт': { emoji: '🚌', color: '#3b82f6', icon: 'mdi:bus', dangerLevel: 2 },
+    'Экология': { emoji: '♻️', color: '#22c55e', icon: 'mdi:recycle', dangerLevel: 2 },
+    'Безопасность': { emoji: '🚨', color: '#dc2626', icon: 'mdi:shield-alert', dangerLevel: 5 },
+    'Освещение': { emoji: '💡', color: '#f59e0b', icon: 'mdi:lightbulb', dangerLevel: 2 },
+    'Снег/Наледь': { emoji: '❄️', color: '#06b6d4', icon: 'mdi:snowflake', dangerLevel: 3 },
+    'Медицина': { emoji: '🏥', color: '#ec4899', icon: 'mdi:hospital-box', dangerLevel: 4 },
+    'Образование': { emoji: '🏫', color: '#8b5cf6', icon: 'mdi:school', dangerLevel: 2 },
+    'Парковки': { emoji: '🅿️', color: '#6366f1', icon: 'mdi:parking', dangerLevel: 1 },
+    'ЧП': { emoji: '⚠️', color: '#dc2626', icon: 'mdi:alert', dangerLevel: 5 },
+    'Газоснабжение': { emoji: '🔥', color: '#dc2626', icon: 'mdi:fire', dangerLevel: 5 },
+    'Отопление': { emoji: '🔥', color: '#f97316', icon: 'mdi:radiator', dangerLevel: 4 },
+    'Водоснабжение и канализация': { emoji: '💧', color: '#3b82f6', icon: 'mdi:water', dangerLevel: 3 },
+    'Прочее': { emoji: '❔', color: '#64748b', icon: 'mdi:help-circle', dangerLevel: 1 }
   },
   statuses: {
     'open': { label: 'Открыто', color: '#ef4444', icon: 'mdi:alert-circle' },
@@ -2540,6 +2547,16 @@ h1, h2, h3, .tb-title, .splash-title, .modal-header h3 { font-family: 'Rajdhani'
 #app { position: relative; width: 100%; height: 100vh; }
 #map { position: absolute; inset: 0; z-index: 1; background: #f5f7fa; }
 #map.leaflet-container { background: #f5f7fa !important; }
+
+/* City Pulse Overlay */
+#cityPulseOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 500;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.8;
+}
 
 /* Modern map tile overlay (Nizhnevartovsk style) */
 #map::before {
@@ -2947,6 +2964,233 @@ const styleEl = document.createElement('style');
 styleEl.textContent = styles;
 document.head.appendChild(styleEl);
 
+// ═══ CITY PULSE OVERLAY — Пульс города на карте ═══
+const CityPulseOverlay = {
+  canvas: null,
+  ctx: null,
+  bpm: 60,
+  targetBpm: 60,
+  pulseHistory: [],
+  pulseEvents: [], // События пульсации от новых жалоб
+  intensity: 0, // Интенсивность пульсации (0-1)
+  time: 0,
+  lastComplaintTime: 0,
+  
+  init() {
+    this.canvas = document.getElementById('cityPulseOverlay');
+    if (!this.canvas) return;
+    
+    this.ctx = this.canvas.getContext('2d');
+    this.pulseHistory = new Array(200).fill(0);
+    
+    // Resize handler
+    const resize = () => {
+      this.canvas.width = window.innerWidth;
+      this.canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+    
+    this.animate();
+  },
+  
+  // Реакция на новую жалобу
+  reactToComplaint(complaint) {
+    const category = CONFIG.categories[complaint.category] || CONFIG.categories['Прочее'];
+    const dangerLevel = category.dangerLevel || 1;
+    
+    // Создаем событие пульсации
+    const pulseEvent = {
+      time: Date.now(),
+      intensity: dangerLevel / 5, // Нормализуем к 0-1
+      category: complaint.category,
+      dangerLevel: dangerLevel,
+      x: complaint.lng ? null : Math.random() * this.canvas.width, // Если есть координаты, используем их
+      y: complaint.lat ? null : Math.random() * this.canvas.height,
+      lat: complaint.lat,
+      lng: complaint.lng
+    };
+    
+    this.pulseEvents.push(pulseEvent);
+    
+    // Ограничиваем количество событий
+    if (this.pulseEvents.length > 50) {
+      this.pulseEvents.shift();
+    }
+    
+    // Увеличиваем интенсивность пульсации
+    this.intensity = Math.min(this.intensity + dangerLevel * 0.1, 1);
+    
+    // Обновляем целевой BPM
+    this.updateBPM();
+  },
+  
+  // Обновление BPM на основе жалоб
+  updateBPM() {
+    const now = Date.now();
+    const recentEvents = this.pulseEvents.filter(e => now - e.time < 60000); // Последняя минута
+    
+    if (recentEvents.length === 0) {
+      this.targetBpm = 60;
+      return;
+    }
+    
+    // Вычисляем среднюю опасность
+    const avgDanger = recentEvents.reduce((sum, e) => sum + e.dangerLevel, 0) / recentEvents.length;
+    
+    // BPM зависит от опасности и количества событий
+    this.targetBpm = Math.min(60 + avgDanger * 8 + recentEvents.length * 2, 150);
+  },
+  
+  // Получить цвет пульса на основе BPM
+  getPulseColor() {
+    if (this.bpm < 70) return { r: 45, g: 212, b: 191, a: 0.3 }; // Зеленый (спокойно)
+    if (this.bpm < 90) return { r: 245, g: 158, b: 11, a: 0.4 }; // Желтый (умеренно)
+    if (this.bpm < 120) return { r: 249, g: 115, b: 22, a: 0.5 }; // Оранжевый (напряженно)
+    return { r: 239, g: 68, b: 68, a: 0.6 }; // Красный (тревожно)
+  },
+  
+  animate() {
+    if (!this.ctx || !this.canvas) return;
+    
+    const ctx = this.ctx;
+    const W = this.canvas.width;
+    const H = this.canvas.height;
+    
+    // Плавное изменение BPM
+    this.bpm += (this.targetBpm - this.bpm) * 0.05;
+    
+    // Уменьшаем интенсивность со временем
+    this.intensity *= 0.98;
+    
+    // Очищаем canvas с прозрачностью для эффекта следа
+    ctx.fillStyle = 'rgba(245, 247, 250, 0.1)';
+    ctx.fillRect(0, 0, W, H);
+    
+    // Получаем цвет пульса
+    const pulseColor = this.getPulseColor();
+    
+    // Рисуем основной пульс (концентрические круги от центра)
+    const centerX = W / 2;
+    const centerY = H / 2;
+    
+    // Генерируем волну пульсации
+    this.time += this.bpm / 3600;
+    const pulsePhase = (this.time % 1);
+    
+    // Основной пульс от центра карты
+    const baseRadius = Math.min(W, H) * 0.1;
+    const pulseRadius = baseRadius + Math.sin(pulsePhase * Math.PI * 2) * (baseRadius * this.intensity * 2);
+    
+    // Градиент для пульса
+    const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, pulseRadius);
+    gradient.addColorStop(0, \`rgba(\${pulseColor.r}, \${pulseColor.g}, \${pulseColor.b}, \${pulseColor.a})\`);
+    gradient.addColorStop(0.5, \`rgba(\${pulseColor.r}, \${pulseColor.g}, \${pulseColor.b}, \${pulseColor.a * 0.5})\`);
+    gradient.addColorStop(1, \`rgba(\${pulseColor.r}, \${pulseColor.g}, \${pulseColor.b}, 0)\`);
+    
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, pulseRadius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Рисуем события пульсации от новых жалоб
+    const now = Date.now();
+    this.pulseEvents.forEach((event, index) => {
+      const age = (now - event.time) / 1000; // Возраст в секундах
+      if (age > 3) return; // Показываем только последние 3 секунды
+      
+      let x, y;
+      
+      // Если есть координаты жалобы, конвертируем их в пиксели
+      if (event.lat && event.lng && state.map) {
+        const point = state.map.latLngToContainerPoint([event.lat, event.lng]);
+        x = point.x;
+        y = point.y;
+      } else {
+        // Иначе используем случайные координаты
+        x = event.x || centerX;
+        y = event.y || centerY;
+      }
+      
+      // Интенсивность уменьшается со временем
+      const fade = 1 - (age / 3);
+      const radius = 30 + age * 20; // Радиус увеличивается со временем
+      
+      // Градиент для события
+      const eventGradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+      const alpha = event.intensity * fade * 0.6;
+      eventGradient.addColorStop(0, \`rgba(\${pulseColor.r}, \${pulseColor.g}, \${pulseColor.b}, \${alpha})\`);
+      eventGradient.addColorStop(0.5, \`rgba(\${pulseColor.r}, \${pulseColor.g}, \${pulseColor.b}, \${alpha * 0.5})\`);
+      eventGradient.addColorStop(1, \`rgba(\${pulseColor.r}, \${pulseColor.g}, \${pulseColor.b}, 0)\`);
+      
+      ctx.fillStyle = eventGradient;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Удаляем старые события
+      if (age > 3) {
+        this.pulseEvents.splice(index, 1);
+      }
+    });
+    
+    // Рисуем волновую форму пульса внизу экрана (опционально)
+    this.drawWaveform(ctx, W, H);
+    
+    requestAnimationFrame(() => this.animate());
+  },
+  
+  // Рисует волновую форму пульса
+  drawWaveform(ctx, W, H) {
+    const waveHeight = 60;
+    const waveY = H - waveHeight;
+    
+    // Генерируем значение волны
+    const phase = (this.time % 1);
+    let value = 0;
+    
+    // Паттерн пульсации
+    if (phase < 0.1) {
+      value = Math.sin(phase / 0.1 * Math.PI) * 0.6;
+    } else if (phase < 0.2) {
+      value = Math.sin((phase - 0.1) / 0.1 * Math.PI) * 1.0;
+    } else if (phase < 0.3) {
+      value = -Math.sin((phase - 0.2) / 0.1 * Math.PI) * 0.4;
+    } else {
+      value = 0;
+    }
+    
+    // Добавляем шум для органичности
+    value += (Math.random() - 0.5) * 0.1;
+    
+    this.pulseHistory.push(value);
+    if (this.pulseHistory.length > 200) this.pulseHistory.shift();
+    
+    // Рисуем волну
+    const pulseColor = this.getPulseColor();
+    ctx.strokeStyle = \`rgba(\${pulseColor.r}, \${pulseColor.g}, \${pulseColor.b}, 0.6)\`;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    ctx.beginPath();
+    const step = W / 200;
+    
+    for (let i = 0; i < this.pulseHistory.length; i++) {
+      const x = i * step;
+      const y = waveY + waveHeight / 2 - this.pulseHistory[i] * (waveHeight / 2 - 10);
+      
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    
+    ctx.stroke();
+  }
+};
+
 // ═══ CITY RHYTHM — Ритм города (реагирует на жалобы) ═══
 const CityRhythm = {
   canvas: null,
@@ -2978,12 +3222,12 @@ const CityRhythm = {
     const count = recent.length;
     let severity = 0;
     
-    // Calculate severity based on categories
+    // Calculate severity based on categories and danger levels
     recent.forEach(c => {
       const cat = c.category || '';
-      if (['ЧП', 'Безопасность', 'Газоснабжение'].includes(cat)) severity += 3;
-      else if (['Дороги', 'ЖКХ', 'Отопление', 'Водоснабжение и канализация'].includes(cat)) severity += 2;
-      else severity += 1;
+      const categoryInfo = CONFIG.categories[cat] || CONFIG.categories['Прочее'];
+      const dangerLevel = categoryInfo.dangerLevel || 1;
+      severity += dangerLevel;
     });
     
     this.severity = Math.min(severity, 100);
@@ -3503,6 +3747,19 @@ async function loadData() {
     // Feed to City Rhythm
     CityRhythm.feed(state.complaints);
     
+    // Обновляем пульс города
+    if (CityPulseOverlay.canvas) {
+      CityPulseOverlay.updateBPM();
+      // Реагируем на все новые жалобы
+      state.complaints.forEach(complaint => {
+        const complaintTime = new Date(complaint.created_at || complaint.date || 0).getTime();
+        if (complaintTime > CityPulseOverlay.lastComplaintTime) {
+          CityPulseOverlay.reactToComplaint(complaint);
+        }
+      });
+      CityPulseOverlay.lastComplaintTime = Date.now();
+    }
+    
     // Обновляем маркеры на карте
     if (state.map && state.cluster) {
       renderMarkers();
@@ -3549,9 +3806,13 @@ async function checkForNewComplaints() {
       
       state.filteredComplaints = [...state.complaints];
       
-      // Animate new markers
+      // Animate new markers and trigger pulse reactions
       newComplaints.forEach(complaint => {
         addMarkerWithAnimation(complaint);
+        // Реакция пульса на новую жалобу
+        if (CityPulseOverlay.canvas) {
+          CityPulseOverlay.reactToComplaint(complaint);
+        }
       });
       
       // Update stats
@@ -3808,6 +4069,9 @@ function initMap() {
     zoom: initialZoom,
     zoomControl: false
   });
+  
+  // Initialize City Pulse Overlay
+  CityPulseOverlay.init();
   
   // OpenStreetMap tiles (free, no API key) + markers
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
