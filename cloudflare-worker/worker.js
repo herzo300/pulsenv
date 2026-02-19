@@ -528,7 +528,7 @@ const APP_HTML = `<!DOCTYPE html>
     <div class="modal-content">
       <div class="modal-header">
         <h3><span data-icon="mdi:file-document-edit"></span> Подать жалобу</h3>
-        <button class="close-btn" onclick="closeModal()">
+        <button class="close-btn" onclick="closeModal()" aria-label="Закрыть">
           <span data-icon="mdi:close"></span>
         </button>
       </div>
@@ -723,11 +723,21 @@ const styles = \`
   --shadow-glow: 0 0 40px rgba(0, 240, 255, 0.5), 0 0 80px rgba(0, 255, 136, 0.3);
   --radius: 16px; --radius-sm: 8px; --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 body { 
-  font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
   background: var(--bg); 
   color: var(--text); 
   overflow: hidden; 
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+}
+h1, h2, h3, .tb-title, .splash-title, .modal-header h3, .overlay-header h3 {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 /* Aurora Canvas */
@@ -1076,6 +1086,45 @@ body {
 .btn-location:disabled { opacity: 0.6; cursor: not-allowed; }
 .fullscreen-hidden { display: none !important; }
 @keyframes pulse-marker { 0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(0,240,255,0.8); } 50% { transform: scale(1.1); box-shadow: 0 0 30px rgba(0,240,255,1); } }
+
+/* ═══ ACCESSIBILITY IMPROVEMENTS (UI/UX Pro Max Skill) ═══ */
+/* Focus states - visible focus rings for keyboard navigation */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(0, 240, 255, 0.2);
+}
+button:focus-visible { border-color: var(--primary); }
+
+/* Touch targets - минимум 44x44px (CRITICAL) */
+.action-btn, .fab, .filter-chip, .btn, .tab-btn, .close-btn {
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+/* Cursor pointer for all interactive elements */
+.filter-chip, .btn, .action-btn, .fab, .close-btn, .tab-btn, .popup-btn, .gps-btn {
+  cursor: pointer;
+}
+
+/* Prefers-reduced-motion support */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Improved line-height for readability */
+body, .modal-body, .overlay-content {
+  line-height: 1.6;
+}
+p, .popup-desc, .form-group label {
+  line-height: 1.6;
+  max-width: 75ch; /* Limit line length for readability */
+}
 
 /* Toast */
 .toast { 
@@ -2277,18 +2326,18 @@ const MAP_HTML = `<!DOCTYPE html>
   </div>
 
   <!-- Action Buttons -->
-  <button class="action-btn stats-btn" id="statsBtn" title="Статистика">
+  <button class="action-btn stats-btn" id="statsBtn" title="Статистика" aria-label="Статистика">
     <span data-icon="mdi:chart-box"></span>
   </button>
-  <button class="action-btn uk-btn" id="ukBtn" title="Рейтинг УК">
+  <button class="action-btn uk-btn" id="ukBtn" title="Рейтинг УК" aria-label="Рейтинг управляющих компаний">
     <span data-icon="mdi:office-building"></span>
   </button>
-  <button class="action-btn fullscreen-btn" id="fullscreenBtn" title="Полноэкранный режим" onclick="toggleFullscreen()">
+  <button class="action-btn fullscreen-btn" id="fullscreenBtn" title="Полноэкранный режим" aria-label="Полноэкранный режим" onclick="toggleFullscreen()">
     <span data-icon="mdi:fullscreen"></span>
   </button>
   
   <!-- FAB - Oil Drop -->
-  <button class="fab" id="fabBtn" title="Подать жалобу">
+  <button class="fab" id="fabBtn" title="Подать жалобу" aria-label="Подать жалобу">
     <div class="fab-drop">
       <svg viewBox="0 0 56 68">
         <defs>
@@ -2317,7 +2366,7 @@ const MAP_HTML = `<!DOCTYPE html>
   <div class="overlay" id="statsOverlay">
     <div class="overlay-header">
       <h3><span data-icon="mdi:chart-box"></span> Статистика</h3>
-      <button class="close-btn" onclick="closeOverlay('statsOverlay')">
+      <button class="close-btn" onclick="closeOverlay('statsOverlay')" aria-label="Закрыть статистику">
         <span data-icon="mdi:close"></span>
       </button>
     </div>
@@ -2328,7 +2377,7 @@ const MAP_HTML = `<!DOCTYPE html>
   <div class="overlay left" id="ukOverlay">
     <div class="overlay-header">
       <h3><span data-icon="mdi:office-building"></span> Рейтинг УК</h3>
-      <button class="close-btn" onclick="closeOverlay('ukOverlay')">
+      <button class="close-btn" onclick="closeOverlay('ukOverlay')" aria-label="Закрыть рейтинг УК">
         <span data-icon="mdi:close"></span>
       </button>
     </div>
@@ -2341,7 +2390,7 @@ const MAP_HTML = `<!DOCTYPE html>
     <div class="modal-content">
       <div class="modal-header">
         <h3><span data-icon="mdi:file-document-edit"></span> Подать жалобу</h3>
-        <button class="close-btn" onclick="closeModal()">
+        <button class="close-btn" onclick="closeModal()" aria-label="Закрыть">
           <span data-icon="mdi:close"></span>
         </button>
       </div>
@@ -2488,7 +2537,9 @@ const styles = \`
   --radius: 16px; --radius-sm: 8px; --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --glow: 0 0 20px rgba(0, 240, 255, 0.5), 0 0 40px rgba(0, 240, 255, 0.3);
 }
-body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+body { font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+h1, h2, h3, .tb-title, .splash-title, .modal-header h3 { font-family: 'Rajdhani', sans-serif; font-weight: 700; letter-spacing: -0.02em; }
 
 /* Aurora Canvas (Северное сияние) */
 #auroraCanvas { position: fixed; inset: 0; z-index: 0; }
@@ -2749,6 +2800,45 @@ body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont
 .btn-location:disabled { opacity: 0.6; cursor: not-allowed; }
 .fullscreen-hidden { display: none !important; }
 @keyframes pulse-marker { 0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(0,240,255,0.8); } 50% { transform: scale(1.1); box-shadow: 0 0 30px rgba(0,240,255,1); } }
+
+/* ═══ ACCESSIBILITY IMPROVEMENTS (UI/UX Pro Max Skill) ═══ */
+/* Focus states - visible focus rings for keyboard navigation */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(0, 240, 255, 0.2);
+}
+button:focus-visible { border-color: var(--primary); }
+
+/* Touch targets - минимум 44x44px (CRITICAL) */
+.action-btn, .fab, .filter-chip, .btn, .tab-btn, .close-btn {
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+/* Cursor pointer for all interactive elements */
+.filter-chip, .btn, .action-btn, .fab, .close-btn, .tab-btn, .popup-btn, .gps-btn {
+  cursor: pointer;
+}
+
+/* Prefers-reduced-motion support */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Improved line-height for readability */
+body, .modal-body, .overlay-content {
+  line-height: 1.6;
+}
+p, .popup-desc, .form-group label {
+  line-height: 1.6;
+  max-width: 75ch; /* Limit line length for readability */
+}
 
 /* Toast */
 .toast { 
@@ -4522,7 +4612,9 @@ S.textContent=\`
 --yellow:#ffb800;--yellowBg:rgba(255,184,0,.12);
 --r:16px;--rs:10px;
 }
-body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+body{font-family:'Space Grotesk',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
+h1,h2,h3{font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:-0.02em;line-height:1.2;}
 overflow-x:hidden;min-height:100vh;-webkit-font-smoothing:antialiased}
 #bgCanvas{position:fixed;inset:0;z-index:0;pointer-events:none}
 #app{position:relative;z-index:1;max-width:480px;margin:0 auto;padding:0 10px 40px}

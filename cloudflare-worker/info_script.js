@@ -127,8 +127,10 @@ S.textContent=`
 --yellow:#ffb800;--yellowBg:rgba(255,184,0,.12);
 --r:16px;--rs:10px;
 }
-body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);
-overflow-x:hidden;min-height:100vh;-webkit-font-smoothing:antialiased}
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+body{font-family:'Space Grotesk',system-ui,sans-serif;background:var(--bg);color:var(--text);
+overflow-x:hidden;min-height:100vh;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;line-height:1.6}
+h1,h2,h3,.hero h1{font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:-0.02em;line-height:1.2}
 #bgCanvas{position:fixed;inset:0;z-index:0;pointer-events:none}
 #app{position:relative;z-index:1;max-width:480px;margin:0 auto;padding:0 10px 40px}
 
@@ -254,6 +256,12 @@ font-size:8px;font-weight:700;color:#fff;animation:barGrow 1s cubic-bezier(.4,0,
 
 .footer{text-align:center;padding:24px 16px;font-size:10px;color:var(--textMuted)}
 .footer a{color:var(--primary);text-decoration:none;font-weight:600}
+
+/* ═══ ACCESSIBILITY IMPROVEMENTS (UI/UX Pro Max Skill) ═══ */
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--primary);outline-offset:2px;box-shadow:0 0 0 4px rgba(0,217,255,.2)}
+.tab,.card,.expand-btn{min-width:44px;min-height:44px;cursor:pointer}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+body,p{line-height:1.6;max-width:75ch}
 
 #loader{position:fixed;inset:0;z-index:99;background:var(--bg);display:flex;flex-direction:column;
 align-items:center;justify-content:center;transition:opacity .5s}

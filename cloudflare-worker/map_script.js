@@ -94,7 +94,9 @@ const styles = `
   --radius: 16px; --radius-sm: 8px; --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --glow: 0 0 20px rgba(0, 240, 255, 0.5), 0 0 40px rgba(0, 240, 255, 0.3);
 }
-body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+body { font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; line-height: 1.6; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+h1, h2, h3, .tb-title, .splash-title, .modal-header h3 { font-family: 'Rajdhani', sans-serif; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
 
 /* Aurora Canvas (Северное сияние) */
 #auroraCanvas { position: fixed; inset: 0; z-index: 0; }
@@ -353,6 +355,34 @@ body { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont
 .btn-location:active { transform: scale(0.97); }
 .btn-location:disabled { opacity: 0.6; cursor: not-allowed; }
 @keyframes pulse-marker { 0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(0,240,255,0.8); } 50% { transform: scale(1.1); box-shadow: 0 0 30px rgba(0,240,255,1); } }
+
+/* ═══ ACCESSIBILITY IMPROVEMENTS (UI/UX Pro Max Skill) ═══ */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(0, 240, 255, 0.2);
+}
+button:focus-visible { border-color: var(--primary); }
+.action-btn, .fab, .filter-chip, .btn, .close-btn {
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.filter-chip, .btn, .action-btn, .fab, .close-btn, .popup-btn, .gps-btn {
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+body, .modal-body { line-height: 1.6; }
+p, .popup-desc, .form-group label {
+  line-height: 1.6;
+  max-width: 75ch;
+}
 
 /* Toast */
 .toast { 
