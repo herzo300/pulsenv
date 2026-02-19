@@ -21,7 +21,9 @@
 
 ### `deployment/`
 Скрипты развертывания:
-- `deploy_now.py` — обновление секрета CF_API_TOKEN и запуск деплоя Cloudflare Worker
+- `deploy_now.py` — обновление секрета CF_API_TOKEN и запуск деплоя Cloudflare Worker через GitHub Actions
+- `deploy_direct.py` — **прямой деплой через Cloudflare API** (без wrangler, без GitHub Actions) — **РЕКОМЕНДУЕТСЯ при проблемах**
+- `deploy_npx.py` — деплой через `npx wrangler` (без глобальной установки wrangler)
 - `full_update.py` — полный цикл: деплой Worker + обновление бота (версия и меню)
 
 ## Обновление бота и Web App
@@ -48,8 +50,10 @@ py scripts/deployment/full_update.py
 # Только обновление бота
 py scripts/maintenance/update_and_verify_bot.py
 
-# Только деплой Worker
-py scripts/deployment/deploy_now.py
+# Только деплой Worker (выберите один из способов):
+py scripts/deployment/deploy_direct.py  # Прямой деплой через API (рекомендуется)
+py scripts/deployment/deploy_npx.py    # Через npx wrangler
+py scripts/deployment/deploy_now.py     # Через GitHub Actions
 
 # Тесты
 py scripts/tests/test_map_online.py
