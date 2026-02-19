@@ -346,7 +346,7 @@ const APP_HTML = `<!DOCTYPE html>
 <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"><\/script>
 <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"><\/script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"><\/script>
-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
 <!-- Aurora Background -->
@@ -528,7 +528,7 @@ const APP_HTML = `<!DOCTYPE html>
     <div class="modal-content">
       <div class="modal-header">
         <h3><span data-icon="mdi:file-document-edit"></span> Подать жалобу</h3>
-        <button class="close-btn" onclick="closeModal()" aria-label="Закрыть">
+        <button class="close-btn" onclick="closeModal()">
           <span data-icon="mdi:close"></span>
         </button>
       </div>
@@ -564,9 +564,6 @@ const APP_HTML = `<!DOCTYPE html>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal()">
           <span data-icon="mdi:close"></span> Отмена
-        </button>
-        <button class="btn btn-location" id="shareLocationBtn" onclick="shareLocationAndMark()">
-          <span data-icon="mdi:map-marker-radius"></span> Поделиться геолокацией
         </button>
         <button class="btn btn-primary" onclick="submitComplaint()">
           <span data-icon="mdi:send"></span> Отправить
@@ -724,19 +721,10 @@ const styles = \`
   --radius: 16px; --radius-sm: 8px; --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 body { 
-  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+  font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
   background: var(--bg); 
   color: var(--text); 
   overflow: hidden; 
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  line-height: 1.6;
-}
-h1, h2, h3, .tb-title, .splash-title, .modal-header h3, .overlay-header h3 {
-  font-family: 'Rajdhani', sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
 }
 
 /* Aurora Canvas */
@@ -1079,51 +1067,6 @@ h1, h2, h3, .tb-title, .splash-title, .modal-header h3, .overlay-header h3 {
 .btn-secondary { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.8); }
 .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
 .btn-secondary:active { transform: scale(0.97); }
-.btn-location { background: linear-gradient(135deg, #00ff88, #00f0ff); color: #000; font-weight: 700; }
-.btn-location:hover { background: linear-gradient(135deg, #00f0ff, #00ff88); box-shadow: 0 4px 12px rgba(0, 255, 136, 0.4); }
-.btn-location:active { transform: scale(0.97); }
-.btn-location:disabled { opacity: 0.6; cursor: not-allowed; }
-.fullscreen-hidden { display: none !important; }
-@keyframes pulse-marker { 0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(0,240,255,0.8); } 50% { transform: scale(1.1); box-shadow: 0 0 30px rgba(0,240,255,1); } }
-
-/* ═══ ACCESSIBILITY IMPROVEMENTS (UI/UX Pro Max Skill) ═══ */
-/* Focus states - visible focus rings for keyboard navigation */
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-  box-shadow: 0 0 0 4px rgba(0, 240, 255, 0.2);
-}
-button:focus-visible { border-color: var(--primary); }
-
-/* Touch targets - минимум 44x44px (CRITICAL) */
-.action-btn, .fab, .filter-chip, .btn, .tab-btn, .close-btn {
-  min-width: 44px;
-  min-height: 44px;
-  cursor: pointer;
-}
-
-/* Cursor pointer for all interactive elements */
-.filter-chip, .btn, .action-btn, .fab, .close-btn, .tab-btn, .popup-btn, .gps-btn {
-  cursor: pointer;
-}
-
-/* Prefers-reduced-motion support */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* Improved line-height for readability */
-body, .modal-body, .overlay-content {
-  line-height: 1.6;
-}
-p, .popup-desc, .form-group label {
-  line-height: 1.6;
-  max-width: 75ch; /* Limit line length for readability */
-}
 
 /* Toast */
 .toast { 
@@ -2188,10 +2131,7 @@ const MAP_HTML = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>🗺️ Карта проблем Нижневартовска — Пульс города</title>
-<meta name="description" content="Интерактивная карта городских проблем Нижневартовска. Жалобы, рейтинг УК, real-time маркеры.">
-<meta property="og:title" content="🗺️ Карта проблем Нижневартовска">
-<meta property="og:description" content="Интерактивная карта городских проблем. Жалобы, рейтинг УК, real-time маркеры.">
+<title>Пульс города — Карта</title>
 <script src="https://telegram.org/js/telegram-web-app.js"><\/script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
@@ -2205,6 +2145,8 @@ const MAP_HTML = `<!DOCTYPE html>
 <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"><\/script>
 <!-- Iconify для иконок -->
 <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"><\/script>
+<!-- Fonts: Rajdhani (display) + Space Grotesk (body) -->
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 <!-- Aurora Background (Северное сияние) -->
@@ -2325,18 +2267,15 @@ const MAP_HTML = `<!DOCTYPE html>
   </div>
 
   <!-- Action Buttons -->
-  <button class="action-btn stats-btn" id="statsBtn" title="Статистика" aria-label="Статистика">
+  <button class="action-btn stats-btn" id="statsBtn" title="Статистика">
     <span data-icon="mdi:chart-box"></span>
   </button>
-  <button class="action-btn uk-btn" id="ukBtn" title="Рейтинг УК" aria-label="Рейтинг управляющих компаний">
+  <button class="action-btn uk-btn" id="ukBtn" title="Рейтинг УК">
     <span data-icon="mdi:office-building"></span>
-  </button>
-  <button class="action-btn fullscreen-btn" id="fullscreenBtn" title="Полноэкранный режим" aria-label="Полноэкранный режим" onclick="toggleFullscreen()">
-    <span data-icon="mdi:fullscreen"></span>
   </button>
   
   <!-- FAB - Oil Drop -->
-  <button class="fab" id="fabBtn" title="Подать жалобу" aria-label="Подать жалобу">
+  <button class="fab" id="fabBtn" title="Подать жалобу">
     <div class="fab-drop">
       <svg viewBox="0 0 56 68">
         <defs>
@@ -2365,7 +2304,7 @@ const MAP_HTML = `<!DOCTYPE html>
   <div class="overlay" id="statsOverlay">
     <div class="overlay-header">
       <h3><span data-icon="mdi:chart-box"></span> Статистика</h3>
-      <button class="close-btn" onclick="closeOverlay('statsOverlay')" aria-label="Закрыть статистику">
+      <button class="close-btn" onclick="closeOverlay('statsOverlay')">
         <span data-icon="mdi:close"></span>
       </button>
     </div>
@@ -2376,7 +2315,7 @@ const MAP_HTML = `<!DOCTYPE html>
   <div class="overlay left" id="ukOverlay">
     <div class="overlay-header">
       <h3><span data-icon="mdi:office-building"></span> Рейтинг УК</h3>
-      <button class="close-btn" onclick="closeOverlay('ukOverlay')" aria-label="Закрыть рейтинг УК">
+      <button class="close-btn" onclick="closeOverlay('ukOverlay')">
         <span data-icon="mdi:close"></span>
       </button>
     </div>
@@ -2389,7 +2328,7 @@ const MAP_HTML = `<!DOCTYPE html>
     <div class="modal-content">
       <div class="modal-header">
         <h3><span data-icon="mdi:file-document-edit"></span> Подать жалобу</h3>
-        <button class="close-btn" onclick="closeModal()" aria-label="Закрыть">
+        <button class="close-btn" onclick="closeModal()">
           <span data-icon="mdi:close"></span>
         </button>
       </div>
@@ -2453,6 +2392,9 @@ if (tg) {
   tg.expand();
   tg.BackButton.show();
   tg.onEvent('backButtonClicked', () => tg.close());
+  
+  // Enable haptic feedback
+  tg.enableClosingConfirmation();
 }
 
 // ═══ CONFIGURATION ═══
@@ -2527,24 +2469,24 @@ const state = {
 const styles = \`
 * { margin: 0; padding: 0; box-sizing: border-box; }
 :root {
-  --bg: #0a0a0f; --surface: rgba(10, 15, 30, 0.98); --text: #e0e7ff;
-  --primary: #00f0ff; --primary-light: #33f3ff; --primary-dark: #00c8d4;
-  --success: #00ff88; --danger: #ff3366; --warning: #ffaa00; --info: #00aaff;
-  --neon-cyan: #00f0ff; --neon-pink: #ff00ff; --neon-green: #00ff88; --neon-blue: #0066ff;
-  --oil: #0a0a1a; --oil-light: #1a1a2e; --oil-dark: #050510;
-  --border: rgba(0, 240, 255, 0.2); --shadow: 0 0 30px rgba(0, 240, 255, 0.3), 0 4px 20px rgba(0, 0, 0, 0.8);
-  --radius: 16px; --radius-sm: 8px; --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --glow: 0 0 20px rgba(0, 240, 255, 0.5), 0 0 40px rgba(0, 240, 255, 0.3);
+  /* Нижневартовск: природные цвета северного города */
+  --bg: #f5f7fa; --surface: rgba(255, 255, 255, 0.98); --text: #1e293b;
+  --primary: #1e3a5f; --primary-light: #2d4a6b; --primary-dark: #0f2540;
+  --success: #2d5016; --success-light: #4a7c3a; --danger: #dc2626; --warning: #d97706; --info: #0369a1;
+  --gold: #d4af37; --gold-light: #f4c430; --snow: #ffffff; --taiga: #2d5016;
+  --border: rgba(30, 58, 95, 0.15); --shadow: 0 2px 12px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+  --radius: 12px; --radius-sm: 8px; --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --accent-blue: #1e40af; --accent-green: #166534; --accent-gold: #d4af37;
 }
-body { font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-h1, h2, h3, .tb-title, .splash-title, .modal-header h3 { font-family: 'Rajdhani', sans-serif; font-weight: 700; letter-spacing: -0.02em; }
+body { font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; line-height: 1.6; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+h1, h2, h3, .tb-title, .splash-title, .modal-header h3 { font-family: 'Rajdhani', sans-serif; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
 
 /* Aurora Canvas (Северное сияние) */
 #auroraCanvas { position: fixed; inset: 0; z-index: 0; }
 
 /* Splash Screen */
-#splash { position: fixed; inset: 0; z-index: 9999; background: linear-gradient(135deg, #0a0e1a 0%, #1e1b4b 50%, #0f3460 100%); display: flex; align-items: center; justify-content: center; transition: opacity 0.6s, transform 0.6s; }
-#splash.hide { opacity: 0; transform: scale(1.15); pointer-events: none; }
+#splash { position: fixed; inset: 0; z-index: 9999; background: linear-gradient(135deg, #f5f7fa 0%, #e2e8f0 50%, #cbd5e1 100%); display: flex; align-items: center; justify-content: center; transition: opacity 0.6s, transform 0.6s; }
+#splash.hide { opacity: 0; transform: scale(1.05); pointer-events: none; }
 .splash-content { position: relative; z-index: 1; text-align: center; max-width: 360px; padding: 20px; }
 
 /* Oil Drop Logo */
@@ -2564,11 +2506,11 @@ h1, h2, h3, .tb-title, .splash-title, .modal-header h3 { font-family: 'Rajdhani'
 @keyframes ringPulse { 0% { transform: scale(0.8); opacity: 0.6; } 100% { transform: scale(1.5); opacity: 0; } }
 
 /* Title */
-.splash-title { font-size: 32px; font-weight: 900; background: linear-gradient(135deg, #818cf8, #6366f1, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; animation: titleSlide 0.8s ease 0.3s both; display: flex; align-items: center; justify-content: center; gap: 12px; }
-.title-icon { font-size: 36px; color: var(--primary-light); animation: iconSpin 3s ease-in-out infinite; }
+.splash-title { font-size: 32px; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--primary-light), var(--accent-gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; animation: titleSlide 0.8s ease 0.3s both; display: flex; align-items: center; justify-content: center; gap: 12px; }
+.title-icon { font-size: 36px; color: var(--primary); animation: iconSpin 3s ease-in-out infinite; }
 @keyframes iconSpin { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(10deg); } }
 @keyframes titleSlide { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: translateX(0); } }
-.splash-subtitle { font-size: 11px; letter-spacing: 4px; color: rgba(255, 255, 255, 0.4); text-transform: uppercase; font-weight: 700; margin-bottom: 24px; animation: fadeIn 0.8s ease 0.5s both; }
+.splash-subtitle { font-size: 11px; letter-spacing: 4px; color: rgba(30, 58, 95, 0.6); text-transform: uppercase; font-weight: 700; margin-bottom: 24px; animation: fadeIn 0.8s ease 0.5s both; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
 /* City Rhythm Visualizer */
@@ -2582,63 +2524,53 @@ h1, h2, h3, .tb-title, .splash-title, .modal-header h3 { font-family: 'Rajdhani'
 
 /* Stats Cards */
 .splash-stats { display: flex; justify-content: center; gap: 12px; margin-bottom: 20px; animation: fadeIn 0.8s ease 0.9s both; }
-.stat-card { text-align: center; background: rgba(15, 23, 42, 0.8); border-radius: var(--radius-sm); padding: 12px; min-width: 80px; box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.6), -2px -2px 8px rgba(255, 255, 255, 0.02); backdrop-filter: blur(10px); border: 1px solid var(--border); transition: var(--transition); }
-.stat-card:hover { transform: translateY(-2px); box-shadow: 6px 6px 16px rgba(0, 0, 0, 0.7), -3px -3px 10px rgba(255, 255, 255, 0.03); }
-.stat-icon { display: block; font-size: 24px; margin-bottom: 6px; opacity: 0.7; }
-.stat-num { display: block; font-size: 24px; font-weight: 900; color: var(--primary-light); line-height: 1; }
-.stat-label { display: block; font-size: 8px; color: rgba(255, 255, 255, 0.4); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; font-weight: 600; }
+.stat-card { text-align: center; background: rgba(255, 255, 255, 0.9); border-radius: var(--radius-sm); padding: 12px; min-width: 80px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); backdrop-filter: blur(10px); border: 1px solid var(--border); transition: var(--transition); }
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
+.stat-icon { display: block; font-size: 24px; margin-bottom: 6px; opacity: 0.8; }
+.stat-num { display: block; font-size: 24px; font-weight: 900; color: var(--primary); line-height: 1; }
+.stat-label { display: block; font-size: 8px; color: rgba(30, 58, 95, 0.6); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; font-weight: 600; }
 
 /* Progress */
 .splash-progress { animation: fadeIn 0.8s ease 1.1s both; }
-.progress-bar { position: relative; width: 220px; height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; margin: 0 auto 10px; overflow: hidden; }
-.progress-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--primary), var(--success)); border-radius: 3px; transition: width 0.3s; position: relative; z-index: 1; }
-.progress-glow { position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.5), transparent); animation: progressGlow 2s ease-in-out infinite; }
-@keyframes progressGlow { 0%, 100% { transform: translateX(-100%); } 50% { transform: translateX(100%); } }
-.progress-text { font-size: 10px; color: rgba(255, 255, 255, 0.3); font-weight: 500; }
+.progress-bar { position: relative; width: 220px; height: 6px; background: rgba(30, 58, 95, 0.1); border-radius: 3px; margin: 0 auto 10px; overflow: hidden; }
+.progress-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--primary), var(--primary-light)); border-radius: 3px; transition: width 0.3s; position: relative; z-index: 1; }
+.progress-text { font-size: 10px; color: rgba(30, 58, 95, 0.6); font-weight: 500; }
 
 /* Main App */
 #app { position: relative; width: 100%; height: 100vh; }
-#map { position: absolute; inset: 0; z-index: 1; background: #0a0a0f; }
-#map.leaflet-container { background: #0a0a0f !important; }
+#map { position: absolute; inset: 0; z-index: 1; background: #f5f7fa; }
+#map.leaflet-container { background: #f5f7fa !important; }
 
-/* Hi-tech map tile overlay */
+/* Modern map tile overlay (Nizhnevartovsk style) */
 #map::before {
   content: '';
   position: absolute;
   inset: 0;
   background: 
-    linear-gradient(0deg, transparent 0%, rgba(0, 240, 255, 0.03) 50%, transparent 100%),
-    radial-gradient(circle at 50% 50%, rgba(0, 240, 255, 0.05) 0%, transparent 70%);
+    linear-gradient(0deg, transparent 0%, rgba(30, 58, 95, 0.02) 50%, transparent 100%);
   pointer-events: none;
   z-index: 1000;
-  mix-blend-mode: screen;
 }
 
-/* Marker pulse animation */
+/* Marker pulse animation (modern style) */
 @keyframes markerPulse {
-  0% { transform: scale(0); opacity: 0; box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.7); }
-  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 30px 10px rgba(0, 240, 255, 0.5); }
-  100% { transform: scale(1); opacity: 1; box-shadow: 0 0 20px rgba(0, 240, 255, 0.3); }
+  0% { transform: scale(0); opacity: 0; box-shadow: 0 0 0 0 rgba(30, 58, 95, 0.4); }
+  50% { transform: scale(1.15); opacity: 1; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 0 0 0 8px rgba(30, 58, 95, 0.1); }
+  100% { transform: scale(1); opacity: 1; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
 }
 
 .marker-container-new { animation: none !important; }
 .popup-new-badge {
   display: inline-block;
   padding: 2px 8px;
-  background: linear-gradient(135deg, #00f0ff, #00ff88);
-  color: #000;
+  background: linear-gradient(135deg, var(--accent-gold), #f4c430);
+  color: #1e293b;
   font-size: 9px;
   font-weight: 900;
   border-radius: 4px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  animation: neonFlicker 2s ease-in-out infinite;
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.8);
-}
-
-@keyframes neonFlicker {
-  0%, 100% { opacity: 1; filter: brightness(1); }
-  50% { opacity: 0.8; filter: brightness(1.2); }
+  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
 }
 
 @keyframes pulse-ring {
@@ -2646,37 +2578,31 @@ h1, h2, h3, .tb-title, .splash-title, .modal-header h3 { font-family: 'Rajdhani'
   100% { transform: scale(1.5); opacity: 0; }
 }
 
-/* Hi-tech marker glow */
+/* Modern marker style */
 .hi-tech-marker {
-  filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.6));
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.15));
 }
 
-/* Cluster markers hi-tech style */
+/* Cluster markers modern style */
 .marker-cluster {
-  background: linear-gradient(135deg, rgba(0, 240, 255, 0.8), rgba(0, 255, 136, 0.6)) !important;
-  border: 2px solid rgba(0, 240, 255, 0.9) !important;
-  box-shadow: 0 0 20px rgba(0, 240, 255, 0.6), inset 0 0 10px rgba(0, 240, 255, 0.3) !important;
-  color: #000 !important;
-  font-weight: 900 !important;
-  animation: clusterPulse 2s ease-in-out infinite;
-}
-
-@keyframes clusterPulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(0, 240, 255, 0.6), inset 0 0 10px rgba(0, 240, 255, 0.3); }
-  50% { box-shadow: 0 0 30px rgba(0, 240, 255, 0.9), inset 0 0 15px rgba(0, 240, 255, 0.5); }
+  background: linear-gradient(135deg, var(--primary), var(--primary-light)) !important;
+  border: 2px solid white !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+  color: white !important;
+  font-weight: 700 !important;
 }
 
 /* Top Bar */
 #topBar { 
   position: fixed; top: 0; left: 0; right: 0; z-index: 1000; 
-  background: linear-gradient(180deg, rgba(10, 15, 30, 0.98) 0%, rgba(10, 15, 30, 0.85) 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(0, 240, 255, 0.3);
+  border-bottom: 1px solid var(--border);
   padding: 10px 14px; 
   display: flex; 
   align-items: center; 
   justify-content: space-between; 
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 240, 255, 0.2);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 .tb-left { display: flex; align-items: center; gap: 10px; }
 .oil-pulse-mini { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; color: var(--primary-light); animation: oilPulseMini 2s ease-in-out infinite; }
@@ -2692,23 +2618,22 @@ h1, h2, h3, .tb-title, .splash-title, .modal-header h3 { font-family: 'Rajdhani'
 /* Filter Panel */
 #filterPanel { 
   position: fixed; top: 54px; left: 0; right: 0; z-index: 999; 
-  background: linear-gradient(to bottom, rgba(10, 15, 30, 0.95) 0%, rgba(10, 15, 30, 0.7) 80%, transparent 100%);
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.9) 80%, transparent 100%);
   backdrop-filter: blur(20px);
   padding: 8px 10px; 
-  border-bottom: 1px solid rgba(0, 240, 255, 0.2);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 .filter-row { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 4px 0; }
 .filter-row::-webkit-scrollbar { display: none; }
-.filter-chip { flex-shrink: 0; padding: 7px 14px; border-radius: 20px; font-size: 11px; font-weight: 600; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: rgba(255, 255, 255, 0.6); cursor: pointer; transition: var(--transition); white-space: nowrap; user-select: none; display: flex; align-items: center; gap: 6px; }
+.filter-chip { flex-shrink: 0; padding: 7px 14px; border-radius: 20px; font-size: 11px; font-weight: 600; background: rgba(30, 58, 95, 0.08); border: 1px solid var(--border); color: var(--text); cursor: pointer; transition: var(--transition); white-space: nowrap; user-select: none; display: flex; align-items: center; gap: 6px; }
 .filter-chip:active { transform: scale(0.95); }
 .filter-chip.active { 
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark)); 
-  color: #000; 
+  background: linear-gradient(135deg, var(--primary), var(--primary-light)); 
+  color: white; 
   border-color: var(--primary); 
-  box-shadow: 0 0 15px rgba(0, 240, 255, 0.6), 0 2px 10px rgba(0, 240, 255, 0.4);
+  box-shadow: 0 2px 8px rgba(30, 58, 95, 0.3);
   font-weight: 700;
-  text-shadow: 0 0 10px rgba(0, 240, 255, 0.8);
 }
 .filter-chip.status-open.active { background: var(--danger); border-color: var(--danger); }
 .filter-chip.status-pending.active { background: var(--warning); border-color: var(--warning); color: #000; }
@@ -2717,30 +2642,29 @@ h1, h2, h3, .tb-title, .splash-title, .modal-header h3 { font-family: 'Rajdhani'
 /* Action Buttons */
 .action-btn { 
   position: fixed; z-index: 1001; width: 50px; height: 50px; border-radius: var(--radius); 
-  background: linear-gradient(135deg, rgba(10, 15, 30, 0.95), rgba(15, 25, 45, 0.95)); 
+  background: rgba(255, 255, 255, 0.95); 
   backdrop-filter: blur(20px); 
-  border: 1px solid rgba(0, 240, 255, 0.4); 
+  border: 1px solid var(--border); 
   color: var(--primary); 
   font-size: 24px; 
   cursor: pointer; 
   display: flex; 
   align-items: center; 
   justify-content: center; 
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 15px rgba(0, 240, 255, 0.3); 
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1); 
   transition: var(--transition);
 }
-.action-btn:active { transform: scale(0.9) rotate(-5deg); }
+.action-btn:active { transform: scale(0.95); }
 .action-btn:hover { 
-  box-shadow: 0 0 30px rgba(0, 240, 255, 0.6), 0 4px 20px rgba(0, 0, 0, 0.6);
-  border-color: rgba(0, 240, 255, 0.8);
-  color: var(--primary-light);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border-color: var(--primary);
+  color: var(--primary-dark);
 }
-.stats-btn { top: 10px; right: 126px; }
-.uk-btn { top: 10px; right: 68px; }
-.fullscreen-btn { top: 10px; right: 10px; }
+.stats-btn { top: 10px; right: 68px; }
+.uk-btn { top: 10px; right: 10px; }
 
 /* FAB - Oil Drop */
-.fab { position: fixed; bottom: 90px; right: 14px; z-index: 1001; width: 64px; height: 64px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: var(--transition); }
+.fab { position: fixed; bottom: 20px; right: 14px; z-index: 1001; width: 64px; height: 64px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: var(--transition); }
 .fab:active { transform: scale(0.9); }
 .fab-drop { position: relative; width: 56px; height: 68px; }
 .fab-drop svg { width: 100%; height: 100%; filter: drop-shadow(0 0 20px rgba(0, 240, 255, 0.8)) drop-shadow(0 4px 16px rgba(0, 240, 255, 0.6)); animation: fabFloat 3s ease-in-out infinite; }
@@ -2796,31 +2720,23 @@ h1, h2, h3, .tb-title, .splash-title, .modal-header h3 { font-family: 'Rajdhani'
 .btn-location:hover { background: linear-gradient(135deg, #00f0ff, #00ff88); box-shadow: 0 4px 12px rgba(0, 255, 136, 0.4); }
 .btn-location:active { transform: scale(0.97); }
 .btn-location:disabled { opacity: 0.6; cursor: not-allowed; }
-.fullscreen-hidden { display: none !important; }
 @keyframes pulse-marker { 0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(0,240,255,0.8); } 50% { transform: scale(1.1); box-shadow: 0 0 30px rgba(0,240,255,1); } }
 
 /* ═══ ACCESSIBILITY IMPROVEMENTS (UI/UX Pro Max Skill) ═══ */
-/* Focus states - visible focus rings for keyboard navigation */
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
   box-shadow: 0 0 0 4px rgba(0, 240, 255, 0.2);
 }
 button:focus-visible { border-color: var(--primary); }
-
-/* Touch targets - минимум 44x44px (CRITICAL) */
-.action-btn, .fab, .filter-chip, .btn, .tab-btn, .close-btn {
+.action-btn, .fab, .filter-chip, .btn, .close-btn {
   min-width: 44px;
   min-height: 44px;
   cursor: pointer;
 }
-
-/* Cursor pointer for all interactive elements */
-.filter-chip, .btn, .action-btn, .fab, .close-btn, .tab-btn, .popup-btn, .gps-btn {
+.filter-chip, .btn, .action-btn, .fab, .close-btn, .popup-btn, .gps-btn {
   cursor: pointer;
 }
-
-/* Prefers-reduced-motion support */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -2828,14 +2744,10 @@ button:focus-visible { border-color: var(--primary); }
     transition-duration: 0.01ms !important;
   }
 }
-
-/* Improved line-height for readability */
-body, .modal-body, .overlay-content {
-  line-height: 1.6;
-}
+body, .modal-body { line-height: 1.6; }
 p, .popup-desc, .form-group label {
   line-height: 1.6;
-  max-width: 75ch; /* Limit line length for readability */
+  max-width: 75ch;
 }
 
 /* Toast */
@@ -2865,38 +2777,170 @@ p, .popup-desc, .form-group label {
 
 /* Leaflet Popup */
 .leaflet-popup-content-wrapper { 
-  background: linear-gradient(135deg, rgba(10, 15, 30, 0.98), rgba(15, 25, 45, 0.98)) !important; 
+  background: rgba(255, 255, 255, 0.98) !important; 
   color: var(--text) !important; 
-  border: 1px solid rgba(0, 240, 255, 0.4) !important; 
+  border: 1px solid var(--border) !important; 
   border-radius: var(--radius) !important; 
   backdrop-filter: blur(20px) !important; 
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 240, 255, 0.3) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
   position: relative;
 }
-.leaflet-popup-content-wrapper::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius);
-  padding: 1px;
-  background: linear-gradient(135deg, rgba(0, 240, 255, 0.5), rgba(0, 255, 136, 0.3));
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-}
-.leaflet-popup-tip { background: rgba(10, 15, 30, 0.98) !important; border: 1px solid rgba(0, 240, 255, 0.4) !important; }
+.leaflet-popup-tip { background: rgba(255, 255, 255, 0.98) !important; border: 1px solid var(--border) !important; }
 .leaflet-popup-content { margin: 14px !important; min-width: 220px; }
 .popup-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .popup-icon { font-size: 22px; }
 .popup-title { font-size: 15px; font-weight: 700; flex: 1; }
 .popup-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 700; color: #fff; }
-.popup-desc { font-size: 13px; color: rgba(255, 255, 255, 0.7); line-height: 1.5; margin-bottom: 10px; }
-.popup-meta { font-size: 11px; color: rgba(255, 255, 255, 0.5); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.popup-desc { font-size: 13px; color: var(--text); line-height: 1.5; margin-bottom: 10px; }
+.popup-meta { font-size: 11px; color: rgba(30, 41, 59, 0.7); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
 .popup-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-.popup-btn { flex: 1; min-width: 100px; padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.8); font-size: 12px; font-weight: 600; cursor: pointer; transition: var(--transition); text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.popup-btn { flex: 1; min-width: 100px; padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: rgba(30, 58, 95, 0.05); color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer; transition: var(--transition); text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.popup-btn:hover { background: rgba(30, 58, 95, 0.1); }
 .popup-btn:hover { background: rgba(255, 255, 255, 0.1); transform: translateY(-1px); }
 .popup-btn:active { transform: translateY(0) scale(0.98); }
+
+/* AI Analysis Popup */
+.ai-analysis-popup {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  z-index: 5000;
+  max-width: 90%;
+  width: 380px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border);
+  opacity: 0;
+  transition: opacity 0.3s, transform 0.3s;
+  overflow: hidden;
+}
+.ai-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  color: white;
+  border-bottom: 1px solid var(--border);
+}
+.ai-popup-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: 'Rajdhani', sans-serif;
+}
+.ai-icon {
+  font-size: 20px;
+}
+.ai-popup-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.ai-popup-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+.ai-popup-content {
+  padding: 20px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.ai-popup-section {
+  margin-bottom: 20px;
+}
+.ai-popup-section:last-child {
+  margin-bottom: 0;
+}
+.ai-popup-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  font-family: 'Rajdhani', sans-serif;
+}
+.ai-popup-text {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.6;
+  background: rgba(30, 58, 95, 0.05);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--primary);
+}
+.ai-popup-recommendations {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.ai-popup-recommendations li {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.6;
+  padding: 8px 0;
+  padding-left: 24px;
+  position: relative;
+}
+.ai-popup-recommendations li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--success-light);
+  font-weight: 700;
+}
+.ai-popup-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+}
+.ai-popup-category {
+  display: inline-block;
+  padding: 4px 12px;
+  background: var(--primary);
+  color: white;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  width: fit-content;
+}
+.ai-popup-address {
+  font-size: 12px;
+  color: rgba(30, 41, 59, 0.7);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Updated marker animation */
+@keyframes markerAppear {
+  0% {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15) rotate(10deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
 \`;
 
 const styleEl = document.createElement('style');
@@ -3541,14 +3585,144 @@ async function checkForNewComplaints() {
   }
 }
 
+// ═══ AI ANALYSIS ═══
+async function getAIAnalysis(complaint) {
+  try {
+    const text = complaint.text || complaint.summary || complaint.description || '';
+    if (!text) return null;
+    
+    // Try to get analysis from backend API
+    const apiUrl = 'https://anthropic-proxy.uiredepositionherzo.workers.dev/ai/proxy/analyze';
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: text,
+        provider: 'zai',
+        model: 'haiku',
+        context: 'Нижневартовск'
+      }),
+      signal: AbortSignal.timeout(10000)
+    });
+    
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    
+    // Generate recommendations based on analysis and Nizhnevartovsk context
+    const recommendations = generateRecommendations(complaint.category, data.summary || text);
+    
+    return {
+      analysis: data.summary || text.substring(0, 200),
+      recommendations: recommendations,
+      category: data.category || complaint.category
+    };
+  } catch (error) {
+    console.error('AI analysis error:', error);
+    // Fallback: generate basic recommendations
+    return {
+      analysis: (complaint.text || complaint.summary || '').substring(0, 200),
+      recommendations: generateRecommendations(complaint.category, complaint.text || ''),
+      category: complaint.category
+    };
+  }
+}
+
+function generateRecommendations(category, text) {
+  const recommendations = [];
+  const lowerText = (text || '').toLowerCase();
+  
+  // Category-specific recommendations for Nizhnevartovsk
+  if (category === 'Дороги' || lowerText.includes('дорог') || lowerText.includes('яма')) {
+    recommendations.push('Обратитесь в МКУ "Дорожное хозяйство" по тел. (3466) 41-00-00');
+    recommendations.push('Учитывая климат Нижневартовска, ямы часто появляются из-за перепадов температур. Рекомендуется оперативный ремонт до наступления морозов.');
+    recommendations.push('Проверьте наличие аналогичных проблем на соседних участках для комплексного ремонта.');
+  } else if (category === 'ЖКХ' || lowerText.includes('отопл') || lowerText.includes('вод')) {
+    recommendations.push('Свяжитесь с управляющей компанией или МУП "Теплоэнерго" по тел. (3466) 25-00-00');
+    recommendations.push('В условиях северного климата проблемы с отоплением критичны. При аварии звоните в аварийную службу 112.');
+    recommendations.push('Документируйте проблему фотографиями для ускорения решения вопроса.');
+  } else if (category === 'Освещение' || lowerText.includes('свет') || lowerText.includes('фонар')) {
+    recommendations.push('Сообщите в МКУ "Городское хозяйство" по тел. (3466) 41-00-00');
+    recommendations.push('Учитывая полярную ночь в регионе, освещение критично для безопасности. Проблема будет рассмотрена в приоритетном порядке.');
+  } else if (category === 'Снег/Наледь' || lowerText.includes('снег') || lowerText.includes('лед')) {
+    recommendations.push('Обратитесь в МКУ "Дорожное хозяйство" для уборки снега и наледи');
+    recommendations.push('В зимний период уборка снега в Нижневартовске проводится регулярно. Если проблема не решена в течение суток, обратитесь повторно.');
+  } else if (category === 'Экология' || lowerText.includes('экологи') || lowerText.includes('загрязн')) {
+    recommendations.push('Сообщите в Департамент экологии и природопользования ХМАО-Югры');
+    recommendations.push('Учитывая нефтедобывающую промышленность региона, экологические проблемы требуют особого внимания.');
+  } else {
+    recommendations.push('Обратитесь в единую диспетчерскую службу по тел. 112 или через портал "Активный гражданин"');
+    recommendations.push('Документируйте проблему фотографиями и сохраните номер обращения для отслеживания статуса.');
+  }
+  
+  return recommendations;
+}
+
+// ═══ AI ANALYSIS POPUP ═══
+function showAIAnalysisPopup(complaint, analysis) {
+  // Remove existing popup if any
+  const existingPopup = document.getElementById('aiAnalysisPopup');
+  if (existingPopup) {
+    existingPopup.remove();
+  }
+  
+  const popup = document.createElement('div');
+  popup.id = 'aiAnalysisPopup';
+  popup.className = 'ai-analysis-popup';
+  popup.innerHTML = \`
+    <div class="ai-popup-header">
+      <div class="ai-popup-title">
+        <span data-icon="mdi:robot" class="ai-icon"></span>
+        <span>Анализ ИИ</span>
+      </div>
+      <button class="ai-popup-close" onclick="this.closest('.ai-analysis-popup').remove()">
+        <span data-icon="mdi:close"></span>
+      </button>
+    </div>
+    <div class="ai-popup-content">
+      <div class="ai-popup-section">
+        <div class="ai-popup-label">Анализ проблемы:</div>
+        <div class="ai-popup-text">\${analysis.analysis || 'Анализ выполняется...'}</div>
+      </div>
+      <div class="ai-popup-section">
+        <div class="ai-popup-label">Рекомендации по решению:</div>
+        <ul class="ai-popup-recommendations">
+          \${analysis.recommendations.map(rec => \`<li>\${rec}</li>\`).join('')}
+        </ul>
+      </div>
+      <div class="ai-popup-footer">
+        <span class="ai-popup-category">\${complaint.category}</span>
+        \${complaint.address ? \`<span class="ai-popup-address"><span data-icon="mdi:map-marker"></span> \${complaint.address}</span>\` : ''}
+      </div>
+    </div>
+  \`;
+  
+  document.body.appendChild(popup);
+  
+  // Auto-remove after 10 seconds
+  setTimeout(() => {
+    if (popup.parentNode) {
+      popup.style.opacity = '0';
+      popup.style.transform = 'translateY(-20px)';
+      setTimeout(() => popup.remove(), 300);
+    }
+  }, 10000);
+  
+  // Animate in
+  setTimeout(() => {
+    popup.style.opacity = '1';
+    popup.style.transform = 'translateY(0)';
+  }, 10);
+}
+
 function addMarkerWithAnimation(complaint) {
   if (!complaint.lat || !complaint.lng) return;
   
   const category = CONFIG.categories[complaint.category] || CONFIG.categories['Прочее'];
   
-  // Create animated marker icon
+  // Create animated marker icon with modern design
   const icon = L.divIcon({
-    html: \`<div class="marker-new" style="width:40px;height:40px;border-radius:50%;background:\${category.color};display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid rgba(255,255,255,0.5);box-shadow:0 0 20px \${category.color}, 0 0 40px \${category.color}88;animation: markerPulse 1s ease-out;">\${category.emoji}</div>\`,
+    html: \`<div class="marker-new" style="width:40px;height:40px;border-radius:50%;background:\${category.color};display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid rgba(255,255,255,0.9);box-shadow:0 4px 12px rgba(0,0,0,0.2), 0 0 0 4px rgba(255,255,255,0.3);animation: markerAppear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);">\${category.emoji}</div>\`,
     className: 'marker-container-new',
     iconSize: [40, 40],
     iconAnchor: [20, 20],
@@ -3580,6 +3754,13 @@ function addMarkerWithAnimation(complaint) {
   marker.bindPopup(popupContent, { maxWidth: 280 });
   state.cluster.addLayer(marker);
   
+  // Get AI analysis and show popup
+  getAIAnalysis(complaint).then(analysis => {
+    if (analysis) {
+      showAIAnalysisPopup(complaint, analysis);
+    }
+  });
+  
   // Remove animation class after animation completes
   setTimeout(() => {
     const iconEl = marker._icon;
@@ -3587,13 +3768,13 @@ function addMarkerWithAnimation(complaint) {
       const markerDiv = iconEl.querySelector('.marker-new');
       if (markerDiv) {
         markerDiv.style.animation = 'none';
-        markerDiv.style.width = '32px';
-        markerDiv.style.height = '32px';
+        markerDiv.style.width = '36px';
+        markerDiv.style.height = '36px';
         markerDiv.style.fontSize = '16px';
         markerDiv.style.borderWidth = '2px';
       }
     }
-  }, 1000);
+  }, 600);
 }
 
 function startRealtimeUpdates() {
@@ -3607,28 +3788,42 @@ function startRealtimeUpdates() {
 
 // ═══ MAP INITIALIZATION ═══
 function initMap() {
+  // Проверяем параметр marker из URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const markerParam = urlParams.get('marker');
+  let initialCenter = CONFIG.center;
+  let initialZoom = CONFIG.zoom;
+  
+  if (markerParam) {
+    const [lat, lon] = markerParam.split(',').map(parseFloat);
+    if (!isNaN(lat) && !isNaN(lon)) {
+      initialCenter = [lat, lon];
+      initialZoom = 17; // Увеличенный зум для маркера
+    }
+  }
+  
   // Initialize Leaflet map
   state.map = L.map('map', {
-    center: CONFIG.center,
-    zoom: CONFIG.zoom,
+    center: initialCenter,
+    zoom: initialZoom,
     zoomControl: false
   });
   
-  // Add tile layer with hi-tech dark theme
+  // OpenStreetMap tiles (free, no API key) + markers
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
     className: 'hi-tech-tiles'
   }).addTo(state.map);
   
-  // Add CSS filter for hi-tech look
+  // Add CSS filter for modern clean look (Nizhnevartovsk style)
   const style = document.createElement('style');
   style.textContent = \`
     .hi-tech-tiles { 
-      filter: brightness(0.6) contrast(1.2) saturate(0.8) invert(0.05) hue-rotate(180deg);
-      opacity: 0.9;
+      filter: brightness(1.05) contrast(1.05) saturate(1.1);
+      opacity: 1;
     }
-    .leaflet-container { background: #0a0a0f !important; }
+    .leaflet-container { background: #f5f7fa !important; }
   \`;
   document.head.appendChild(style);
   
@@ -3642,6 +3837,24 @@ function initMap() {
   
   // Render markers
   renderMarkers();
+  
+  // Если есть параметр marker, открываем соответствующий маркер
+  if (markerParam) {
+    const [lat, lon] = markerParam.split(',').map(parseFloat);
+    if (!isNaN(lat) && !isNaN(lon)) {
+      setTimeout(() => {
+        // Ищем маркер с такими координатами
+        state.cluster.eachLayer((layer) => {
+          const markerLat = layer.getLatLng().lat;
+          const markerLon = layer.getLatLng().lng;
+          if (Math.abs(markerLat - lat) < 0.0001 && Math.abs(markerLon - lon) < 0.0001) {
+            layer.openPopup();
+            state.map.setView([lat, lon], 17);
+          }
+        });
+      }, 1000);
+    }
+  }
   
   // Initialize filters
   initFilters();
@@ -3805,12 +4018,71 @@ function initFilters() {
       statusFilter.appendChild(chip);
     });
   }
+  
+  // Date range filter
+  const dateFilter = document.getElementById('dateFilter');
+  if (!dateFilter) {
+    // Создаем контейнер для фильтра дат если его нет
+    const filterPanel = document.getElementById('filterPanel');
+    if (filterPanel) {
+      const dateFilterContainer = document.createElement('div');
+      dateFilterContainer.id = 'dateFilter';
+      dateFilterContainer.className = 'filter-row';
+      dateFilterContainer.innerHTML = '<div class="filter-label">Период:</div>';
+      filterPanel.appendChild(dateFilterContainer);
+    }
+  }
+  
+  const dateFilterEl = document.getElementById('dateFilter');
+  if (dateFilterEl) {
+    const allChip = document.createElement('div');
+    allChip.className = 'filter-chip active';
+    allChip.innerHTML = '<span data-icon="mdi:calendar"></span> Все время';
+    allChip.onclick = () => {
+      state.filters.dateRange = null;
+      applyFilters();
+    };
+    dateFilterEl.appendChild(allChip);
+    
+    const dateRanges = [
+      { key: 'today', label: 'Сегодня', icon: 'mdi:calendar-today' },
+      { key: 'week', label: 'Неделя', icon: 'mdi:calendar-week' },
+      { key: 'month', label: 'Месяц', icon: 'mdi:calendar-month' },
+      { key: '3months', label: '3 месяца', icon: 'mdi:calendar-range' }
+    ];
+    
+    dateRanges.forEach(({ key, label, icon }) => {
+      const chip = document.createElement('div');
+      chip.className = \`filter-chip date-\${key}\`;
+      chip.innerHTML = \`<span data-icon="\${icon}"></span> \${label}\`;
+      chip.onclick = () => {
+        state.filters.dateRange = key;
+        applyFilters();
+      };
+      dateFilterEl.appendChild(chip);
+    });
+  }
 }
 
 function applyFilters() {
+  const now = Date.now();
   state.filteredComplaints = state.complaints.filter(c => {
     if (state.filters.category && c.category !== state.filters.category) return false;
     if (state.filters.status && c.status !== state.filters.status) return false;
+    
+    // Фильтрация по датам
+    if (state.filters.dateRange) {
+      const complaintDate = new Date(c.created_at || c.date || 0).getTime();
+      const rangeMs = {
+        'today': 86400000,      // 24 часа
+        'week': 604800000,      // 7 дней
+        'month': 2592000000,    // 30 дней
+        '3months': 7776000000   // 90 дней
+      }[state.filters.dateRange];
+      
+      if (rangeMs && (now - complaintDate) > rangeMs) return false;
+    }
+    
     return true;
   });
   
@@ -3825,6 +4097,7 @@ function updateFilterUI() {
   
   const catFilter = document.getElementById('categoryFilter');
   const statusFilter = document.getElementById('statusFilter');
+  const dateFilter = document.getElementById('dateFilter');
   
   if (catFilter) {
     const chips = catFilter.querySelectorAll('.filter-chip');
@@ -3835,7 +4108,7 @@ function updateFilterUI() {
         }
       });
     } else {
-      chips[0].classList.add('active');
+      chips[0]?.classList.add('active');
     }
   }
   
@@ -3848,7 +4121,20 @@ function updateFilterUI() {
         }
       });
     } else {
-      chips[0].classList.add('active');
+      chips[0]?.classList.add('active');
+    }
+  }
+  
+  if (dateFilter) {
+    const chips = dateFilter.querySelectorAll('.filter-chip');
+    if (state.filters.dateRange) {
+      chips.forEach(chip => {
+        if (chip.className.includes(\`date-\${state.filters.dateRange}\`)) {
+          chip.classList.add('active');
+        }
+      });
+    } else {
+      chips[0]?.classList.add('active');
     }
   }
 }
@@ -4116,58 +4402,16 @@ function setupEventListeners() {
     };
   }
   
-  // GPS button with automatic address detection
+  // GPS button
   const gpsBtn = document.getElementById('gpsBtn');
   if (gpsBtn) {
     gpsBtn.onclick = () => {
       if (navigator.geolocation) {
         gpsBtn.innerHTML = '<span data-icon="mdi:loading"></span> Определение...';
         navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            const lat = position.coords.latitude.toFixed(6);
-            const lng = position.coords.longitude.toFixed(6);
-            document.getElementById('formLat').value = lat;
-            document.getElementById('formLng').value = lng;
-            
-            // Automatic reverse geocoding to get address
-            gpsBtn.innerHTML = '<span data-icon="mdi:loading"></span> Адрес...';
-            try {
-              // Use Nominatim reverse geocoding
-              const geoUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&accept-language=ru`;
-              const response = await fetch(geoUrl, {
-                headers: { 'User-Agent': 'SoobshioApp/1.0' }
-              });
-              
-              if (response.ok) {
-                const data = await response.json();
-                if (data && data.address) {
-                  // Build address from components
-                  const addr = data.address;
-                  let addressParts = [];
-                  
-                  if (addr.road) addressParts.push(addr.road);
-                  if (addr.house_number) addressParts.push(addr.house_number);
-                  if (addressParts.length === 0 && addr.suburb) addressParts.push(addr.suburb);
-                  if (addr.city || addr.town || addr.village) {
-                    const city = addr.city || addr.town || addr.village;
-                    if (city !== 'Нижневартовск') addressParts.push(city);
-                  }
-                  
-                  const fullAddress = addressParts.length > 0 
-                    ? addressParts.join(', ') + (addr.city === 'Нижневартовск' ? '' : ', Нижневартовск')
-                    : data.display_name || '';
-                  
-                  if (fullAddress) {
-                    document.getElementById('formAddress').value = fullAddress;
-                    showToast('Адрес определен автоматически', 'success');
-                  }
-                }
-              }
-            } catch (error) {
-              console.log('Reverse geocoding failed:', error);
-              // Continue without address - coordinates are set
-            }
-            
+          (position) => {
+            document.getElementById('formLat').value = position.coords.latitude.toFixed(4);
+            document.getElementById('formLng').value = position.coords.longitude.toFixed(4);
             gpsBtn.innerHTML = '<span data-icon="mdi:check"></span> Определено';
             setTimeout(() => {
               gpsBtn.innerHTML = '<span data-icon="mdi:crosshairs-gps"></span> Определить';
@@ -4238,7 +4482,7 @@ function shareLocationAndMark() {
         // Reverse geocoding for address
         shareBtn.innerHTML = '<span data-icon="mdi:loading"></span> Адрес...';
         try {
-          const geoUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&accept-language=ru`;
+          const geoUrl = \`https://nominatim.openstreetmap.org/reverse?lat=\${lat}&lon=\${lng}&format=json&addressdetails=1&accept-language=ru\`;
           const response = await fetch(geoUrl, {
             headers: { 'User-Agent': 'SoobshioApp/1.0' }
           });
@@ -4282,77 +4526,6 @@ function shareLocationAndMark() {
     showToast('Геолокация не поддерживается', 'error');
   }
 }
-
-// ═══ FULLSCREEN MODE ═══
-function toggleFullscreen() {
-  const mapContainer = document.getElementById('map');
-  if (!mapContainer) return;
-  
-  if (!isFullscreen) {
-    // Enter fullscreen
-    if (mapContainer.requestFullscreen) {
-      mapContainer.requestFullscreen();
-    } else if (mapContainer.webkitRequestFullscreen) {
-      mapContainer.webkitRequestFullscreen();
-    } else if (mapContainer.mozRequestFullScreen) {
-      mapContainer.mozRequestFullScreen();
-    } else if (mapContainer.msRequestFullscreen) {
-      mapContainer.msRequestFullscreen();
-    }
-    
-    // Hide UI elements
-    document.getElementById('topBar')?.classList.add('fullscreen-hidden');
-    document.getElementById('filterPanel')?.classList.add('fullscreen-hidden');
-    document.querySelector('.fab')?.classList.add('fullscreen-hidden');
-    document.querySelector('.timeline-panel')?.classList.add('fullscreen-hidden');
-    
-    isFullscreen = true;
-    
-    // Update map size
-    setTimeout(() => {
-      if (state.map) state.map.invalidateSize();
-    }, 100);
-  } else {
-    exitFullscreen();
-  }
-}
-
-function exitFullscreen() {
-  if (document.exitFullscreen) {
-    document.exitFullscreen();
-  } else if (document.webkitExitFullscreen) {
-    document.webkitExitFullscreen();
-  } else if (document.mozCancelFullScreen) {
-    document.mozCancelFullScreen();
-  } else if (document.msExitFullscreen) {
-    document.msExitFullscreen();
-  }
-  
-  // Show UI elements
-  document.getElementById('topBar')?.classList.remove('fullscreen-hidden');
-  document.getElementById('filterPanel')?.classList.remove('fullscreen-hidden');
-  document.querySelector('.fab')?.classList.remove('fullscreen-hidden');
-  document.querySelector('.timeline-panel')?.classList.remove('fullscreen-hidden');
-  
-  isFullscreen = false;
-  
-  // Update map size
-  setTimeout(() => {
-    if (state.map) state.map.invalidateSize();
-  }, 100);
-}
-
-// Listen for fullscreen changes
-document.addEventListener('fullscreenchange', () => {
-  if (!document.fullscreenElement) {
-    exitFullscreen();
-  }
-});
-document.addEventListener('webkitfullscreenchange', () => {
-  if (!document.webkitFullscreenElement) {
-    exitFullscreen();
-  }
-});
 
 // ═══ SUBMIT COMPLAINT ═══
 function submitComplaint() {
@@ -4417,7 +4590,6 @@ function submitComplaint() {
     }
   });
 }
-
 <\/script>
 </body>
 </html>
@@ -4427,13 +4599,10 @@ function submitComplaint() {
 const INFO_HTML = `<!DOCTYPE html><html lang="ru"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>📊 Инфографика Нижневартовска — Пульс города</title>
-<meta name="description" content="72 датасета открытых данных: бюджет, ЖКХ, транспорт, образование, здравоохранение. Северное сияние в фоне.">
-<meta property="og:title" content="📊 Инфографика Нижневартовска">
-<meta property="og:description" content="72 датасета открытых данных города. Северное сияние в фоне.">
+<title>Нижневартовск · Пульс города</title>
 <script src="https://telegram.org/js/telegram-web-app.js"><\/script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"><\/script>
-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
 <canvas id="bgCanvas"></canvas>
@@ -4449,73 +4618,33 @@ const tg=window.Telegram&&window.Telegram.WebApp;
 if(tg){tg.ready();tg.expand();tg.BackButton.show();tg.onEvent('backButtonClicked',()=>tg.close())}
 const isDark=!tg||tg.colorScheme==='dark';
 
-// ═══ AURORA BOREALIS BACKGROUND (Северное сияние) ═══
+// ═══ ANIMATED BACKGROUND ═══
 (function initBG(){
   const c=document.getElementById('bgCanvas');if(!c)return;
   const ctx=c.getContext('2d');
-  let W,H,time=0;
+  let W,H,particles=[];
   function resize(){W=c.width=window.innerWidth;H=c.height=window.innerHeight}
   resize();window.addEventListener('resize',resize);
-  
-  function drawAurora(){
+  const colors=isDark?['rgba(0,217,255,.2)','rgba(0,255,153,.18)','rgba(255,184,0,.15)','rgba(236,72,153,.12)']:
+    ['rgba(0,217,255,.15)','rgba(0,255,153,.12)','rgba(255,184,0,.1)','rgba(124,58,237,.08)'];
+  for(let i=0;i<40;i++)particles.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*60+20,
+    vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,c:colors[i%colors.length],phase:Math.random()*Math.PI*2});
+  function draw(){
     ctx.clearRect(0,0,W,H);
-    time+=0.005;
-    
-    // Северное сияние — волны разных цветов
-    const layers=[
-      {color:'rgba(0,240,255,0.25)',offset:0,speed:0.3,height:H*0.5,wave:4},
-      {color:'rgba(0,255,136,0.2)',offset:Math.PI/3,speed:0.4,height:H*0.45,wave:6},
-      {color:'rgba(99,102,241,0.18)',offset:Math.PI/1.5,speed:0.25,height:H*0.4,wave:5},
-      {color:'rgba(236,72,153,0.15)',offset:Math.PI/2,speed:0.35,height:H*0.35,wave:7}
-    ];
-    
-    layers.forEach((layer)=>{
+    const t=Date.now()*.001;
+    particles.forEach(p=>{
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<-80)p.x=W+80;if(p.x>W+80)p.x=-80;
+      if(p.y<-80)p.y=H+80;if(p.y>H+80)p.y=-80;
+      const s=1+Math.sin(t+p.phase)*.3;
       ctx.beginPath();
-      ctx.moveTo(0,H);
-      for(let x=0;x<=W;x+=2){
-        const wave1=Math.sin((x/W)*Math.PI*layer.wave+time*layer.speed+layer.offset)*40;
-        const wave2=Math.sin((x/W)*Math.PI*layer.wave*2+time*layer.speed*2)*20;
-        const wave3=Math.sin((x/W)*Math.PI*layer.wave*0.5+time*layer.speed*0.5)*15;
-        const y=H-layer.height+wave1+wave2+wave3+Math.sin(time+x*0.01)*10;
-        ctx.lineTo(x,y);
-      }
-      ctx.lineTo(W,H);
-      ctx.closePath();
-      const gradient=ctx.createLinearGradient(0,H-layer.height,0,H);
-      gradient.addColorStop(0,layer.color);
-      gradient.addColorStop(0.5,layer.color.replace('0.25','0.1').replace('0.2','0.08').replace('0.18','0.07').replace('0.15','0.06'));
-      gradient.addColorStop(1,'transparent');
-      ctx.fillStyle=gradient;
-      ctx.fill();
+      const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*s);
+      g.addColorStop(0,p.c);g.addColorStop(1,'transparent');
+      ctx.fillStyle=g;ctx.arc(p.x,p.y,p.r*s,0,Math.PI*2);ctx.fill();
     });
-    
-    // Звёзды (мерцающие точки)
-    for(let i=0;i<50;i++){
-      const x=(Math.sin(time*0.3+i)*0.5+0.5)*W;
-      const y=(Math.cos(time*0.2+i*0.7)*0.5+0.5)*H*0.6;
-      const size=Math.sin(time*2+i)*1.5+1;
-      const alpha=Math.sin(time*3+i)*0.5+0.5;
-      ctx.beginPath();
-      ctx.fillStyle=`rgba(255,255,255,${alpha*0.8})`;
-      ctx.arc(x,y,size,0,Math.PI*2);
-      ctx.fill();
-    }
-    
-    // Световые лучи (вертикальные полосы)
-    for(let i=0;i<8;i++){
-      const x=(Math.sin(time*0.1+i*Math.PI/4)*0.3+0.5)*W;
-      const width=Math.sin(time+i)*20+30;
-      const gradient=ctx.createLinearGradient(x-width/2,0,x+width/2,0);
-      gradient.addColorStop(0,'transparent');
-      gradient.addColorStop(0.5,`rgba(0,240,255,${0.1+Math.sin(time+i)*0.05})`);
-      gradient.addColorStop(1,'transparent');
-      ctx.fillStyle=gradient;
-      ctx.fillRect(x-width/2,0,width,H);
-    }
-    
-    requestAnimationFrame(drawAurora);
+    requestAnimationFrame(draw);
   }
-  drawAurora();
+  draw();
 })();
 
 // ═══ CITY PULSE — heartbeat that reacts to complaints ═══
@@ -4610,8 +4739,9 @@ S.textContent=\`
 --yellow:#ffb800;--yellowBg:rgba(255,184,0,.12);
 --r:16px;--rs:10px;
 }
-body{font-family:'Space Grotesk',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow-x:hidden;min-height:100vh}
-h1,h2,h3{font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:-0.02em;line-height:1.2}
+body{font-family:'Space Grotesk',system-ui,sans-serif;background:var(--bg);color:var(--text);
+overflow-x:hidden;min-height:100vh;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;line-height:1.6}
+h1,h2,h3,.hero h1{font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:-0.02em;line-height:1.2}
 #bgCanvas{position:fixed;inset:0;z-index:0;pointer-events:none}
 #app{position:relative;z-index:1;max-width:480px;margin:0 auto;padding:0 10px 40px}
 
@@ -4737,6 +4867,12 @@ font-size:8px;font-weight:700;color:#fff;animation:barGrow 1s cubic-bezier(.4,0,
 
 .footer{text-align:center;padding:24px 16px;font-size:10px;color:var(--textMuted)}
 .footer a{color:var(--primary);text-decoration:none;font-weight:600}
+
+/* ═══ ACCESSIBILITY IMPROVEMENTS (UI/UX Pro Max Skill) ═══ */
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--primary);outline-offset:2px;box-shadow:0 0 0 4px rgba(0,217,255,.2)}
+.tab,.card,.expand-btn{min-width:44px;min-height:44px;cursor:pointer}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+body,p{line-height:1.6;max-width:75ch}
 
 #loader{position:fixed;inset:0;z-index:99;background:var(--bg);display:flex;flex-direction:column;
 align-items:center;justify-content:center;transition:opacity .5s}
@@ -4938,10 +5074,6 @@ function renderApp(data,weather){
       const totalInv=(agr.total_inv||0);
       const totalGos=(agr.total_gos||0);
       const totalSumm=(agr.total_summ||0);
-      const budgetAnalysis=agr.budget_analysis||{};
-      const budgetYears=agr.budget_by_year||[];
-      const totalBudget=totalInv+totalGos+totalSumm;
-      const latestYear=budgetYears.length>0?budgetYears[budgetYears.length-1]:null;
       h+=card('budget',true,
         cardHead('💰','var(--orangeBg)','Бюджет города','Обзор финансов')+
         makeStatRow([
@@ -4962,10 +5094,6 @@ function renderApp(data,weather){
         '<div style="display:flex;justify-content:space-between;font-size:8px;color:var(--textMuted);margin-top:2px">'+
         '<span>Инвестиции '+Math.round(totalInv/(totalInv+totalGos)*100)+'%</span>'+
         '<span>Госрасходы '+Math.round(totalGos/(totalInv+totalGos)*100)+'%</span></div>':'')+
-        (budgetAnalysis.growth_pct?'<div style="margin-top:8px;padding:6px;border-radius:8px;background:var(--greenBg);font-size:9px">'+
-        '<span style="font-weight:700;color:var(--green)">'+(budgetAnalysis.growth_pct>0?'📈 +':'📉 ')+budgetAnalysis.growth_pct+'%</span> '+
-        '<span style="color:var(--textMuted)">изменение за период</span></div>':'')+
-        (latestYear?'<div style="margin-top:4px;font-size:9px;color:var(--textMuted)">Последний год ('+latestYear.year+'): '+fmtMoney(latestYear.total*1000)+'</div>':'')+
         makeTip('orange','💡','Соотношение инвестиций и госрасходов показывает приоритеты бюджетной политики'),
         null);
 
@@ -5000,45 +5128,7 @@ function renderApp(data,weather){
           null);
       }
 
-      // 4. Budget by year analysis
-      const budgetYears=data.agreements?.budget_by_year||[];
-      const budgetAnalysis=data.agreements?.budget_analysis||{};
-      if(budgetYears.length>0){
-        const maxTotal=Math.max(...budgetYears.map(b=>b.total||0));
-        let yearRows='';
-        budgetYears.slice(-5).forEach(function(by){
-          const pct=Math.round((by.total||0)/maxTotal*100);
-          yearRows+='<div style="padding:6px 0;border-bottom:1px solid var(--border)">';
-          yearRows+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
-          yearRows+='<div style="font-size:11px;font-weight:700">'+by.year+'</div>';
-          yearRows+='<div style="text-align:right"><div style="font-size:12px;font-weight:800;color:var(--orange)">'+fmtMoney(by.total*1000)+'</div>';
-          yearRows+='<div style="font-size:8px;color:var(--textMuted)">'+by.count+' контрактов</div></div></div>';
-          yearRows+='<div style="display:flex;gap:4px;margin-top:4px">';
-          if(by.inv>0)yearRows+='<div style="flex:1;padding:4px;border-radius:6px;background:var(--blueBg);text-align:center"><div style="font-size:9px;font-weight:700;color:var(--blue)">'+fmtMoney(by.inv*1000)+'</div><div style="font-size:7px;color:var(--textMuted)">инв</div></div>';
-          if(by.gos>0)yearRows+='<div style="flex:1;padding:4px;border-radius:6px;background:var(--redBg);text-align:center"><div style="font-size:9px;font-weight:700;color:var(--red)">'+fmtMoney(by.gos*1000)+'</div><div style="font-size:7px;color:var(--textMuted)">гос</div></div>';
-          if(by.summ>0)yearRows+='<div style="flex:1;padding:4px;border-radius:6px;background:var(--orangeBg);text-align:center"><div style="font-size:9px;font-weight:700;color:var(--orange)">'+fmtMoney(by.summ*1000)+'</div><div style="font-size:7px;color:var(--textMuted)">контр</div></div>';
-          yearRows+='</div></div>';
-        });
-        let analysisText='';
-        if(budgetAnalysis.growth_pct){
-          const growthSign=budgetAnalysis.growth_pct>0?'📈':'📉';
-          analysisText+='<div style="margin-top:8px;padding:8px;border-radius:8px;background:var(--indigoBg)">';
-          analysisText+='<div style="font-size:10px;font-weight:700;color:var(--indigo);margin-bottom:4px">'+growthSign+' Динамика бюджета</div>';
-          analysisText+='<div style="font-size:9px;color:var(--textMuted)">Изменение за период: <span style="font-weight:700;color:'+(budgetAnalysis.growth_pct>0?'var(--green)':'var(--red)')+'">'+(budgetAnalysis.growth_pct>0?'+':'')+budgetAnalysis.growth_pct+'%</span></div>';
-          if(budgetAnalysis.max_year)analysisText+='<div style="font-size:9px;color:var(--textMuted);margin-top:2px">Пик расходов: '+budgetAnalysis.max_year+' год ('+fmtMoney(budgetAnalysis.max_total*1000)+')</div>';
-          if(budgetAnalysis.inv_ratio&&budgetAnalysis.gos_ratio){
-            analysisText+='<div style="font-size:9px;color:var(--textMuted);margin-top:2px">Соотношение: инвестиции '+budgetAnalysis.inv_ratio+'% · госрасходы '+budgetAnalysis.gos_ratio+'%</div>';
-          }
-          analysisText+='</div>';
-        }
-        h+=card('budget',true,
-          cardHead('📅','var(--purpleBg)','Бюджет по годам','Анализ расходования')+
-          yearRows+analysisText+
-          makeTip('purple','💡','Данные основаны на муниципальных контрактах и инвестиционных проектах'),
-          null);
-      }
-
-      // 5. Budget bulletins trend
+      // 4. Budget bulletins trend
       const bb=data.budget_bulletins||{};
       const bi=data.budget_info||{};
       if(bb.total||bi.total){
@@ -5051,7 +5141,7 @@ function renderApp(data,weather){
           null);
       }
 
-      // 6. Property
+      // 5. Property
       const p=data.property||{};
       h+=card('budget',true,
         cardHead('🏛️','var(--blueBg)','Муниципальное имущество',(p.total||0).toLocaleString('ru')+' объектов')+
@@ -5064,7 +5154,7 @@ function renderApp(data,weather){
         makeTip('blue','🏛️','Общий реестр: '+(p.total||0).toLocaleString('ru')+' объектов муниципальной собственности'),
         null);
 
-      // 7. Municipal programs
+      // 6. Municipal programs
       const prg=data.programs||{};
       if(prg.total){
         h+=card('budget',false,
