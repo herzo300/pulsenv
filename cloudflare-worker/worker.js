@@ -31,6 +31,11 @@ export default {
       });
     }
 
+    // --- Telegram Webhook endpoint ---
+    if ((path === "/webhook/telegram" || path === "/telegram-webhook") && request.method === "POST") {
+      return handleTelegramWebhook(request, env);
+    }
+
     // --- Email endpoint ---
     if (path === "/send-email" && request.method === "POST") {
       return handleSendEmail(request);
@@ -179,6 +184,148 @@ const MAX_BODY_LENGTH = 50000;
 const MAX_SUBJECT_LENGTH = 200;
 const MAX_FROM_NAME_LENGTH = 100;
 const VALID_COMPLAINT_ID = /^[a-zA-Z0-9_-]{1,64}$/;
+
+// --- Telegram Webhook Handler ---
+async function handleTelegramWebhook(request, env) {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Content-Type": "application/json",
+  };
+  
+  try {
+    const update = await request.json();
+    const botToken = env.TG_BOT_TOKEN || ""; // Должен быть в env variables
+    
+    if (!botToken) {
+      console.error("TG_BOT_TOKEN not configured");
+      return new Response(JSON.stringify({ ok: false, error: "Bot token not configured" }), {
+        status: 200, // Всегда возвращаем 200, чтобы Telegram не ретраил
+        headers: corsHeaders,
+      });
+    }
+    
+    const message = update.message || update.callback_query?.message;
+    const callbackQuery = update.callback_query;
+    
+    if (callbackQuery) {
+      // Обработка callback_query (кнопки)
+      const data = callbackQuery.data;
+      const chatId = callbackQuery.message.chat.id;
+      
+      // Ответить на callback
+      await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: callbackQuery.id }),
+      });
+      
+      // Обработка команд из кнопок
+      if (data === "open_map" || data === "map") {
+        await sendTelegramMessage(botToken, chatId, 
+          "🗺️ *Карта проблем города*\n\nОткройте интерактивную карту:", {
+          reply_markup: JSON.stringify({
+            inline_keyboard: [[
+              { text: "🗺️ Открыть карту", web_app: { url: "https://pulsenv.workers.dev/map" } }
+            ]]
+          })
+        });
+      } else if (data === "open_infographic" || data === "info") {
+        await sendTelegramMessage(botToken, chatId,
+          "📊 *Инфографика города*\n\nОткройте для просмотра статистики:", {
+          reply_markup: JSON.stringify({
+            inline_keyboard: [[
+              { text: "📊 Открыть инфографику", web_app: { url: "https://pulsenv.workers.dev/info" } }
+            ]]
+          })
+        });
+      }
+      
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: corsHeaders });
+    }
+    
+    if (message && message.text) {
+      const text = message.text;
+      const chatId = message.chat.id;
+      const firstName = message.from?.first_name || "друг";
+      
+      // Команды
+      if (text === "/start") {
+        await sendTelegramMessage(botToken, chatId,
+          `👋 Привет, ${firstName}!\n\n` +
+          `Я бот *Пульс города Нижневартовск* — твой помощник по городским проблемам.\n\n` +
+          `📍 Используйте меню ниже для навигации:`, {
+          reply_markup: JSON.stringify({
+            inline_keyboard: [
+              [{ text: "📊 Инфографика", callback_data: "info" }, { text: "🗺️ Карта", callback_data: "map" }],
+              [{ text: "📱 Открыть приложение", web_app: { url: "https://pulsenv.workers.dev/app" } }]
+            ]
+          }),
+          parse_mode: "Markdown"
+        });
+      } else if (text === "/help") {
+        await sendTelegramMessage(botToken, chatId,
+          `ℹ️ *Помощь по боту*\n\n` +
+          `Доступные команды:\n` +
+          `/start — главное меню\n` +
+          `/map — карта проблем\n` +
+          `/info — инфографика города\n` +
+          `/help — эта справка\n\n` +
+          `Также вы можете отправить фото или описание проблемы.`,
+          { parse_mode: "Markdown" }
+        );
+      } else if (text === "/map" || text === "🗺️ Карта") {
+        await sendTelegramMessage(botToken, chatId,
+          "🗺️ *Карта проблем Нижневартовска*", {
+          reply_markup: JSON.stringify({
+            inline_keyboard: [[
+              { text: "🗺️ Открыть карту", web_app: { url: "https://pulsenv.workers.dev/map" } }
+            ]]
+          }),
+          parse_mode: "Markdown"
+        });
+      } else if (text === "/info" || text === "📊 Инфографика") {
+        await sendTelegramMessage(botToken, chatId,
+          "📊 *Инфографика города Нижневартовск*", {
+          reply_markup: JSON.stringify({
+            inline_keyboard: [[
+              { text: "📊 Открыть инфографику", web_app: { url: "https://pulsenv.workers.dev/info" } }
+            ]]
+          }),
+          parse_mode: "Markdown"
+        });
+      } else {
+        // Обычное сообщение — эхо или подсказка
+        await sendTelegramMessage(botToken, chatId,
+          `Спасибо за сообщение! Используйте /start для открытия меню.`
+        );
+      }
+    }
+    
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: corsHeaders });
+  } catch (e) {
+    console.error("Telegram webhook error:", e);
+    // Всегда возвращаем 200, чтобы Telegram не ретраил
+    return new Response(JSON.stringify({ ok: false, error: e.message }), {
+      status: 200,
+      headers: corsHeaders,
+    });
+  }
+}
+
+// Helper: Send Telegram message
+async function sendTelegramMessage(botToken, chatId, text, options = {}) {
+  const body = {
+    chat_id: chatId,
+    text: text,
+    ...options
+  };
+  const resp = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return resp.json();
+}
 
 // --- Отправка email через Resend API (бесплатно 100/день) ---
 async function handleSendEmail(request) {

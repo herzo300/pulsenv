@@ -11,8 +11,11 @@ import json
 import logging
 import tempfile
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Optional
+from urllib.error import URLError, HTTPError
+from urllib.request import Request, ProxyHandler, build_opener
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
@@ -28,18 +31,32 @@ from aiogram.types import (
 from sqlalchemy.orm import Session
 
 # Импорты сервисов
+from core.http_client import get_http_client
 from services.geo_service import get_coordinates, geoparse
 from services.zai_vision_service import analyze_image_with_glm4v
 from services.realtime_guard import RealtimeGuard
-from services.firebase_service import push_complaint as firebase_push
+from services.supabase_service import (
+    push_complaint as supabase_push_complaint,
+    is_supabase_configured,
+)
 from services.uk_service import find_uk_by_address, find_uk_by_coords
-from services.zai_service import analyze_complaint
+from services.zai_service import (
+    analyze_complaint,
+    set_ai_provider,
+    get_ai_provider_status,
+)
 from services.admin_panel import (
-    is_admin, get_stats, get_firebase_stats, format_stats_message,
+    is_admin, get_stats, get_realtime_stats, format_stats_message,
     get_recent_reports, format_report_message, get_bot_status,
     toggle_monitoring, is_monitoring_enabled, export_stats_csv, export_complaints_pdf, clear_old_reports,
     save_bot_update_report, get_last_bot_update_reports,
     get_webapp_version, bump_webapp_version,
+)
+# Vocal Remover (скрытый админский раздел)
+from services.vocal_remover_service import (
+    AUDIO_SEPARATOR_AVAILABLE,
+    separate_audio, check_installation, get_models_list, get_usage_stats,
+    cleanup_old_files, MODELS, DEFAULT_MODEL, VocalRemoverError,
 )
 from services.rate_limiter import check_rate_limit, get_rate_limit_info
 from backend.database import SessionLocal
@@ -52,6 +69,8 @@ logger = logging.getLogger(__name__)
 from core.config import (
     TG_BOT_TOKEN as BOT_TOKEN,
     CF_WORKER,
+    PUBLIC_API_BASE_URL,
+    SUPABASE_FUNCTIONS_URL,
     ADMIN_TELEGRAM_IDS,
     RATE_LIMIT_COMPLAINT,
     RATE_LIMIT_ADMIN,
@@ -63,6 +82,9 @@ ADMIN_EMAIL = "nvartovsk@n-vartovsk.ru"
 ADMIN_NAME = "Администрация г. Нижневартовска"
 ADMIN_PHONE = "8 (3466) 24-15-01"
 COMPLAINT_STARS = 50
+DIGEST_STARS = 30  # платный раздел: разовая сводка за день
+DIGEST_SUBSCRIBE_STARS = 100  # подписка на ежедневные сводки на месяц
+UVR5_MINIAPP_URL = os.getenv("UVR5_MINIAPP_URL", "").strip()
 
 EMOJI = {
     "ЖКХ": "🏘️", "Дороги": "🛣️", "Благоустройство": "🌳", "Транспорт": "🚌",
@@ -100,15 +122,169 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 bot_guard = RealtimeGuard()
 user_sessions: dict = {}
+_webapp_base_cache: dict = {"url": None, "mode": None, "checked_at": 0.0}
 
 # ═══ HELPERS ═══
 def _get_webapp_url() -> str:
-    url = os.getenv("WEBAPP_URL", "")
-    if url: return url
+    # Cache successful endpoint selection to avoid repeated network probes.
+    now = time.time()
+    if (
+        _webapp_base_cache["url"]
+        and _webapp_base_cache["mode"]
+        and (now - _webapp_base_cache["checked_at"] < 600)
+    ):
+        return _webapp_base_cache["url"]
+
+    candidates = []
+    webapp_url = os.getenv("WEBAPP_URL", "").strip()
+    supabase_webapp = os.getenv("SUPABASE_WEBAPP_URL", "").strip()
+    supabase_url = os.getenv("SUPABASE_URL", "").strip()
+    supabase_bucket = os.getenv("SUPABASE_WEBAPP_BUCKET", "webapp").strip() or "webapp"
+    public_api = (PUBLIC_API_BASE_URL or "").strip()
+
+    # 1) Explicit Supabase web frontend URL (highest priority).
+    if supabase_webapp:
+        candidates.append((supabase_webapp, "auto", "supabase_webapp_url"))
+    # 2) Supabase Storage public bucket URL (static map.html/info.html).
+    if supabase_url:
+        storage_base = f"{supabase_url.rstrip('/')}/storage/v1/object/public/{supabase_bucket}"
+        candidates.append((storage_base, "static", "supabase_storage"))
+        # Common bucket fallbacks if custom bucket is missing.
+        for b in ("web", "public"):
+            if b != supabase_bucket:
+                candidates.append((f"{supabase_url.rstrip('/')}/storage/v1/object/public/{b}", "static", f"supabase_storage_{b}"))
+
+    # 3) Generic WEBAPP_URL override.
+    if webapp_url:
+        candidates.append((webapp_url, "auto", "webapp_url"))
+    # 4) Public API static hosting fallback.
+    if public_api:
+        candidates.append((public_api, "pretty", "public_api"))
+
+    # Tunnel URL as a local/dev fallback.
     tunnel = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tunnel_url.txt")
     if os.path.exists(tunnel):
-        with open(tunnel, "r") as f: return f.read().strip()
-    return CF_WORKER
+        with open(tunnel, "r", encoding="utf-8") as f:
+            tunnel_url = f.read().strip()
+            if tunnel_url:
+                candidates.append((tunnel_url, "auto", "tunnel"))
+
+    # Deduplicate preserving order
+    unique_candidates = []
+    seen = set()
+    for base, mode, source in candidates:
+        base = base.rstrip("/")
+        key = (base, mode)
+        if base and key not in seen:
+            unique_candidates.append((base, mode, source))
+            seen.add(key)
+
+    # Probe endpoints: map/info must be reachable and should look like current UI.
+    for base, mode, source in unique_candidates:
+        selected_mode = _probe_webapp_mode(base, mode, require_fresh_marker=True)
+        if selected_mode:
+            _webapp_base_cache["url"] = base
+            _webapp_base_cache["mode"] = selected_mode
+            _webapp_base_cache["checked_at"] = now
+            return base
+
+    # Second pass: accept reachable legacy pages if fresh markers are absent.
+    for base, mode, source in unique_candidates:
+        selected_mode = _probe_webapp_mode(base, mode, require_fresh_marker=False)
+        if selected_mode:
+            _webapp_base_cache["url"] = base
+            _webapp_base_cache["mode"] = selected_mode
+            _webapp_base_cache["checked_at"] = now
+            logger.warning(f"WebApp legacy fallback activated: {base} ({selected_mode})")
+            return base
+
+    # Last resort: keep previous behavior.
+    fallback = webapp_url or public_api or (unique_candidates[0][0] if unique_candidates else "")
+    fallback_mode = "pretty"
+    _webapp_base_cache["url"] = fallback
+    _webapp_base_cache["mode"] = fallback_mode
+    _webapp_base_cache["checked_at"] = now
+    return fallback
+
+def _probe_webapp_mode(base_url: str, mode: str, require_fresh_marker: bool) -> Optional[str]:
+    """Try candidate mode(s) and return selected mode if endpoint is valid."""
+    if mode == "pretty":
+        return "pretty" if _is_webapp_base_alive(base_url, "pretty", require_fresh_marker) else None
+    if mode == "static":
+        return "static" if _is_webapp_base_alive(base_url, "static", require_fresh_marker) else None
+    # auto mode: try pretty first, then static
+    if _is_webapp_base_alive(base_url, "pretty", require_fresh_marker):
+        return "pretty"
+    if _is_webapp_base_alive(base_url, "static", require_fresh_marker):
+        return "static"
+    return None
+
+def _is_webapp_base_alive(base_url: str, mode: str = "pretty", require_fresh_marker: bool = True) -> bool:
+    """Fast probe for WebApp endpoints without using system proxy.
+    mode='pretty'  -> /map and /info
+    mode='static'  -> /map.html and /info.html
+    """
+    opener = build_opener(ProxyHandler({}))
+    if mode == "static":
+        probe = (("/map.html", "splash-start-btn"), ("/info.html", "pulse-info-btn"))
+    else:
+        probe = (("/map", "splash-start-btn"), ("/info", "pulse-info-btn"))
+
+    for path, marker in probe:
+        url = f"{base_url.rstrip('/')}{path}"
+        req = Request(url, headers={"User-Agent": "SoobshioBot/1.0"})
+        try:
+            with opener.open(req, timeout=6) as resp:
+                status = getattr(resp, "status", 0)
+                if status != 200:
+                    return False
+                content_type = (resp.headers.get("Content-Type") or "").lower()
+                if "text/html" not in content_type and "text/plain" not in content_type:
+                    return False
+                body = resp.read(180000).decode("utf-8", errors="ignore")
+                # Reject stale worker pages without latest navigation/splash markers.
+                if require_fresh_marker and marker not in body:
+                    logger.warning(f"WebApp probe stale content {url}: marker '{marker}' not found")
+                    return False
+        except HTTPError as e:
+            # Any explicit HTTP error means this base is not suitable for WebApp.
+            logger.warning(f"WebApp probe failed {url}: HTTP {e.code}")
+            return False
+        except URLError as e:
+            logger.warning(f"WebApp probe failed {url}: {e.reason}")
+            return False
+        except Exception as e:
+            logger.warning(f"WebApp probe failed {url}: {e}")
+            return False
+    return True
+
+def _versioned_webapp_url(path: str) -> str:
+    """Ссылка на WebApp с текущей версией и anti-cache."""
+    base = _get_webapp_url().rstrip("/")
+    webapp_version = get_webapp_version() or int(time.time())
+    nocache = int(time.time())
+    selected_mode = _webapp_base_cache.get("mode") or "pretty"
+    clean_path = path.lstrip("/")
+
+    # If Supabase Storage static hosting is selected, map pretty paths to html files.
+    if selected_mode == "static":
+        if clean_path == "map":
+            clean_path = "map.html"
+        elif clean_path.startswith("info?"):
+            clean_path = "info.html?" + clean_path.split("?", 1)[1]
+        elif clean_path == "info":
+            clean_path = "info.html"
+
+    sep = "&" if "?" in clean_path else "?"
+    return f"{base}/{clean_path}{sep}v={webapp_version}&t={nocache}"
+
+
+def _uvr5_webapp_url() -> str:
+    """Возвращает URL mini app UVR5: env override или public route /uvr5."""
+    if UVR5_MINIAPP_URL:
+        return UVR5_MINIAPP_URL
+    base = _get_webapp_url().rstrip("/")
+    return f"{base}/uvr5"
 
 def _db(): return SessionLocal()
 
@@ -169,54 +345,6 @@ def categories_kb():
     if row: buttons.append(row)
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-# ═══ EMAIL ═══
-def _build_complaint_email(session, recipient_name):
-    rid = session.get("report_id", "?")
-    cat = session.get("category", "Прочее")
-    addr = session.get("address") or "не указан"
-    desc = session.get("description", "")[:1500]
-    title = session.get("title", "")[:200]
-    lat, lon = session.get("lat"), session.get("lon")
-    anon = session.get("is_anonymous", False)
-    subject = f"Жалоба №{rid} — {cat} — Пульс города Нижневартовск"
-    lines = [f"Уважаемый {recipient_name},", "",
-             "Через систему «Пульс города — Нижневартовск» поступила жалоба:"]
-    if anon: lines.append("(отправлено анонимно)")
-    lines += ["", f"Номер: #{rid}", f"Категория: {cat}", f"Адрес: {addr}"]
-    if lat and lon:
-        lines.append(f"Координаты: {lat:.5f}, {lon:.5f}")
-        lines.append(f"Карта: {_map_url(lat, lon)}")
-    lines += ["", "Описание проблемы:", title, "", desc, "",
-              "---", "Просим рассмотреть обращение и принять меры.",
-              "С уважением, система «Пульс города — Нижневартовск»"]
-    return subject, "\n".join(lines)
-
-def _build_legal_email(session, recipient_name, legal_text):
-    """Составляет юридическое письмо на основе AI-анализа."""
-    rid = session.get("report_id", "?")
-    cat = session.get("category", "Прочее")
-    addr = session.get("address") or "не указан"
-    subject = f"Обращение №{rid} — {cat} — юридический анализ — Пульс города"
-    lines = [f"Уважаемый {recipient_name},", "",
-             "Через систему «Пульс города — Нижневартовск» направляется обращение",
-             "с юридическим обоснованием:", "",
-             legal_text, "",
-             "---", "Просим рассмотреть в установленные законом сроки.",
-             "С уважением, система «Пульс города — Нижневартовск»"]
-    return subject, "\n".join(lines)
-
-async def _send_email_via_worker(to_email, subject, body):
-    try:
-        async with get_http_client(timeout=15.0) as client:
-            r = await client.post(f"{CF_WORKER}/send-email", json={
-                "to_email": to_email, "to_name": "", "subject": subject,
-                "body": body, "from_name": "Пульс города — Нижневартовск"})
-        data = r.json()
-        return {"ok": data.get("ok") and not data.get("fallback")}
-    except Exception as e:
-        logger.error(f"Email error: {e}")
-        return {"ok": False}
-
 async def _notify_subscribers(report):
     db = _db()
     try:
@@ -254,7 +382,7 @@ async def cmd_help(message: types.Message):
         "🗺️ /map — Карта + рейтинг УК\n"
         "📊 /info — Инфографика города\n"
         "👤 /profile — Профиль\n"
-        "🔄 /sync — Синхронизация Firebase\n\n"
+""
         "*Как подать жалобу:*\n"
         "1. Отправьте текст или фото\n"
         "2. AI определит категорию, адрес и УК\n"
@@ -276,10 +404,11 @@ async def cmd_map(message: types.Message):
         )
         return
     
-    # Always use timestamp to bypass cache
-    version = int(__import__("time").time())
+    map_url = _versioned_webapp_url("map")
+    info_url = _versioned_webapp_url("info")
     buttons = [
-        [InlineKeyboardButton(text="🗺️ Открыть карту", web_app=WebAppInfo(url=f"{CF_WORKER}/map?v={version}"))],
+        [InlineKeyboardButton(text="🗺️ Открыть карту", web_app=WebAppInfo(url=map_url))],
+        [InlineKeyboardButton(text="📊 Перейти к инфографике", web_app=WebAppInfo(url=info_url))],
         [InlineKeyboardButton(text="🌍 OpenStreetMap", url="https://www.openstreetmap.org/#map=13/60.9344/76.5531")],
     ]
     await message.answer(
@@ -306,10 +435,11 @@ async def cmd_info(message: types.Message):
         )
         return
     
-    # Always use timestamp to bypass cache
-    version = int(__import__("time").time())
+    info_url = _versioned_webapp_url("info")
+    map_url = _versioned_webapp_url("map")
     buttons = [
-        [InlineKeyboardButton(text="📊 Инфографика", web_app=WebAppInfo(url=f"{CF_WORKER}/info?v={version}"))],
+        [InlineKeyboardButton(text="📊 Открыть инфографику", web_app=WebAppInfo(url=info_url))],
+        [InlineKeyboardButton(text="🗺️ Перейти к карте", web_app=WebAppInfo(url=map_url))],
     ]
     await message.answer(
         "📊 *Инфографика Нижневартовска*\n\n"
@@ -344,6 +474,7 @@ async def cmd_profile(message: types.Message):
         buttons = [
             [InlineKeyboardButton(text="📋 Мои жалобы", callback_data="my_complaints")],
             [InlineKeyboardButton(text="💳 Пополнить", callback_data="topup_menu")],
+            [InlineKeyboardButton(text="🔒 Платный раздел", callback_data="paid_section")],
             [InlineKeyboardButton(text=notify_btn, callback_data="toggle_notify")],
             [InlineKeyboardButton(text="ℹ️ О проекте", callback_data="about_project")],
         ]
@@ -427,8 +558,8 @@ async def cb_admin_stats(callback: types.CallbackQuery):
     db = _db()
     try:
         stats = get_stats(db)
-        firebase_stats = await get_firebase_stats()
-        msg = format_stats_message(stats, firebase_stats)
+        realtime_stats = await get_realtime_stats()
+        msg = format_stats_message(stats, realtime_stats)
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:stats")],
@@ -554,6 +685,7 @@ async def cb_admin_control(callback: types.CallbackQuery, skip_answer: bool = Fa
     last_reports = get_last_bot_update_reports(limit=1)
     update_block = _format_last_update_report(last_reports)
 
+    ai_status = get_ai_provider_status()
     msg = (
         "⚙️ *Управление ботом*\n\n"
         f"📊 Всего жалоб: *{status['total_reports']}*\n"
@@ -561,8 +693,9 @@ async def cb_admin_control(callback: types.CallbackQuery, skip_answer: bool = Fa
         f"🔴 Открыто: *{status['open_reports']}*\n"
         f"✅ Решено: *{status['resolved_reports']}*\n\n"
         f"📡 Мониторинг: {monitoring_status}\n"
-        f"📦 Очередь Firebase: *{status.get('firebase_queue_size', 0)}*\n"
+""
         f"💾 Кэш AI: *{status.get('ai_cache_valid', 0)}* записей\n"
+        f"🤖 AI провайдер: *{ai_status.get('active', 'zai')}*\n"
         f"🗺️ Версия карты/инфографики: *{webapp_v}*"
         f"{update_block}"
     )
@@ -580,6 +713,7 @@ async def cb_admin_control(callback: types.CallbackQuery, skip_answer: bool = Fa
             InlineKeyboardButton(text="🔄 Обработать очередь Firebase", callback_data="admin:process_queue"),
             InlineKeyboardButton(text="🧹 Очистить кэш AI", callback_data="admin:clear_cache"),
         ],
+        [InlineKeyboardButton(text="🤖 AI-провайдер", callback_data="admin:ai_provider")],
         [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")],
     ])
 
@@ -706,6 +840,51 @@ async def cb_admin_clear_cache(callback: types.CallbackQuery):
     
     await callback.answer(f"Кэш очищен: {cache_before} -> {cache_after}", show_alert=True)
     await cb_admin_control(callback, skip_answer=True)  # Обновляем панель
+
+
+@dp.callback_query(F.data == "admin:ai_provider")
+async def cb_admin_ai_provider(callback: types.CallbackQuery):
+    """Меню выбора AI-провайдера текста."""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён", show_alert=True)
+        return
+
+    status = get_ai_provider_status()
+    active = status.get("active", "zai")
+    zai_ok = "✅" if status.get("zai_configured") else "❌"
+    or_ok = "✅" if status.get("openrouter_configured") else "❌"
+
+    text = (
+        "🤖 *AI-провайдер анализа текста*\n\n"
+        f"Текущий: *{active}*\n\n"
+        f"{zai_ok} zai ({status.get('zai_model')})\n"
+        f"{or_ok} openrouter ({status.get('openrouter_model')})\n"
+        "ℹ️ keyword — rule-based fallback"
+    )
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Z.AI", callback_data="admin:ai:set:zai")],
+        [InlineKeyboardButton(text="✅ OpenRouter", callback_data="admin:ai:set:openrouter")],
+        [InlineKeyboardButton(text="✅ Keyword fallback", callback_data="admin:ai:set:keyword")],
+        [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:control")],
+    ])
+    await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("admin:ai:set:"))
+async def cb_admin_ai_set(callback: types.CallbackQuery):
+    """Смена AI-провайдера в runtime."""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён", show_alert=True)
+        return
+
+    provider = callback.data.split(":")[-1]
+    ok = set_ai_provider(provider)
+    if not ok:
+        await callback.answer("❌ Неверный провайдер", show_alert=True)
+        return
+    await callback.answer(f"✅ AI провайдер: {provider}", show_alert=True)
+    await cb_admin_ai_provider(callback)
 
 @dp.callback_query(F.data == "admin:export")
 async def cb_admin_export(callback: types.CallbackQuery):
@@ -835,6 +1014,334 @@ async def cb_admin_back(callback: types.CallbackQuery):
     )
     await callback.answer()
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# VOCAL REMOVER — Скрытый раздел для админов (MDX-Net Voc_FT / Inst3)
+# Команда: /vocalremover
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Временные сессии для vocal remover
+vocal_sessions: dict = {}
+
+@dp.message(Command("vocalremover"))
+async def cmd_vocalremover(message: types.Message):
+    """Скрытая команда для удаления вокала из аудио (только для админов)"""
+    uid = message.from_user.id
+    
+    if not is_admin(uid):
+        # Скрытая команда — просто игнорируем для не-админов
+        return
+    
+    # Проверяем установку
+    is_installed, status_msg = await check_installation()
+    
+    vr_buttons = [
+        [InlineKeyboardButton(text="📤 Загрузить аудио", callback_data="vr:upload")],
+        [InlineKeyboardButton(text="🎵 Модели", callback_data="vr:models")],
+        [InlineKeyboardButton(text="📊 Статистика", callback_data="vr:stats")],
+        [InlineKeyboardButton(text="🗑️ Очистка кэша", callback_data="vr:cleanup")],
+    ]
+    vr_buttons.append([InlineKeyboardButton(text="🌐 UVR5 Mini App", web_app=WebAppInfo(url=_uvr5_webapp_url()))])
+    vr_buttons.append([InlineKeyboardButton(text="❌ Закрыть", callback_data="vr:close")])
+    keyboard = InlineKeyboardMarkup(inline_keyboard=vr_buttons)
+    
+    status_icon = "✅" if is_installed else "⚠️"
+    
+    await message.answer(
+        f"🎤 *VocalRemover*\n"
+        f"_MDX-Net Voc\\_FT / Inst3_\n\n"
+        f"{status_icon} Статус:\n{status_msg}\n\n"
+        f"Отправьте аудио/голосовое сообщение или нажмите «Загрузить аудио».",
+        parse_mode="Markdown",
+        reply_markup=keyboard
+    )
+
+@dp.callback_query(F.data == "vr:upload")
+async def cb_vr_upload(callback: types.CallbackQuery):
+    """Начать загрузку аудио"""
+    if not is_admin(callback.from_user.id):
+        return
+    
+    vocal_sessions[callback.from_user.id] = {"state": "waiting_audio", "model": DEFAULT_MODEL}
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="vr:back")],
+    ])
+    
+    await callback.message.edit_text(
+        "📤 *Загрузка аудио*\n\n"
+        "Отправьте аудиофайл, голосовое сообщение или видео.\n\n"
+        "Поддерживаемые форматы:\n"
+        "• MP3, WAV, FLAC, OGG, M4A\n"
+        "• Видео (извлечётся аудиодорожка)\n\n"
+        f"Текущая модель: `{DEFAULT_MODEL}`",
+        parse_mode="Markdown",
+        reply_markup=keyboard
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "vr:models")
+async def cb_vr_models(callback: types.CallbackQuery):
+    """Показать доступные модели"""
+    if not is_admin(callback.from_user.id):
+        return
+    
+    buttons = []
+    for key, info in MODELS.items():
+        buttons.append([InlineKeyboardButton(
+            text=f"{'✓ ' if key == DEFAULT_MODEL else ''}{info['name']}",
+            callback_data=f"vr:model:{key}"
+        )])
+    buttons.append([InlineKeyboardButton(text="🔙 Назад", callback_data="vr:back")])
+    
+    await callback.message.edit_text(
+        f"{get_models_list()}\n\n"
+        f"Выберите модель для обработки:",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("vr:model:"))
+async def cb_vr_select_model(callback: types.CallbackQuery):
+    """Выбрать модель"""
+    if not is_admin(callback.from_user.id):
+        return
+    
+    model_key = callback.data.split(":")[2]
+    if model_key not in MODELS:
+        await callback.answer("❌ Неизвестная модель", show_alert=True)
+        return
+    
+    uid = callback.from_user.id
+    if uid not in vocal_sessions:
+        vocal_sessions[uid] = {}
+    vocal_sessions[uid]["model"] = model_key
+    vocal_sessions[uid]["state"] = "waiting_audio"
+    
+    model_info = MODELS[model_key]
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📤 Загрузить аудио", callback_data="vr:upload")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="vr:back")],
+    ])
+    
+    await callback.message.edit_text(
+        f"✅ Модель выбрана: *{model_info['name']}*\n"
+        f"_{model_info['description']}_\n\n"
+        f"Теперь отправьте аудиофайл для обработки.",
+        parse_mode="Markdown",
+        reply_markup=keyboard
+    )
+    await callback.answer(f"Модель: {model_info['name']}")
+
+@dp.callback_query(F.data == "vr:stats")
+async def cb_vr_stats(callback: types.CallbackQuery):
+    """Статистика использования"""
+    if not is_admin(callback.from_user.id):
+        return
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="vr:back")],
+    ])
+    
+    await callback.message.edit_text(
+        get_usage_stats(),
+        parse_mode="Markdown",
+        reply_markup=keyboard
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "vr:cleanup")
+async def cb_vr_cleanup(callback: types.CallbackQuery):
+    """Очистка старых файлов"""
+    if not is_admin(callback.from_user.id):
+        return
+    
+    deleted = await cleanup_old_files(max_age_hours=24)
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="vr:back")],
+    ])
+    
+    await callback.message.edit_text(
+        f"🗑️ *Очистка кэша*\n\n"
+        f"Удалено папок: {deleted}\n"
+        f"(файлы старше 24 часов)",
+        parse_mode="Markdown",
+        reply_markup=keyboard
+    )
+    await callback.answer(f"Удалено: {deleted}")
+
+@dp.callback_query(F.data == "vr:back")
+async def cb_vr_back(callback: types.CallbackQuery):
+    """Назад в меню VocalRemover"""
+    if not is_admin(callback.from_user.id):
+        return
+    
+    is_installed, status_msg = await check_installation()
+    status_icon = "✅" if is_installed else "⚠️"
+    
+    vr_buttons = [
+        [InlineKeyboardButton(text="📤 Загрузить аудио", callback_data="vr:upload")],
+        [InlineKeyboardButton(text="🎵 Модели", callback_data="vr:models")],
+        [InlineKeyboardButton(text="📊 Статистика", callback_data="vr:stats")],
+        [InlineKeyboardButton(text="🗑️ Очистка кэша", callback_data="vr:cleanup")],
+    ]
+    vr_buttons.append([InlineKeyboardButton(text="🌐 UVR5 Mini App", web_app=WebAppInfo(url=_uvr5_webapp_url()))])
+    vr_buttons.append([InlineKeyboardButton(text="❌ Закрыть", callback_data="vr:close")])
+    keyboard = InlineKeyboardMarkup(inline_keyboard=vr_buttons)
+    
+    await callback.message.edit_text(
+        f"🎤 *VocalRemover*\n"
+        f"_MDX-Net Voc\\_FT / Inst3_\n\n"
+        f"{status_icon} Статус:\n{status_msg}\n\n"
+        f"Отправьте аудио/голосовое сообщение или нажмите «Загрузить аудио».",
+        parse_mode="Markdown",
+        reply_markup=keyboard
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "vr:close")
+async def cb_vr_close(callback: types.CallbackQuery):
+    """Закрыть меню VocalRemover"""
+    if not is_admin(callback.from_user.id):
+        return
+    
+    vocal_sessions.pop(callback.from_user.id, None)
+    await callback.message.delete()
+    await callback.answer()
+
+# Обработчик аудио для VocalRemover
+@dp.message(F.audio | F.voice | F.video | F.video_note | F.document)
+async def handle_audio_for_vr(message: types.Message):
+    """Обработка аудио для VocalRemover (только для админов в режиме ожидания)"""
+    uid = message.from_user.id
+    
+    # Проверяем, что это админ в режиме VocalRemover
+    session = vocal_sessions.get(uid)
+    if not session or session.get("state") != "waiting_audio":
+        return  # Пропускаем, если не в режиме VocalRemover
+    
+    if not is_admin(uid):
+        return
+    
+    if not AUDIO_SEPARATOR_AVAILABLE:
+        await message.answer(
+            "❌ audio-separator не установлен.\n"
+            "Установите: `pip install audio-separator[cpu]`",
+            parse_mode="Markdown"
+        )
+        return
+    
+    # Определяем тип файла
+    file_obj = None
+    file_name = "audio"
+    
+    if message.audio:
+        file_obj = message.audio
+        file_name = message.audio.file_name or f"audio_{message.audio.file_id[:8]}.mp3"
+    elif message.voice:
+        file_obj = message.voice
+        file_name = f"voice_{message.voice.file_id[:8]}.ogg"
+    elif message.video:
+        file_obj = message.video
+        file_name = message.video.file_name or f"video_{message.video.file_id[:8]}.mp4"
+    elif message.video_note:
+        file_obj = message.video_note
+        file_name = f"videonote_{message.video_note.file_id[:8]}.mp4"
+    elif message.document:
+        # Проверяем MIME-тип
+        mime = message.document.mime_type or ""
+        if mime.startswith("audio/") or mime.startswith("video/") or \
+           message.document.file_name.lower().endswith(('.mp3', '.wav', '.flac', '.ogg', '.m4a', '.mp4', '.mkv', '.webm')):
+            file_obj = message.document
+            file_name = message.document.file_name or f"file_{message.document.file_id[:8]}"
+        else:
+            return  # Не аудио/видео файл
+    
+    if not file_obj:
+        return
+    
+    # Проверяем размер (макс 50 МБ)
+    if file_obj.file_size and file_obj.file_size > 50 * 1024 * 1024:
+        await message.answer("❌ Файл слишком большой. Максимум: 50 МБ")
+        return
+    
+    model_key = session.get("model", DEFAULT_MODEL)
+    model_info = MODELS.get(model_key, MODELS[DEFAULT_MODEL])
+    
+    status_msg = await message.answer(
+        f"🔄 *Обработка...*\n\n"
+        f"📁 Файл: `{file_name}`\n"
+        f"🎵 Модель: {model_info['name']}\n\n"
+        f"⏳ Это может занять несколько минут...",
+        parse_mode="Markdown"
+    )
+    
+    try:
+        # Скачиваем файл
+        file = await bot.get_file(file_obj.file_id)
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file_name).suffix) as tmp_input:
+            await bot.download_file(file.file_path, tmp_input)
+            input_path = tmp_input.name
+        
+        # Обрабатываем
+        vocals_path, instrumental_path, info = await separate_audio(
+            input_path=input_path,
+            model_key=model_key,
+            output_format="mp3",
+            user_id=uid,
+        )
+        
+        # Отправляем результаты
+        result_text = (
+            f"✅ *Готово!*\n\n"
+            f"📁 Исходный файл: `{file_name}`\n"
+            f"🎵 Модель: {model_info['name']}\n"
+            f"⏱️ Время: {info.get('duration_sec', 0):.1f}с"
+        )
+        
+        await status_msg.edit_text(result_text, parse_mode="Markdown")
+        
+        # Отправляем файлы
+        if vocals_path and os.path.exists(vocals_path):
+            with open(vocals_path, 'rb') as f:
+                await message.answer_audio(
+                    BufferedInputFile(f.read(), filename=f"vocals_{Path(file_name).stem}.mp3"),
+                    caption="🎤 Вокал"
+                )
+        
+        if instrumental_path and os.path.exists(instrumental_path):
+            with open(instrumental_path, 'rb') as f:
+                await message.answer_audio(
+                    BufferedInputFile(f.read(), filename=f"instrumental_{Path(file_name).stem}.mp3"),
+                    caption="🎸 Инструментал"
+                )
+        
+        # Очистка
+        os.unlink(input_path)
+        if vocals_path and os.path.exists(vocals_path):
+            os.unlink(vocals_path)
+        if instrumental_path and os.path.exists(instrumental_path):
+            os.unlink(instrumental_path)
+        
+        # Сбрасываем сессию
+        vocal_sessions[uid]["state"] = None
+        
+    except VocalRemoverError as e:
+        await status_msg.edit_text(f"❌ *Ошибка:* {e}", parse_mode="Markdown")
+    except Exception as e:
+        logger.error(f"VocalRemover error: {e}", exc_info=True)
+        await status_msg.edit_text(f"❌ *Ошибка обработки:* {e}", parse_mode="Markdown")
+    finally:
+        # Очистка временного файла
+        try:
+            if 'input_path' in locals():
+                os.unlink(input_path)
+        except:
+            pass
+
 @dp.message(Command("sync"))
 async def cmd_sync(message: types.Message):
     await message.answer("🔄 Синхронизация...")
@@ -851,7 +1358,7 @@ async def cmd_sync(message: types.Message):
                       "supporters": r.supporters or 0}
                 if r.uk_name: fb["uk_name"] = r.uk_name
                 if r.uk_email: fb["uk_email"] = r.uk_email
-                doc_id = await firebase_push(fb)
+                doc_id = await _push_realtime_complaint(fb)
                 pushed += 1 if doc_id else 0; errors += 0 if doc_id else 1
             except: errors += 1
             await asyncio.sleep(0.1)
@@ -868,10 +1375,11 @@ async def btn_profile(message: types.Message):
 @dp.message(F.text == "🚪 Вход")
 async def btn_login(message: types.Message):
     """Обработчик кнопки Вход - список: Карта проблем, Инфографика, Профиль"""
-    version = int(__import__("time").time())
+    map_url = _versioned_webapp_url("map")
+    info_url = _versioned_webapp_url("info")
     buttons = [
-        [InlineKeyboardButton(text="🗺️ Карта проблем", web_app=WebAppInfo(url=f"{CF_WORKER}/map?v={version}"))],
-        [InlineKeyboardButton(text="📊 Инфографика", web_app=WebAppInfo(url=f"{CF_WORKER}/info?v={version}"))],
+        [InlineKeyboardButton(text="🗺️ Карта проблем", web_app=WebAppInfo(url=map_url))],
+        [InlineKeyboardButton(text="📊 Инфографика", web_app=WebAppInfo(url=info_url))],
         [InlineKeyboardButton(text="👤 Профиль", callback_data="show_profile")],
     ]
     await message.answer(
@@ -995,11 +1503,145 @@ async def cb_back_profile(callback: types.CallbackQuery):
         buttons = [
             [InlineKeyboardButton(text="📋 Мои жалобы", callback_data="my_complaints")],
             [InlineKeyboardButton(text="💳 Пополнить", callback_data="topup_menu")],
+            [InlineKeyboardButton(text="🔒 Платный раздел", callback_data="paid_section")],
             [InlineKeyboardButton(text=notify_btn, callback_data="toggle_notify")],
             [InlineKeyboardButton(text="ℹ️ О проекте", callback_data="about_project")],
         ]
         await callback.message.edit_text(text, parse_mode="Markdown",
                                          reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    finally:
+        db.close()
+    await callback.answer()
+
+# ═══ ПЛАТНЫЙ РАЗДЕЛ (скрытый в Профиле) ═══
+def _has_digest_subscription(user) -> bool:
+    """Подписка на сводки активна (digest_subscription_until хранится в UTC, наивный datetime)."""
+    until = getattr(user, "digest_subscription_until", None)
+    if not until:
+        return False
+    return until >= datetime.utcnow()
+
+
+@dp.callback_query(F.data == "paid_section")
+async def cb_paid_section(callback: types.CallbackQuery):
+    """Меню платного раздела: сводка за день и подписка на месяц."""
+    db = _db()
+    try:
+        user = get_or_create_user(db, callback.from_user)
+        sub_line = ""
+        if _has_digest_subscription(user):
+            until = user.digest_subscription_until
+            sub_line = f"\n✅ *Подписка на сводки активна до* {until.strftime('%d.%m.%Y')}.\n"
+        else:
+            sub_line = f"\n📅 *Подписка на месяц* — {DIGEST_SUBSCRIBE_STARS} ⭐ (ежедневные сводки без доп. платы).\n"
+        body = (
+            "🔒 *Платный раздел*\n\n"
+            "Доступ к аналитике и сводкам по городу.\n"
+            f"{sub_line}\n"
+            f"📊 *Разовая сводка за день* — {DIGEST_STARS} ⭐\n"
+            "Жалобы и происшествия за сегодня, краткий анализ и советы."
+        )
+        buttons = [
+            [InlineKeyboardButton(text=f"📊 Сводка за день ({DIGEST_STARS} ⭐)" + (" ✓ по подписке" if _has_digest_subscription(user) else ""), callback_data="digest_day")],
+            [InlineKeyboardButton(text=f"📅 Подписка на месяц ({DIGEST_SUBSCRIBE_STARS} ⭐)", callback_data="digest_subscribe")],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="back_profile")],
+        ]
+        await callback.message.edit_text(body, parse_mode="Markdown",
+                                        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    finally:
+        db.close()
+    await callback.answer()
+
+@dp.callback_query(F.data == "digest_subscribe")
+async def cb_digest_subscribe(callback: types.CallbackQuery):
+    """Оформление подписки на ежедневные сводки на месяц за 100 ⭐."""
+    db = _db()
+    try:
+        user = get_or_create_user(db, callback.from_user)
+        balance = user.balance or 0
+        if balance < DIGEST_SUBSCRIBE_STARS:
+            await callback.message.edit_text(
+                f"💰 Недостаточно средств.\n\n"
+                f"Подписка на месяц — *{DIGEST_SUBSCRIBE_STARS} ⭐*. Ваш баланс: *{balance} ⭐*.",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="💳 Пополнить", callback_data="topup_menu")],
+                    [InlineKeyboardButton(text="◀️ В платный раздел", callback_data="paid_section")],
+                ]))
+            await callback.answer()
+            return
+        user.balance = balance - DIGEST_SUBSCRIBE_STARS
+        now_utc = datetime.utcnow()
+        start = user.digest_subscription_until
+        if start and start >= now_utc:
+            user.digest_subscription_until = start + timedelta(days=30)
+        else:
+            user.digest_subscription_until = now_utc + timedelta(days=30)
+        db.commit()
+        until_str = user.digest_subscription_until.strftime("%d.%m.%Y")
+        await callback.message.edit_text(
+            f"✅ *Подписка оформлена*\n\n"
+            f"Ежедневные сводки доступны до *{until_str}* без доп. оплаты.\n"
+            f"Списано {DIGEST_SUBSCRIBE_STARS} ⭐. Баланс: *{user.balance} ⭐*.",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📊 Сводка за день", callback_data="digest_day")],
+                [InlineKeyboardButton(text="◀️ В платный раздел", callback_data="paid_section")],
+            ]))
+    except Exception as e:
+        logger.exception("digest_subscribe")
+        await callback.message.edit_text(f"❌ Ошибка: {e}", reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="paid_section")],
+        ]))
+    finally:
+        db.close()
+    await callback.answer()
+
+@dp.callback_query(F.data == "digest_day")
+async def cb_digest_day(callback: types.CallbackQuery):
+    """Сводка за день: по подписке бесплатно, иначе списание 30 ⭐."""
+    from services.daily_digest_service import generate_today_digest_text
+
+    uid = callback.from_user.id
+    db = _db()
+    try:
+        user = get_or_create_user(db, callback.from_user)
+        balance = user.balance or 0
+        has_sub = _has_digest_subscription(user)
+        if not has_sub and balance < DIGEST_STARS:
+            await callback.message.edit_text(
+                f"💰 Недостаточно средств.\n\n"
+                f"Сводка за день стоит *{DIGEST_STARS} ⭐*. Ваш баланс: *{balance} ⭐*.\n\n"
+                f"Или оформите подписку на месяц за *{DIGEST_SUBSCRIBE_STARS} ⭐* — сводки без доп. платы.",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="💳 Пополнить", callback_data="topup_menu")],
+                    [InlineKeyboardButton(text=f"📅 Подписка ({DIGEST_SUBSCRIBE_STARS} ⭐)", callback_data="digest_subscribe")],
+                    [InlineKeyboardButton(text="◀️ В платный раздел", callback_data="paid_section")],
+                ]))
+            await callback.answer()
+            return
+        if not has_sub:
+            user.balance = balance - DIGEST_STARS
+        db.commit()
+        await callback.message.edit_text("⏳ Формирую сводку за сегодня…")
+        digest = await generate_today_digest_text()
+        await callback.message.answer(digest, parse_mode=None)
+        status = "По подписке, без списания." if has_sub else f"Списано {DIGEST_STARS} ⭐."
+        await callback.message.edit_text(
+            f"📊 *Сводка за день*\n\n{status} Баланс: *{user.balance or 0} ⭐*.",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📊 Ещё сводка", callback_data="digest_day")],
+                [InlineKeyboardButton(text="◀️ В платный раздел", callback_data="paid_section")],
+            ]))
+    except Exception as e:
+        logger.exception("digest_day")
+        await callback.message.edit_text(
+            f"❌ Ошибка при формировании сводки: {e}",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="◀️ Назад", callback_data="paid_section")],
+            ]))
     finally:
         db.close()
     await callback.answer()
@@ -1245,44 +1887,12 @@ async def _save_report(uid, is_anonymous=False):
     session["report_id"] = report.id
     user_sessions[uid] = session
 
-    # Firebase
-    try:
-        await firebase_push({
-            "category": report.category, "summary": report.title,
-            "text": (report.description or "")[:2000],
-            "address": report.address, "lat": report.lat, "lng": report.lng,
-            "source": "bot", "source_name": "telegram_bot",
-            "provider": "user", "report_id": report.id,
-        })
-    except: pass
 
     # Notify subscribers
     try: await _notify_subscribers(report)
     except: pass
 
     return report, db, user
-
-async def _show_send_options(target, session):
-    """Показывает кнопки отправки: анонимное письмо / юр. анализ."""
-    uk_info = session.get("uk_info")
-    text = f"✅ Жалоба #{session.get('report_id')} сохранена.\n\n"
-    if uk_info:
-        text += _uk_text(uk_info)
-        text += "\nВыберите способ отправки:"
-    else:
-        text += f"🏛️ УК не определена. Письмо будет направлено в администрацию.\n\n{ADMIN_NAME}\n📧 {ADMIN_EMAIL}\n\nВыберите способ отправки:"
-
-    buttons = [
-        [InlineKeyboardButton(text="✉️ Отправить анонимно", callback_data="send_anon")],
-        [InlineKeyboardButton(text="⚖️ Юр. анализ + письмо", callback_data="legal_send")],
-        [InlineKeyboardButton(text="❌ Не отправлять", callback_data="skip_send")],
-    ]
-    if hasattr(target, 'edit_text'):
-        await target.edit_text(text, parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-    else:
-        await target.answer(text, parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
 
 @dp.callback_query(F.data == "confirm")
 async def cb_confirm(callback: types.CallbackQuery):
@@ -1291,26 +1901,18 @@ async def cb_confirm(callback: types.CallbackQuery):
     if not session or session.get("state") != "confirming":
         await callback.answer("Сессия истекла. /new", show_alert=True); return
 
-    # Save report
     report, db, user = await _save_report(uid, is_anonymous=False)
-    complaint_count = _user_complaint_count(db, user.id)
     db.close()
-
-    # First complaint free, else 50 Stars
-    if complaint_count <= 1:
-        # First complaint — free
-        await _show_send_options(callback.message, session)
+    
+    text = f"✅ Жалоба #{report.id} сохранена.\n\n"
+    if session.get("uk_info"):
+        text += _uk_text(session.get("uk_info"))
+    
+    if hasattr(callback.message, 'edit_text'):
+        await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=None)
     else:
-        # Need payment
-        session["state"] = "awaiting_payment"
-        user_sessions[uid] = session
-        await bot.send_invoice(
-            chat_id=callback.message.chat.id,
-            title="Отправка жалобы — 50 ⭐",
-            description=f"Жалоба #{report.id}: {session.get('category')} — {(session.get('address') or 'адрес не указан')[:50]}",
-            payload=f"complaint_{report.id}",
-            currency="XTR",
-            prices=[LabeledPrice(label="Отправка жалобы", amount=COMPLAINT_STARS)])
+        await callback.message.answer(text, parse_mode="Markdown", reply_markup=None)
+    user_sessions.pop(uid, None)
     await callback.answer()
 
 @dp.callback_query(F.data == "confirm_anon")
@@ -1321,142 +1923,16 @@ async def cb_confirm_anon(callback: types.CallbackQuery):
         await callback.answer("Сессия истекла. /new", show_alert=True); return
 
     report, db, user = await _save_report(uid, is_anonymous=True)
-    complaint_count = _user_complaint_count(db, user.id)
     db.close()
-
-    if complaint_count <= 1:
-        await _show_send_options(callback.message, session)
+    
+    text = f"✅ Жалоба #{report.id} (анонимно) сохранена.\n\n"
+    if session.get("uk_info"):
+        text += _uk_text(session.get("uk_info"))
+        
+    if hasattr(callback.message, 'edit_text'):
+        await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=None)
     else:
-        session["state"] = "awaiting_payment"
-        user_sessions[uid] = session
-        await bot.send_invoice(
-            chat_id=callback.message.chat.id,
-            title="Отправка жалобы — 50 ⭐",
-            description=f"Жалоба #{report.id} (анонимно): {session.get('category')}",
-            payload=f"complaint_{report.id}",
-            currency="XTR",
-            prices=[LabeledPrice(label="Отправка жалобы", amount=COMPLAINT_STARS)])
-    await callback.answer()
-
-@dp.callback_query(F.data == "send_anon")
-async def cb_send_anon(callback: types.CallbackQuery):
-    uid = callback.from_user.id
-    session = user_sessions.get(uid)
-    if not session:
-        await callback.answer("Сессия истекла.", show_alert=True); return
-
-    uk_info = session.get("uk_info")
-    to_email = uk_info.get("email") if uk_info and uk_info.get("email") else ADMIN_EMAIL
-    to_name = uk_info.get("name") if uk_info else ADMIN_NAME
-
-    subject, body = _build_complaint_email(session, to_name)
-    result = await _send_email_via_worker(to_email, subject, body)
-
-    if result.get("ok"):
-        text = f"✅ Анонимное письмо отправлено!\n\n📧 Получатель: {to_name}\n✉️ {to_email}"
-    else:
-        text = f"⚠️ Не удалось отправить email.\nЖалоба #{session.get('report_id')} сохранена в системе."
-
-    await callback.message.edit_text(text, reply_markup=None)
-    user_sessions.pop(uid, None)
-    await callback.answer()
-
-@dp.callback_query(F.data == "legal_send")
-async def cb_legal_send(callback: types.CallbackQuery):
-    uid = callback.from_user.id
-    session = user_sessions.get(uid)
-    if not session:
-        await callback.answer("Сессия истекла.", show_alert=True); return
-
-    await callback.message.edit_text("⚖️ Юридический анализ...\nСоставляю официальное письмо...")
-
-    uk_info = session.get("uk_info")
-    uk_name = uk_info.get("name") if uk_info else ADMIN_NAME
-
-    # AI legal analysis
-    prompt = LEGAL_PROMPT.format(
-        category=session.get("category", "Прочее"),
-        address=session.get("address") or "не указан",
-        uk_name=uk_name,
-        description=(session.get("description") or "")[:1500],
-    )
-    try:
-        legal_result = await analyze_complaint(prompt)
-        legal_text = legal_result.get("summary", "")
-        # If AI returned structured data instead of text, use description
-        if len(legal_text) < 100:
-            # Direct Z.AI call for legal text
-            async with get_http_client(timeout=60.0) as client:
-                r = await client.post(
-                    f"https://api.z.ai/api/paas/v4/chat/completions",
-                    json={"model": "glm-4.7-flash",
-                          "messages": [{"role": "user", "content": prompt}],
-                          "max_tokens": 4096},
-                    headers={"Authorization": f"Bearer {os.getenv('ZAI_API_KEY', '')}",
-                             "Content-Type": "application/json"})
-                if r.status_code == 200:
-                    d = r.json()
-                    legal_text = d["choices"][0]["message"].get("content", "")
-                    if not legal_text:
-                        legal_text = d["choices"][0]["message"].get("reasoning_content", "")
-    except Exception as e:
-        logger.error(f"Legal analysis error: {e}")
-        legal_text = ""
-
-    if not legal_text or len(legal_text) < 50:
-        await callback.message.edit_text(
-            "⚠️ Не удалось выполнить юридический анализ.\n"
-            "Жалоба сохранена. Попробуйте отправить анонимно.",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="✉️ Отправить анонимно", callback_data="send_anon")]]))
-        return
-
-    # Show analysis to user
-    preview = legal_text[:3000]
-    await callback.message.edit_text(
-        f"⚖️ *Юридический анализ*\n\n{preview}",
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="📨 Отправить в УК + администрацию", callback_data="legal_confirm")],
-            [InlineKeyboardButton(text="❌ Не отправлять", callback_data="skip_send")]]))
-
-    session["legal_text"] = legal_text
-    user_sessions[uid] = session
-
-@dp.callback_query(F.data == "legal_confirm")
-async def cb_legal_confirm(callback: types.CallbackQuery):
-    uid = callback.from_user.id
-    session = user_sessions.get(uid)
-    if not session or not session.get("legal_text"):
-        await callback.answer("Сессия истекла.", show_alert=True); return
-
-    legal_text = session["legal_text"]
-    uk_info = session.get("uk_info")
-    results = []
-
-    # Send to UK
-    if uk_info and uk_info.get("email"):
-        subj, body = _build_legal_email(session, uk_info["name"], legal_text)
-        r = await _send_email_via_worker(uk_info["email"], subj, body)
-        results.append(f"📧 {uk_info['name']}: {'✅' if r.get('ok') else '❌'}")
-
-    # Send to administration
-    subj, body = _build_legal_email(session, ADMIN_NAME, legal_text)
-    r = await _send_email_via_worker(ADMIN_EMAIL, subj, body)
-    results.append(f"📧 {ADMIN_NAME}: {'✅' if r.get('ok') else '❌'}")
-
-    text = "📨 *Результат отправки:*\n\n" + "\n".join(results)
-    text += f"\n\n⚖️ Жалоба #{session.get('report_id')} с юридическим обоснованием отправлена."
-    await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=None)
-    user_sessions.pop(uid, None)
-    await callback.answer()
-
-@dp.callback_query(F.data == "skip_send")
-async def cb_skip_send(callback: types.CallbackQuery):
-    uid = callback.from_user.id
-    session = user_sessions.get(uid)
-    rid = session.get("report_id", "?") if session else "?"
-    await callback.message.edit_text(f"📋 Жалоба #{rid} сохранена в системе.\nПисьмо не отправлено.", reply_markup=None)
+        await callback.message.answer(text, parse_mode="Markdown", reply_markup=None)
     user_sessions.pop(uid, None)
     await callback.answer()
 
@@ -1532,76 +2008,7 @@ async def cb_category_select(callback: types.CallbackQuery):
     )
     await callback.answer(f"Категория: {category}")
 
-@dp.callback_query(F.data.startswith("cat:"))
-async def cb_select_cat(callback: types.CallbackQuery):
-    uid = callback.from_user.id
-    session = user_sessions.get(uid)
-    if not session:
-        await callback.answer("Сессия истекла.", show_alert=True)
-        return
-    
-    new_cat = callback.data[4:]
-    
-    # Если это ручной выбор категории (после ошибки AI)
-    if session.get("state") == "manual_category":
-        description = session.get("description", "")
-        photo_file_id = session.get("photo_file_id")
-        
-        # Пытаемся извлечь адрес из описания
-        address = None
-        lat, lon = None, None
-        
-        if description:
-            try:
-                coords = await get_coordinates(description)
-                if coords:
-                    lat, lon = coords["lat"], coords["lon"]
-            except Exception as e:
-                logger.debug(f"Geocoding error: {e}")
-        
-        uk_info = await _find_uk(lat, lon, address)
-        
-        user_sessions[uid] = {
-            "state": "confirming",
-            "category": new_cat,
-            "address": address,
-            "description": description[:2000],
-            "title": description[:200] if description else "Жалоба",
-            "lat": lat,
-            "lon": lon,
-            "uk_info": uk_info,
-            "is_anonymous": False,
-            "photo_file_id": photo_file_id,
-        }
-        
-        resp = (f"📋 *Категория выбрана*\n\n"
-                f"{_emoji(new_cat)} Категория: *{new_cat}*\n"
-                f"📍 Адрес: {address or 'не определён'}\n"
-                f"📝 {description[:300] if description else '—'}")
-        if uk_info:
-            resp += _uk_text(uk_info)
-        resp += "\n\nПодтвердите или измените:"
-        
-        await callback.message.edit_text(resp, parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=_confirm_buttons(lat, lon)))
-        await callback.answer()
-        return
-    
-    # Обычный выбор категории (изменение существующей)
-    session["category"] = new_cat
-    user_sessions[uid] = session
-
-    lat, lon = session.get("lat"), session.get("lon")
-    text = (f"🏷️ Категория изменена: *{_emoji(new_cat)} {new_cat}*\n"
-            f"📍 Адрес: {session.get('address') or 'не определён'}\n"
-            f"📝 {(session.get('title') or '')[:200]}")
-    uk_info = session.get("uk_info")
-    if uk_info:
-        text += _uk_text(uk_info)
-    text += "\n\nПодтвердите:"
-    await callback.message.edit_text(text, parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=_confirm_buttons(lat, lon)))
-    await callback.answer()
+# REMOVED DUPLICATE cb_select_cat - функционал перенесён в cb_category_select выше
 
 @dp.callback_query(F.data == "cancel")
 async def cb_cancel(callback: types.CallbackQuery):
@@ -1609,59 +2016,11 @@ async def cb_cancel(callback: types.CallbackQuery):
     await callback.message.edit_text("❌ Отменено.", reply_markup=None)
     await callback.answer()
 
-# ═══ PAYMENT HANDLERS ═══
-@dp.pre_checkout_query()
-async def pre_checkout_handler(pre_checkout_query: PreCheckoutQuery):
-    """Handle pre-checkout query for Telegram Payments"""
-    await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
-
-@dp.message(F.successful_payment)
-async def on_successful_payment(message: types.Message):
-    payload = message.successful_payment.invoice_payload
-    amount = message.successful_payment.total_amount
-    uid = message.from_user.id
-
-    if payload.startswith("topup_"):
-        # Balance top-up
-        db = _db()
-        try:
-            user = get_or_create_user(db, message.from_user)
-            # Parse bonus from payload if present
-            parts = payload.split("_")
-            base_amount = int(parts[1]) if len(parts) > 1 else amount
-            bonus = int(parts[2]) if len(parts) > 2 else 0
-            
-            user.balance = (user.balance or 0) + amount
-            db.commit()
-            
-            bonus_text = f"\n🎁 Бонус: +{bonus} ⭐" if bonus > 0 else ""
-            await message.answer(
-                f"✅ *Платеж успешно выполнен!*\n\n"
-                f"💰 Пополнено: {base_amount} ⭐{bonus_text}\n"
-                f"💵 Текущий баланс: *{user.balance} ⭐*\n\n"
-                f"Теперь вы можете отправлять жалобы!",
-                parse_mode="Markdown",
-                reply_markup=main_kb())
-        finally:
-            db.close()
-
-    elif payload.startswith("complaint_"):
-        # Complaint payment — show send options
-        session = user_sessions.get(uid)
-        if session:
-            session["state"] = "paid"
-            user_sessions[uid] = session
-            await message.answer(f"✅ Оплата {amount} ⭐ принята!", reply_markup=main_kb())
-            await _show_send_options(message, session)
-        else:
-            await message.answer("✅ Оплата принята. Сессия истекла — жалоба сохранена в системе.",
-                reply_markup=main_kb())
-
 # ═══ OPENDATA CALLBACKS ═══
 @dp.callback_query(F.data.startswith("od:"))
 async def cb_opendata(callback: types.CallbackQuery):
     dataset = callback.data[3:]
-    url = f"{CF_WORKER}/info?dataset={dataset}&v={int(__import__('time').time())}"
+    url = _versioned_webapp_url(f"info?dataset={dataset}")
     buttons = [[InlineKeyboardButton(text="📊 Открыть", web_app=WebAppInfo(url=url))]]
     await callback.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
     await callback.answer()
@@ -1709,12 +2068,35 @@ async def setup_menu():
     
     logger.info(f"Меню бота установлено (версия: {menu_version})")
 
-async def main():
+async def main(use_webhook: bool = False, webhook_url: str = None):
+    """
+    Запуск бота.
+    
+    Args:
+        use_webhook: Использовать webhook вместо polling
+        webhook_url: URL для webhook (требуется если use_webhook=True)
+    """
     await setup_menu()
-    # Сброс webhook — при polling webhook не должен быть установлен
+    
+    if use_webhook and webhook_url:
+        # Webhook режим — не конфликтует с другими экземплярами
+        webhook_path = f"{webhook_url.rstrip('/')}/webhook/telegram"
+        await bot.set_webhook(webhook_path, drop_pending_updates=True)
+        logger.info(f"Бот запущен в webhook режиме: {webhook_path}")
+        # Webhook будет обрабатываться FastAPI/Flask
+        return
+    
+    # Polling режим — требует эксклюзивного доступа
     try:
         await bot.delete_webhook(drop_pending_updates=True)
     except Exception as e:
         logger.debug(f"delete_webhook: {e}")
     logger.info("Бот запущен - Пульс города Нижневартовск")
     await dp.start_polling(bot)
+
+
+async def process_webhook_update(update_data: dict):
+    """Обработать update от webhook."""
+    from aiogram.types import Update
+    update = Update.model_validate(update_data)
+    await dp.feed_update(bot, update)
