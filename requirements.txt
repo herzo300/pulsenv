@@ -4,6 +4,7 @@ uvicorn[standard]==0.40.0
 httptools==0.6.4  # Ускорение HTTP (Linux: полное, Windows: частичное)
 
 SQLAlchemy==2.0.46
+psycopg2-binary>=2.9.0
 asyncpg==0.30.0
 
 python-dotenv==1.1.0
@@ -21,8 +22,10 @@ openai>=1.0.0
 geopy==2.4.1
 hdbscan==0.8.37
 scikit-learn==1.7.0
-requests==2.33.0
-httpx==0.28.1
+requests>=2.32.0
+httpx>=0.28.1
+# Прокси для БД: pip install PySocks или https://github.com/Anorov/PySocks/archive/refs/tags/1.7.1.zip
+PySocks>=1.7.1
 
 # Безопасность
 fastapi-security>=0.3.0
@@ -30,3 +33,8 @@ slowapi>=0.1.9
 
 # PDF generation
 reportlab>=4.0.0
+
+# Audio separation (MDX-Net vocal remover)
+# Для CPU: pip install audio-separator[cpu]
+# Для GPU (CUDA): pip install audio-separator[gpu]
+audio-separator>=0.17.0

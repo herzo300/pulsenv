@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+ #!/usr/bin/env python3
 """
-Единый мониторинг: Telegram каналы + VK паблики → AI → Firebase + @monitornv
+Единый мониторинг: Telegram каналы + VK паблики → AI → SQLite + @monitornv
 """
 
 import asyncio
@@ -32,12 +32,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Импорты сервисов
-from services.zai_service import analyze_complaint, CATEGORIES
-from services.geo_service import get_coordinates, geoparse
+from services.zai_service import analyze_complaint
+from services.geo_service import geoparse
 from services.zai_vision_service import analyze_image_with_glm4v
-from services.firebase_service import push_complaint as firebase_push
 from services.vk_monitor_service import (
-    VK_GROUPS, poll_all_groups, vk_stats, VK_SERVICE_TOKEN,
+    VK_GROUPS, poll_all_groups, VK_SERVICE_TOKEN,
 )
 from services.realtime_guard import RealtimeGuard
 from services.admin_panel import get_webapp_version
@@ -164,7 +163,7 @@ def is_relevant_message(text: str, category: str) -> bool:
 stats = {
     'tg_total': 0, 'tg_published': 0, 'tg_filtered': 0,
     'vk_total': 0, 'vk_published': 0, 'vk_filtered': 0,
-    'firebase_pushed': 0, 'firebase_errors': 0,
+    
     'by_category': {},
 }
 
@@ -174,7 +173,7 @@ guard: RealtimeGuard = None
 
 def _check_duplicate(db, text, address, lat, lon, category):
     """Проверяет дубликаты жалоб по тексту, адресу и координатам"""
-    from sqlalchemy import func, and_, or_
+    from sqlalchemy import func, and_
     from backend.models import Report
     from datetime import datetime, timedelta
     
@@ -288,7 +287,7 @@ def _get_source_icon(source_label, source_link):
 async def _check_duplicate_post(client, summary, address, lat, lon, category):
     """Проверяет дубликаты постов в канале перед публикацией"""
     try:
-        from datetime import datetime, timedelta
+        from datetime import datetime
         # Получаем последние сообщения из канала (за последние 24 часа)
         messages = await client.get_messages(TARGET_CHANNEL, limit=50)
         now = datetime.now()
@@ -341,9 +340,9 @@ async def publish_to_telegram(client, category, report_id, summary, address, lat
     map_marker_url = None
     if lat and lon and (geo_accuracy == "high" or geo_accuracy is None):
         # URL для открытия маркера на карте в веб-апп
-        from core.config import CF_WORKER
+        from core.config import PUBLIC_API_BASE_URL
         version = get_webapp_version()
-        map_marker_url = f"{CF_WORKER}/map?v={version}&marker={lat},{lon}"
+        map_marker_url = f"{PUBLIC_API_BASE_URL}/map?v={version}&marker={lat},{lon}"
     
     if lat and lon:
         lines.append(f"🗺️ {lat:.4f}, {lon:.4f}")
@@ -370,7 +369,7 @@ async def publish_to_telegram(client, category, report_id, summary, address, lat
 
 
 async def process_complaint(client, text, category, address, summary, provider, source, source_label, source_link, msg_id=None, channel=None, location_hints=None, exif_lat=None, exif_lon=None):
-    """Единая обработка жалобы: EXIF GPS / геопарсинг → SQLite → Firebase → Telegram"""
+    """Единая обработка жалобы: EXIF GPS / геопарсинг → SQLite → Telegram"""
     # Приоритет: EXIF GPS → geoparse (AI адрес → парсер → ориентиры → hints)
     lat, lon = None, None
     if exif_lat and exif_lon:
@@ -393,28 +392,6 @@ async def process_complaint(client, text, category, address, summary, provider, 
 
     # SQLite
     report_id = await save_to_db(summary, text, lat, lon, address, category, source, msg_id, channel)
-
-    # Firebase (real-time)
-    try:
-        firebase_doc_id = await firebase_push({
-            "category": category,
-            "summary": summary,
-            "text": text,
-            "address": address,
-            "lat": lat,
-            "lng": lon,
-            "source": source,
-            "source_name": source_label,
-            "post_link": source_link,
-            "provider": provider,
-        })
-        if firebase_doc_id:
-            stats['firebase_pushed'] += 1
-        else:
-            stats['firebase_errors'] += 1
-    except Exception as e:
-        logger.error(f"Firebase error: {e}")
-        stats['firebase_errors'] += 1
 
     # Определяем точность геолокации
     geo_accuracy = None
@@ -475,6 +452,9 @@ async def handle_telegram_message(client, event):
                 photo_result = await analyze_image_with_glm4v(tmp.name, caption)
                 import os as _os
                 _os.unlink(tmp.name)
+                # text по‑прежнему нужен для базы и дальнейшей обработки,
+                # но в служебный канал мы шлём только аналитическое summary,
+                # поэтому НЕ дублируем сюда сырой текст.
                 if not text:
                     text = caption or photo_result.get("description", "")
             except Exception as e:
@@ -493,7 +473,13 @@ async def handle_telegram_message(client, event):
         if photo_result:
             category = photo_result.get('category', 'Прочее')
             address = photo_result.get('address')
-            summary = photo_result.get('description', text[:100])
+            # В служебный канал отправляем только анализ (описание от модели),
+            # без прямого копирования текста жалобы.
+            raw_desc = photo_result.get('description')
+            if raw_desc:
+                summary = raw_desc
+            else:
+                summary = f"Проблема ({category}): требуется проверка по фото из канала."
             provider = photo_result.get('provider', '?')
             location_hints = photo_result.get('location_hints')
             exif_lat = photo_result.get('exif_lat')
@@ -583,7 +569,7 @@ async def handle_vk_complaint(client, complaint_data: dict):
 async def main():
     global guard
     logger.info("=" * 60)
-    logger.info("🚀 ЕДИНЫЙ МОНИТОРИНГ: Telegram + VK → AI → Firebase + @monitornv")
+    logger.info("🚀 ЕДИНЫЙ МОНИТОРИНГ: Telegram + VK → AI → SQLite + @monitornv")
     logger.info("=" * 60)
 
     if not API_ID or not API_HASH:
@@ -646,13 +632,8 @@ async def main():
             logger.warning("   Получите токен: https://dev.vk.com → Мои приложения → Сервисный ключ")
             vk_task = None
 
-        # --- Firebase ---
-        from services.firebase_service import get_firestore
-        db = get_firestore()
-        if db:
-            logger.info("✅ Firebase Firestore подключён (real-time sync)")
-        else:
-            logger.warning("⚠️ Firebase недоступен — жалобы сохраняются только в SQLite")
+        # Data storage: SQLite + Supabase
+        logger.info("✅ Данные сохраняются в SQLite + Supabase")
 
         logger.info("\n" + "=" * 60)
         logger.info("🤖 Мониторинг запущен! Ожидание сообщений...")
@@ -685,7 +666,7 @@ def _print_stats_periodic():
         logger.info(
             f"📊 TG: {stats['tg_published']}/{stats['tg_total']} | "
             f"VK: {stats['vk_published']}/{stats['vk_total']} | "
-            f"Firebase: {stats['firebase_pushed']} | "
+            ""
             f"Всего: {published}/{total}{guard_info}"
         )
 
@@ -693,10 +674,9 @@ def _print_stats_periodic():
 def _print_final_stats():
     total = stats['tg_total'] + stats['vk_total']
     published = stats['tg_published'] + stats['vk_published']
-    logger.info(f"\n📊 ИТОГО:")
+    logger.info("\n📊 ИТОГО:")
     logger.info(f"   Telegram: {stats['tg_published']}/{stats['tg_total']} опубликовано")
     logger.info(f"   VK: {stats['vk_published']}/{stats['vk_total']} опубликовано")
-    logger.info(f"   Firebase: {stats['firebase_pushed']} pushed, {stats['firebase_errors']} errors")
     logger.info(f"   Всего: {published}/{total}")
     for cat, cnt in sorted(stats['by_category'].items(), key=lambda x: x[1], reverse=True):
         logger.info(f"   {EMOJI.get(cat, '❔')} {cat}: {cnt}")

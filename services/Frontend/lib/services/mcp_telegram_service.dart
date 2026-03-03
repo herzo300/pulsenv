@@ -1,5 +1,7 @@
 // lib/services/mcp_telegram_service.dart
 /// Telegram MCP Service для работы с Telegram через MCP
+library;
+
 
 import 'mcp_service.dart';
 import 'dart:convert';

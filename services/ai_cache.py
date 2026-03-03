@@ -8,7 +8,6 @@ import hashlib
 import time
 import logging
 from typing import Dict, Any, Optional
-from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +74,7 @@ def set_cached_text(text: str, result: Dict[str, Any], model: str = ""):
         # Удаляем самую старую запись
         oldest_key = min(_cache.keys(), key=lambda k: _cache[k][1])
         del _cache[oldest_key]
-        logger.debug(f"Cache full, removed oldest entry")
+        logger.debug("Cache full, removed oldest entry")
     
     _cache[cache_key] = (result.copy(), time.time())
     logger.debug(f"Cached text analysis result (model: {model}, cache size: {len(_cache)})")
@@ -127,7 +126,7 @@ def set_cached_image(image_b64: str, result: Dict[str, Any], caption: str = "", 
         # Удаляем самую старую запись
         oldest_key = min(_cache.keys(), key=lambda k: _cache[k][1])
         del _cache[oldest_key]
-        logger.debug(f"Cache full, removed oldest entry")
+        logger.debug("Cache full, removed oldest entry")
     
     _cache[cache_key] = (result.copy(), time.time())
     logger.debug(f"Cached image analysis result (model: {model}, cache size: {len(_cache)})")

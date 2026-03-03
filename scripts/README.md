@@ -18,12 +18,18 @@
 - `optimize_*.py` - скрипты оптимизации
 - `run_all_services.py` - запуск всех сервисов
 - `start_and_check_services.py` - запуск и проверка сервисов
+- `daily_complaint_categorizer.py` - AI-анализ жалоб за текущий день и категоризация
+- `daily_digest_telegram.py` - ежедневная сводка в Telegram: жалобы за день + анализ городской ситуации + советы (запускать в конце дня, напр. 23:00 MSK)
+
+### `setup/`
+Установка и проверка окружения:
+
+### `servers/`
+Локальные серверы для разработки:
+- `mcp_fetch_server.py` — MCP Fetch на порту 3000 (JSON-RPC `fetch`). Нужен для Flutter-карты при запросе жалоб через MCP (firebase → localhost:3000).
 
 ### `deployment/`
 Скрипты развертывания:
-- `deploy_now.py` — обновление секрета CF_API_TOKEN и запуск деплоя Cloudflare Worker через GitHub Actions
-- `deploy_direct.py` — **прямой деплой через Cloudflare API** (без wrangler, без GitHub Actions) — **РЕКОМЕНДУЕТСЯ при проблемах**
-- `deploy_npx.py` — деплой через `npx wrangler` (без глобальной установки wrangler)
 - `full_update.py` — полный цикл: деплой Worker + обновление бота (версия и меню)
 
 ## Обновление бота и Web App
@@ -33,11 +39,10 @@
 | Способ | Команда |
 |--------|--------|
 | Полный цикл (деплой + бот) | `py scripts/deployment/full_update.py` |
-| Только деплой Worker | `py scripts/deployment/deploy_now.py` или `full_update.py --deploy-only` |
 | Только бот (меню + версия) | `py scripts/maintenance/update_and_verify_bot.py` или `full_update.py --no-deploy` |
 | Из Telegram | Админ-панель → Управление ботом → «Обновить бота» |
 
-Ссылки на карту/инфографику в боте уже с `?v=timestamp`, поэтому после деплоя Worker пользователи получают свежую версию при следующем открытии; bump версии и обновление меню — по желанию.
+Ссылок на карту/инфографику в боте уже с `?v=timestamp`.
 
 ## Использование
 
@@ -50,10 +55,19 @@ py scripts/deployment/full_update.py
 # Только обновление бота
 py scripts/maintenance/update_and_verify_bot.py
 
-# Только деплой Worker (выберите один из способов):
-py scripts/deployment/deploy_direct.py  # Прямой деплой через API (рекомендуется)
-py scripts/deployment/deploy_npx.py    # Через npx wrangler
-py scripts/deployment/deploy_now.py     # Через GitHub Actions
+# Дневная категоризация жалоб (фоновый цикл)
+py scripts/maintenance/daily_complaint_categorizer.py
+
+# Ежедневная сводка в Telegram (запускать раз в день, напр. 23:00 MSK — cron / Планировщик заданий)
+py scripts/maintenance/daily_digest_telegram.py
+
+# Проверка всех сервисов (Telegram бот, API :8000)
+py scripts/maintenance/start_and_check_services.py
+# Быстрая проверка тех же сервисов
+py scripts/maintenance/check_all_services_quick.py
+
+# Локальный MCP Fetch (для Flutter-карты)
+py scripts/servers/mcp_fetch_server.py   # в отдельном терминале; затем запустить приложение (Windows) или flutter run
 
 # Тесты
 py scripts/tests/test_map_online.py

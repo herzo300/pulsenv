@@ -8,13 +8,12 @@ import os
 import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
-from sqlalchemy import func, and_
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from backend.database import SessionLocal
 from backend.models import Report, User
-from services.firebase_service import get_recent_complaints
-from services.firebase_queue import get_queue_stats, process_queue as process_firebase_queue
-from services.ai_cache import get_cache_stats, cleanup_expired as cleanup_ai_cache
+from services.ai_cache import get_cache_stats
+from services.supabase_service import get_recent_complaints
 
 logger = logging.getLogger(__name__)
 
@@ -105,8 +104,8 @@ def get_stats(db: Session) -> Dict[str, Any]:
     }
 
 
-async def get_firebase_stats() -> Dict[str, Any]:
-    """Получает статистику из Firebase"""
+async def get_realtime_stats() -> Dict[str, Any]:
+    """Получает realtime-статистику (Supabase primary / Firebase fallback)."""
     try:
         complaints = await get_recent_complaints(limit=1000)
         if not complaints:
@@ -126,11 +125,16 @@ async def get_firebase_stats() -> Dict[str, Any]:
             "by_status": by_status,
         }
     except Exception as e:
-        logger.error(f"Firebase stats error: {e}")
+        logger.error(f"Realtime stats error: {e}")
         return {"total": 0, "by_category": {}, "by_status": {}}
 
 
-def format_stats_message(stats: Dict[str, Any], firebase_stats: Optional[Dict[str, Any]] = None) -> str:
+async def get_firebase_stats() -> Dict[str, Any]:
+    """Backward compatibility wrapper."""
+    return await get_realtime_stats()
+
+
+def format_stats_message(stats: Dict[str, Any], realtime_stats: Optional[Dict[str, Any]] = None) -> str:
     """Форматирует статистику в читаемое сообщение"""
     lines = [
         "📊 *Статистика работы приложения*\n",
@@ -174,14 +178,14 @@ def format_stats_message(stats: Dict[str, Any], firebase_stats: Optional[Dict[st
         for src, cnt in list(stats['by_source'].items())[:10]:
             lines.append(f"• {src}: *{cnt}*")
     
-    if firebase_stats:
+    if realtime_stats:
         lines.extend([
             "",
-            "═══ FIREBASE (REALTIME) ═══",
-            f"📊 Всего в Firebase: *{firebase_stats.get('total', 0)}*",
+            "═══ REALTIME (SUPABASE/FIREBASE) ═══",
+            f"📊 Всего в realtime: *{realtime_stats.get('total', 0)}*",
         ])
-        if firebase_stats.get('by_status'):
-            for status, cnt in firebase_stats['by_status'].items():
+        if realtime_stats.get('by_status'):
+            for status, cnt in realtime_stats['by_status'].items():
                 lines.append(f"• {status}: *{cnt}*")
     
     return "\n".join(lines)
@@ -247,6 +251,21 @@ def _ensure_data_dir():
 
 def get_webapp_version() -> int:
     """Возвращает текущую версию для URL карты и инфографики (обход кэша)."""
+    from core.config import USE_SUPABASE_PRIMARY
+    from sqlalchemy import text
+    
+    if USE_SUPABASE_PRIMARY:
+        db = SessionLocal()
+        try:
+            # Пытаемся получить из таблицы config
+            res = db.execute(text("SELECT value FROM config WHERE key = 'webapp_version'")).fetchone()
+            if res:
+                return int(res[0])
+        except Exception as e:
+            logger.debug(f"Could not get webapp version from Supabase: {e}")
+        finally:
+            db.close()
+
     _ensure_data_dir()
     try:
         if os.path.exists(_WEBAPP_VERSION_FILE):
@@ -258,16 +277,38 @@ def get_webapp_version() -> int:
     return int(__import__("time").time())
 
 def bump_webapp_version() -> int:
-    """Увеличивает версию Web App. Вызывать после деплоя worker."""
+    """Увеличивает версию Web App. Вызывать после деплоя воркера/обновлении файлов."""
     import time
     import json
+    from core.config import USE_SUPABASE_PRIMARY
+    from sqlalchemy import text
+    
     _ensure_data_dir()
     v = max(get_webapp_version(), int(time.time())) + 1
+    
+    if USE_SUPABASE_PRIMARY:
+        db = SessionLocal()
+        try:
+            # Создаем таблицу, если нет
+            db.execute(text("CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
+            # Обновляем или вставляем версию
+            db.execute(text(
+                "INSERT INTO config (key, value, updated_at) VALUES ('webapp_version', :v, :now) "
+                "ON CONFLICT (key) DO UPDATE SET value = :v, updated_at = :now"
+            ), {"v": str(v), "now": datetime.utcnow()})
+            db.commit()
+            logger.info(f"Webapp version bumped in Supabase: {v}")
+        except Exception as e:
+            logger.warning(f"Could not save webapp version to Supabase: {e}")
+            db.rollback()
+        finally:
+            db.close()
+
     try:
         with open(_WEBAPP_VERSION_FILE, "w", encoding="utf-8") as f:
             json.dump({"version": v, "updated_at": datetime.utcnow().isoformat()}, f, ensure_ascii=False)
     except Exception as e:
-        logger.warning(f"Could not save webapp version: {e}")
+        logger.warning(f"Could not save webapp version locally: {e}")
     return v
 
 
@@ -326,7 +367,6 @@ def get_bot_status() -> Dict[str, Any]:
     db = SessionLocal()
     try:
         stats = get_stats(db)
-        firebase_queue = get_queue_stats()
         ai_cache = get_cache_stats()
         return {
             "monitoring_enabled": _monitoring_enabled,
@@ -334,7 +374,7 @@ def get_bot_status() -> Dict[str, Any]:
             "total_users": stats["total_users"],
             "open_reports": stats["open"],
             "resolved_reports": stats["resolved"],
-            "firebase_queue_size": firebase_queue["size"],
+            
             "ai_cache_size": ai_cache["total"],
             "ai_cache_valid": ai_cache["valid"],
         }

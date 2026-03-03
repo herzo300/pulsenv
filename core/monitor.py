@@ -5,8 +5,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-api_id = int(os.getenv('TG_API_ID'))
-api_hash = os.getenv('TG_API_HASH')
+_api_id_str = os.getenv('TG_API_ID', '0')
+api_id = int(_api_id_str) if _api_id_str else 0
+api_hash = os.getenv('TG_API_HASH', '')
 CHANNELS = ['@typical_nv86']
 
 if not api_id or not api_hash:
@@ -54,9 +55,9 @@ async def handler(event):
 
 
 async def start():
-    await client.start()
-    print("👀 Claude monitoring started!")
-    await client.run_until_disconnected()
+    await client.start()  # type: ignore[misc]
+    print("Claude monitoring started!")
+    await client.run_until_disconnected()  # type: ignore[misc]
 
 
 if __name__ == "__main__":

@@ -17,6 +17,7 @@ class User(Base):
     photo_url = Column(String(500), nullable=True)
     balance = Column(Integer, default=0)  # баланс в Stars
     notify_new = Column(Integer, default=0)  # 1 = подписка на уведомления о новых жалобах
+    digest_subscription_until = Column(DateTime, nullable=True)  # подписка на ежедневные сводки до этой даты (UTC)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Отношения
@@ -43,6 +44,8 @@ class Report(Base):
     telegram_channel = Column(String(200), nullable=True)
     supporters = Column(Integer, default=0)  # кол-во присоединившихся
     supporters_notified = Column(Integer, default=0)  # 1 = email отправлен при 10+
+    likes_count = Column(Integer, default=0)
+    dislikes_count = Column(Integer, default=0)
     uk_name = Column(String(300), nullable=True)
     uk_email = Column(String(200), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -61,9 +64,7 @@ class Report(Base):
     likes = relationship("Like", back_populates="report", cascade="all, delete-orphan")
     comments = relationship("Comment", back_populates="report", cascade="all, delete-orphan")
 
-    @property
-    def likes_count(self):
-        return len(self.likes) if self.likes else 0
+
 
     @property
     def comments_count(self):

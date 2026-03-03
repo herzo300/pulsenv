@@ -4,15 +4,11 @@
 Используется как альтернативный метод получения данных через веб-парсинг
 """
 
-import asyncio
 import logging
 import os
-import re
 from typing import Dict, List, Optional, Any
-from datetime import datetime
-from urllib.parse import quote, urljoin
+from urllib.parse import quote
 
-import httpx
 from core.http_client import get_http_client
 from dotenv import load_dotenv
 

@@ -1,5 +1,6 @@
 // lib/config/mcp_config.dart
 /// Конфигурация MCP серверов для приложения
+library;
 
 import '../services/mcp_service.dart';
 
@@ -16,17 +17,11 @@ class MCPConfig {
       enabled: true,
     ));
 
-    // Cloudflare Worker (для API)
-    mcpService.addServer(MCPServerConfig(
-      name: 'cloudflare_worker',
-      url: 'https://anthropic-proxy.uiredepositionherzo.workers.dev',
-      enabled: true,
-    ));
-
-    // Firebase через Worker (для real-time данных)
+    // Firebase MCP endpoint: JSON-RPC должен идти в MCP Fetch Server.
+    // Сам целевой URL Firebase передается в params.url из MCPFirebaseService.
     mcpService.addServer(MCPServerConfig(
       name: 'firebase',
-      url: 'https://anthropic-proxy.uiredepositionherzo.workers.dev/firebase',
+      url: 'http://localhost:3000',
       enabled: true,
     ));
 
@@ -54,13 +49,8 @@ class MCPConfig {
         enabled: true,
       ),
       MCPServerConfig(
-        name: 'cloudflare_worker',
-        url: 'https://anthropic-proxy.uiredepositionherzo.workers.dev',
-        enabled: true,
-      ),
-      MCPServerConfig(
         name: 'firebase',
-        url: 'https://anthropic-proxy.uiredepositionherzo.workers.dev/firebase',
+        url: 'http://localhost:3000',
         enabled: true,
       ),
       MCPServerConfig(

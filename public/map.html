@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Пульс Города - Карта жалоб</title>
+  <meta name="theme-color" content="#0d9488">
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #f8fafc;
+      --text: #0f172a;
+      --text-secondary: #64748b;
+      --border: #e2e8f0;
+      --primary: #0d9488;
+      --danger: #dc2626;
+      --success: #10b981;
+      --warning: #f59e0b;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.4;
+    }
+    
+    #map {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 1;
+    }
+    
+    /* Header */
+    .header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 54px;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 12px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: 8px;
+    }
+
+    .quick-link {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #ffffff;
+      color: var(--primary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+      box-shadow: 0 2px 10px rgba(2, 6, 23, 0.08);
+    }
+
+    .quick-link:hover {
+      transform: translateY(-1px);
+      background: #f8fafc;
+      box-shadow: 0 4px 16px rgba(2, 6, 23, 0.14);
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--primary);
+    }
+    
+    .logo-icon {
+      width: 26px;
+      height: 26px;
+      background: linear-gradient(135deg, var(--primary), #14b8a6);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 14px;
+    }
+    
+    /* Stats Bar */
+    .stats-bar {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+    }
+    
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 4px 10px;
+      background: var(--surface);
+      border-radius: 8px;
+      font-size: 11px;
+      min-width: 50px;
+    }
+    
+    .stat-item .value {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--primary);
+    }
+    
+    .stat-item .label {
+      color: var(--text-secondary);
+      font-size: 9px;
+      text-transform: uppercase;
+    }
+    
+    .stat-item.emergency .value {
+      color: var(--danger);
+    }
+    
+    /* Live indicator */
+    .live-indicator {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      color: var(--success);
+      font-weight: 600;
+    }
+    
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+    }
+    
+    /* Filter Panel */
+    .filter-panel {
+      position: fixed;
+      top: 54px;
+      left: 0; right: 0;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      z-index: 999;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    
+    .filter-row {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding: 2px 0;
+    }
+    
+    .filter-row::-webkit-scrollbar { display: none; }
+    
+    /* Day filters */
+    .day-btn {
+      padding: 4px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    
+    .day-btn:hover { background: #f1f5f9; }
+    
+    .day-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+    
+    /* Category filters */
+    .filter-btn {
+      padding: 4px 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    
+    .filter-btn:hover { background: #f1f5f9; }
+    
+    .filter-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+    
+    .filter-btn[data-filter="ЧП"] {
+      border-color: var(--danger);
+    }
+    
+    .filter-btn[data-filter="ЧП"].active {
+      background: var(--danger);
+      border-color: var(--danger);
+      animation: emergency-glow 1.5s infinite;
+    }
+    
+    @keyframes emergency-glow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); }
+      50% { box-shadow: 0 0 0 4px rgba(220,38,38,0); }
+    }
+    
+    .filter-btn .cat-label {
+      font-size: 10px;
+      font-weight: 500;
+    }
+    
+    /* Marker styles */
+    .marker-pin {
+      width: 28px;
+      height: 28px;
+      border-radius: 50% 50% 50% 0;
+      background: white;
+      border: 3px solid;
+      transform: rotate(-45deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    
+    .marker-pin.status-open { background: #fef2f2; }
+    .marker-pin.status-in_progress { background: #fef9c3; }
+    .marker-pin.status-resolved { background: #d1fae5; }
+    
+    .marker-pulse {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      top: -6px;
+      left: -6px;
+      animation: marker-pulse 2s infinite;
+    }
+    
+    @keyframes marker-pulse {
+      0% { transform: scale(0.8); opacity: 0.7; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+    
+    /* Popup styles */
+    .leaflet-popup-content-wrapper {
+      padding: 0;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    }
+    
+    .leaflet-popup-content { margin: 0; width: auto !important; }
+    .leaflet-popup-tip { background: white; }
+    
+    .popup-card {
+      padding: 12px;
+      min-width: 220px;
+      background: white;
+      border-radius: 12px;
+    }
+    
+    .popup-card.compact { padding: 10px; }
+    
+    .popup-header {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+    
+    .popup-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    
+    .popup-title {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .popup-title h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 3px;
+      line-height: 1.3;
+    }
+    
+    .popup-status {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+    
+    .popup-status.open { background: #fee2e2; color: #dc2626; }
+    .popup-status.in_progress { background: #fef3c7; color: #d97706; }
+    .popup-status.resolved { background: #d1fae5; color: #059669; }
+    .popup-status.pending { background: #e0e7ff; color: #4f46e5; }
+    
+    .popup-desc {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+    
+    .popup-addr {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    
+    .popup-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    
+    .popup-supporters { color: #ef4444; }
+    
+    /* Add button */
+    .add-btn {
+      position: fixed;
+      bottom: 70px;
+      right: 12px;
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--primary), #14b8a6);
+      border: none;
+      border-radius: 50%;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 1000;
+      box-shadow: 0 4px 20px rgba(13,148,136,0.4);
+      transition: all 0.3s;
+    }
+    
+    .add-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 25px rgba(13,148,136,0.5);
+    }
+    
+    .add-btn:active { transform: scale(0.95); }
+    
+    /* Splash */
+    .splash {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, var(--primary) 0%, #14b8a6 100%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      transition: opacity 0.5s, visibility 0.5s;
+    }
+
+    .splash::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.18), transparent 42%),
+        radial-gradient(circle at 80% 10%, rgba(255,255,255,0.13), transparent 40%),
+        radial-gradient(circle at 50% 95%, rgba(2,6,23,0.2), transparent 50%);
+      pointer-events: none;
+    }
+    
+    .splash.hidden {
+      opacity: 0;
+      visibility: hidden;
+    }
+    
+    .splash-logo {
+      width: 110px;
+      height: 110px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.36);
+      font-size: 52px;
+      margin-bottom: 14px;
+      box-shadow: 0 14px 40px rgba(15, 23, 42, 0.2);
+      animation: pulseLogo 1.8s ease-in-out infinite;
+    }
+    
+    @keyframes pulseLogo {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+    }
+    
+    .splash-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    
+    .splash-subtitle {
+      font-size: 13px;
+      opacity: 0.8;
+      margin-bottom: 8px;
+    }
+
+    .splash-status {
+      font-size: 12px;
+      opacity: 0.9;
+      min-height: 18px;
+      margin-top: 6px;
+      text-align: center;
+      padding: 0 16px;
+    }
+    
+    .splash-loader {
+      margin-top: 24px;
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    .splash-start {
+      margin-top: 14px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.45);
+      background: rgba(255,255,255,0.16);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .splash-start:hover {
+      background: rgba(255,255,255,0.24);
+      transform: translateY(-1px);
+    }
+
+    .splash-ripple {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      border: 2px solid rgba(255,255,255,0.65);
+      pointer-events: none;
+      transform: translate(-50%, -50%) scale(0.2);
+      animation: rippleOut 0.8s ease-out forwards;
+    }
+
+    @keyframes rippleOut {
+      to {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(8);
+      }
+    }
+    
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    /* Responsive */
+    @media (max-width: 480px) {
+      .header { height: 48px; padding: 0 8px; gap: 6px; }
+      .logo { font-size: 12px; min-width: 0; }
+      .logo span { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .logo-icon { width: 22px; height: 22px; font-size: 12px; }
+      .stats-bar { gap: 4px; }
+      .stat-item { padding: 2px 6px; min-width: 40px; }
+      .stat-item .value { font-size: 12px; }
+      .stat-item .label { font-size: 8px; }
+      .live-indicator { display: none; }
+      .header-actions { margin-left: 0; gap: 4px; }
+      .quick-link { width: 30px; height: 30px; }
+      .filter-panel { top: 48px; padding: 4px 6px; }
+      .add-btn { bottom: 60px; width: 44px; height: 44px; font-size: 22px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .splash-logo, .live-dot, .splash-loader, .marker-pulse {
+        animation: none !important;
+      }
+      * {
+        scroll-behavior: auto !important;
+      }
+    }
+  
+    /* Map Pulse */
+    .city-pulse-map {
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 5px 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      border: 1px solid var(--border);
+    }
+    #mapPulseCanvas {
+      width: 100px;
+      height: 30px;
+    }
+    .pulse-stats {
+      display: flex;
+      flex-direction: column;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+    
+    /* Popup Actions */
+    .popup-actions {
+      display: flex;
+      gap: 5px;
+      margin-top: 8px;
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+    }
+    .popup-btn {
+      flex: 1;
+      padding: 4px 0;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .popup-btn:hover {
+      background: #f1f5f9;
+    }
+    .popup-btn.join-btn {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    .popup-btn.join-btn:hover {
+      background: #0f766e;
+    }
+
+    /* Bottom Sheet */
+    .bottom-sheet {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+    
+    .sheet-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(4px);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+    
+    .sheet-content {
+      position: relative;
+      background: #ffffff;
+      border-radius: 24px 24px 0 0;
+      padding: 0 20px 24px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      transform: translateY(100%);
+      transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+      pointer-events: auto;
+      box-shadow: 0 -8px 40px rgba(0,0,0,0.12);
+    }
+    
+    .bottom-sheet.open .sheet-overlay {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    
+    .bottom-sheet.open .sheet-content {
+      transform: translateY(0);
+    }
+    
+    .sheet-drag-handle {
+      display: flex;
+      justify-content: center;
+      padding: 12px 0;
+      cursor: grab;
+      margin-bottom: 4px;
+    }
+    
+    .sheet-drag-handle span {
+      width: 40px;
+      height: 4px;
+      border-radius: 4px;
+      background: #cbd5e1;
+    }
+    
+    .sheet-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    
+    .sheet-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+    
+    .sheet-title-container {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .sheet-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+      line-height: 1.3;
+    }
+    
+    .sheet-status {
+      display: inline-block;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+    
+    .sheet-status.open { background: #fee2e2; color: #dc2626; }
+    .sheet-status.in_progress { background: #fef3c7; color: #d97706; }
+    .sheet-status.resolved { background: #d1fae5; color: #059669; }
+    .sheet-status.pending { background: #e0e7ff; color: #4f46e5; }
+    
+    .sheet-close {
+      width: 32px;
+      height: 32px;
+      border-radius: 16px;
+      background: var(--surface);
+      border: none;
+      font-size: 20px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .sheet-close:hover {
+      background: #e2e8f0;
+    }
+    
+    .sheet-body {
+      overflow-y: auto;
+      flex: 1;
+      padding-right: 4px;
+      scrollbar-width: thin;
+    }
+    
+    .sheet-address, .sheet-time {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .sheet-desc {
+      font-size: 15px;
+      color: var(--text);
+      line-height: 1.6;
+      margin: 16px 0;
+      padding: 16px;
+      background: var(--surface);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+    }
+    
+    .sheet-actions {
+      display: flex;
+      gap: 12px;
+      margin: 20px 0;
+    }
+    
+    .sheet-action-btn {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    
+    .sheet-action-group {
+      display: flex;
+      gap: 8px;
+      flex: 1;
+    }
+    
+    .sheet-action-btn:hover {
+      background: var(--surface);
+    }
+    
+    .sheet-action-btn.primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      flex: 1.5;
+    }
+    
+    .sheet-action-btn.primary:hover {
+      background: #0f766e;
+    }
+    
+    .sheet-action-btn .count {
+      font-weight: 700;
+      opacity: 0.9;
+    }
+    
+    .sheet-comments-section {
+      margin-top: 24px;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+    
+    .sheet-section-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+    
+    .sheet-comments-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .sheet-comment {
+      padding: 12px 16px;
+      background: var(--surface);
+      border-radius: 16px;
+      border-bottom-left-radius: 4px;
+    }
+    
+    .sheet-comment-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+    
+    .sheet-comment-author {
+      font-weight: 600;
+      color: var(--text);
+    }
+    
+    .sheet-comment-date {
+      color: var(--text-secondary);
+    }
+    
+    .sheet-comment-text {
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.4;
+    }
+    
+    .sheet-gallery {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      margin: 16px 0;
+      padding-bottom: 8px;
+      scrollbar-width: none;
+    }
+    
+    .sheet-gallery img {
+      height: 120px;
+      border-radius: 12px;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+
+  </style>
+</head>
+<body>
+  <!-- Splash -->
+  <div class="splash" id="splash">
+    <div class="splash-logo">🗺️</div>
+    <div class="splash-title">Пульс Города</div>
+    <div class="splash-subtitle">Нижневартовск</div>
+    <div class="splash-status" id="splash-status">Подключаем карту...</div>
+    <div class="splash-loader"></div>
+    <button class="splash-start" id="splash-start-btn" type="button">Пропустить ожидание</button>
+  </div>
+  
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">
+      <div class="logo-icon">🗺️</div>
+      <span>Пульс Города</span>
+    </div>
+    
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="value" id="stat-today">0</span>
+        <span class="label">День</span>
+      </div>
+      <div class="stat-item">
+        <span class="value" id="stat-month">0</span>
+        <span class="label">Месяц</span>
+      </div>
+      <div class="stat-item">
+        <span class="value" id="stat-year">0</span>
+        <span class="label">Год</span>
+      </div>
+      <div class="stat-item">
+        <span class="value" id="complaint-count">0</span>
+        <span class="label">Всего</span>
+      </div>
+    </div>
+    
+    <div class="live-indicator">
+      <div class="live-dot"></div>
+      <span>LIVE</span>
+    </div>
+
+    <div class="header-actions">
+      <a class="quick-link" href="info.html" title="Открыть инфографику" aria-label="Открыть инфографику">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3v18h18"/>
+          <path d="M7 14l4-4 3 3 5-6"/>
+        </svg>
+      </a>
+    </div>
+  </header>
+  
+  <!-- Filter Panel -->
+  
+  <div id="city-pulse-container" class="city-pulse-map">
+    <canvas id="mapPulseCanvas"></canvas>
+    <div class="pulse-stats">
+      <span><span id="pulse-bpm">72</span> BPM</span>
+      <span id="pulse-mood">Спокойно</span>
+    </div>
+  </div>
+
+  <div class="filter-panel" style="top: 105px;">
+    <!-- Day filters -->
+    <div class="filter-row" id="day-filters">
+      <button class="day-btn active" data-day="all">Все</button>
+      <button class="day-btn" data-day="today">Сегодня</button>
+      <button class="day-btn" data-day="3days">3 дня</button>
+      <button class="day-btn" data-day="week">Неделя</button>
+      <button class="day-btn" data-day="month">Месяц</button>
+    </div>
+    
+    <!-- Category filters -->
+    <div class="filter-row" id="category-filters">
+      <button class="filter-btn active" data-filter="all">Все</button>
+      <button class="filter-btn" data-filter="ЧП">🚨<span class="cat-label">ЧП</span></button>
+      <button class="filter-btn" data-filter="ЖКХ">🏠</button>
+      <button class="filter-btn" data-filter="Дороги">🛣️</button>
+      <button class="filter-btn" data-filter="Благоустройство">🌳</button>
+      <button class="filter-btn" data-filter="Транспорт">🚌</button>
+      <button class="filter-btn" data-filter="Освещение">💡</button>
+      <button class="filter-btn" data-filter="Газоснабжение">🔥</button>
+      <button class="filter-btn" data-filter="Водоснабжение и канализация">💧</button>
+      <button class="filter-btn" data-filter="Отопление">🌡️</button>
+      <button class="filter-btn" data-filter="Мусор">🗑️</button>
+      <button class="filter-btn" data-filter="Снег/Наледь">❄️</button>
+      <button class="filter-btn" data-filter="Детские площадки">🎠</button>
+      <button class="filter-btn" data-filter="Парковки">🅿️</button>
+      <button class="filter-btn" data-filter="Безопасность">🛡️</button>
+      <button class="filter-btn" data-filter="Медицина">🏥</button>
+      <button class="filter-btn" data-filter="Экология">🌿</button>
+      <button class="filter-btn" data-filter="Прочее">📌</button>
+    </div>
+  </div>
+  
+  <!-- Map -->
+  <div id="map"></div>
+  
+  <!-- Add Button -->
+  <button class="add-btn" id="add-complaint-btn">+</button>
+
+  <!-- Marker Bottom Sheet -->
+  <div class="bottom-sheet" id="marker-bottom-sheet">
+    <div class="sheet-overlay" id="sheet-overlay"></div>
+    <div class="sheet-content" id="sheet-content">
+      <div class="sheet-drag-handle">
+        <span></span>
+      </div>
+      <div class="sheet-header">
+        <div class="sheet-icon" id="sheet-icon">🚨</div>
+        <div class="sheet-title-container">
+          <h2 class="sheet-title" id="sheet-title">Заголовок</h2>
+          <span class="sheet-status" id="sheet-status">Открыта</span>
+        </div>
+        <button class="sheet-close" id="sheet-close">×</button>
+      </div>
+      <div class="sheet-body">
+        <div class="sheet-address" id="sheet-address">📍 Адрес</div>
+        <div class="sheet-time" id="sheet-time">Только что</div>
+        <div class="sheet-desc" id="sheet-desc">Описание проблемы...</div>
+        
+        <div class="sheet-gallery" id="sheet-gallery" style="display:none;">
+          <!-- Images will be injected here -->
+        </div>
+
+        <div class="sheet-actions">
+          <button class="sheet-action-btn primary" id="sheet-btn-join">
+            <span class="emoji">🙋</span>Поддержать <span class="count" id="sheet-count-join">0</span>
+          </button>
+          <div class="sheet-action-group">
+            <button class="sheet-action-btn" id="sheet-btn-like">
+              <span class="emoji">👍</span><span class="count" id="sheet-count-like">0</span>
+            </button>
+            <button class="sheet-action-btn" id="sheet-btn-dislike">
+              <span class="emoji">👎</span><span class="count" id="sheet-count-dislike">0</span>
+            </button>
+          </div>
+        </div>
+        
+        <div class="sheet-comments-section">
+          <h3 class="sheet-section-title">Комментарии (<span id="sheet-comments-count">0</span>)</h3>
+          <div class="sheet-comments-list" id="sheet-comments-list">
+            <!-- Comments injected here -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Scripts -->
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script defer src="map_script.js"></script>
+</body>
+</html>

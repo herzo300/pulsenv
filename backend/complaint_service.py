@@ -1,24 +1,30 @@
 # backend/complaint_service.py
-"""Сервис для работы с жалобами (CRUD операции)"""
+"""
+Complaint CRUD service — works with the local SQLAlchemy database.
+"""
 
-from typing import List, Dict, Any, Optional
+import logging
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-from .database import SessionLocal
-from .models import Report, User
-import json
+
+from .models import Report
+
+logger = logging.getLogger(__name__)
 
 
 class ComplaintService:
-    """Сервис для работы с жалобами"""
-    
+    """Service for CRUD operations on complaints (reports)."""
+
     @staticmethod
     def create_complaint(
         db: Session,
         title: str,
-        description: Optional[str],
-        latitude: Optional[float],
-        longitude: Optional[float],
+        description: Optional[str] = None,
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None,
         category: str = "Прочее",
         status: str = "open",
         source: str = "telegram_monitoring",
@@ -27,9 +33,7 @@ class ComplaintService:
         telegram_channel: Optional[str] = None,
         nvd_vulnerability_ids: Optional[List[str]] = None,
     ) -> Optional[Report]:
-        """
-        Создать новую жалобу
-        """
+        """Create a new complaint record."""
         try:
             db_report = Report(
                 title=title,
@@ -43,17 +47,36 @@ class ComplaintService:
                 telegram_message_id=telegram_message_id,
                 telegram_channel=telegram_channel,
             )
-            
             db.add(db_report)
             db.commit()
             db.refresh(db_report)
-            
             return db_report
-            
         except Exception as e:
-            print(f"❌ Ошибка создания жалобы: {e}")
+            db.rollback()
+            logger.error("Error creating complaint: %s", e)
             return None
-    
+
+    @staticmethod
+    def _report_to_dict(report: Report) -> Dict[str, Any]:
+        """Convert a Report ORM object to a serializable dict."""
+        return {
+            "id": report.id,
+            "title": report.title,
+            "description": report.description,
+            "latitude": float(report.lat) if report.lat is not None else None,
+            "longitude": float(report.lng) if report.lng is not None else None,
+            "address": report.address,
+            "category": report.category,
+            "status": report.status,
+            "created_at": (
+                report.created_at.isoformat() if report.created_at else None
+            ),
+            "source": report.source,
+            "user_id": report.user_id,
+            "telegram_message_id": report.telegram_message_id,
+            "telegram_channel": report.telegram_channel,
+        }
+
     @staticmethod
     def get_complaints(
         db: Session,
@@ -63,13 +86,11 @@ class ComplaintService:
         offset: int = 0,
         user_id: Optional[int] = None,
         telegram_channel: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
-        """
-        Получить список жалоб с фильтрацией
-        """
+    ) -> Dict[str, Any]:
+        """Get a paginated/filtered list of complaints."""
         try:
             query = db.query(Report)
-            
+
             if category:
                 query = query.filter(Report.category == category)
             if status:
@@ -78,28 +99,15 @@ class ComplaintService:
                 query = query.filter(Report.user_id == user_id)
             if telegram_channel:
                 query = query.filter(Report.telegram_channel == telegram_channel)
-            
-            query = query.order_by(Report.created_at.desc()).offset(offset).limit(limit)
-            reports = query.all()
-            
-            result = []
-            for report in reports:
-                result.append({
-                    "id": report.id,
-                    "title": report.title,
-                    "description": report.description,
-                    "latitude": float(report.lat) if report.lat else None,
-                    "longitude": float(report.lng) if report.lng else None,
-                    "address": report.address if hasattr(report, 'address') else None,
-                    "category": report.category,
-                    "status": report.status,
-                    "created_at": report.created_at.isoformat() if report.created_at else None,
-                    "source": report.source,
-                    "user_id": report.user_id,
-                    "telegram_message_id": report.telegram_message_id,
-                    "telegram_channel": report.telegram_channel,
-                })
-            
+
+            reports = (
+                query.order_by(Report.created_at.desc())
+                .offset(offset)
+                .limit(limit)
+                .all()
+            )
+
+            result = [ComplaintService._report_to_dict(r) for r in reports]
             return {
                 "success": True,
                 "data": result,
@@ -107,78 +115,46 @@ class ComplaintService:
                 "offset": offset + len(result),
                 "limit": limit,
             }
-            
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "data": [],
-                "count": 0,
-            }
-    
+            logger.error("Error fetching complaints: %s", e)
+            return {"success": False, "error": str(e), "data": [], "count": 0}
+
     @staticmethod
-    def get_complaint_by_id(db: Session, complaint_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Получить жалобу по ID
-        """
+    def get_complaint_by_id(
+        db: Session, complaint_id: int
+    ) -> Dict[str, Any]:
+        """Get a single complaint by its ID."""
         try:
             report = db.query(Report).filter(Report.id == complaint_id).first()
-            
             if not report:
                 return {
                     "success": False,
                     "error": f"Жалоба с ID {complaint_id} не найдена",
                 }
-            
             return {
                 "success": True,
-                "data": {
-                    "id": report.id,
-                    "title": report.title,
-                    "description": report.description,
-                    "latitude": float(report.lat) if report.lat else None,
-                    "longitude": float(report.lng) if report.lng else None,
-                    "address": report.address if hasattr(report, 'address') else None,
-                    "category": report.category,
-                    "status": report.status,
-                    "created_at": report.created_at.isoformat() if report.created_at else None,
-                    "source": report.source,
-                    "user_id": report.user_id,
-                    "telegram_message_id": report.telegram_message_id,
-                    "telegram_channel": report.telegram_channel,
-                },
+                "data": ComplaintService._report_to_dict(report),
             }
-            
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-            }
-    
+            logger.error("Error fetching complaint #%d: %s", complaint_id, e)
+            return {"success": False, "error": str(e)}
+
     @staticmethod
     def update_complaint_status(
-        db: Session,
-        complaint_id: int,
-        status: str,
-    ) -> Optional[Dict[str, Any]]:
-        """
-        Обновить статус жалобы
-        """
+        db: Session, complaint_id: int, status: str
+    ) -> Dict[str, Any]:
+        """Update the status of a complaint."""
         try:
             report = db.query(Report).filter(Report.id == complaint_id).first()
-            
             if not report:
                 return {
                     "success": False,
                     "error": f"Жалоба с ID {complaint_id} не найдена",
                 }
-            
             report.status = status
             report.updated_at = datetime.utcnow()
-            
             db.commit()
             db.refresh(report)
-            
             return {
                 "success": True,
                 "data": {
@@ -187,43 +163,56 @@ class ComplaintService:
                     "updated_at": report.updated_at.isoformat(),
                 },
             }
-            
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-            }
-    
+            db.rollback()
+            logger.error("Error updating complaint #%d: %s", complaint_id, e)
+            return {"success": False, "error": str(e)}
+
     @staticmethod
-    def get_statistics(db: Session, user_id: Optional[int] = None, telegram_channel: Optional[str] = None) -> Dict[str, Any]:
+    def get_statistics(
+        db: Session,
+        user_id: Optional[int] = None,
+        telegram_channel: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
-        Получить статистику по жалобам
+        Get complaint statistics using aggregate queries (not N+1).
         """
         try:
-            total = db.query(Report).count()
-            
-            by_category = {}
-            for report in db.query(Report).all():
-                cat = report.category or "Прочее"
-                by_category[cat] = by_category.get(cat, 0) + 1
-            
-            by_source = {
-                "telegram_monitoring": db.query(Report).filter(Report.source == "telegram_monitoring").count(),
-            "mobile_app": db.query(Report).filter(Report.source == "mobile_app").count(),
-            "web": db.query(Report).filter(Report.source == "web").count(),
-            }
-            
-            by_status = {
-                "open": db.query(Report).filter(Report.status == "open").count(),
-                "pending": db.query(Report).filter(Report.status == "pending").count(),
-                "resolved": db.query(Report).filter(Report.status == "resolved").count(),
-            }
-            
-            by_channel = {}
-            for report in db.query(Report).filter(Report.telegram_channel.isnot(None)).all():
-                channel = report.telegram_channel or "unknown"
-                by_channel[channel] = by_channel.get(channel, 0) + 1
-            
+            total = db.query(func.count(Report.id)).scalar() or 0
+
+            # Category breakdown via GROUP BY
+            cat_rows = (
+                db.query(Report.category, func.count(Report.id))
+                .group_by(Report.category)
+                .all()
+            )
+            by_category = {cat or "Прочее": cnt for cat, cnt in cat_rows}
+
+            # Source breakdown via GROUP BY
+            src_rows = (
+                db.query(Report.source, func.count(Report.id))
+                .group_by(Report.source)
+                .all()
+            )
+            by_source = {src or "unknown": cnt for src, cnt in src_rows}
+
+            # Status breakdown via GROUP BY
+            status_rows = (
+                db.query(Report.status, func.count(Report.id))
+                .group_by(Report.status)
+                .all()
+            )
+            by_status = {st or "unknown": cnt for st, cnt in status_rows}
+
+            # Channel breakdown via GROUP BY
+            channel_rows = (
+                db.query(Report.telegram_channel, func.count(Report.id))
+                .filter(Report.telegram_channel.isnot(None))
+                .group_by(Report.telegram_channel)
+                .all()
+            )
+            by_channel = {ch or "unknown": cnt for ch, cnt in channel_rows}
+
             return {
                 "success": True,
                 "statistics": {
@@ -234,19 +223,9 @@ class ComplaintService:
                     "by_channel": by_channel,
                 },
             }
-            
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "statistics": {},
-            }
+            logger.error("Error computing statistics: %s", e)
+            return {"success": False, "error": str(e), "statistics": {}}
 
 
-__all__ = [
-    'create_complaint',
-    'get_complaints',
-    'get_complaint_by_id',
-    'update_complaint_status',
-    'get_statistics',
-]
+__all__ = ["ComplaintService"]

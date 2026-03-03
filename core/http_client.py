@@ -16,6 +16,8 @@ _PROXY_PORT = os.getenv("PROXY_PORT", "")
 _PROXY_USER = os.getenv("PROXY_USER", "")
 _PROXY_PASS = os.getenv("PROXY_PASS", "")
 _PROXY_URL = os.getenv("PROXY_URL", "")
+SOCKS_PROXY = os.getenv("SOCKS_PROXY", "").strip()
+HTTP_PROXY = os.getenv("HTTP_PROXY", "").strip() or os.getenv("HTTPS_PROXY", "").strip()
 USE_PROXY_FOR_EXTERNAL = os.getenv("USE_PROXY_FOR_EXTERNAL", "auto").lower() in ("true", "1", "yes")
 
 
@@ -25,7 +27,6 @@ def _socks_supported() -> bool:
     If it's not installed, passing a socks5:// proxy will crash requests.
     """
     try:
-        import socksio  # type: ignore
         return True
     except Exception:
         return False
@@ -33,11 +34,17 @@ def _socks_supported() -> bool:
 
 def get_proxy_url() -> str | None:
     """
-    Prefer explicit PROXY_URL (http/https) if provided.
-    Fallback to SOCKS5 constructed from PROXY_* only when socks support exists.
+    Prefer explicit PROXY_URL or SOCKS_PROXY/HTTP_PROXY from .env.
+    Fallback to SOCKS5 constructed from PROXY_HOST/PORT when socks support exists.
     """
     if _PROXY_URL:
         return _PROXY_URL
+    if SOCKS_PROXY:
+        if not _socks_supported() and SOCKS_PROXY.startswith("socks"):
+            return None
+        return SOCKS_PROXY if "://" in SOCKS_PROXY else f"socks5://{SOCKS_PROXY}"
+    if HTTP_PROXY:
+        return HTTP_PROXY if "://" in HTTP_PROXY else f"http://{HTTP_PROXY}"
 
     if _PROXY_HOST and _PROXY_PORT and _socks_supported():
         if _PROXY_USER and _PROXY_PASS:

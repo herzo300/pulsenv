@@ -40,6 +40,7 @@ def main():
     services = [
         ("Telegram Bot", "start_telegram_bot.py"),
         ("Monitoring", "start_all_monitoring.py"),
+        ("Daily Categorizer", "scripts/maintenance/daily_complaint_categorizer.py"),
     ]
     
     processes = []

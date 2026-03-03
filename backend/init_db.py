@@ -1,6 +1,5 @@
 # backend/init_db.py
 from .database import engine, Base
-from .models import Report
 
 
 def init_db():

@@ -40,15 +40,17 @@ python scripts/maintenance/run_all_services.py
 Soobshio_project/
 ├── core/               # Ядро приложения (конфигурация, утилиты)
 ├── services/           # Бизнес-логика и сервисы
-│   └── Frontend/       # Flutter мобильное приложение
-├── backend/            # Backend API (FastAPI)
-├── cloudflare-worker/  # Cloudflare Worker (прокси и веб-приложения)
+│   ├── Frontend/       # Flutter мобильное приложение
+│   └── Backend/        # FastAPI API (вариант 2: роутеры, app, main)
+├── backend/            # Модули API (БД, модели, complaint_service)
+├── supabase/           # Supabase migrations + Edge Functions
+├── yandex-worker/      # Legacy Yandex Cloud Function
+├── cloud-ru-worker/    # Legacy Cloud.ru FunctionGraph
 ├── scripts/            # Вспомогательные скрипты
-│   ├── tests/          # Тестовые скрипты
+│   ├── deployment/     # Деплой (в т.ч. deploy_map_and_infographic.py)
 │   ├── maintenance/    # Скрипты обслуживания
-│   └── deployment/     # Скрипты развертывания
+│   └── tests/          # Тестовые скрипты
 └── docs/               # Документация
-    └── reports/        # Отчеты о выполненных задачах
 ```
 
 Подробнее см. [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
@@ -58,8 +60,8 @@ Soobshio_project/
 - **Telegram Bot** - обработка жалоб пользователей
 - **Monitoring** - мониторинг Telegram каналов и VK групп
 - **AI Analysis** - анализ текста и изображений через OpenRouter
-- **Firebase** - хранение данных для веб-приложения
-- **Web Apps** - карта и инфографика (Cloudflare Worker)
+- **Supabase** - основное realtime-хранилище и edge endpoints
+- **Web Apps** - карта и инфографика (через FastAPI/public)
 - **Flutter App** - мобильное приложение
 
 ## 📚 Документация
@@ -85,6 +87,8 @@ python scripts/maintenance/optimize_performance.py
 ### Развертывание
 ```bash
 python scripts/deployment/deploy_now.py
+# Карта и инфографика (последняя версия): обновление данных → сборка воркера → деплой
+python scripts/deployment/deploy_map_and_infographic.py --refresh-opendata
 ```
 
 ## 📝 Лицензия

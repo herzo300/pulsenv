@@ -6,7 +6,7 @@ RealtimeGuard — фильтрация старых сообщений и дед
 
 import logging
 from collections import OrderedDict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional, Tuple
 

@@ -1,23 +1,24 @@
 // lib/services/mcp_unified_service.dart
 /// Унифицированный сервис для работы со всеми MCP сервисами
+library;
 
-import 'mcp_firebase_service.dart';
+import 'mcp_supabase_service.dart';
 import 'mcp_telegram_service.dart';
 import 'mcp_perplexity_service.dart';
 
 /// Унифицированный сервис для работы со всеми MCP сервисами
 class MCPUnifiedService {
-  final MCPFirebaseService firebase = MCPFirebaseService();
+  final MCPSupabaseService supabase = MCPSupabaseService();
   final MCPTelegramService telegram = MCPTelegramService();
   final MCPPerplexityService perplexity = MCPPerplexityService();
 
-  /// Получить все жалобы (использует Firebase)
+  /// Получить все жалобы (использует Supabase)
   Future<List<Map<String, dynamic>>> getComplaints({
     String? category,
     String? status,
     int? limit,
   }) async {
-    return await firebase.getComplaints(
+    return await supabase.getComplaints(
       category: category,
       status: status,
       limit: limit,
@@ -41,7 +42,6 @@ class MCPUnifiedService {
 
   /// Поиск информации о проблеме через Perplexity
   Future<String?> searchProblemInfo(String category, String description) async {
-    final query = 'Проблема $category в Нижневартовске: $description. Как решить?';
     return await perplexity.searchCityProblems(category);
   }
 
@@ -51,23 +51,23 @@ class MCPUnifiedService {
     buffer.writeln('*📋 Новая жалоба*');
     buffer.writeln('');
     buffer.writeln('*Категория:* ${complaint['category'] ?? 'Не указана'}');
-    
+
     if (complaint['address'] != null) {
       buffer.writeln('*Адрес:* ${complaint['address']}');
     }
-    
+
     if (complaint['text'] != null) {
       buffer.writeln('');
       buffer.writeln('*Описание:*');
       buffer.writeln(complaint['text']);
     }
-    
+
     if (complaint['lat'] != null && complaint['lng'] != null) {
       buffer.writeln('');
       buffer.writeln(
           '📍 [Открыть на карте](https://www.google.com/maps?q=${complaint['lat']},${complaint['lng']})');
     }
-    
+
     return buffer.toString();
   }
 }

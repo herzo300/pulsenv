@@ -1,18 +1,16 @@
 # services/vk_monitor_service.py
 """
 Мониторинг VK пабликов Нижневартовска
-Polling wall.get → AI анализ → фильтрация → Firebase + Telegram
+Polling wall.get → AI анализ → фильтрация → SQLite + Telegram
 """
 
 import asyncio
 import logging
 import os
 import re
-import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
-import httpx
 from core.http_client import get_http_client
 from dotenv import load_dotenv
 

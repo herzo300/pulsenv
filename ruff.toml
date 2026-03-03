@@ -1,0 +1,17 @@
+exclude = [
+    ".agent",
+    ".git",
+    "pulsenv",
+    "venv",
+    "env",
+    ".venv",
+    "__pycache__",
+    "node_modules",
+    "ultimatevocalremover_api",
+    "public"
+]
+
+[lint]
+select = ["E", "F"]
+# Ignore lines too long and bare excepts (common in these types of scripts)
+ignore = ["E501", "E722", "E402", "F841", "E701", "E741", "F821", "F401"]

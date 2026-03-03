@@ -1,5 +1,7 @@
 // lib/services/mcp_perplexity_service.dart
 /// Perplexity MCP Service для работы с Perplexity AI через MCP
+library;
+
 
 import 'mcp_service.dart';
 import 'dart:convert';

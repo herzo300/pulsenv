@@ -5,7 +5,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from .database import SessionLocal
 from .models import Report
-import sys
 from cachetools import TTLCache
 
 app = FastAPI(title="Пульс города — Нижневартовск API")
@@ -18,8 +17,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Раздаём папку web/ по маршруту /map
-_web_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
+# Раздаём папку public/ по маршруту /map
+_web_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public")
 if os.path.isdir(_web_dir):
     app.mount("/map", StaticFiles(directory=_web_dir, html=True), name="map")
 

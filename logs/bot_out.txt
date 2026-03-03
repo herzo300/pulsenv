@@ -1,0 +1,2 @@
+[OK] OpenRouter initialized (text model: qwen/qwen3.5-plus-02-15)
+[OK] OpenRouter vision initialized (model: qwen/qwen-vl-plus)

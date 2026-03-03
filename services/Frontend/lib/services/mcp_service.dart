@@ -1,6 +1,8 @@
 // lib/services/mcp_service.dart
 /// MCP (Model Context Protocol) Service для Flutter приложения
 /// Интеграция с MCP серверами для получения данных и выполнения операций
+library;
+
 
 import 'dart:async';
 import 'dart:convert';

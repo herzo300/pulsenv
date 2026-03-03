@@ -3,9 +3,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func
-from typing import List, Optional
-from datetime import datetime
+from typing import Optional
 
 from backend.database import get_db
 from backend.models import Report, User, Like, Comment

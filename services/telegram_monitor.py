@@ -1,19 +1,15 @@
 # services/telegram_monitor.py
-"""Мониторинг и парсинг Telegram каналов с автоматическим созданием жалоб"""
+"""Telegram channel monitoring with automatic complaint creation."""
 
-import asyncio
-from typing import List, Dict, Any, Optional
-from datetime import datetime
-import json
 import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from telethon import TelegramClient, events, types
-from telethon.tl.custom import Session
 
-from .nvd_service import get_vulnerabilities, parse_nvd_response
-from .cache_service import get_categories_cached, invalidate_categories_cache
+from .cache_service import get_categories_cached
 
-# MCP Fetch интеграция
+
 try:
     from .mcp_fetch_service import get_mcp_fetch_service
     MCP_FETCH_AVAILABLE = True
@@ -21,9 +17,9 @@ except ImportError:
     MCP_FETCH_AVAILABLE = False
 
 try:
-    from .complaint_service import ComplaintService
+    from .complaint_service import ComplaintService  # type: ignore
 except ImportError:
-    ComplaintService = None  # опциональная зависимость
+    ComplaintService = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -58,66 +54,65 @@ class TelegramMonitor:
         }
     
     async def start(self):
-        """Запустить мониторинг каналов"""
+        """Start monitoring channels."""
         if ComplaintService is not None:
             self.complaint_service = ComplaintService()
-        
+
         session_name = "soobshio_monitor"
-        
         self.client = TelegramClient(
             session_name,
             self.api_id,
             self.api_hash,
-            self.phone,
         )
-        
+
         await self.client.start(phone=self.phone)
-        
-        self.client.add_event_handler(
-            events.NewMessage,
-            self.handle_new_message
-        )
-        
+
+        # Register event handler for new messages
+        @self.client.on(events.NewMessage)
+        async def on_new_message(event):
+            await self.handle_new_message(event)
+
         self.is_connected = True
-        print(f"✅ Подключено к {len(self.channels)} каналам")
+        logger.info("Connected to %d channels", len(self.channels))
     
     async def stop(self):
-        """Остановить мониторинг"""
+        """Stop monitoring."""
         if self.client:
             await self.client.disconnect()
             self.is_connected = False
-            print("❌ Мониторинг остановлен")
+            logger.info("Telegram monitor stopped")
     
     async def join_channels(self):
-        """Подключиться к каналам"""
+        """Join monitored channels."""
         for channel in self.channels:
             try:
                 entity = await self.client.get_entity(channel)
                 if entity:
+                    from telethon.tl.functions.channels import JoinChannelRequest
                     await self.client(JoinChannelRequest(entity))
-                    print(f"✅ Подключен к каналу: {channel}")
+                    logger.info("Joined channel: %s", channel)
             except Exception as e:
-                print(f"❌ Ошибка подключения к {channel}: {e}")
-                # Fallback на веб-парсинг через MCP если доступен
+                logger.warning("Error joining %s: %s", channel, e)
+                # Fallback to web scraping via MCP if available
                 if MCP_FETCH_AVAILABLE:
                     try:
                         service = get_mcp_fetch_service()
                         channel_name = channel.lstrip("@")
                         web_messages = await service.fetch_telegram_channel_web(channel_name)
                         if web_messages:
-                            logger.info(f"✅ Получено {len(web_messages)} сообщений через MCP веб-парсинг для {channel}")
+                            logger.info("Got %d messages via MCP web for %s", len(web_messages), channel)
                     except Exception as web_error:
-                        logger.debug(f"MCP веб-парсинг Telegram не удался: {web_error}")
+                        logger.debug("MCP web scraping failed: %s", web_error)
     
     async def get_chat_id(self, channel: str) -> Optional[int]:
-        """Получить ID чата по имени канала"""
+        """Get chat ID by channel name."""
         try:
             entity = await self.client.get_entity(channel)
-            if entity and hasattr(entity, 'id'):
+            if entity and hasattr(entity, "id"):
                 return entity.id
         except Exception as e:
-            print(f"❌ Ошибка получения ID чата {channel}: {e}")
-            return None
+            logger.warning("Error getting chat ID for %s: %s", channel, e)
+        return None
     
     async def parse_message(self, message: types.Message) -> Optional[Dict[str, Any]]:
         """
@@ -179,25 +174,7 @@ class TelegramMonitor:
                     "caption": message.media.caption if hasattr(message.media, 'caption') else None,
                 })
         
-        # Проверка на уязвимости (CVE)
-        result["vulnerabilities"] = []
-        result["has_vulnerabilities"] = False
-        
-        if self.bot_token:
-            try:
-                vuln_result = await get_vulnerabilities(limit=5)
-                if vuln_result.get("vulnerabilities"):
-                    for vuln in vuln_result["vulnerabilities"]:
-                        cve_id = vuln.get("cve_id", "")
-                        if cve_id and cve_id not in result["vulnerabilities"]:
-                            result["vulnerabilities"].append(cve_id)
-                            self.statistics["vulnerabilities_found"] += 1
-                
-                if result["vulnerabilities"]:
-                    result["has_vulnerabilities"] = True
-            except Exception as e:
-                # Не ломаем парсинг сообщения из‑за ошибок CVE-сервиса
-                print(f"⚠️ Ошибка получения уязвимостей: {e}")
+        # Vulnerability check removed
             
         return result
     
@@ -259,9 +236,9 @@ class TelegramMonitor:
                         if complaint:
                             self.statistics["created_complaints"] += 1
                             self.statistics["total_parsed"] += 1
-                            print(f"✅ Жалоба создана из {channel}: {parsed['text'][:50]}")
+                            logger.info("Complaint created from %s: %s", channel, parsed["text"][:50])
                 except Exception as e:
-                    print(f"❌ Ошибка создания жалобы: {e}")
+                    logger.error("Error creating complaint: %s", e)
 
             if photo:
                 await self.client.send_message(channel, text, file=photo)
@@ -269,26 +246,13 @@ class TelegramMonitor:
                 await self.client.send_message(channel, text)
 
             self.statistics["total_parsed"] += 1
-            print(f"✅ Сообщение отправлено в канал {channel}: {text[:50]}")
+            logger.info("Message sent to %s: %s", channel, text[:50])
             return True
         except Exception as e:
-            print(f"❌ Ошибка отправки: {e}")
+            logger.error("Error sending to %s: %s", channel, e)
             return False
     
-    async def check_vulnerabilities(self, text: str) -> Dict[str, Any]:
-        """
-        Проверить текст на наличие уязвимостей (CVE)
-        """
-        result = await get_vulnerabilities(limit=10)
-        vulnerabilities = parse_nvd_response(result)
-        
-        if result.get("vulnerabilities"):
-            self.statistics["vulnerabilities_found"] += 1
-            
-        return {
-            "found": len(vulnerabilities) > 0,
-            "vulnerabilities": vulnerabilities,
-        }
+
     
     def get_statistics(self) -> Dict[str, Any]:
         """
@@ -341,3 +305,30 @@ def set_database(db: Any):
     """Установить соединение с БД для жалоб"""
     from services.telegram_monitor import TelegramMonitor
     TelegramMonitor.db = db
+
+
+async def start_telegram_monitoring(
+    api_id: int,
+    api_hash: str,
+    phone: str,
+    channels: List[str],
+    bot_token: Optional[str] = None,
+    db: Optional[Any] = None,
+):
+    """
+    Запустить мониторинг Telegram каналов.
+    Фабричная функция для создания и запуска TelegramMonitor.
+    
+    Returns:
+        TelegramMonitor: Запущенный экземпляр монитора
+    """
+    monitor = TelegramMonitor(
+        api_id=api_id,
+        api_hash=api_hash,
+        phone=phone,
+        channels=channels,
+        bot_token=bot_token,
+        db=db,
+    )
+    await monitor.start()
+    return monitor

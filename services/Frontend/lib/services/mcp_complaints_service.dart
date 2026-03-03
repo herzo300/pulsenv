@@ -1,5 +1,7 @@
 // lib/services/mcp_complaints_service.dart
 /// Сервис для работы с жалобами через MCP
+library;
+
 
 import 'mcp_service.dart';
 import 'dart:convert';

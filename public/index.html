@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Пульс города — Нижневартовск</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+    .logo {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 10px;
+      background: linear-gradient(90deg, #00d9ff, #00ff99);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p { color: #888; margin-bottom: 30px; }
+    .links { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+    a {
+      padding: 15px 30px;
+      background: rgba(0,217,255,0.1);
+      border: 1px solid rgba(0,217,255,0.3);
+      border-radius: 12px;
+      color: #00d9ff;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    a:hover {
+      background: rgba(0,217,255,0.2);
+      transform: translateY(-2px);
+    }
+    .status {
+      margin-top: 40px;
+      padding: 10px 20px;
+      background: rgba(0,255,153,0.1);
+      border: 1px solid rgba(0,255,153,0.3);
+      border-radius: 8px;
+      color: #00ff99;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">🌆.city</div>
+  <h1>Пульс города Нижневартовск</h1>
+  <p>Открытые данные и жалобы citizens</p>
+  
+  <div class="links">
+    <a href="map.html">🗺️ Карта жалоб</a>
+    <a href="info.html">📊 Инфографика</a>
+    <a href="test.html" style="background: rgba(255,170,0,0.1); border-color: rgba(255,170,0,0.3); color: #ffaa00;">🔍 Диагностика</a>
+  </div>
+  
+  <div class="status" id="connectionStatus">⏳ Проверка соединения...</div>
+  
+  <script>
+    // Проверка соединения с Supabase API
+    fetch('https://xpainxohbdoruakcijyq.supabase.co/functions/v1/api/health')
+      .then(r => {
+        document.getElementById('connectionStatus').textContent = r.ok ? '✅ API Connected' : '⚠️ API Limited';
+        document.getElementById('connectionStatus').style.color = r.ok ? '#00ff99' : '#ffaa00';
+        document.getElementById('connectionStatus').style.borderColor = r.ok ? 'rgba(0,255,153,0.3)' : 'rgba(255,170,0,0.3)';
+      })
+      .catch(() => {
+        document.getElementById('connectionStatus').textContent = '⚠️ Режим демо-данных';
+        document.getElementById('connectionStatus').style.color = '#ffaa00';
+      });
+  </script>
+</body>
+</html>

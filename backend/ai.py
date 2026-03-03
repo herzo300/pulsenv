@@ -1,9 +1,7 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from backend.database import SessionLocal
-from backend.models import Report
 from services.zai_service import analyze_complaint
-from typing import Any, Dict
 
 app = FastAPI(title="Soobshio Backend")
 

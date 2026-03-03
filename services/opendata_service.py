@@ -4,10 +4,8 @@
 import os
 import json
 import logging
-import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
-import httpx
 from core.http_client import get_http_client
 from dotenv import load_dotenv
 
