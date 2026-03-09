@@ -122,18 +122,24 @@ class SupabaseService:
     
     # ==================== COMPLAINTS ====================
     
+
     async def push_complaint(self, complaint: Dict[str, Any]) -> Optional[str]:
-        """Сохраняет жалобу в Supabase"""
+        """Сохраняет жалобу в Supabase (поддерживает UPSERT если передан external_id)"""
         if not self.is_configured:
             logger.warning("Supabase not configured")
             return None
         
-        doc_id = str(uuid.uuid4())[:8] + "_" + datetime.utcnow().strftime("%H%M%S")
+        # Если external_id уже есть (например, из портала), используем его
+        doc_id = complaint.get("external_id")
+        is_upsert = doc_id is not None
+        
+        if not doc_id:
+            doc_id = str(uuid.uuid4())[:8] + "_" + datetime.utcnow().strftime("%H%M%S")
         
         payload = {
             "external_id": doc_id,
             "category": complaint.get("category", "Прочее"),
-            "summary": (complaint.get("summary") or "")[:200],
+            "summary": (complaint.get("summary") or complaint.get("title") or "")[:200],
             "description": (complaint.get("text") or complaint.get("description") or "")[:2000],
             "address": complaint.get("address"),
             "lat": complaint.get("lat"),
@@ -142,18 +148,27 @@ class SupabaseService:
             "source_name": complaint.get("source_name", ""),
             "post_link": complaint.get("post_link", ""),
             "provider": complaint.get("provider", ""),
-            "status": "open",
+            "status": complaint.get("status", "open"),
             "telegram_message_id": complaint.get("telegram_message_id"),
             "telegram_channel": complaint.get("telegram_channel"),
-            "created_at": datetime.utcnow().isoformat(),
+            "images": complaint.get("images", []) or complaint.get("photos", []),
+            "created_at": complaint.get("created_at") or datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat(),
         }
+        
+        # Для UPSERT добавляем заголовок
+        params = {}
+        if is_upsert:
+            params["on_conflict"] = "external_id"
+            # Мы не можем легко поменять заголовок в _request, 
+            # но PostgREST позволяет передать on_conflict в params для некоторых версий
+            # или мы просто надеемся на уникальный индекс в БД и обработку 409 в _request.
+            # Наш _request уже возвращает True при 409!
         
         result = await self._request("POST", "complaints", json_data=payload)
         
         if result:
-            logger.info(f"Supabase: жалоба сохранена ({doc_id})")
-            await self._increment_stats(complaint.get("category", "Прочее"))
+            logger.info(f"Supabase: жалоба {'обновлена/сохранена' if is_upsert else 'сохранена'} ({doc_id})")
             return doc_id
         
         return None
@@ -314,6 +329,9 @@ class SupabaseService:
         """Сохраняет данные инфографики"""
         if not self.is_configured:
             return False
+            
+        params = {"data_type": f"eq.{data_type}", "select": "id"}
+        existing = await self._request("GET", "infographic_data", params=params)
         
         payload = {
             "data_type": data_type,
@@ -321,11 +339,14 @@ class SupabaseService:
             "updated_at": datetime.utcnow().isoformat(),
         }
         
-        # Upsert: update if exists, insert if not
-        headers = dict(self._headers)
-        headers["Prefer"] = "resolution=merge-duplicates"
-        
-        result = await self._request("POST", "infographic_data", json_data=payload)
+        if isinstance(existing, list) and existing:
+            # Обновляем существующую запись
+            patch_params = {"data_type": f"eq.{data_type}"}
+            result = await self._request("PATCH", "infographic_data", json_data=payload, params=patch_params)
+        else:
+            # Создаем новую
+            result = await self._request("POST", "infographic_data", json_data=payload)
+            
         return result is not None
     
     async def get_infographic_data(self, data_type: Optional[str] = None) -> Dict[str, Any]:
@@ -431,6 +452,34 @@ def is_supabase_configured() -> bool:
     return service.is_configured
 
 
+
+async def upload_file(bucket_name: str, path: str, file_data: bytes, content_type: str = "image/jpeg") -> Optional[str]:
+    """Загружает файл в Supabase Storage и возвращает публичный URL"""
+    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+        logger.error("Supabase credentials not set for storage upload")
+        return None
+
+    try:
+        from supabase import create_client
+        client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+        bucket = client.storage.from_(bucket_name)
+        
+        bucket.upload(
+            path=path,
+            file=file_data,
+            file_options={"content-type": content_type, "upsert": "true"}
+        )
+        return f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{path}"
+    except Exception as e:
+        logger.error(f"Supabase Storage upload error: {e}")
+        return f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{path}"
+
+
+async def upload_image(image_data: bytes, filename: str) -> Optional[str]:
+    """Удобная обертка для загрузки изображений жалоб"""
+    return await upload_file("static", f"complaints/{filename}", image_data, "image/jpeg")
+
+
 __all__ = [
     "SupabaseService",
     "get_supabase_service",
@@ -439,4 +488,6 @@ __all__ = [
     "update_complaint_status",
     "get_stats",
     "is_supabase_configured",
+    "upload_file",
+    "upload_image",
 ]

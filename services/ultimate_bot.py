@@ -26,7 +26,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Импорты сервисов
 from services.geo_service import get_coordinates
 from services.realtime_guard import RealtimeGuard
-from services.supabase_service import push_complaint as supabase_push_complaint
+from services.supabase_service import (
+    push_complaint as supabase_push_complaint,
+    upload_image
+)
 from services.zai_service import analyze_complaint, get_ai_provider_status
 from services.rate_limiter import check_rate_limit
 from services.vocal_remover_service import (
@@ -87,13 +90,13 @@ def main_kb(user_id: int = None):
     is_admin = user_id in ADMIN_TELEGRAM_IDS if user_id else False
     
     if USE_SUPABASE_PRIMARY and SUPABASE_URL:
-        # Используем НОВЫЕ эндпоинты Mapper-Puls и Info-Puls в Storage для гарантированного рендеринга HTML
+        # Используем storage-страницы карты и city story для гарантированного рендеринга HTML
         map_url = f"{SUPABASE_URL}/storage/v1/object/public/apps/map.html?v={ver}"
-        info_url = f"{SUPABASE_URL}/storage/v1/object/public/apps/info.html?v={ver}"
+        info_url = f"{SUPABASE_URL}/storage/v1/object/public/apps/city_story.html?v={ver}"
         has_https = True
     else:
         map_url = f"{PUBLIC_API_BASE_URL}/map?v={ver}"
-        info_url = f"{PUBLIC_API_BASE_URL}/infographic?v={ver}"
+        info_url = f"{PUBLIC_API_BASE_URL}/citystory?v={ver}"
         has_https = PUBLIC_API_BASE_URL.startswith("https://")
     
     kb = [
@@ -192,9 +195,9 @@ async def cmd_stats_text(message: Message):
     except: ver = 1
     
     if USE_SUPABASE_PRIMARY and SUPABASE_URL:
-        link = f"{SUPABASE_URL}/storage/v1/object/public/apps/info.html?v={ver or 100}"
+        link = f"{SUPABASE_URL}/storage/v1/object/public/apps/city_story.html?v={ver or 100}"
     else:
-        link = f"{PUBLIC_API_BASE_URL}/infographic?v={ver or 100}"
+        link = f"{PUBLIC_API_BASE_URL}/citystory?v={ver or 100}"
 
     await message.answer(
         f"📊 *Статистика и аналитика*\n\n"
@@ -317,9 +320,48 @@ async def process_uvr(callback: CallbackQuery, state: FSMContext):
 # ОБРАБОТКА ЖАЛОБ
 # ══════════════════════════════════════════════════════════════════════════════
 
+@router.message(ComplaintStates.waiting_complaint, F.photo)
+async def handle_complaint_photo(message: Message, state: FSMContext):
+    photo = message.photo[-1]
+    wait_msg = await message.answer("⏳ Загружаю фото...")
+    
+    try:
+        file = await bot.get_file(photo.file_id)
+        # Download photo
+        from io import BytesIO
+        photo_bytes = BytesIO()
+        await bot.download_file(file.file_path, photo_bytes)
+        
+        # Upload to Supabase
+        import time
+        filename = f"bot_{int(time.time())}_{message.from_user.id}.jpg"
+        url = await upload_image(photo_bytes.getvalue(), filename)
+        
+        if not url:
+            await wait_msg.edit_text("❌ Не удалось загрузить фото.")
+            return
+
+        # Update state with photos
+        data = await state.get_data()
+        photos = data.get("photos", [])
+        photos.append(url)
+        await state.update_data(photos=photos)
+        
+        # If there is a caption, analyze it as complaint text
+        if message.caption:
+            await wait_msg.edit_text(f"✅ Фото загружено. Анализирую текст: {message.caption[:30]}...")
+            await handle_complaint_text(message, state, text_override=message.caption)
+        else:
+            await wait_msg.edit_text(f"✅ Фото добавлено ({len(photos)}). Опишите проблему текстом или отправьте ещё фото.")
+            
+    except Exception as e:
+        logger.error(f"Photo handle error: {e}")
+        await wait_msg.edit_text(f"❌ Ошибка при загрузке фото: {e}")
+
+
 @router.message(ComplaintStates.waiting_complaint, F.text)
-async def handle_complaint_text(message: Message, state: FSMContext):
-    text = message.text.strip()
+async def handle_complaint_text(message: Message, state: FSMContext, text_override: str = None):
+    text = text_override or (message.text.strip() if message.text else "")
     if len(text) < 10:
         await message.answer("✏️ Опишите проблему подробнее (минимум 10 символов).")
         return
@@ -386,6 +428,7 @@ async def process_confirm(callback: CallbackQuery, state: FSMContext):
                 "id": report.id, "title": report.title, "description": report.description,
                 "category": report.category, "address": report.address, "status": "open",
                 "lat": report.lat, "lng": report.lng, "source": "bot",
+                "images": data.get("photos", []),
                 "created_at": datetime.now(timezone.utc).isoformat()
             })
         except: pass
@@ -483,6 +526,15 @@ async def main():
     ]
     await bot.set_my_commands(commands, scope=BotCommandScopeDefault())
     
+
+    # Запуск фонового обновления открытых данных (портал data.n-vartovsk.ru)
+    try:
+        from services.opendata_updater import auto_update_loop
+        asyncio.create_task(auto_update_loop())
+        logger.info("📡 Фоновое обновление открытых данных запущено")
+    except Exception as e:
+        logger.error(f"Не удалось запустить обновление открытых данных: {e}")
+
     logger.info("🚀 Ultimate Bot запущен")
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)

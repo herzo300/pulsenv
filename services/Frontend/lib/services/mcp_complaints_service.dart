@@ -3,6 +3,7 @@
 library;
 
 
+import 'package:flutter/foundation.dart';
 import 'mcp_service.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -10,7 +11,27 @@ import 'package:http/http.dart' as http;
 /// Сервис для работы с жалобами через MCP
 class MCPComplaintsService {
   final MCPService _mcpService = MCPService();
-  final String _baseUrl = 'http://127.0.0.1:8000';
+  final String _baseUrl = 'http://127.0.0.1:8001';
+
+  /// Apply category/status/limit filters to a complaint list
+  List<Map<String, dynamic>> _applyFilters(
+    List<Map<String, dynamic>> complaints, {
+    String? category,
+    String? status,
+    int? limit,
+  }) {
+    var result = complaints;
+    if (category != null) {
+      result = result.where((c) => c['category'] == category).toList();
+    }
+    if (status != null) {
+      result = result.where((c) => c['status'] == status).toList();
+    }
+    if (limit != null && limit > 0) {
+      result = result.take(limit).toList();
+    }
+    return result;
+  }
 
   /// Получить все жалобы
   Future<List<Map<String, dynamic>>> getAllComplaints({
@@ -37,30 +58,16 @@ class MCPComplaintsService {
         final body = data['body'] as String?;
         if (body != null) {
           final json = jsonDecode(body) as List<dynamic>;
-          var complaints = json.cast<Map<String, dynamic>>();
-
-          // Фильтрация
-          if (category != null) {
-            complaints = complaints
-                .where((c) => c['category'] == category)
-                .toList();
-          }
-
-          if (status != null) {
-            complaints = complaints
-                .where((c) => c['status'] == status)
-                .toList();
-          }
-
-          if (limit != null && limit > 0) {
-            complaints = complaints.take(limit).toList();
-          }
-
-          return complaints;
+          return _applyFilters(
+            json.cast<Map<String, dynamic>>(),
+            category: category,
+            status: status,
+            limit: limit,
+          );
         }
       }
     } catch (e) {
-      print('MCP запрос не удался: $e');
+      debugPrint('MCP запрос не удался: $e');
     }
 
     // Fallback на прямой HTTP
@@ -81,28 +88,15 @@ class MCPComplaintsService {
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as List<dynamic>;
-        var complaints = json.cast<Map<String, dynamic>>();
-
-        if (category != null) {
-          complaints = complaints
-              .where((c) => c['category'] == category)
-              .toList();
-        }
-
-        if (status != null) {
-          complaints = complaints
-              .where((c) => c['status'] == status)
-              .toList();
-        }
-
-        if (limit != null && limit > 0) {
-          complaints = complaints.take(limit).toList();
-        }
-
-        return complaints;
+        return _applyFilters(
+          json.cast<Map<String, dynamic>>(),
+          category: category,
+          status: status,
+          limit: limit,
+        );
       }
     } catch (e) {
-      print('Прямой HTTP запрос не удался: $e');
+      debugPrint('Прямой HTTP запрос не удался: $e');
     }
 
     return [];
@@ -128,7 +122,7 @@ class MCPComplaintsService {
         }
       }
     } catch (e) {
-      print('MCP запрос не удался: $e');
+      debugPrint('MCP запрос не удался: $e');
     }
 
     // Fallback
@@ -141,7 +135,7 @@ class MCPComplaintsService {
         return jsonDecode(response.body) as Map<String, dynamic>;
       }
     } catch (e) {
-      print('Прямой HTTP запрос не удался: $e');
+      debugPrint('Прямой HTTP запрос не удался: $e');
     }
 
     return null;
@@ -165,7 +159,7 @@ class MCPComplaintsService {
 
       return response.isSuccess;
     } catch (e) {
-      print('MCP запрос не удался: $e');
+      debugPrint('MCP запрос не удался: $e');
     }
 
     // Fallback
@@ -180,7 +174,7 @@ class MCPComplaintsService {
 
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
-      print('Прямой HTTP запрос не удался: $e');
+      debugPrint('Прямой HTTP запрос не удался: $e');
       return false;
     }
   }
@@ -203,7 +197,7 @@ class MCPComplaintsService {
 
       return response.isSuccess;
     } catch (e) {
-      print('MCP запрос не удался: $e');
+      debugPrint('MCP запрос не удался: $e');
     }
 
     // Fallback
@@ -218,7 +212,7 @@ class MCPComplaintsService {
 
       return response.statusCode == 200;
     } catch (e) {
-      print('Прямой HTTP запрос не удался: $e');
+      debugPrint('Прямой HTTP запрос не удался: $e');
       return false;
     }
   }
@@ -245,7 +239,7 @@ class MCPComplaintsService {
 
       return stats;
     } catch (e) {
-      print('Ошибка получения статистики: $e');
+      debugPrint('Ошибка получения статистики: $e');
       return {
         'total': 0,
         'open': 0,

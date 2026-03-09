@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 import httpx
 from core.http_client import get_http_client
 from dotenv import load_dotenv
+from services.supabase_service import push_complaint
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -109,6 +110,19 @@ DATASETS = {
     "placesad": "8603032896-placesad",
 }
 
+# Маппинг датасетов на категории карты
+CATEGORY_MAPPING = {
+    "wastecollection": "Экология",
+    "roadgasstation": "Дороги",
+    "roadservice": "Дороги",
+    "roadworks": "Дороги",
+    "dostupnayasreda": "Безопасность",
+    "uchdou": "Образование",
+    "uchou": "Образование",
+    "uchsport": "Медицина", # Скорректируем если надо
+    "uchculture": "Прочее",
+}
+
 
 async def _fetch_all_pages(client: httpx.AsyncClient, ds_id: str) -> list:
     """Загружает все страницы датасета."""
@@ -176,7 +190,68 @@ async def update_opendata() -> dict:
     except Exception as e:
         logger.error(f"❌ Ошибка записи: {e}")
 
+    # Синхронизация с Supabase
+    try:
+        await sync_to_supabase(result)
+    except Exception as e:
+        logger.error(f"❌ Ошибка синхронизации с Supabase: {e}")
+
+    # Обновление инфографики (JSON + Supabase)
+    try:
+        from services.infographic_sync import build_infographic, save_infographic_json, sync_infographic_to_supabase
+        infographic = build_infographic(result)
+        save_infographic_json(infographic)
+        await sync_infographic_to_supabase(infographic)
+    except Exception as e:
+        logger.error(f"❌ Ошибка обновления инфографики: {e}")
+
     return result
+
+
+async def sync_to_supabase(all_data: dict):
+    """Синхронизирует инфраструктурные объекты с Supabase."""
+    logger.info("📡 Синхронизация инфраструктуры с Supabase...")
+    count = 0
+    
+    for key, category in CATEGORY_MAPPING.items():
+        if key not in all_data:
+            continue
+            
+        rows = all_data[key].get("rows", [])
+        for row in rows:
+            # Ищем координаты
+            lat = row.get("LAT") or row.get("lat") or row.get("latitude")
+            lng = row.get("LON") or row.get("lon") or row.get("longitude")
+            
+            if not lat or not lng:
+                continue
+                
+            gid = row.get("GID") or row.get("id") or hash(str(row.get("TITLE") or row.get("ADDRESS")))
+            ext_id = f"portal_{key}_{gid}"
+            
+            # Формируем объект «жалобы» (инфраструктура на карте)
+            complaint = {
+                "external_id": ext_id,
+                "title": row.get("TITLE") or row.get("GROUP") or row.get("ORG") or category,
+                "description": f"Источник: Открытые данные. Адрес: {row.get('ADDRESS', '—')}. Тел: {row.get('TEL', '—')}",
+                "category": category,
+                "address": row.get("ADDRESS"),
+                "lat": float(lat),
+                "lng": float(lng),
+                "source": "portal",
+                "status": "resolved", # Чтобы отличалось от активных жалоб
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            try:
+                # В supabase_service.py push_complaint сам делает uuid, 
+                # но мы можем передать external_id
+                await push_complaint(complaint)
+                count += 1
+            except Exception as e:
+                logger.debug(f"Skip record {ext_id}: {e}")
+                
+    logger.info(f"✅ Синхронизировано объектов инфраструктуры: {count}")
 
 
 def get_last_update() -> str | None:

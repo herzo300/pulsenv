@@ -50,9 +50,9 @@ class CategoryTileRive extends StatelessWidget {
               Icon(
                 icon,
                 color: selected ? color : Colors.white70,
-                size: 24,
+                size: 24.0,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 4.0),
               Text(
                 label,
                 style: TextStyle(

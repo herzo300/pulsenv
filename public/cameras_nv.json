@@ -1,0 +1,218 @@
+[
+  {
+    "n": "60 лет Октября, 3",
+    "lat": 60.931431,
+    "lng": 76.553779,
+    "s": "https://stream3.dantser.org/NV_60Let_3/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "60 лет Октября, 10",
+    "lat": 60.928985,
+    "lng": 76.557381,
+    "s": "https://stream3.dantser.org/NV_60Let_10/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "60 лет Октября, 54",
+    "lat": 60.926748,
+    "lng": 76.583103,
+    "s": "https://stream3.dantser.org/NV_60Let_54/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Декабристов, 11",
+    "lat": 60.893815,
+    "lng": 76.657651,
+    "s": "https://stream3.dantser.org/NV_Dekabristov_11/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Ленина, 21",
+    "lat": 60.934359,
+    "lng": 76.593992,
+    "s": "https://stream3.dantser.org/NV_Lenina_21/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Ленина, 37",
+    "lat": 60.927605,
+    "lng": 76.622982,
+    "s": "https://stream3.dantser.org/NV_Lenina_37/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Ленина, 39",
+    "lat": 60.926843,
+    "lng": 76.623719,
+    "s": "https://stream3.dantser.org/NV_Lenina_39/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Маршала Жукова, 9",
+    "lat": 60.943391,
+    "lng": 76.567478,
+    "s": "https://stream3.dantser.org/NV_Zhukova_9/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Мира, 13",
+    "lat": 60.946556,
+    "lng": 76.557741,
+    "s": "https://stream3.dantser.org/NV_Mira_13/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Мира, 15",
+    "lat": 60.946786,
+    "lng": 76.559033,
+    "s": "https://stream3.dantser.org/NV_Mira_15/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Мira, 24",
+    "lat": 60.944914,
+    "lng": 76.564421,
+    "s": "https://stream3.dantser.org/NV_Mira_24/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Мира, 25",
+    "lat": 60.945753,
+    "lng": 76.563809,
+    "s": "https://stream3.dantser.org/NV_Mira_25/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Мира, 26",
+    "lat": 60.945082,
+    "lng": 76.567543,
+    "s": "https://stream3.dantser.org/NV_Mira_26/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Мира, 32",
+    "lat": 60.944642,
+    "lng": 76.570302,
+    "s": "https://stream3.dantser.org/NV_Mira_32/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Мира, 50",
+    "lat": 60.941661,
+    "lng": 76.58217,
+    "s": "https://stream3.dantser.org/NV_Mira_50/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Мира, 54",
+    "lat": 60.941077,
+    "lng": 76.583637,
+    "s": "https://stream3.dantser.org/NV_Mira_54/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Мира, 62",
+    "lat": 60.938036,
+    "lng": 76.596759,
+    "s": "https://stream3.dantser.org/NV_Mira_62/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Мира, 66",
+    "lat": 60.937599,
+    "lng": 76.598116,
+    "s": "https://stream3.dantser.org/NV_Mira_66/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Мира, 66А",
+    "lat": 60.936979,
+    "lng": 76.600666,
+    "s": "https://stream3.dantser.org/NV_Mira_66a/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Мира, 93",
+    "lat": 60.933883,
+    "lng": 76.616865,
+    "s": "https://stream3.dantser.org/NV_Mira_93/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Мира, 94",
+    "lat": 60.932891,
+    "lng": 76.616537,
+    "s": "https://stream3.dantser.org/NV_Mira_94/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Мира, 95",
+    "lat": 60.933407,
+    "lng": 76.619948,
+    "s": "https://stream3.dantser.org/NV_Mira_95/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Мира, 99",
+    "lat": 60.931471,
+    "lng": 76.626749,
+    "s": "https://stream3.dantser.org/NV_Mira_99/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Омская, 23",
+    "lat": 60.93537,
+    "lng": 76.578101,
+    "s": "https://stream3.dantser.org/NV_Omskaya_23/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Омская, 64",
+    "lat": 60.930008,
+    "lng": 76.599067,
+    "s": "https://stream3.dantser.org/NV_Omskaya_64/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Пермская, 4",
+    "lat": 60.937772,
+    "lng": 76.609173,
+    "s": "https://stream3.dantser.org/NV_Permskaya_4/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Салманова, 4",
+    "lat": 60.928218,
+    "lng": 76.634464,
+    "s": "https://stream3.dantser.org/NV_Salmanova_4/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Салманова, 5",
+    "lat": 60.92841,
+    "lng": 76.629851,
+    "s": "https://stream3.dantser.org/NV_Salmanova_5/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Северная, 12",
+    "lat": 60.94824,
+    "lng": 76.55231,
+    "s": "https://stream3.dantser.org/NV_Severnaya_12/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Северная, 19Г",
+    "lat": 60.958212,
+    "lng": 76.576126,
+    "s": "https://stream3.dantser.org/NV_Severnaya_19g/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Северная, 48",
+    "lat": 60.955523,
+    "lng": 76.584486,
+    "s": "https://stream3.dantser.org/NV_Severnaya_48/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Северная, 70",
+    "lat": 60.95034,
+    "lng": 76.608925,
+    "s": "https://stream3.dantser.org/NV_Severnaya_70/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Северная, 72",
+    "lat": 60.950226,
+    "lng": 76.609835,
+    "s": "https://stream3.dantser.org/NV_Severnaya_72/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Северная, 84",
+    "lat": 60.948767,
+    "lng": 76.615226,
+    "s": "https://stream3.dantser.org/NV_Severnaya_84/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Чапаева, 7",
+    "lat": 60.930005,
+    "lng": 76.586504,
+    "s": "https://stream3.dantser.org/NV_Chapaeva_7/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Чапаева, 53",
+    "lat": 60.9426,
+    "lng": 76.600107,
+    "s": "https://stream3.dantser.org/NV_Chapaeva_53/tracks-v1/mono.ts.m3u8"
+  }
+]

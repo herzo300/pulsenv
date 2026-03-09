@@ -72,9 +72,9 @@ app.include_router(telegram_router)
 
 app.include_router(opendata.router)
 
-# --- Map & Infographic HTML pages (served from public/) ---
+# --- Map & City Story HTML pages (served from public/) ---
 _map_html = ROOT / "public" / "map.html"
-_info_html = ROOT / "public" / "info.html"
+_info_html = ROOT / "public" / "city_story.html"
 
 if _map_html.exists():
 
@@ -93,8 +93,16 @@ if _info_html.exists():
     def serve_infographic():
         return FileResponse(_info_html)
 
+    @app.get("/citystory", response_class=FileResponse)
+    def serve_city_story():
+        return FileResponse(_info_html)
+
     @app.get("/map/info.html", response_class=FileResponse)
     def serve_info_html():
+        return FileResponse(_info_html)
+
+    @app.get("/map/city_story.html", response_class=FileResponse)
+    def serve_city_story_html():
         return FileResponse(_info_html)
 
 

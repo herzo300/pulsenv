@@ -4,6 +4,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 /// Конфигурация Supabase
@@ -55,7 +56,7 @@ class MCPSupabaseService {
         return data.cast<Map<String, dynamic>>();
       }
     } catch (e) {
-      print('Supabase getComplaints error: $e');
+      debugPrint('Supabase getComplaints error: $e');
     }
 
     return [];
@@ -75,7 +76,7 @@ class MCPSupabaseService {
         }
       }
     } catch (e) {
-      print('Supabase getComplaintById error: $e');
+      debugPrint('Supabase getComplaintById error: $e');
     }
 
     return null;
@@ -100,7 +101,7 @@ class MCPSupabaseService {
         }
       }
     } catch (e) {
-      print('Supabase addComplaint error: $e');
+      debugPrint('Supabase addComplaint error: $e');
     }
 
     return null;
@@ -120,7 +121,7 @@ class MCPSupabaseService {
 
       return response.statusCode == 200;
     } catch (e) {
-      print('Supabase updateComplaint error: $e');
+      debugPrint('Supabase updateComplaint error: $e');
       return false;
     }
   }
@@ -146,7 +147,7 @@ class MCPSupabaseService {
 
       return stats;
     } catch (e) {
-      print('Supabase statistics error: $e');
+      debugPrint('Supabase statistics error: $e');
       return {
         'total': 0,
         'open': 0,

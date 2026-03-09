@@ -114,6 +114,53 @@ class TelegramMonitor:
             logger.warning("Error getting chat ID for %s: %s", channel, e)
         return None
     
+    async def handle_new_message(self, event):
+        """Processes a new message event and creates complaints if relevant."""
+        if not event.message or not event.message.text:
+            return
+            
+        try:
+            # Parse message
+            parsed = await self.parse_message(event.message)
+            if not parsed:
+                return
+                
+            # If it's a valid category, we treat it as a potential complaint
+            if parsed.get("category") != "Прочее":
+                 # Import here to avoid circular dependencies
+                 from services.supabase_service import push_complaint, upload_image
+                 
+                 # Handle photos if present
+                 photos = []
+                 if event.message.media:
+                      from io import BytesIO
+                      import time
+                      buffer = BytesIO()
+                      await self.client.download_media(event.message.media, buffer)
+                      
+                      filename = f"tg_{int(time.time())}_{event.message.id}.jpg"
+                      url = await upload_image(buffer.getvalue(), filename)
+                      if url:
+                          photos.append(url)
+                 
+                 # Push to Supabase
+                 await push_complaint({
+                     "title": parsed.get("summary", parsed.get("text", ""))[:150],
+                     "description": parsed.get("text", ""),
+                     "category": parsed.get("category", "Прочее"),
+                     "address": parsed.get("address"),
+                     "images": photos,
+                     "source": f"telegram:{parsed.get('channel', 'channel')}",
+                     "telegram_message_id": str(event.message.id),
+                     "telegram_channel": parsed.get("channel", ""),
+                     "created_at": datetime.utcnow().isoformat()
+                 })
+                 self.statistics["created_complaints"] += 1
+                 logger.info("✅ Жалоба создана из Telegram [%s]: %s", parsed.get("channel"), parsed.get("category"))
+                 
+        except Exception as e:
+            logger.error("Error in Telegram monitor handle_new_message: %s", e)
+    
     async def parse_message(self, message: types.Message) -> Optional[Dict[str, Any]]:
         """
         Парсинг сообщения для извлечения данных

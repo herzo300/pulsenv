@@ -5,6 +5,7 @@
 
 import asyncio
 import logging
+import re
 import sys
 import os
 from datetime import datetime
@@ -133,7 +134,6 @@ def is_ad_or_spam(text: str) -> bool:
         return True
     if ad_count >= 2:
         return True
-    import re
     emoji_count = len(re.findall(r'[\U0001F300-\U0001F9FF]', text))
     if emoji_count > 10 and len(text) < 200:
         return True
@@ -180,6 +180,10 @@ def _check_duplicate(db, text, address, lat, lon, category):
     # Проверка за последние 7 дней
     week_ago = datetime.utcnow() - timedelta(days=7)
     
+    def _escape_like(s: str) -> str:
+        """Escape special LIKE characters to prevent unintended matching."""
+        return s.replace("%", "\\%").replace("_", "\\_")
+    
     # По координатам (если есть)
     if lat and lon:
         # Радиус ~100 метров
@@ -198,11 +202,10 @@ def _check_duplicate(db, text, address, lat, lon, category):
     
     # По адресу (если есть)
     if address:
-        # Нормализуем адрес для сравнения
-        addr_normalized = address.lower().strip()
+        addr_normalized = _escape_like(address.lower().strip()[:30])
         similar_addr = db.query(Report).filter(
             and_(
-                func.lower(Report.address).like(f"%{addr_normalized[:30]}%"),
+                func.lower(Report.address).like("%" + addr_normalized + "%"),
                 Report.category == category,
                 Report.created_at >= week_ago
             )
@@ -210,12 +213,12 @@ def _check_duplicate(db, text, address, lat, lon, category):
         if similar_addr:
             return True
     
-    # По тексту (первые 100 символов)
+    # По тексту (первые 50 символов)
     if text and len(text) > 20:
-        text_snippet = text[:100].lower().strip()
+        text_snippet = _escape_like(text[:50].lower().strip())
         similar_text = db.query(Report).filter(
             and_(
-                func.lower(Report.description).like(f"%{text_snippet[:50]}%"),
+                func.lower(Report.description).like("%" + text_snippet + "%"),
                 Report.category == category,
                 Report.created_at >= week_ago
             )
@@ -228,6 +231,7 @@ def _check_duplicate(db, text, address, lat, lon, category):
 
 async def save_to_db(summary, text, lat, lng, address, category, source, msg_id=None, channel=None):
     """Сохраняет жалобу в SQLite с проверкой дубликатов"""
+    db = None
     try:
         from backend.database import SessionLocal
         from backend.models import Report
@@ -236,7 +240,6 @@ async def save_to_db(summary, text, lat, lng, address, category, source, msg_id=
         # Проверка дубликатов
         if _check_duplicate(db, text, address, lat, lng, category):
             logger.info(f"⏭️ Дубликат пропущен: {category} @ {address or f'{lat},{lng}'}")
-            db.close()
             return None
         
         report = Report(
@@ -253,11 +256,13 @@ async def save_to_db(summary, text, lat, lng, address, category, source, msg_id=
         db.add(report)
         db.commit()
         report_id = report.id
-        db.close()
         return report_id
     except Exception as e:
         logger.error(f"DB error: {e}")
         return None
+    finally:
+        if db is not None:
+            db.close()
 
 
 def _truncate_summary(summary: str, max_len: int = 150) -> str:
@@ -648,7 +653,7 @@ async def main():
         logger.error(f"❌ {e}", exc_info=True)
     finally:
         _print_final_stats()
-        if 'vk_task' in dir() and vk_task:
+        if vk_task is not None:
             vk_task.cancel()
         await client.disconnect()
 

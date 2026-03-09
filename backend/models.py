@@ -70,6 +70,27 @@ class Report(Base):
     def comments_count(self):
         return len(self.comments) if self.comments else 0
 
+    def to_dict(self) -> dict:
+        """Canonical dict representation used by all API endpoints."""
+        return {
+            "id": self.id,
+            "title": self.title,
+            "description": self.description,
+            "lat": float(self.lat) if self.lat is not None else None,
+            "lng": float(self.lng) if self.lng is not None else None,
+            "latitude": float(self.lat) if self.lat is not None else None,
+            "longitude": float(self.lng) if self.lng is not None else None,
+            "address": self.address,
+            "category": self.category,
+            "status": self.status,
+            "source": self.source,
+            "user_id": self.user_id,
+            "telegram_message_id": self.telegram_message_id,
+            "telegram_channel": self.telegram_channel,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
 
 class Like(Base):
     """Модель лайка"""

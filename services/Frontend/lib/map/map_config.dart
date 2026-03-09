@@ -18,6 +18,8 @@ const double kMapMaxZoom = 18.0;
 /// Обязательно указывать [kOsmUserAgent] в TileLayer.
 const String kOsmTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
+const String kGoogleSatelliteUrl = 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}';
+
 /// User-Agent для запросов к OSM (требование Tile Usage Policy).
 const String kOsmUserAgent = 'com.soobshio.app';
 
@@ -26,6 +28,12 @@ const String kOsmAttributionText = 'OpenStreetMap contributors';
 
 /// URL страницы копирайта OSM (для onTap атрибуции).
 const String kOsmCopyrightUrl = 'https://www.openstreetmap.org/copyright';
+
+const Map<String, String> kCityCamsStreams = {
+  '60 лет Октября, 3': 'https://stream3.dantser.org/NV_60Let_3/tracks-v1/mono.ts.m3u8',
+  '60 лет Октября, 10': 'https://stream3.dantser.org/NV_60Let_10/tracks-v1/mono.ts.m3u8',
+  'Героев Самотлора, 18': 'https://nginx02.pride-net.ru/geroi18/index.m3u8',
+};
 
 /// Supabase URL (для REST API и Storage).
 const String kSupabaseUrl = 'https://xpainxohbdoruakcijyq.supabase.co';
@@ -43,7 +51,9 @@ class MapConfig {
   static double get minZoom => kMapMinZoom;
   static double get maxZoom => kMapMaxZoom;
   static String get tileUrl => kOsmTileUrl;
+  static String get satelliteUrl => kGoogleSatelliteUrl;
   static String get userAgent => kOsmUserAgent;
   static String get supabaseUrl => kSupabaseUrl;
+  static Map<String, String> get cityCams => kCityCamsStreams;
   static String get supabaseAnonKey => kSupabaseAnonKey;
 }

@@ -343,7 +343,7 @@ extension MCPServiceComplaints on MCPService {
         'mcp_fetch',
         'fetch',
         params: {
-          'url': 'http://127.0.0.1:8000/api/reports',
+          'url': 'http://127.0.0.1:8001/api/reports',
           'method': 'GET',
         },
       );
@@ -363,7 +363,7 @@ extension MCPServiceComplaints on MCPService {
     // Fallback на прямой запрос
     try {
       final httpResponse = await http.get(
-        Uri.parse('http://127.0.0.1:8000/api/reports'),
+        Uri.parse('http://127.0.0.1:8001/api/reports'),
       );
 
       if (httpResponse.statusCode == 200) {
@@ -384,7 +384,7 @@ extension MCPServiceComplaints on MCPService {
         'mcp_fetch',
         'fetch',
         params: {
-          'url': 'http://127.0.0.1:8000/api/reports',
+          'url': 'http://127.0.0.1:8001/api/reports',
           'method': 'POST',
           'body': jsonEncode(complaint),
           'headers': {

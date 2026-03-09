@@ -62,3 +62,12 @@ async def opendata_search_uk(address: str):
         return {"success": True, "results": results, "count": len(results)}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+@router.get("/all_uk")
+async def opendata_all_uk():
+    try:
+        from services.uk_service import _load_uk_data
+        data = _load_uk_data()
+        return {"success": True, "results": data, "count": len(data)}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

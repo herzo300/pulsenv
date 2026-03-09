@@ -14,17 +14,17 @@ const CONFIG = {
   zoom: 13,
   minZoom: 11,
   maxZoom: 18,
-  
+
   supabase: {
     url: 'https://xpainxohbdoruakcijyq.supabase.co',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwYWlueG9oYmRvcnVha2NpanlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3OTg2NjUsImV4cCI6MjA4NzM3NDY2NX0.hTBTRflUGR9LDXASS15u1IHBZOv9pMt_4CGXqevr0tc'
   },
-  
+
   tiles: {
     light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
     attribution: '&copy; OSM &copy; CARTO'
   },
-  
+
   newMarkerZoom: 16,
   popupDuration: 10000,
   returnDelay: 500
@@ -37,50 +37,51 @@ const CONFIG = {
 const CATEGORIES = {
   // Приоритетные категории (ЧП первым!)
   'ЧП': { icon: '🚨', color: '#dc2626', priority: 1 },
-  
+
   // ЖКХ и инфраструктура
   'ЖКХ': { icon: '🏠', color: '#f97316', priority: 2 },
   'Дороги': { icon: '🛣️', color: '#ef4444', priority: 2 },
   'Благоустройство': { icon: '🌳', color: '#22c55e', priority: 3 },
   'Транспорт': { icon: '🚌', color: '#3b82f6', priority: 3 },
   'Освещение': { icon: '💡', color: '#eab308', priority: 3 },
-  
+
   // Коммуникации
   'Газоснабжение': { icon: '🔥', color: '#f97316', priority: 1 },
   'Водоснабжение и канализация': { icon: '💧', color: '#0ea5e9', priority: 2 },
   'Отопление': { icon: '🌡️', color: '#f43f5e', priority: 2 },
   'Связь': { icon: '📡', color: '#6366f1', priority: 4 },
-  
+
   // Мусор и экология
   'Мусор': { icon: '🗑️', color: '#84cc16', priority: 3 },
   'Бытовой мусор': { icon: '🗑️', color: '#84cc16', priority: 3 },
   'Экология': { icon: '🌿', color: '#10b981', priority: 3 },
-  
+  'Камеры': { icon: '📷', color: '#6366f1', priority: 4 },
+
   // Общественные пространства
   'Детские площадки': { icon: '🎠', color: '#ec4899', priority: 3 },
   'Спортивные площадки': { icon: '⚽', color: '#8b5cf6', priority: 4 },
   'Парки и скверы': { icon: '🌲', color: '#059669', priority: 4 },
   'Парковки': { icon: '🅿️', color: '#6366f1', priority: 4 },
-  
+
   // Здания
   'Лифты и подъезды': { icon: '🏢', color: '#64748b', priority: 3 },
   'Строительство': { icon: '🚧', color: '#d97706', priority: 4 },
-  
+
   // Безопасность и погода
   'Безопасность': { icon: '🛡️', color: '#dc2626', priority: 2 },
   'Снег/Наледь': { icon: '❄️', color: '#38bdf8', priority: 2 },
-  
+
   // Социальные
   'Медицина': { icon: '🏥', color: '#14b8a6', priority: 2 },
   'Здравоохранение': { icon: '🏥', color: '#14b8a6', priority: 2 },
   'Образование': { icon: '🎓', color: '#8b5cf6', priority: 3 },
   'Социальная сфера': { icon: '👥', color: '#6366f1', priority: 4 },
-  
+
   // Другие
   'Животные': { icon: '🐶', color: '#f59e0b', priority: 4 },
   'Торговля': { icon: '🛒', color: '#10b981', priority: 4 },
   'Трудовое право': { icon: '📄', color: '#64748b', priority: 4 },
-  
+
   // По умолчанию
   'Прочее': { icon: '📌', color: '#64748b', priority: 5 }
 };
@@ -89,8 +90,10 @@ const CATEGORIES = {
 const MAIN_CATEGORIES = [
   'ЧП', 'ЖКХ', 'Дороги', 'Благоустройство', 'Транспорт', 'Освещение',
   'Мусор', 'Детские площадки', 'Парковки', 'Безопасность', 'Снег/Наледь',
-  'Медицина', 'Экология', 'Прочее'
+  'Медицина', 'Экология', 'Камеры', 'Прочее'
 ];
+
+const CAMERAS = [];
 
 const STATUS_LABELS = {
   'open': 'Открыта',
@@ -116,6 +119,7 @@ const state = {
   map: null,
   supabase: null,
   markerCluster: null,
+  cameraLayer: null,
   markers: new Map(),
   complaints: [],
   currentCategoryFilter: 'all',
@@ -129,7 +133,9 @@ const state = {
     month: 0,
     year: 0,
     total: 0
-  }
+  },
+  is3DMode: false,
+  cameraMarkers: []
 };
 
 const SPLASH_MESSAGES = [
@@ -148,7 +154,7 @@ let splashMessageInterval = null;
 
 async function initSupabase() {
   let supabaseLib = window.supabase;
-  
+
   if (!supabaseLib || !supabaseLib.createClient) {
     setSplashStatus('Подключаем Supabase...');
     console.log('⏳ Loading Supabase...');
@@ -160,15 +166,15 @@ async function initSupabase() {
         await loadScript('https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js');
         supabaseLib = window.supabase;
       } catch (e2) {
-      setSplashStatus('Работаем в демо-режиме');
-      console.error('❌ Supabase load failed');
+        setSplashStatus('Работаем в демо-режиме');
+        console.error('❌ Supabase load failed');
         return false;
       }
     }
   }
-  
+
   if (!supabaseLib?.createClient) return false;
-  
+
   state.supabase = supabaseLib.createClient(CONFIG.supabase.url, CONFIG.supabase.anonKey);
   setSplashStatus('Supabase подключен');
   console.log('✅ Supabase OK');
@@ -200,9 +206,9 @@ function initMap() {
     hideSplash();
     return false;
   }
-  
+
   setSplashStatus('Инициализируем карту...');
-  
+
   state.map = L.map('map', {
     center: CONFIG.center,
     zoom: CONFIG.zoom,
@@ -210,14 +216,14 @@ function initMap() {
     maxZoom: CONFIG.maxZoom,
     zoomControl: true
   });
-  
+
   L.tileLayer(CONFIG.tiles.light, {
     attribution: CONFIG.tiles.attribution,
     maxZoom: 19
   }).addTo(state.map);
-  
+
   state.map.zoomControl.setPosition('bottomright');
-  
+
   // HDBSCAN-like clustering
   state.markerCluster = L.markerClusterGroup({
     showCoverageOnHover: false,
@@ -230,8 +236,9 @@ function initMap() {
     spiderfyDistanceMultiplier: 1.5,
     chunkedLoading: true
   });
-  
+
   state.map.addLayer(state.markerCluster);
+  state.cameraLayer = L.layerGroup().addTo(state.map);
   setSplashStatus('Карта готова');
   console.log('✅ Map OK');
   return true;
@@ -244,26 +251,26 @@ function initMap() {
 function createClusterIcon(cluster) {
   const count = cluster.getChildCount();
   const children = cluster.getAllChildMarkers();
-  
+
   // Get dominant category and check for ЧП
   const catCounts = {};
   let hasEmergency = false;
-  
+
   children.forEach(m => {
     const cat = m.complaintData?.category || 'Прочее';
     if (cat === 'ЧП') hasEmergency = true;
     catCounts[cat] = (catCounts[cat] || 0) + 1;
   });
-  
+
   let maxCat = 'Прочее', maxCount = 0;
   Object.entries(catCounts).forEach(([cat, cnt]) => {
     if (cnt > maxCount) { maxCat = cat; maxCount = cnt; }
   });
-  
+
   // ЧП cluster has priority color
   const color = hasEmergency ? '#dc2626' : (CATEGORIES[maxCat]?.color || '#64748b');
   let size = count > 25 ? 48 : count > 10 ? 42 : 36;
-  
+
   return L.divIcon({
     html: `<div style="background:${color};width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:${size > 42 ? 14 : 12}px;box-shadow:0 3px 12px ${color}66;${hasEmergency ? 'animation:emergency-pulse 1s infinite;' : ''}">${count}</div>`,
     className: 'custom-cluster',
@@ -275,7 +282,7 @@ function createMarkerIcon(complaint) {
   const status = complaint.status || 'open';
   const cat = CATEGORIES[complaint.category] || CATEGORIES['Прочее'];
   const isEmergency = complaint.category === 'ЧП';
-  
+
   return L.divIcon({
     className: 'custom-marker',
     html: `
@@ -304,31 +311,31 @@ function openBottomSheet(complaint) {
   const cat = CATEGORIES[complaint.category] || CATEGORIES['Прочее'];
   const isEmergency = complaint.category === 'ЧП';
   const status = complaint.status || 'open';
-  
+
   // Update Header
   document.getElementById('sheet-icon').textContent = cat.icon;
   document.getElementById('sheet-icon').style.background = `${cat.color}22`;
   document.getElementById('sheet-icon').style.color = cat.color;
-  
+
   const titleEl = document.getElementById('sheet-title');
   titleEl.textContent = `${isEmergency ? '⚠️ ' : ''}${complaint.summary || complaint.category}`;
   if (isEmergency) titleEl.style.color = 'var(--danger)';
   else titleEl.style.color = 'var(--text)';
-  
+
   const statusEl = document.getElementById('sheet-status');
   statusEl.textContent = STATUS_LABELS[status] || status;
   statusEl.className = `sheet-status ${status}`;
-  
+
   // Update Body
   document.getElementById('sheet-address').textContent = complaint.address ? `📍 ${complaint.address}` : '📍 Нет адреса';
   document.getElementById('sheet-time').textContent = `🕒 ${getTimeAgo(complaint.created_at)}`;
   document.getElementById('sheet-desc').textContent = complaint.description || 'Описание не указано.';
-  
+
   // Counters
   document.getElementById('sheet-count-join').textContent = complaint.supporters || 0;
   document.getElementById('sheet-count-like').textContent = complaint.likes_count || 0;
   document.getElementById('sheet-count-dislike').textContent = complaint.dislikes_count || 0;
-  
+
   // Gallery
   const gallery = document.getElementById('sheet-gallery');
   if (complaint.images && complaint.images.length > 0) {
@@ -337,15 +344,18 @@ function openBottomSheet(complaint) {
   } else {
     gallery.style.display = 'none';
   }
-  
+
   // Open Sheet
   sheet.classList.add('open');
   loadComments(complaint.id);
-  
+
   // Setup Buttons
   document.getElementById('sheet-btn-join').onclick = () => handleAction(complaint.id, 'join');
   document.getElementById('sheet-btn-like').onclick = () => handleAction(complaint.id, 'like');
   document.getElementById('sheet-btn-dislike').onclick = () => handleAction(complaint.id, 'dislike');
+
+  document.getElementById('desc-btn-good').onclick = () => handleAction(complaint.id, 'good');
+  document.getElementById('desc-btn-bad').onclick = () => handleAction(complaint.id, 'bad');
 }
 
 function closeBottomSheet() {
@@ -360,21 +370,21 @@ function initBottomSheet() {
   const closeBtn = document.getElementById('sheet-close');
   const dragHandle = document.querySelector('.sheet-drag-handle');
   const content = document.getElementById('sheet-content');
-  
+
   if (!sheet) return;
-  
+
   overlay.addEventListener('click', closeBottomSheet);
   closeBtn.addEventListener('click', closeBottomSheet);
-  
+
   let startY, currentY;
   let isDragging = false;
-  
+
   dragHandle.addEventListener('touchstart', (e) => {
     startY = e.touches[0].clientY;
     isDragging = true;
     content.style.transition = 'none';
   }, { passive: true });
-  
+
   document.addEventListener('touchmove', (e) => {
     if (!isDragging) return;
     currentY = e.touches[0].clientY;
@@ -383,12 +393,12 @@ function initBottomSheet() {
       content.style.transform = `translateY(${diff}px)`;
     }
   }, { passive: true });
-  
+
   document.addEventListener('touchend', (e) => {
     if (!isDragging) return;
     isDragging = false;
     content.style.transition = 'transform 0.4s cubic-bezier(0.32, 0.72, 0, 1)';
-    
+
     if (currentY - startY > 80) {
       closeBottomSheet();
     }
@@ -400,25 +410,25 @@ async function loadComments(complaintId) {
   const list = document.getElementById('sheet-comments-list');
   const countEl = document.getElementById('sheet-comments-count');
   list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary)">Загрузка комментариев...</div>';
-  
+
   if (!state.supabase) return;
-  
+
   try {
     const { data: comments, error } = await state.supabase
       .from('comments')
       .select('*')
       .eq('complaint_id', complaintId)
       .order('created_at', { ascending: false });
-      
+
     if (error) throw error;
-    
+
     countEl.textContent = comments.length;
-    
+
     if (comments.length === 0) {
       list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary)">Пока нет комментариев</div>';
       return;
     }
-    
+
     list.innerHTML = comments.map(c => `
       <div class="sheet-comment">
         <div class="sheet-comment-header">
@@ -428,35 +438,35 @@ async function loadComments(complaintId) {
         <div class="sheet-comment-text">${c.content}</div>
       </div>
     `).join('');
-    
+
   } catch (e) {
     console.error('Error loading comments', e);
     list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--danger)">Ошибка загрузки</div>';
   }
 }
 
-window.handleAction = async function(id, action) {
+window.handleAction = async function (id, action) {
   if (!state.supabase) return;
-  
+
   try {
     const { data: currentData } = await state.supabase
       .from('complaints')
       .select('supporters, likes_count, dislikes_count')
       .eq('id', id)
       .single();
-      
+
     if (!currentData) return;
-    
+
     let updates = {};
     if (action === 'join') updates.supporters = (currentData.supporters || 0) + 1;
     if (action === 'like') updates.likes_count = (currentData.likes_count || 0) + 1;
     if (action === 'dislike') updates.dislikes_count = (currentData.dislikes_count || 0) + 1;
-    
+
     const { error } = await state.supabase
       .from('complaints')
       .update(updates)
       .eq('id', id);
-      
+
     if (!error) {
       // Update local state
       const marker = state.markers.get(id);
@@ -472,7 +482,7 @@ window.handleAction = async function(id, action) {
         if (action === 'like') document.getElementById('sheet-count-like').textContent = updates.likes_count;
         if (action === 'dislike') document.getElementById('sheet-count-dislike').textContent = updates.dislikes_count;
       }
-      
+
       // If joins >= 10, trigger collective email (via backend/supabase edge function)
       if (action === 'join' && updates.supporters === 10) {
         fetch('https://xpainxohbdoruakcijyq.supabase.co/functions/v1/api/collective-email', {
@@ -483,17 +493,34 @@ window.handleAction = async function(id, action) {
       }
     }
   } catch (e) {
-    console.error('Action error', e);
+    console.error('Action DB error', e);
+  }
+
+  if (action === 'good') {
+    const btn = document.getElementById('desc-btn-good');
+    if (btn) {
+      btn.classList.toggle('active');
+      btn.classList.toggle('good');
+      if (typeof showToast === 'function') showToast('Оценка "Решено" принята!', 'success');
+    }
+  }
+  if (action === 'bad') {
+    const btn = document.getElementById('desc-btn-bad');
+    if (btn) {
+      btn.classList.toggle('active');
+      btn.classList.toggle('bad');
+      if (typeof showToast === 'function') showToast('Оценка "Плохо" принята', 'error');
+    }
   }
 };
 function addMarker(complaint, animate = false) {
   if (!complaint.lat || !complaint.lng) return null;
   if (state.markers.has(complaint.id)) return state.markers.get(complaint.id);
-  
+
   const marker = L.marker([complaint.lat, complaint.lng], {
     icon: createMarkerIcon(complaint)
   });
-  
+
   marker.on('click', () => {
     openBottomSheet(complaint);
     state.map.setView([complaint.lat, complaint.lng], Math.max(state.map.getZoom(), 15), {
@@ -503,15 +530,15 @@ function addMarker(complaint, animate = false) {
   });
   marker.complaintData = complaint;
   state.markers.set(complaint.id, marker);
-  
+
   if (matchesFilters(complaint)) {
     state.markerCluster.addLayer(marker);
-    
+
     if (animate) {
       focusOnNewMarker(marker, complaint);
     }
   }
-  
+
   return marker;
 }
 
@@ -524,25 +551,25 @@ function focusOnNewMarker(marker, complaint) {
     center: state.map.getCenter(),
     zoom: state.map.getZoom()
   };
-  
+
   if (state.autoReturnTimeout) {
     clearTimeout(state.autoReturnTimeout);
   }
-  
+
   state.map.flyTo([complaint.lat, complaint.lng], CONFIG.newMarkerZoom, {
     duration: 1.2,
     easeLinearity: 0.25
   });
-  
+
   setTimeout(() => {
     openBottomSheet(complaint);
     const isEmergency = complaint.category === 'ЧП';
     showNotification(`${isEmergency ? '🚨 ЧП: ' : '🆕 '}${complaint.summary || complaint.category}`, isEmergency ? 'emergency' : 'new');
   }, 1300);
-  
+
   state.autoReturnTimeout = setTimeout(() => {
     closeBottomSheet();
-    
+
     setTimeout(() => {
       if (state.savedView) {
         state.map.flyTo(state.savedView.center, state.savedView.zoom, {
@@ -564,21 +591,21 @@ function calculateStats() {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const yearStart = new Date(now.getFullYear(), 0, 1);
-  
+
   state.stats = {
     today: 0,
     month: 0,
     year: 0,
     total: state.complaints.length
   };
-  
+
   state.complaints.forEach(c => {
     const created = new Date(c.created_at);
     if (created >= todayStart) state.stats.today++;
     if (created >= monthStart) state.stats.month++;
     if (created >= yearStart) state.stats.year++;
   });
-  
+
   console.log(`📊 Stats: today=${state.stats.today}, month=${state.stats.month}, year=${state.stats.year}, total=${state.stats.total}`);
 }
 
@@ -589,7 +616,7 @@ function calculateStats() {
 async function loadComplaints() {
   console.log('📥 Loading...');
   setSplashStatus('Загружаем обращения...');
-  
+
   if (state.supabase) {
     try {
       const { data, error } = await state.supabase
@@ -599,17 +626,18 @@ async function loadComplaints() {
         .not('lng', 'is', null)
         .order('created_at', { ascending: false })
         .limit(1000);
-      
+
       if (error) {
         console.error('❌ Load error:', error);
         return loadDemoComplaints();
       }
-      
+
       console.log(`✅ Loaded ${data.length} complaints`);
       state.complaints = data;
       data.forEach(c => addMarker(c));
       calculateStats();
       updateUI();
+      sync3DData();
       return data;
     } catch (err) {
       console.error('❌ Exception:', err);
@@ -631,11 +659,12 @@ function loadDemoComplaints() {
     { id: 'd6', summary: 'Мусор у контейнеров', category: 'Мусор', status: 'open', lat: 60.9410, lng: 76.5600, address: 'мкр. 10П', supporters: 31, created_at: new Date(now - 2592000000).toISOString() },
     { id: 'd7', summary: 'Снег не убран', category: 'Снег/Наледь', status: 'open', lat: 60.9330, lng: 76.5520, address: 'пр. Победы', supporters: 12, created_at: new Date(now - 86400000 * 15).toISOString() }
   ];
-  
+
   state.complaints = demoData;
   demoData.forEach(c => addMarker(c));
   calculateStats();
   updateUI();
+  sync3DData();
   return demoData;
 }
 
@@ -645,9 +674,9 @@ function loadDemoComplaints() {
 
 function subscribeToRealtime() {
   if (!state.supabase) return;
-  
+
   console.log('📡 Subscribing to realtime...');
-  
+
   state.realtimeSubscription = state.supabase
     .channel('complaints-realtime')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'complaints' }, (payload) => {
@@ -670,21 +699,24 @@ function handleNewComplaint(complaint) {
   addMarker(complaint, true);
   calculateStats();
   updateUI();
+  sync3DData();
 }
 
 function handleUpdatedComplaint(complaint) {
   const idx = state.complaints.findIndex(c => c.id === complaint.id);
   if (idx !== -1) state.complaints[idx] = complaint;
-  
+
   const marker = state.markers.get(complaint.id);
   if (marker) {
     marker.setIcon(createMarkerIcon(complaint));
     marker.complaintData = complaint;
-    
+
     if (currentComplaintId === complaint.id) {
       openBottomSheet(complaint);
     }
   }
+
+  sync3DData();
 }
 
 function handleDeletedComplaint(complaint) {
@@ -696,6 +728,7 @@ function handleDeletedComplaint(complaint) {
   }
   calculateStats();
   updateUI();
+  sync3DData();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -706,12 +739,12 @@ function matchesFilters(complaint) {
   if (state.currentCategoryFilter !== 'all' && complaint.category !== state.currentCategoryFilter) {
     return false;
   }
-  
+
   if (state.currentDayFilter !== 'all') {
     const created = new Date(complaint.created_at);
     const now = new Date();
     const diffDays = (now - created) / (1000 * 60 * 60 * 24);
-    
+
     switch (state.currentDayFilter) {
       case 'today': if (diffDays > 1) return false; break;
       case '3days': if (diffDays > 3) return false; break;
@@ -719,20 +752,27 @@ function matchesFilters(complaint) {
       case 'month': if (diffDays > 30) return false; break;
     }
   }
-  
+
   return true;
 }
 
 function applyFilters() {
   state.markerCluster.clearLayers();
-  
+  if (state.cameraLayer) state.cameraLayer.clearLayers();
+
+  const isCameraMode = state.currentCategoryFilter === 'Камеры';
+
+  if (isCameraMode) {
+    state.cameraMarkers.forEach(cm => cm.marker.addTo(state.cameraLayer));
+  }
+
   state.complaints.forEach(complaint => {
     const marker = state.markers.get(complaint.id);
     if (marker && matchesFilters(complaint)) {
       state.markerCluster.addLayer(marker);
     }
   });
-  
+
   updateUI();
 }
 
@@ -742,20 +782,20 @@ function initFilters() {
     catPanel.addEventListener('click', (e) => {
       const btn = e.target.closest('.filter-btn');
       if (!btn) return;
-      
+
       state.currentCategoryFilter = btn.dataset.filter;
       catPanel.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       applyFilters();
     });
   }
-  
+
   const dayPanel = document.getElementById('day-filters');
   if (dayPanel) {
     dayPanel.addEventListener('click', (e) => {
       const btn = e.target.closest('.day-btn');
       if (!btn) return;
-      
+
       state.currentDayFilter = btn.dataset.day;
       dayPanel.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
@@ -770,16 +810,16 @@ function initFilters() {
 
 function updateUI() {
   const filteredCount = state.complaints.filter(matchesFilters).length;
-  
+
   // Update main counter
   const countEl = document.getElementById('complaint-count');
   if (countEl) countEl.textContent = filteredCount;
-  
+
   // Update stats counters
   const todayEl = document.getElementById('stat-today');
   const monthEl = document.getElementById('stat-month');
   const yearEl = document.getElementById('stat-year');
-  
+
   if (todayEl) todayEl.textContent = state.stats.today;
   if (monthEl) monthEl.textContent = state.stats.month;
   if (yearEl) yearEl.textContent = state.stats.year;
@@ -847,7 +887,7 @@ function showNotification(message, type = 'info') {
     info: '#3b82f6',
     error: '#ef4444'
   };
-  
+
   const notification = document.createElement('div');
   notification.style.cssText = `
     position:fixed;top:70px;left:50%;transform:translateX(-50%);
@@ -858,7 +898,7 @@ function showNotification(message, type = 'info') {
   `;
   notification.textContent = message;
   document.body.appendChild(notification);
-  
+
   setTimeout(() => {
     notification.style.animation = 'slideUp 0.3s ease';
     setTimeout(() => notification.remove(), 300);
@@ -876,7 +916,7 @@ function getTimeAgo(dateStr) {
   const mins = Math.floor(diff / 60000);
   const hours = Math.floor(mins / 60);
   const days = Math.floor(hours / 24);
-  
+
   if (mins < 1) return 'сейчас';
   if (mins < 60) return `${mins} мин`;
   if (hours < 24) return `${hours} ч`;
@@ -902,7 +942,7 @@ document.head.appendChild(style);
 function initAddComplaintButton() {
   const btn = document.getElementById('add-complaint-btn');
   if (!btn) return;
-  
+
   btn.addEventListener('click', () => {
     const center = state.map.getCenter();
     alert(`Добавление жалобы:\n${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}`);
@@ -917,18 +957,22 @@ async function init() {
   console.log('🚀 Init...');
   initSplashInteractions();
   initBottomSheet();
-  
+
   const supabaseOk = await initSupabase();
   if (!supabaseOk) console.warn('⚠️ Demo mode');
-  
+
   if (!initMap()) return;
-  
+
   initFilters();
   initAddComplaintButton();
-  
+  initToggle3D();
+
   await loadComplaints();
+  initCameraLayer();
+  startCameraAiMonitor();
+
   subscribeToRealtime();
-  
+
   setSplashStatus('Готово');
   setTimeout(hideSplash, 550);
   console.log('✅ Ready');
@@ -954,7 +998,7 @@ const MapPulse = {
   ctx: null,
   history: [],
   frameCount: 0,
-  
+
   init() {
     this.canvas = document.getElementById('mapPulseCanvas');
     if (!this.canvas) return;
@@ -963,17 +1007,17 @@ const MapPulse = {
     this.animate();
     setInterval(() => this.updatePulse(), 2000);
   },
-  
+
   updatePulse() {
     if (!state.complaints) return;
-    
+
     // Calculate pulse based on today's complaints and categories
     const today = new Date();
-    today.setHours(0,0,0,0);
-    
+    today.setHours(0, 0, 0, 0);
+
     let todaysCount = 0;
     let emergencyCount = 0;
-    
+
     state.complaints.forEach(c => {
       const created = new Date(c.created_at);
       if (created >= today) {
@@ -981,12 +1025,12 @@ const MapPulse = {
         if (c.category === 'ЧП') emergencyCount++;
       }
     });
-    
+
     let newBpm = 60 + (todaysCount * 0.5) + (emergencyCount * 10);
     if (newBpm > 160) newBpm = 160;
-    
+
     this.targetBpm = newBpm;
-    
+
     let mood = 'Спокойно';
     let color = '#10b981';
     if (this.targetBpm > 120 || emergencyCount > 0) {
@@ -999,51 +1043,51 @@ const MapPulse = {
       mood = 'Умеренно';
       color = '#0ea5e9';
     }
-    
+
     const bpmEl = document.getElementById('pulse-bpm');
     const moodEl = document.getElementById('pulse-mood');
-    
+
     if (bpmEl) bpmEl.textContent = Math.round(this.targetBpm);
     if (moodEl) {
       moodEl.textContent = mood;
       moodEl.style.color = color;
     }
   },
-  
+
   animate() {
     if (!this.canvas || !this.ctx) return;
     this.frameCount++;
-    
+
     this.bpm += (this.targetBpm - this.bpm) * 0.05;
-    
+
     const time = Date.now();
     const beatInterval = 60000 / this.bpm;
     const phase = (time % beatInterval) / beatInterval;
-    
+
     let y = 0;
     if (phase < 0.1) y = Math.sin(phase * Math.PI * 10) * 15;
     else if (phase < 0.2) y = -Math.sin((phase - 0.1) * Math.PI * 10) * 8;
     else if (phase > 0.8 && phase < 0.9) y = Math.sin((phase - 0.8) * Math.PI * 10) * 5;
-    
+
     // Add noise
     y += (Math.random() - 0.5) * 2;
-    
+
     this.history.push(y);
     this.history.shift();
-    
+
     const width = this.canvas.width;
     const height = this.canvas.height;
-    
+
     this.ctx.clearRect(0, 0, width, height);
     this.ctx.beginPath();
-    
+
     let color = '#10b981';
     if (this.bpm > 120) color = '#dc2626';
     else if (this.bpm > 90) color = '#f59e0b';
-    
+
     this.ctx.strokeStyle = color;
     this.ctx.lineWidth = 2;
-    
+
     for (let i = 0; i < this.history.length; i++) {
       const x = (i / (this.history.length - 1)) * width;
       const val = height / 2 - this.history[i];
@@ -1051,8 +1095,196 @@ const MapPulse = {
       else this.ctx.lineTo(x, val);
     }
     this.ctx.stroke();
-    
+
     requestAnimationFrame(() => this.animate());
   }
 };
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 3D LAYER LOGIC
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
+function initToggle3D() {
+  const btn = document.getElementById('toggle-3d-btn');
+  const map3d = document.getElementById('map-3d');
+  const iframe = document.getElementById('iframe-3d');
+  const mapLeaflet = document.getElementById('map');
+
+  if (!btn || !map3d) return;
+
+  btn.addEventListener('click', () => {
+    state.is3DMode = !state.is3DMode;
+
+    if (state.is3DMode) {
+      btn.innerHTML = '🌍';
+      btn.style.background = 'var(--primary)';
+      btn.style.color = 'white';
+      map3d.style.display = 'block';
+      mapLeaflet.style.opacity = '0';
+      mapLeaflet.style.pointerEvents = 'none';
+
+      if (!iframe.dataset.bound) {
+        iframe.addEventListener('load', () => {
+          sync3DData();
+        });
+        iframe.dataset.bound = 'true';
+      }
+
+      if (!iframe.src || iframe.src.endsWith('/')) {
+        iframe.src = 'cesium_view.html';
+      } else {
+        sync3DData();
+      }
+      showNotification('3D Режим активирован', 'info');
+    } else {
+      btn.innerHTML = '🏙️';
+      btn.style.background = 'white';
+      btn.style.color = 'var(--text)';
+      map3d.style.display = 'none';
+      mapLeaflet.style.opacity = '1';
+      mapLeaflet.style.pointerEvents = 'auto';
+      showNotification('Возврат к плоской карте', 'info');
+    }
+  });
+}
+
+function get3DFrameWindow() {
+  const iframe = document.getElementById('iframe-3d');
+  return iframe?.contentWindow || null;
+}
+
+function postTo3DFrame(message) {
+  const frameWindow = get3DFrameWindow();
+  if (!frameWindow) return false;
+  frameWindow.postMessage(message, '*');
+  return true;
+}
+
+function sync3DData() {
+  const complaintsPayload = state.complaints
+    .filter(item => item.lat != null && item.lng != null)
+    .map(item => ({
+      id: item.id,
+      lat: item.lat,
+      lng: item.lng,
+      title: item.summary || item.category || 'Объект',
+      type: item.category === 'Строительство' ? 'construction' : 'complaint',
+      color: CATEGORIES[item.category]?.color || '#00E5FF',
+      description: item.description || '',
+      developer: item.author_name || '',
+      deadline: item.deadline || '',
+      floors: item.floors || '',
+      height: item.height || 12
+    }));
+
+  const cameraPayload = CAMERAS.map(item => ({
+    lat: item.lat,
+    lng: item.lon,
+    n: item.name,
+    s: item.url
+  }));
+
+  postTo3DFrame({ type: 'citypulse:setCameras', payload: cameraPayload });
+  postTo3DFrame({ type: 'citypulse:setMarkers', payload: complaintsPayload });
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * CITY CAMERAS LAYER
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
+function initCameraLayer() {
+  fetch('cameras_nv.json')
+    .then(response => response.json())
+    .then(cameras => {
+      CAMERAS.length = 0;
+      cameras.forEach((cam, index) => {
+        CAMERAS.push({
+          id: `cam_${index + 1}`,
+          name: cam.n,
+          lat: cam.lat,
+          lon: cam.lng,
+          url: cam.s,
+          desc: `Камера наблюдения: ${cam.n}`
+        });
+      });
+
+      CAMERAS.forEach(cam => {
+        const icon = L.divIcon({
+          className: 'camera-marker',
+          html: `<div style="background:var(--primary); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.3); border:2px solid white; transform: rotate(-45deg);">
+                   <span style="transform: rotate(45deg); font-size:16px;">📷</span>
+                 </div>`,
+          iconSize: [32, 32],
+          iconAnchor: [16, 32]
+        });
+
+        const marker = L.marker([cam.lat, cam.lon], { icon });
+        marker.on('click', () => openCameraDetails(cam));
+        state.cameraMarkers.push({ marker, id: cam.id, lat: cam.lat, lon: cam.lon, name: cam.name, url: cam.url });
+      });
+
+      sync3DData();
+      applyFilters();
+    })
+    .catch(error => console.error('Camera layer load error', error));
+}
+
+function openCameraDetails(cam) {
+  const sheet = document.getElementById('marker-bottom-sheet');
+  if (!sheet) return;
+
+  document.getElementById('sheet-title').textContent = cam.name;
+  document.getElementById('sheet-icon').textContent = '📷';
+  document.getElementById('sheet-status').textContent = 'В ПРЯМОМ ЭФИРЕ';
+  document.getElementById('sheet-status').className = 'sheet-status resolved';
+  document.getElementById('sheet-address').textContent = 'Координаты: ' + cam.lat + ', ' + cam.lon;
+  document.getElementById('sheet-desc').innerHTML = `
+    <div style="margin-bottom:12px;">${cam.desc}</div>
+    <div style="width:100%; height:200px; background:#000; border-radius:12px; overflow:hidden; position:relative;">
+      <video src="${cam.url}" style="width:100%; height:100%; border:none; object-fit:cover;" controls autoplay muted playsinline></video>
+      <div style="position:absolute; top:10px; right:10px; background:rgba(255,0,0,0.8); color:white; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700;">LIVE</div>
+    </div>
+    <div style="margin-top:12px; font-size:12px; color:var(--text-secondary);">
+      AI Мониторинг: <span style="color:var(--success)">АКТИВЕН</span> · Аномалий не обнаружено.
+    </div>
+  `;
+
+  // Hide support/reactions for cameras
+  const gallery = document.getElementById('sheet-gallery');
+  gallery.style.display = 'none';
+
+  sheet.classList.add('open');
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * AI CAMERA MONITOR (Simulation)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
+function startCameraAiMonitor() {
+  console.log('🤖 AI Camera Monitor started...');
+
+  // Simulate monitoring every 30-60 seconds
+  setInterval(() => {
+    const r = Math.random();
+    if (r > 0.95) { // 5% chance of an event
+      const cam = CAMERAS[Math.floor(Math.random() * CAMERAS.length)];
+      const events = ['ДТП зафиксировано', 'Затор на перекрестке', 'Подозрительная активность'];
+      const event = events[Math.floor(Math.random() * events.length)];
+
+      showNotification(`🤖 AI Монитор (${cam.name}): ${event}`, 'emergency');
+
+      // Auto-focus map to that camera if not in 3D mode
+      if (!state.is3DMode) {
+        state.map.setView([cam.lat, cam.lon], 16);
+      }
+    }
+  }, 45000);
+}
+
 

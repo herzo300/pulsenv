@@ -27,8 +27,9 @@ def _socks_supported() -> bool:
     If it's not installed, passing a socks5:// proxy will crash requests.
     """
     try:
+        import socksio  # noqa: F401
         return True
-    except Exception:
+    except ImportError:
         return False
 
 

@@ -13,6 +13,62 @@ async def analyze_text_for_complaint(request: dict):
     except Exception as e:
         return {"category": "Прочее", "summary": text[:100], "error": str(e)}
 
+@router.post("/analyze_image")
+async def analyze_image_for_complaint(request: dict):
+    image_b64 = request.get("image", "")
+    text = request.get("text", "")
+    try:
+        from services.zai_service import ZAI_API_KEY, ZAI_BASE, _call_ai_api, _parse_json, CATEGORIES
+        import logging
+        if not ZAI_API_KEY:
+            return {"category": "Прочее", "summary": "API ключ не настроен", "error": "No ZAI_API_KEY"}
+        
+        prompt = (
+            f"Проанализируй фото городской проблемы в Нижневартовске. {text}\n"
+            f"Категории: {', '.join(CATEGORIES)}\n\n"
+            "Определи:\n"
+            "1. category — категория проблемы из списка выше\n"
+            "2. summary — краткое описание проблемы по фото (до 150 символов)\n"
+            "3. severity — 1, 2 или 3\n\n"
+            'Верни ТОЛЬКО JSON: {"category":"...","summary":"...","severity":2}'
+        )
+        
+        payload = {
+            "model": "glm-4v",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_b64}" if not image_b64.startswith("data:") else image_b64
+                            }
+                        }
+                    ]
+                }
+            ],
+            "max_tokens": 1024,
+        }
+        headers = {
+            "Authorization": f"Bearer {ZAI_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        content = await _call_ai_api(
+            f"{ZAI_BASE}/chat/completions", payload, headers, "Z.AI Vision"
+        )
+        if not content:
+            return {"category": "Прочее", "summary": "Не удалось распознать фото", "error": "Z.AI error"}
+            
+        res = _parse_json(content)
+        if not res:
+            return {"category": "Прочее", "summary": "Ошибка парсинга", "error": "No JSON"}
+            
+        return res
+    except Exception as e:
+        return {"category": "Прочее", "summary": "Ошибка при анализе фото", "error": str(e)}
+
 
 @router.get("/proxy/stats")
 async def ai_proxy_stats():

@@ -57,27 +57,6 @@ class ComplaintService:
             return None
 
     @staticmethod
-    def _report_to_dict(report: Report) -> Dict[str, Any]:
-        """Convert a Report ORM object to a serializable dict."""
-        return {
-            "id": report.id,
-            "title": report.title,
-            "description": report.description,
-            "latitude": float(report.lat) if report.lat is not None else None,
-            "longitude": float(report.lng) if report.lng is not None else None,
-            "address": report.address,
-            "category": report.category,
-            "status": report.status,
-            "created_at": (
-                report.created_at.isoformat() if report.created_at else None
-            ),
-            "source": report.source,
-            "user_id": report.user_id,
-            "telegram_message_id": report.telegram_message_id,
-            "telegram_channel": report.telegram_channel,
-        }
-
-    @staticmethod
     def get_complaints(
         db: Session,
         category: Optional[str] = None,
@@ -107,7 +86,7 @@ class ComplaintService:
                 .all()
             )
 
-            result = [ComplaintService._report_to_dict(r) for r in reports]
+            result = [r.to_dict() for r in reports]
             return {
                 "success": True,
                 "data": result,
@@ -133,7 +112,7 @@ class ComplaintService:
                 }
             return {
                 "success": True,
-                "data": ComplaintService._report_to_dict(report),
+                "data": report.to_dict(),
             }
         except Exception as e:
             logger.error("Error fetching complaint #%d: %s", complaint_id, e)

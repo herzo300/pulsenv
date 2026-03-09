@@ -88,7 +88,7 @@ def upload_file(file_path: Path, storage_path: str):
     
     r = requests.post(url, headers=headers, data=data, timeout=60)
     
-    if r.status_code == 409:
+    if r.status_code == 409 or 'Duplicate' in r.text or 'already exists' in r.text.lower():
         r = requests.put(url, headers=headers, data=data, timeout=60)
     
     if r.status_code in (200, 201):
@@ -108,7 +108,7 @@ def main():
     if not create_bucket():
         sys.exit(1)
         
-    files_to_upload = ['map.html', 'info.html', 'map_script.js']
+    files_to_upload = ['map.html', 'info.html', 'city_story.html', 'cesium_view.html', 'map_script.js', 'info_script_v2.js', 'cameras_nv.json']
     
     print(f"\n📤 Загрузка файлов в бакет {BUCKET_NAME}...")
     

@@ -168,8 +168,6 @@ async def vk_api_call(method: str, params: dict) -> Optional[dict]:
         return None
 
 
-
-
 async def fetch_group_wall(group_id: int, count: int = 10) -> List[dict]:
     """Получает последние посты со стены группы (только за сегодня) с fallback на веб-парсинг"""
     result = await vk_api_call("wall.get", {
@@ -253,6 +251,27 @@ def extract_post_text(post: dict) -> str:
         if original_text and original_text not in text:
             text = f"{text}\n{original_text}" if text else original_text
     return text.strip()
+
+
+def extract_vk_photos(post: dict) -> List[str]:
+    """Извлекает прямые ссылки на фото из вложений VK поста"""
+    photos = []
+    # Собираем все вложения, включая репосты
+    attachments = list(post.get("attachments", []))
+    copy_history = post.get("copy_history", [])
+    if copy_history:
+        for history_item in copy_history:
+            attachments.extend(history_item.get("attachments", []))
+            
+    for att in attachments:
+        if att.get("type") == "photo":
+            photo = att.get("photo", {})
+            sizes = photo.get("sizes", [])
+            if sizes:
+                # Берем самую качественную версию (обычно последняя в списке)
+                best_size = sorted(sizes, key=lambda x: x.get("width", 0), reverse=True)[0]
+                photos.append(best_size.get("url"))
+    return list(set(photos)) # Убираем дубликаты
 
 
 def build_vk_post_link(group_id: int, post_id: int) -> str:
@@ -380,6 +399,7 @@ async def poll_all_groups(
 
                         # Формируем данные жалобы
                         post_link = build_vk_post_link(group_id, post_id)
+                        photos = extract_vk_photos(post)
                         complaint_data = {
                             "text": text,
                             "category": category,
@@ -393,10 +413,14 @@ async def poll_all_groups(
                             "group_id": group_id,
                             "post_date": post_date.isoformat(),
                             "location_hints": location_hints,
+                            "photos": photos,
                         }
 
                         vk_stats["published"] += 1
                         vk_stats["by_group"][name] = vk_stats["by_group"].get(name, 0) + 1
+
+                        if photos:
+                            logger.info(f"📸 Найдено фото в VK: {len(photos)}")
 
                         logger.info(f"✅ VK [{provider}] {category} из {name} → обработка")
 
@@ -430,4 +454,3 @@ async def poll_all_groups(
         except Exception as e:
             logger.error(f"VK polling loop error: {e}", exc_info=True)
             await asyncio.sleep(30)
-

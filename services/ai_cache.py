@@ -4,6 +4,8 @@
 Использует in-memory кэш с TTL и хеширование текста для ключей
 """
 
+from collections import OrderedDict
+
 import hashlib
 import time
 import logging
@@ -11,8 +13,8 @@ from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
-# Глобальный кэш: {hash: (result, timestamp)}
-_cache: Dict[str, tuple] = {}
+# Глобальный кэш: {hash: (result, timestamp)} — OrderedDict для O(1) FIFO
+_cache: OrderedDict[str, tuple] = OrderedDict()
 _cache_max_size = 1000  # Максимальное количество записей
 _cache_ttl = 3600 * 24  # TTL: 24 часа в секундах
 
@@ -71,9 +73,7 @@ def set_cached_text(text: str, result: Dict[str, Any], model: str = ""):
     
     # Ограничиваем размер кэша (FIFO)
     if len(_cache) >= _cache_max_size:
-        # Удаляем самую старую запись
-        oldest_key = min(_cache.keys(), key=lambda k: _cache[k][1])
-        del _cache[oldest_key]
+        _cache.popitem(last=False)  # O(1) FIFO eviction
         logger.debug("Cache full, removed oldest entry")
     
     _cache[cache_key] = (result.copy(), time.time())
@@ -123,9 +123,7 @@ def set_cached_image(image_b64: str, result: Dict[str, Any], caption: str = "", 
     
     # Ограничиваем размер кэша (FIFO)
     if len(_cache) >= _cache_max_size:
-        # Удаляем самую старую запись
-        oldest_key = min(_cache.keys(), key=lambda k: _cache[k][1])
-        del _cache[oldest_key]
+        _cache.popitem(last=False)  # O(1) FIFO eviction
         logger.debug("Cache full, removed oldest entry")
     
     _cache[cache_key] = (result.copy(), time.time())
