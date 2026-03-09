@@ -206,6 +206,14 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                category: freshComplaint['category'] ?? 'Прочее',
                color: _getCategoryColor(freshComplaint['category'] ?? 'Прочее'),
              );
+
+             // Show system push notification
+             NotificationService().showPushNotification(
+               id: freshComplaint['id'] is int ? freshComplaint['id'] : math.Random().nextInt(1000000),
+               title: 'Новая жалоба: ${freshComplaint['category'] ?? 'Прочее'}',
+               body: freshComplaint['title'] ?? 'Нажмите, чтобы посмотреть подробности',
+               category: freshComplaint['category'],
+             );
              
              // Auto return to overview in 10 secs
              Timer(const Duration(seconds: 10), () {

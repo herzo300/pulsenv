@@ -1,12 +1,9 @@
 import 'dart:convert';
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest_all.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
 
-/// Сервис локальных уведомлений.
-/// и решает, показывать ли уведомление для данной жалобы.
+/// Сервис локальных и пуш уведомлений на базе Awesome Notifications.
 class NotificationService {
   static final NotificationService _instance = NotificationService._();
   NotificationService._() {
@@ -14,14 +11,38 @@ class NotificationService {
   }
   factory NotificationService() => _instance;
 
-  final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-
   Future<void> _initNotifications() async {
-    tz.initializeTimeZones();
-    const androidSettings = AndroidInitializationSettings('@mipmap/launcher_icon');
-    const initSettings = InitializationSettings(android: androidSettings);
-    await _flutterLocalNotificationsPlugin.initialize(
-      settings: initSettings,
+    // Проверка разрешений при инициализации
+    AwesomeNotifications().isNotificationAllowed().then((isAllowed) {
+      if (!isAllowed) {
+        AwesomeNotifications().requestPermissionToSendNotifications();
+      }
+    });
+  }
+
+  /// Показывает пуш-уведомление
+  Future<void> showPushNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? category,
+    String channelKey = 'basic_channel',
+  }) async {
+    // Проверяем настройки пользователя
+    if (category != null && !await shouldNotify(category)) return;
+
+    await AwesomeNotifications().createNotification(
+      content: NotificationContent(
+        id: id,
+        channelKey: channelKey,
+        title: title,
+        body: body,
+        notificationLayout: NotificationLayout.Default,
+        category: NotificationCategory.Message,
+        payload: {'category': category ?? 'General'},
+        backgroundColor: const Color(0xFF0F0F23),
+        color: const Color(0xFF00E5FF),
+      ),
     );
   }
 
@@ -32,26 +53,15 @@ class NotificationService {
     required String body,
     required DateTime scheduledDate,
   }) async {
-    final tz.TZDateTime tzDate = tz.TZDateTime.from(scheduledDate, tz.local);
-    if (tzDate.isBefore(tz.TZDateTime.now(tz.local))) return;
-
-    const androidDetails = AndroidNotificationDetails(
-      'events_channel',
-      'Напоминания о событиях',
-      channelDescription: 'Уведомления о грядущих мероприятиях',
-      importance: Importance.max,
-      priority: Priority.high,
-    );
-
-    const details = NotificationDetails(android: androidDetails);
-    
-    await _flutterLocalNotificationsPlugin.zonedSchedule(
-      id: id,
-      title: title,
-      body: body,
-      scheduledDate: tzDate,
-      notificationDetails: details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    await AwesomeNotifications().createNotification(
+      content: NotificationContent(
+        id: id,
+        channelKey: 'basic_channel',
+        title: title,
+        body: body,
+        notificationLayout: NotificationLayout.Default,
+      ),
+      schedule: NotificationCalendar.fromDate(date: scheduledDate),
     );
   }
 
