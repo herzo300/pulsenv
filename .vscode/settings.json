@@ -7,5 +7,5 @@
     "dart.flutterBuildAdditionalArgs": [
         "--no-tree-shake-icons"
     ],
-    "CodeGPT.apiKey": "OpenAI"
+    "CodeGPT.apiKey": "Google AI Studio"
 }

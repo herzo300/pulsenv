@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
 
 import 'map_screen.dart';
+import '../services/sound_service.dart';
 
 /// Новый стильный сплэш-экран «Cyber City Pulse»
 class CyberSplashScreen extends StatefulWidget {
@@ -46,6 +47,7 @@ class _CyberSplashScreenState extends State<CyberSplashScreen>
 
     _initRings();
     _simulateLoading();
+    SoundService().playSplashDesign('cyber');
   }
 
   void _initRings() {
@@ -89,6 +91,7 @@ class _CyberSplashScreenState extends State<CyberSplashScreen>
   void _onEnter() {
     if (!_ready) return;
     HapticFeedback.heavyImpact();
+    SoundService().stopSplash();
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
         pageBuilder: (context, anim, secAnim) => const MapScreen(),

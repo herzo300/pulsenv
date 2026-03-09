@@ -21,7 +21,7 @@ class SoundService {
   Future<void> playSplash() async {
     if (_isMuted) return;
     try {
-      await _splashPlayer.play(AssetSource('sounds/splash_gravity.wav'));
+      await _splashPlayer.play(AssetSource('sounds/soft_splash.wav'));
     } catch (e) {
       debugPrint('Ошибка воспроизведения звука сплэша: $e');
     }
@@ -33,8 +33,9 @@ class SoundService {
     String file = const {
       'aurora': 'splash_aurora.wav',
       'network': 'splash_network.wav',
-      'gravity': 'splash_gravity.wav',
-    }[designName] ?? 'splash_particles.wav';
+      'gravity': 'soft_splash.wav',
+      'cyber': 'soft_splash.wav',
+    }[designName] ?? 'soft_splash.wav';
     
     try {
       await _splashPlayer.play(AssetSource('sounds/$file'));
@@ -61,7 +62,7 @@ class SoundService {
   Future<void> playPulse() async {
     if (_isMuted) return;
     try {
-      await _pulsePlayer.play(AssetSource('sounds/pulse.wav'));
+      await _pulsePlayer.play(AssetSource('sounds/soft_pulse.wav'));
     } catch (e) {
       debugPrint('Ошибка воспроизведения пульса: $e');
     }
