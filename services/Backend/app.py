@@ -5,16 +5,17 @@ Static file serving for map/infographic pages.
 """
 
 import logging
-import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .routers import ai, complaints, core, opendata, reports
+from .admin_metrics import extract_client_ip, metrics_store
+from .routers import admin_metrics, ai, complaints, core, opendata, reports
+from .routers import map_data
 from .routers.telegram_router import router as telegram_router
 
 logger = logging.getLogger(__name__)
@@ -65,6 +66,8 @@ app.state.telegram_monitor = None
 
 # --- Routers ---
 app.include_router(reports.router, prefix="/api")
+app.include_router(admin_metrics.router, prefix="/api")
+app.include_router(map_data.router, prefix="/api")
 app.include_router(core.router)
 app.include_router(complaints.router)
 app.include_router(ai.router)
@@ -72,9 +75,18 @@ app.include_router(telegram_router)
 
 app.include_router(opendata.router)
 
-# --- Map & City Story HTML pages (served from public/) ---
+
+@app.middleware("http")
+async def capture_runtime_metrics(request: Request, call_next):
+    metrics_store.record_request(
+        ip=extract_client_ip(request),
+        path=request.url.path,
+    )
+    return await call_next(request)
+
+# --- Map & Infographic HTML pages (served from public/) ---
 _map_html = ROOT / "public" / "map.html"
-_info_html = ROOT / "public" / "city_story.html"
+_info_html = ROOT / "public" / "info.html"
 
 if _map_html.exists():
 
@@ -93,29 +105,9 @@ if _info_html.exists():
     def serve_infographic():
         return FileResponse(_info_html)
 
-    @app.get("/citystory", response_class=FileResponse)
-    def serve_city_story():
-        return FileResponse(_info_html)
-
     @app.get("/map/info.html", response_class=FileResponse)
     def serve_info_html():
         return FileResponse(_info_html)
-
-    @app.get("/map/city_story.html", response_class=FileResponse)
-    def serve_city_story_html():
-        return FileResponse(_info_html)
-
-
-@app.get("/uvr5")
-def serve_uvr5():
-    """Redirect to UVR5 mini-app URL."""
-    uvr5_url = (os.getenv("UVR5_MINIAPP_URL") or "").strip()
-    if not uvr5_url:
-        return JSONResponse(
-            {"ok": False, "error": "UVR5_MINIAPP_URL is not configured"},
-            status_code=404,
-        )
-    return RedirectResponse(uvr5_url, status_code=307)
 
 
 # --- Static files (relative to project root) ---

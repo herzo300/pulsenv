@@ -1,15 +1,15 @@
 [
   {
-    "n": "60 лет Октября, 3",
-    "lat": 60.931431,
-    "lng": 76.553779,
-    "s": "https://stream3.dantser.org/NV_60Let_3/tracks-v1/mono.ts.m3u8"
-  },
-  {
     "n": "60 лет Октября, 10",
     "lat": 60.928985,
     "lng": 76.557381,
     "s": "https://stream3.dantser.org/NV_60Let_10/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "60 лет Октября, 3",
+    "lat": 60.931431,
+    "lng": 76.553779,
+    "s": "https://stream3.dantser.org/NV_60Let_3/tracks-v1/mono.ts.m3u8"
   },
   {
     "n": "60 лет Октября, 54",
@@ -18,10 +18,40 @@
     "s": "https://stream3.dantser.org/NV_60Let_54/tracks-v1/mono.ts.m3u8"
   },
   {
+    "n": "Героев Самотлора, в сторону Северная (Прайд)",
+    "lat": 60.937,
+    "lng": 76.6305,
+    "s": "https://nginx01.pride-net.ru/cam_geroi28_1/index.m3u8"
+  },
+  {
+    "n": "Двор ул. Ленина 28 камера 1 (Прайд)",
+    "lat": 60.937281,
+    "lng": 76.577609,
+    "s": "https://nginx01.pride-net.ru/ln28_1/index.m3u8"
+  },
+  {
+    "n": "Двор ул. Ленина 28 камера 2 (Прайд)",
+    "lat": 60.936908,
+    "lng": 76.579095,
+    "s": "https://nginx01.pride-net.ru/ln28_2/index.m3u8"
+  },
+  {
     "n": "Декабристов, 11",
     "lat": 60.893815,
     "lng": 76.657651,
     "s": "https://stream3.dantser.org/NV_Dekabristov_11/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Излучинск, перекресток Пионерная - Таежная (Прайд)",
+    "lat": 60.9609,
+    "lng": 76.8818,
+    "s": "https://nginx03.pride-net.ru/taeg12/index.m3u8"
+  },
+  {
+    "n": "Кольцо 60 лет Октября - Ханты-Мансийская (Прайд)",
+    "lat": 60.923212,
+    "lng": 76.59919,
+    "s": "https://nginx01.pride-net.ru/cam_60let59/index.m3u8"
   },
   {
     "n": "Ленина, 21",
@@ -42,10 +72,28 @@
     "s": "https://stream3.dantser.org/NV_Lenina_39/tracks-v1/mono.ts.m3u8"
   },
   {
+    "n": "Мira, 24",
+    "lat": 60.944914,
+    "lng": 76.564421,
+    "s": "https://stream3.dantser.org/NV_Mira_24/tracks-v1/mono.ts.m3u8"
+  },
+  {
     "n": "Маршала Жукова, 9",
     "lat": 60.943391,
     "lng": 76.567478,
     "s": "https://stream3.dantser.org/NV_Zhukova_9/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Мегион, Городская площадь (Прайд)",
+    "lat": 61.033,
+    "lng": 76.1026,
+    "s": "https://nginx03.pride-net.ru/m_zar15i/index.m3u8"
+  },
+  {
+    "n": "Мегион, Перекресток Заречная - Губкина (Прайд)",
+    "lat": 61.0354,
+    "lng": 76.0942,
+    "s": "https://nginx03.pride-net.ru/zar_16/index.m3u8"
   },
   {
     "n": "Мира, 13",
@@ -58,12 +106,6 @@
     "lat": 60.946786,
     "lng": 76.559033,
     "s": "https://stream3.dantser.org/NV_Mira_15/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Мira, 24",
-    "lat": 60.944914,
-    "lng": 76.564421,
-    "s": "https://stream3.dantser.org/NV_Mira_24/tracks-v1/mono.ts.m3u8"
   },
   {
     "n": "Мира, 25",
@@ -138,6 +180,90 @@
     "s": "https://stream3.dantser.org/NV_Mira_99/tracks-v1/mono.ts.m3u8"
   },
   {
+    "n": "Нижневартовск, Интернациональная, в сторону Зимней (Прайд)",
+    "lat": 60.9571,
+    "lng": 76.5699,
+    "s": "https://nginx01.pride-net.ru/cam_inter2g_i_1/index.m3u8"
+  },
+  {
+    "n": "Нижневартовск, Интернациональная, в сторону Северной (Прайд)",
+    "lat": 60.9565,
+    "lng": 76.5716,
+    "s": "https://nginx01.pride-net.ru/cam_inter2g_i_2/index.m3u8"
+  },
+  {
+    "n": "Нижневартовск, Прибрежная зона 3 (Прайд)",
+    "lat": 60.9238,
+    "lng": 76.5869,
+    "s": "https://nginx03.pride-net.ru/cam_kurop1_1/index.m3u8"
+  },
+  {
+    "n": "Нижневартовск, ТЦ Форт (Прайд)",
+    "lat": 60.9264,
+    "lng": 76.5821,
+    "s": "https://nginx02.pride-net.ru/cam_60l46_fort/index.m3u8"
+  },
+  {
+    "n": "Нижневартовск, Ханты-Мансийская в сторону 60 лет Октября (Прайд)",
+    "lat": 60.9264,
+    "lng": 76.6039,
+    "s": "https://nginx02.pride-net.ru/cam_hm19_1/index.m3u8"
+  },
+  {
+    "n": "Нижневартовск, перекресток Индустриальная - Ленина (Прайд)",
+    "lat": 60.9389,
+    "lng": 76.5302,
+    "s": "https://nginx01.pride-net.ru/industr20_1/index.m3u8"
+  },
+  {
+    "n": "Нижневартовск, перекресток Интернациональная - Северная Вид2 (Прайд)",
+    "lat": 60.9422,
+    "lng": 76.6296,
+    "s": "https://nginx04.pride-net.ru/geroi30_vario5_50/index.m3u8"
+  },
+  {
+    "n": "Нижневартовск, перекресток Ленина - Салманова (Прайд)",
+    "lat": 60.9252,
+    "lng": 76.6275,
+    "s": "https://nginx03.pride-net.ru/cam_ln41_1/index.m3u8"
+  },
+  {
+    "n": "Нижневартовск, перекресток Мусы Джалиля - Пикмана (Прайд)",
+    "lat": 60.9277,
+    "lng": 76.5716,
+    "s": "https://nginx01.pride-net.ru/cam_60l44_1/index.m3u8"
+  },
+  {
+    "n": "Нижневартовск, перекресток Салманова - Мира (Прайд)",
+    "lat": 60.9294,
+    "lng": 76.6322,
+    "s": "https://nginx04.pride-net.ru/mr103_2_0280/index.m3u8"
+  },
+  {
+    "n": "Нижневартовск, перекресток Салманова - Московкина (Прайд)",
+    "lat": 60.9315,
+    "lng": 76.6343,
+    "s": "https://nginx04.pride-net.ru/mosk5_1_0280/index.m3u8"
+  },
+  {
+    "n": "Нижневартовск, перекресток Северная - Героев Самотлора (Прайд)",
+    "lat": 60.9374,
+    "lng": 76.6329,
+    "s": "https://nginx04.pride-net.ru/geroi30_1_0280/index.m3u8"
+  },
+  {
+    "n": "Нижневартовск, перекресток Северная - Зимняя (Прайд)",
+    "lat": 60.9561,
+    "lng": 76.5834,
+    "s": "https://nginx04.pride-net.ru/cam_sv48_1/index.m3u8"
+  },
+  {
+    "n": "Нижневартовск, перекресток ул. Северная (Прайд)",
+    "lat": 60.9532,
+    "lng": 76.6002,
+    "s": "https://nginx01.pride-net.ru/sv56_pass_poe/index.m3u8"
+  },
+  {
     "n": "Омская, 23",
     "lat": 60.93537,
     "lng": 76.578101,
@@ -156,6 +282,12 @@
     "s": "https://stream3.dantser.org/NV_Permskaya_4/tracks-v1/mono.ts.m3u8"
   },
   {
+    "n": "Прибрежная зона 2 (Прайд)",
+    "lat": 60.9221,
+    "lng": 76.592,
+    "s": "https://nginx01.pride-net.ru/cam_60l76_1/index.m3u8"
+  },
+  {
     "n": "Салманова, 4",
     "lat": 60.928218,
     "lng": 76.634464,
@@ -166,6 +298,18 @@
     "lat": 60.92841,
     "lng": 76.629851,
     "s": "https://stream3.dantser.org/NV_Salmanova_5/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Салманова, от Ленина в сторону Мира (Прайд)",
+    "lat": 60.9259,
+    "lng": 76.6283,
+    "s": "https://nginx01.pride-net.ru/cam_salman3_1/index.m3u8"
+  },
+  {
+    "n": "Салманова, от Мира в сторону Ленина (Прайд)",
+    "lat": 60.9284,
+    "lng": 76.631,
+    "s": "https://nginx01.pride-net.ru/cam_salman4_1/index.m3u8"
   },
   {
     "n": "Северная, 12",
@@ -204,15 +348,357 @@
     "s": "https://stream3.dantser.org/NV_Severnaya_84/tracks-v1/mono.ts.m3u8"
   },
   {
-    "n": "Чапаева, 7",
-    "lat": 60.930005,
-    "lng": 76.586504,
-    "s": "https://stream3.dantser.org/NV_Chapaeva_7/tracks-v1/mono.ts.m3u8"
+    "n": "Сквер Учителей (Прайд)",
+    "lat": 60.9345,
+    "lng": 76.6188,
+    "s": "https://nginx01.pride-net.ru/cam_rom12_1/index.m3u8"
+  },
+  {
+    "n": "Учительский бульвар (Прайд)",
+    "lat": 60.9345,
+    "lng": 76.6225,
+    "s": "https://nginx03.pride-net.ru/geroi23/index.m3u8"
   },
   {
     "n": "Чапаева, 53",
     "lat": 60.9426,
     "lng": 76.600107,
     "s": "https://stream3.dantser.org/NV_Chapaeva_53/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "Чапаева, 7",
+    "lat": 60.930005,
+    "lng": 76.586504,
+    "s": "https://stream3.dantser.org/NV_Chapaeva_7/tracks-v1/mono.ts.m3u8"
+  },
+  {
+    "n": "кольцо Чапаева - Ленина (Прайд)",
+    "lat": 60.934623,
+    "lng": 76.590366,
+    "s": "https://nginx03.pride-net.ru/ln19/index.m3u8"
+  },
+  {
+    "n": "перекреcток Чапаева - 60 лет Октября (Прайд)",
+    "lat": 60.927771,
+    "lng": 76.583049,
+    "s": "https://nginx01.pride-net.ru/per60l46/index.m3u8"
+  },
+  {
+    "n": "перекресток 60 лет Октября - Дружбы Народов (Прайд)",
+    "lat": 60.9256,
+    "lng": 76.5918,
+    "s": "https://nginx03.pride-net.ru/dn7/index.m3u8"
+  },
+  {
+    "n": "перекресток 60 лет Октября - Кузоваткина (Прайд)",
+    "lat": 60.930699,
+    "lng": 76.549441,
+    "s": "https://nginx01.pride-net.ru/cam_60l4_1/index.m3u8"
+  },
+  {
+    "n": "перекресток 60 лет Октября - Победы (Прайд)",
+    "lat": 60.9309,
+    "lng": 76.5596,
+    "s": "https://nginx03.pride-net.ru/60l12aii/index.m3u8"
+  },
+  {
+    "n": "перекресток Героев Самотлора - Московкина (Прайд)",
+    "lat": 60.934185,
+    "lng": 76.623952,
+    "s": "https://nginx03.pride-net.ru/geroi25/index.m3u8"
+  },
+  {
+    "n": "перекресток Героев Самотлора - Профсоюзная (Прайд)",
+    "lat": 60.936249,
+    "lng": 76.62612,
+    "s": "https://nginx03.pride-net.ru/prof9/index.m3u8"
+  },
+  {
+    "n": "перекресток Зимняя - Интернациональная (Прайд)",
+    "lat": 60.959408,
+    "lng": 76.564322,
+    "s": "https://nginx03.pride-net.ru/inter2/index.m3u8"
+  },
+  {
+    "n": "перекресток Интернациональная - Дзержинского (Прайд)",
+    "lat": 60.94658,
+    "lng": 76.596792,
+    "s": "https://nginx01.pride-net.ru/inter49iii/index.m3u8"
+  },
+  {
+    "n": "перекресток Интернациональная - Нефтяников (Прайд)",
+    "lat": 60.950105,
+    "lng": 76.587694,
+    "s": "https://nginx03.pride-net.ru/int_nf/index.m3u8"
+  },
+  {
+    "n": "перекресток Интернациональная - Пермская (Прайд)",
+    "lat": 60.942836,
+    "lng": 76.610016,
+    "s": "https://nginx03.pride-net.ru/int22/index.m3u8"
+  },
+  {
+    "n": "перекресток Интернациональная - Чапаева (Прайд)",
+    "lat": 60.944988,
+    "lng": 76.601561,
+    "s": "https://nginx03.pride-net.ru/inter49i/index.m3u8"
+  },
+  {
+    "n": "перекресток Кузоваткина - Мира (Прайд)",
+    "lat": 60.94504,
+    "lng": 76.548159,
+    "s": "https://nginx03.pride-net.ru/mend29/index.m3u8"
+  },
+  {
+    "n": "перекресток Ленина - Дзержинского (Прайд)",
+    "lat": 60.9359,
+    "lng": 76.5854,
+    "s": "https://nginx03.pride-net.ru/ln17/index.m3u8"
+  },
+  {
+    "n": "перекресток Ленина - Дружбы Народов (Прайд)",
+    "lat": 60.932405,
+    "lng": 76.59912,
+    "s": "https://nginx03.pride-net.ru/DN22ii/index.m3u8"
+  },
+  {
+    "n": "перекресток Ленина - Мусы Джалиля (Прайд)",
+    "lat": 60.936946,
+    "lng": 76.581423,
+    "s": "https://nginx03.pride-net.ru/musdz25/index.m3u8"
+  },
+  {
+    "n": "перекресток Ленина - Нефтяников (Прайд)",
+    "lat": 60.93823,
+    "lng": 76.576177,
+    "s": "https://nginx03.pride-net.ru/nf44_4p/index.m3u8"
+  },
+  {
+    "n": "перекресток Ленина - Ханты-Мансийской (Прайд)",
+    "lat": 60.930156,
+    "lng": 76.608015,
+    "s": "https://nginx03.pride-net.ru/hm21_2/index.m3u8"
+  },
+  {
+    "n": "перекресток Ленина - героев Самотлора (Прайд)",
+    "lat": 60.9279,
+    "lng": 76.6171,
+    "s": "https://nginx02.pride-net.ru/geroi16/index.m3u8"
+  },
+  {
+    "n": "перекресток Мира - Дзержинского (Прайд)",
+    "lat": 60.94015,
+    "lng": 76.589899,
+    "s": "https://nginx01.pride-net.ru/Mira60i/index.m3u8"
+  },
+  {
+    "n": "перекресток Мира - Дружбы Народов (Прайд)",
+    "lat": 60.9367,
+    "lng": 76.6037,
+    "s": "https://nginx01.pride-net.ru/mira76_d_nar/index.m3u8"
+  },
+  {
+    "n": "перекресток Мира - Маршала Жукова (Прайд)",
+    "lat": 60.945429,
+    "lng": 76.566285,
+    "s": "https://nginx03.pride-net.ru/mira26/index.m3u8"
+  },
+  {
+    "n": "перекресток Мира - Нефтяников (Прайд)",
+    "lat": 60.942487,
+    "lng": 76.58071,
+    "s": "https://nginx01.pride-net.ru/mr50/index.m3u8"
+  },
+  {
+    "n": "перекресток Мира - Нефтяников (Прайд)",
+    "lat": 60.941883,
+    "lng": 76.583172,
+    "s": "https://nginx01.pride-net.ru/mr50_2/index.m3u8"
+  },
+  {
+    "n": "перекресток Мира - Пермская (Прайд)",
+    "lat": 60.936,
+    "lng": 76.6065,
+    "s": "https://nginx01.pride-net.ru/mira76_x_mans/index.m3u8"
+  },
+  {
+    "n": "перекресток Мира - Ханты-Мансийской (Прайд)",
+    "lat": 60.934388,
+    "lng": 76.612564,
+    "s": "https://nginx03.pride-net.ru/mira85/index.m3u8"
+  },
+  {
+    "n": "перекресток Мира - проспект Победы (Прайд)",
+    "lat": 60.94524,
+    "lng": 76.55826,
+    "s": "https://nginx03.pride-net.ru/mira23/index.m3u8"
+  },
+  {
+    "n": "перекресток Мусы Джалиля - 60 лет Октября (Прайд)",
+    "lat": 60.930036,
+    "lng": 76.573962,
+    "s": "https://nginx01.pride-net.ru/cam_60let23_ext/index.m3u8"
+  },
+  {
+    "n": "перекресток Нововартовская - Героев Самотлора (Прайд)",
+    "lat": 60.9263,
+    "lng": 76.6153,
+    "s": "https://nginx03.pride-net.ru/novvart8/index.m3u8"
+  },
+  {
+    "n": "перекресток Омская - Дружбы Народов (Прайд)",
+    "lat": 60.930781,
+    "lng": 76.597372,
+    "s": "https://nginx03.pride-net.ru/omsk62/index.m3u8"
+  },
+  {
+    "n": "перекресток Омская - Нефтяников (Прайд)",
+    "lat": 60.9361,
+    "lng": 76.5739,
+    "s": "https://nginx03.pride-net.ru/omsk26/index.m3u8"
+  },
+  {
+    "n": "перекресток Омская - Ханты-Мансийская (Прайд)",
+    "lat": 60.928503,
+    "lng": 76.606293,
+    "s": "https://nginx03.pride-net.ru/hm21i/index.m3u8"
+  },
+  {
+    "n": "перекресток Романтиков - Восточный пр-д (Прайд)",
+    "lat": 60.931472,
+    "lng": 76.613383,
+    "s": "https://nginx03.pride-net.ru/hm26/index.m3u8"
+  },
+  {
+    "n": "перекресток Северная - Маршала Жукова (Прайд)",
+    "lat": 60.950967,
+    "lng": 76.561763,
+    "s": "https://nginx03.pride-net.ru/gk40/index.m3u8"
+  },
+  {
+    "n": "перекресток Спортивная - Дзержинского (Прайд)",
+    "lat": 60.9419,
+    "lng": 76.5918,
+    "s": "https://nginx01.pride-net.ru/sp13i/index.m3u8"
+  },
+  {
+    "n": "перекресток Спортивная - Нефтяников (Прайд)",
+    "lat": 60.9452,
+    "lng": 76.5838,
+    "s": "https://nginx03.pride-net.ru/nf37/index.m3u8"
+  },
+  {
+    "n": "перекресток Ханты-Мансийская - Интернациональная (Прайд)",
+    "lat": 60.9404,
+    "lng": 76.6191,
+    "s": "https://nginx01.pride-net.ru/hm45_1_ext_ext/index.m3u8"
+  },
+  {
+    "n": "перекресток Ханты-Мансийская - Профсоюзная (Прайд)",
+    "lat": 60.93857,
+    "lng": 76.617046,
+    "s": "https://nginx01.pride-net.ru/hm45_2_ext/index.m3u8"
+  },
+  {
+    "n": "перекресток Чапаева - Мира (Прайд)",
+    "lat": 60.938865,
+    "lng": 76.594963,
+    "s": "https://nginx01.pride-net.ru/mira60ii/index.m3u8"
+  },
+  {
+    "n": "перекресток Чапаева - Северная (Прайд)",
+    "lat": 60.95135,
+    "lng": 76.608406,
+    "s": "https://nginx01.pride-net.ru/sev70/index.m3u8"
+  },
+  {
+    "n": "перекресток Чапаева - Спортивная (Прайд)",
+    "lat": 60.9406,
+    "lng": 76.5969,
+    "s": "https://nginx03.pride-net.ru/sport13iii/index.m3u8"
+  },
+  {
+    "n": "перекресток Чапаева - Таежная (Прайд)",
+    "lat": 60.932478,
+    "lng": 76.588107,
+    "s": "https://nginx03.pride-net.ru/Chap11/index.m3u8"
+  },
+  {
+    "n": "перекресток Чапаева- Пикмана (Прайд)",
+    "lat": 60.9255,
+    "lng": 76.5806,
+    "s": "https://nginx01.pride-net.ru/cam_60l48/index.m3u8"
+  },
+  {
+    "n": "проезд Восточный (Прайд)",
+    "lat": 60.9279,
+    "lng": 76.6275,
+    "s": "https://nginx03.pride-net.ru/cam_salm5_1/index.m3u8"
+  },
+  {
+    "n": "ул Салманова в сторону ул Мира (Прайд)",
+    "lat": 60.9332,
+    "lng": 76.6358,
+    "s": "https://nginx04.pride-net.ru/sv118_1_0280/index.m3u8"
+  },
+  {
+    "n": "ул. Осенняя в сторону ул Рабочая (Прайд)",
+    "lat": 60.8891,
+    "lng": 76.6557,
+    "s": "https://nginx04.pride-net.ru/cam_osen7-1/index.m3u8"
+  },
+  {
+    "n": "улица Интернациональная (Прайд)",
+    "lat": 60.9457,
+    "lng": 76.5993,
+    "s": "https://nginx01.pride-net.ru/inter49iii_2/index.m3u8"
+  },
+  {
+    "n": "улица Интернациональная (Прайд)",
+    "lat": 60.9437,
+    "lng": 76.6065,
+    "s": "https://nginx01.pride-net.ru/inter59/index.m3u8"
+  },
+  {
+    "n": "улица Мира (Прайд)",
+    "lat": 60.9448,
+    "lng": 76.5716,
+    "s": "https://nginx01.pride-net.ru/mira32/index.m3u8"
+  },
+  {
+    "n": "улица Нефтяников (Прайд)",
+    "lat": 60.9417,
+    "lng": 76.58,
+    "s": "https://nginx01.pride-net.ru/mr50_3/index.m3u8"
+  },
+  {
+    "n": "улица Пермская (Прайд)",
+    "lat": 60.942,
+    "lng": 76.6091,
+    "s": "https://nginx01.pride-net.ru/inter59a/index.m3u8"
+  },
+  {
+    "n": "улица Пермская (Прайд)",
+    "lat": 60.9448,
+    "lng": 76.6121,
+    "s": "https://nginx01.pride-net.ru/perm21_1p/index.m3u8"
+  },
+  {
+    "n": "улица Пермская (Прайд)",
+    "lat": 60.9475,
+    "lng": 76.615,
+    "s": "https://nginx01.pride-net.ru/perm21_6p/index.m3u8"
+  },
+  {
+    "n": "улица Салманова в сторону улицы Московкина (Прайд)",
+    "lat": 60.9308,
+    "lng": 76.6336,
+    "s": "https://nginx04.pride-net.ru/mr103_1_0280/index.m3u8"
+  },
+  {
+    "n": "улица Северная в сторону Кузоваткина (Прайд)",
+    "lat": 60.9487,
+    "lng": 76.5519,
+    "s": "https://nginx01.pride-net.ru/sv16/index.m3u8"
   }
 ]

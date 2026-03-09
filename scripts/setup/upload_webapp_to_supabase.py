@@ -108,7 +108,7 @@ def main():
     if not create_bucket():
         sys.exit(1)
         
-    files_to_upload = ['map.html', 'info.html', 'city_story.html', 'cesium_view.html', 'map_script.js', 'info_script_v2.js', 'cameras_nv.json']
+    files_to_upload = ['map.html', 'info.html', 'cesium_view.html', 'map_script.js', 'info_script_v2.js', 'info_story_merge.css', 'info_story_merge.js', 'cameras_nv.json']
     
     print(f"\n📤 Загрузка файлов в бакет {BUCKET_NAME}...")
     

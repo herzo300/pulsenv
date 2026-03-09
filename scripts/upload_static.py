@@ -20,9 +20,10 @@ BUCKET = "static"
 FILES = [
     ("map.html", "map.html", "text/html"),
     ("map_script.js", "map_script.js", "application/javascript"),
-    ("city_story.html", "city_story.html", "text/html"),
     ("info.html", "info.html", "text/html"),
     ("info_script_v2.js", "info_script_v2.js", "application/javascript"),
+    ("info_story_merge.css", "info_story_merge.css", "text/css"),
+    ("info_story_merge.js", "info_story_merge.js", "application/javascript"),
     ("app.html", "app.html", "text/html"),
     ("infographic_data.json", "infographic_data.json", "application/json"),
     ("cesium_view.html", "cesium_view.html", "text/html"),

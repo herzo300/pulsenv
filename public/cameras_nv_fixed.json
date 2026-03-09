@@ -1,57 +1,15 @@
 [
   {
-    "n": "60 лет Октября, 3",
-    "lat": 60.931431,
-    "lng": 76.553779,
-    "s": "https://stream3.dantser.org/NV_60Let_3/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "60 лет Октября, 4",
-    "lat": 60.929953,
-    "lng": 76.554103,
-    "s": "https://stream3.dantser.org/NV_60Let_4/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "60 лет Октября, 8",
-    "lat": 60.928686,
-    "lng": 76.555691,
-    "s": "https://stream3.dantser.org/NV_60Let_8/tracks-v1/mono.ts.m3u8"
-  },
-  {
     "n": "60 лет Октября, 10",
     "lat": 60.928985,
     "lng": 76.557381,
     "s": "https://stream3.dantser.org/NV_60Let_10/tracks-v1/mono.ts.m3u8"
   },
   {
-    "n": "60 лет Октября, 11",
-    "lat": 60.93157,
-    "lng": 76.558357,
-    "s": "https://stream3.dantser.org/NV_60Let_11/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "60 лет Октября, 27",
-    "lat": 60.929182,
-    "lng": 76.579543,
-    "s": "https://stream3.dantser.org/NV_60Let_27/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "60 лет Октября, 42",
-    "lat": 60.927844,
-    "lng": 76.578756,
-    "s": "https://stream3.dantser.org/NV_60Let_42/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "60 лет Октября, 44",
-    "lat": 60.927476,
-    "lng": 76.577666,
-    "s": "https://stream3.dantser.org/NV_60Let_44/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "60 лет Октября, 46",
-    "lat": 60.927487,
-    "lng": 76.580171,
-    "s": "https://stream3.dantser.org/NV_60Let_46/tracks-v1/mono.ts.m3u8"
+    "n": "60 лет Октября, 3",
+    "lat": 60.931431,
+    "lng": 76.553779,
+    "s": "https://stream3.dantser.org/NV_60Let_3/tracks-v1/mono.ts.m3u8"
   },
   {
     "n": "60 лет Октября, 54",
@@ -60,82 +18,22 @@
     "s": "https://stream3.dantser.org/NV_60Let_54/tracks-v1/mono.ts.m3u8"
   },
   {
-    "n": "60 лет Октября, 74",
-    "lat": 60.923444,
-    "lng": 76.592212,
-    "s": "https://stream3.dantser.org/NV_60Let_74/tracks-v1/mono.ts.m3u8"
+    "n": "Героев Самотлора, в сторону Северная (Прайд)",
+    "lat": 60.937,
+    "lng": 76.6305,
+    "s": "https://nginx01.pride-net.ru/cam_geroi28_1/index.m3u8"
   },
   {
-    "n": "60 лет Октября, 76",
-    "lat": 60.922785,
-    "lng": 76.592444,
-    "s": "https://stream3.dantser.org/NV_60Let_76/tracks-v1/mono.ts.m3u8"
+    "n": "Двор ул. Ленина 28 камера 1 (Прайд)",
+    "lat": 60.937281,
+    "lng": 76.577609,
+    "s": "https://nginx01.pride-net.ru/ln28_1/index.m3u8"
   },
   {
-    "n": "60 лет Октября, 84",
-    "lat": 60.9225,
-    "lng": 76.59706,
-    "s": "https://stream3.dantser.org/NV_60Let_84/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "60 лет Октября, 88",
-    "lat": 60.921314,
-    "lng": 76.595277,
-    "s": "https://stream3.dantser.org/NV_60Let_88/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Героев Самотлора, 19",
-    "lat": 60.930703,
-    "lng": 76.619347,
-    "s": "https://stream3.dantser.org/NV_GeroevSam_19/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Героев Самотлора, 20",
-    "lat": 60.932157,
-    "lng": 76.624653,
-    "s": "https://stream3.dantser.org/NV_GeroevSam_20/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Героев Самотлора, 22",
-    "lat": 60.933057,
-    "lng": 76.62531,
-    "s": "https://stream3.dantser.org/NV_GeroevSam_22/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Героев Самотлора, 22А",
-    "lat": 60.932322,
-    "lng": 76.628306,
-    "s": "https://stream3.dantser.org/NV_GeroevSam_22a/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Героев Самотлора, 23",
-    "lat": 60.933745,
-    "lng": 76.622622,
-    "s": "https://stream3.dantser.org/NV_GeroevSam_23/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Героев Самотлора, 24",
-    "lat": 60.934179,
-    "lng": 76.626531,
-    "s": "https://stream3.dantser.org/NV_GeroevSam_24/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Героев Самотлора, 26",
-    "lat": 60.934841,
-    "lng": 76.628488,
-    "s": "https://stream3.dantser.org/NV_GeroevSam_26/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Героев Самотлора, 28",
-    "lat": 60.935628,
-    "lng": 76.630136,
-    "s": "https://stream3.dantser.org/NV_GeroevSam_28/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Героев Самотлора, 30",
-    "lat": 60.935789,
-    "lng": 76.633099,
-    "s": "https://stream3.dantser.org/NV_GeroevSam_30/tracks-v1/mono.ts.m3u8"
+    "n": "Двор ул. Ленина 28 камера 2 (Прайд)",
+    "lat": 60.936908,
+    "lng": 76.579095,
+    "s": "https://nginx01.pride-net.ru/ln28_2/index.m3u8"
   },
   {
     "n": "Декабристов, 11",
@@ -144,214 +42,16 @@
     "s": "https://stream3.dantser.org/NV_Dekabristov_11/tracks-v1/mono.ts.m3u8"
   },
   {
-    "n": "Декабристов, 13",
-    "lat": 60.893131,
-    "lng": 76.658242,
-    "s": "https://stream3.dantser.org/NV_Dekabristov_13/tracks-v1/mono.ts.m3u8"
+    "n": "Излучинск, перекресток Пионерная - Таежная (Прайд)",
+    "lat": 60.9609,
+    "lng": 76.8818,
+    "s": "https://nginx03.pride-net.ru/taeg12/index.m3u8"
   },
   {
-    "n": "Дзержинского, 15",
-    "lat": 60.942959,
-    "lng": 76.592288,
-    "s": "https://stream3.dantser.org/NV_Dzerzhins_15/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Дзержинского, 27",
-    "lat": 60.949696,
-    "lng": 76.599391,
-    "s": "https://stream3.dantser.org/NV_Dzerzhins_27/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Дзержинского, 33",
-    "lat": 60.951738,
-    "lng": 76.601745,
-    "s": "https://stream3.dantser.org/NV_Dzerzhins_33/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Дружбы Народов, 7",
-    "lat": 60.926709,
-    "lng": 76.592228,
-    "s": "https://stream3.dantser.org/NV_DruzhbyNar_7/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Дружбы Народов, 15",
-    "lat": 60.928674,
-    "lng": 76.594412,
-    "s": "https://stream3.dantser.org/NV_DruzhbyNar_15/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Дружбы Народов, 20",
-    "lat": 60.929732,
-    "lng": 76.597043,
-    "s": "https://stream3.dantser.org/NV_DruzhbyNar_20/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Дружбы Народов, 22/2",
-    "lat": 60.931639,
-    "lng": 76.599863,
-    "s": "https://stream3.dantser.org/NV_DruzhbyNar_22_2/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Интернациональная, 1/2",
-    "lat": 60.942515,
-    "lng": 76.631689,
-    "s": "https://stream3.dantser.org/NV_Internac_1_2/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Интернациональная, 2",
-    "lat": 60.958376,
-    "lng": 76.56322,
-    "s": "https://stream3.dantser.org/NV_Internac_2/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Интернациональная, 2Г/1",
-    "lat": 60.956173,
-    "lng": 76.570186,
-    "s": "https://stream3.dantser.org/NV_Internac_2g_1/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Интернациональная, 13",
-    "lat": 60.954623,
-    "lng": 76.578573,
-    "s": "https://stream3.dantser.org/NV_Internac_13/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Интернациональная, 16",
-    "lat": 60.944191,
-    "lng": 76.602558,
-    "s": "https://stream3.dantser.org/NV_Internac_16/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Интернациональная, 19",
-    "lat": 60.953504,
-    "lng": 76.581499,
-    "s": "https://stream3.dantser.org/NV_Internac_19/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Интернациональная, 20",
-    "lat": 60.942596,
-    "lng": 76.606335,
-    "s": "https://stream3.dantser.org/NV_Internac_20/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Интернациональная, 31",
-    "lat": 60.951256,
-    "lng": 76.587267,
-    "s": "https://stream3.dantser.org/NV_Internac_31/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Интернациональная, 35",
-    "lat": 60.950176,
-    "lng": 76.589708,
-    "s": "https://stream3.dantser.org/NV_Internac_35/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Интернациональная, 41",
-    "lat": 60.948445,
-    "lng": 76.594133,
-    "s": "https://stream3.dantser.org/NV_Internac_41/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Интернациональная, 45",
-    "lat": 60.947789,
-    "lng": 76.59582,
-    "s": "https://stream3.dantser.org/NV_Internac_45/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Интернациональная, 47",
-    "lat": 60.947966,
-    "lng": 76.597562,
-    "s": "https://stream3.dantser.org/NV_Internac_47/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Интернациональная, 49/1",
-    "lat": 60.946442,
-    "lng": 76.600989,
-    "s": "https://stream3.dantser.org/NV_Internac_49_1/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Интернациональная, 49/2",
-    "lat": 60.947029,
-    "lng": 76.600439,
-    "s": "https://stream3.dantser.org/NV_Internac_49_2/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Интернациональная, 49/3",
-    "lat": 60.946596,
-    "lng": 76.59907,
-    "s": "https://stream3.dantser.org/NV_Internac_49_3/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Комсомольский бульвар, 2",
-    "lat": 60.939835,
-    "lng": 76.572234,
-    "s": "https://stream3.dantser.org/NV_Komsomol_2/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Комсомольский бульвар, 4",
-    "lat": 60.940417,
-    "lng": 76.571717,
-    "s": "https://stream3.dantser.org/NV_Komsomol_4/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Комсомольский бульвар, 7",
-    "lat": 60.943867,
-    "lng": 76.573361,
-    "s": "https://stream3.dantser.org/NV_Komsomol_7/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Комсомольский бульвар, 16",
-    "lat": 60.943321,
-    "lng": 76.574447,
-    "s": "https://stream3.dantser.org/NV_Komsomol_16/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Куропаткина, 1",
-    "lat": 60.925872,
-    "lng": 76.587476,
-    "s": "https://stream3.dantser.org/NV_Kuropatk_1/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Ленина, 7/1",
-    "lat": 60.941481,
-    "lng": 76.557597,
-    "s": "https://stream3.dantser.org/NV_Lenina_7_1/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Ленина, 7/2",
-    "lat": 60.941529,
-    "lng": 76.559742,
-    "s": "https://stream3.dantser.org/NV_Lenina_7_2/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Ленина, 9/1",
-    "lat": 60.940335,
-    "lng": 76.56148,
-    "s": "https://stream3.dantser.org/NV_Lenina_9_1/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Ленина, 9/2",
-    "lat": 60.940354,
-    "lng": 76.563392,
-    "s": "https://stream3.dantser.org/NV_Lenina_9_2/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Ленина, 9/3",
-    "lat": 60.940378,
-    "lng": 76.565293,
-    "s": "https://stream3.dantser.org/NV_Lenina_9_3/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Ленина, 11/1",
-    "lat": 60.94052,
-    "lng": 76.56805,
-    "s": "https://stream3.dantser.org/NV_Lenina_11_1/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Ленина, 17/1",
-    "lat": 60.937148,
-    "lng": 76.586013,
-    "s": "https://stream3.dantser.org/NV_Lenina_17_1/tracks-v1/mono.ts.m3u8"
+    "n": "Кольцо 60 лет Октября - Ханты-Мансийская (Прайд)",
+    "lat": 60.923212,
+    "lng": 76.59919,
+    "s": "https://nginx01.pride-net.ru/cam_60let59/index.m3u8"
   },
   {
     "n": "Ленина, 21",
@@ -372,10 +72,10 @@
     "s": "https://stream3.dantser.org/NV_Lenina_39/tracks-v1/mono.ts.m3u8"
   },
   {
-    "n": "Ленина, 41",
-    "lat": 60.925576,
-    "lng": 76.629154,
-    "s": "https://stream3.dantser.org/NV_Lenina_41/tracks-v1/mono.ts.m3u8"
+    "n": "Мira, 24",
+    "lat": 60.944914,
+    "lng": 76.564421,
+    "s": "https://stream3.dantser.org/NV_Mira_24/tracks-v1/mono.ts.m3u8"
   },
   {
     "n": "Маршала Жукова, 9",
@@ -384,28 +84,16 @@
     "s": "https://stream3.dantser.org/NV_Zhukova_9/tracks-v1/mono.ts.m3u8"
   },
   {
-    "n": "Маршала Жукова, 12А",
-    "lat": 60.946061,
-    "lng": 76.564674,
-    "s": "https://stream3.dantser.org/NV_Zhukova_12a/tracks-v1/mono.ts.m3u8"
+    "n": "Мегион, Городская площадь (Прайд)",
+    "lat": 61.033,
+    "lng": 76.1026,
+    "s": "https://nginx03.pride-net.ru/m_zar15i/index.m3u8"
   },
   {
-    "n": "Маршала Жукова, 40",
-    "lat": 60.949939,
-    "lng": 76.562076,
-    "s": "https://stream3.dantser.org/NV_Zhukova_40/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Мира, 2",
-    "lat": 60.938916,
-    "lng": 76.593123,
-    "s": "https://stream3.dantser.org/NV_Mira_2/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Мира, 12Б",
-    "lat": 60.944964,
-    "lng": 76.557585,
-    "s": "https://stream3.dantser.org/NV_Mira_12b/tracks-v1/mono.ts.m3u8"
+    "n": "Мегион, Перекресток Заречная - Губкина (Прайд)",
+    "lat": 61.0354,
+    "lng": 76.0942,
+    "s": "https://nginx03.pride-net.ru/zar_16/index.m3u8"
   },
   {
     "n": "Мира, 13",
@@ -420,24 +108,6 @@
     "s": "https://stream3.dantser.org/NV_Mira_15/tracks-v1/mono.ts.m3u8"
   },
   {
-    "n": "Мира, 21",
-    "lat": 60.945448,
-    "lng": 76.553931,
-    "s": "https://stream3.dantser.org/NV_Mira_21/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Мира, 23",
-    "lat": 60.945602,
-    "lng": 76.561519,
-    "s": "https://stream3.dantser.org/NV_Mira_23/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Мira, 24",
-    "lat": 60.944914,
-    "lng": 76.564421,
-    "s": "https://stream3.dantser.org/NV_Mira_24/tracks-v1/mono.ts.m3u8"
-  },
-  {
     "n": "Мира, 25",
     "lat": 60.945753,
     "lng": 76.563809,
@@ -448,30 +118,6 @@
     "lat": 60.945082,
     "lng": 76.567543,
     "s": "https://stream3.dantser.org/NV_Mira_26/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Мира, 27/1",
-    "lat": 60.946225,
-    "lng": 76.573256,
-    "s": "https://stream3.dantser.org/NV_Mira_27_1/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Мира, 27/2",
-    "lat": 60.945656,
-    "lng": 76.573728,
-    "s": "https://stream3.dantser.org/NV_Mira_27_2/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Мира, 31/1",
-    "lat": 60.933249,
-    "lng": 76.617179,
-    "s": "https://stream3.dantser.org/NV_Mira_31_1/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Мира, 31/2",
-    "lat": 60.944096,
-    "lng": 76.579283,
-    "s": "https://stream3.dantser.org/NV_Mira_31_2/tracks-v1/mono.ts.m3u8"
   },
   {
     "n": "Мира, 32",
@@ -492,24 +138,6 @@
     "s": "https://stream3.dantser.org/NV_Mira_54/tracks-v1/mono.ts.m3u8"
   },
   {
-    "n": "Мира, 60/1",
-    "lat": 60.939535,
-    "lng": 76.590706,
-    "s": "https://stream3.dantser.org/NV_Mira_60_1/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Мира, 60/2",
-    "lat": 60.938916,
-    "lng": 76.593123,
-    "s": "https://stream3.dantser.org/NV_Mira_60_2/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Мира, 60/6",
-    "lat": 60.937145,
-    "lng": 76.591201,
-    "s": "https://stream3.dantser.org/NV_Mira_60_6/tracks-v1/mono.ts.m3u8"
-  },
-  {
     "n": "Мира, 62",
     "lat": 60.938036,
     "lng": 76.596759,
@@ -526,18 +154,6 @@
     "lat": 60.936979,
     "lng": 76.600666,
     "s": "https://stream3.dantser.org/NV_Mira_66a/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Мира, 76",
-    "lat": 60.935603,
-    "lng": 76.605679,
-    "s": "https://stream3.dantser.org/NV_Mira_76/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Мира, 81",
-    "lat": 60.935968,
-    "lng": 76.607669,
-    "s": "https://stream3.dantser.org/NV_Mira_81/tracks-v1/mono.ts.m3u8"
   },
   {
     "n": "Мира, 93",
@@ -564,106 +180,88 @@
     "s": "https://stream3.dantser.org/NV_Mira_99/tracks-v1/mono.ts.m3u8"
   },
   {
-    "n": "Мира, 101",
-    "lat": 60.930998,
-    "lng": 76.628467,
-    "s": "https://stream3.dantser.org/NV_Mira_101/tracks-v1/mono.ts.m3u8"
+    "n": "Нижневартовск, Интернациональная, в сторону Зимней (Прайд)",
+    "lat": 60.9571,
+    "lng": 76.5699,
+    "s": "https://nginx01.pride-net.ru/cam_inter2g_i_1/index.m3u8"
   },
   {
-    "n": "Московкина, 2",
-    "lat": 60.931963,
-    "lng": 76.630593,
-    "s": "https://stream3.dantser.org/NV_Moskovkina_2/tracks-v1/mono.ts.m3u8"
+    "n": "Нижневартовск, Интернациональная, в сторону Северной (Прайд)",
+    "lat": 60.9565,
+    "lng": 76.5716,
+    "s": "https://nginx01.pride-net.ru/cam_inter2g_i_2/index.m3u8"
   },
   {
-    "n": "Мусы Джалиля, 9",
-    "lat": 60.93086,
-    "lng": 76.574325,
-    "s": "https://stream3.dantser.org/NV_MusyDzh_9/tracks-v1/mono.ts.m3u8"
+    "n": "Нижневартовск, Прибрежная зона 3 (Прайд)",
+    "lat": 60.9238,
+    "lng": 76.5869,
+    "s": "https://nginx03.pride-net.ru/cam_kurop1_1/index.m3u8"
   },
   {
-    "n": "Мусы Джалиля, 18",
-    "lat": 60.932912,
-    "lng": 76.577769,
-    "s": "https://stream3.dantser.org/NV_MusyDzh_18/tracks-v1/mono.ts.m3u8"
+    "n": "Нижневартовск, ТЦ Форт (Прайд)",
+    "lat": 60.9264,
+    "lng": 76.5821,
+    "s": "https://nginx02.pride-net.ru/cam_60l46_fort/index.m3u8"
   },
   {
-    "n": "Мусы Джалиля, 20А",
-    "lat": 60.933766,
-    "lng": 76.578625,
-    "s": "https://stream3.dantser.org/NV_MusyDzh_20a/tracks-v1/mono.ts.m3u8"
+    "n": "Нижневартовск, Ханты-Мансийская в сторону 60 лет Октября (Прайд)",
+    "lat": 60.9264,
+    "lng": 76.6039,
+    "s": "https://nginx02.pride-net.ru/cam_hm19_1/index.m3u8"
   },
   {
-    "n": "Нефтяников, 2",
-    "lat": 60.931985,
-    "lng": 76.57046,
-    "s": "https://stream3.dantser.org/NV_Neftyanik_2/tracks-v1/mono.ts.m3u8"
+    "n": "Нижневартовск, перекресток Индустриальная - Ленина (Прайд)",
+    "lat": 60.9389,
+    "lng": 76.5302,
+    "s": "https://nginx01.pride-net.ru/industr20_1/index.m3u8"
   },
   {
-    "n": "Нефтяников, 15",
-    "lat": 60.939388,
-    "lng": 76.576682,
-    "s": "https://stream3.dantser.org/NV_Neftyanik_15/tracks-v1/mono.ts.m3u8"
+    "n": "Нижневартовск, перекресток Интернациональная - Северная Вид2 (Прайд)",
+    "lat": 60.9422,
+    "lng": 76.6296,
+    "s": "https://nginx04.pride-net.ru/geroi30_vario5_50/index.m3u8"
   },
   {
-    "n": "Нефтяников, 17",
-    "lat": 60.939962,
-    "lng": 76.577257,
-    "s": "https://stream3.dantser.org/NV_Neftyanik_17/tracks-v1/mono.ts.m3u8"
+    "n": "Нижневартовск, перекресток Ленина - Салманова (Прайд)",
+    "lat": 60.9252,
+    "lng": 76.6275,
+    "s": "https://nginx03.pride-net.ru/cam_ln41_1/index.m3u8"
   },
   {
-    "n": "Нефтяников, 21А",
-    "lat": 60.941246,
-    "lng": 76.577577,
-    "s": "https://stream3.dantser.org/NV_Neftyanik_21a/tracks-v1/mono.ts.m3u8"
+    "n": "Нижневартовск, перекресток Мусы Джалиля - Пикмана (Прайд)",
+    "lat": 60.9277,
+    "lng": 76.5716,
+    "s": "https://nginx01.pride-net.ru/cam_60l44_1/index.m3u8"
   },
   {
-    "n": "Нефтяников, 23",
-    "lat": 60.941411,
-    "lng": 76.578899,
-    "s": "https://stream3.dantser.org/NV_Neftyanik_23/tracks-v1/mono.ts.m3u8"
+    "n": "Нижневартовск, перекресток Салманова - Мира (Прайд)",
+    "lat": 60.9294,
+    "lng": 76.6322,
+    "s": "https://nginx04.pride-net.ru/mr103_2_0280/index.m3u8"
   },
   {
-    "n": "Нефтяников, 25",
-    "lat": 60.942003,
-    "lng": 76.579534,
-    "s": "https://stream3.dantser.org/NV_Neftyanik_25/tracks-v1/mono.ts.m3u8"
+    "n": "Нижневартовск, перекресток Салманова - Московкина (Прайд)",
+    "lat": 60.9315,
+    "lng": 76.6343,
+    "s": "https://nginx04.pride-net.ru/mosk5_1_0280/index.m3u8"
   },
   {
-    "n": "Нефтяников, 70",
-    "lat": 60.945735,
-    "lng": 76.584597,
-    "s": "https://stream3.dantser.org/NV_Neftyanik_70/tracks-v1/mono.ts.m3u8"
+    "n": "Нижневартовск, перекресток Северная - Героев Самотлора (Прайд)",
+    "lat": 60.9374,
+    "lng": 76.6329,
+    "s": "https://nginx04.pride-net.ru/geroi30_1_0280/index.m3u8"
   },
   {
-    "n": "Нефтяников, 85",
-    "lat": 60.952231,
-    "lng": 76.589281,
-    "s": "https://stream3.dantser.org/NV_Neftyanik_85/tracks-v1/mono.ts.m3u8"
+    "n": "Нижневартовск, перекресток Северная - Зимняя (Прайд)",
+    "lat": 60.9561,
+    "lng": 76.5834,
+    "s": "https://nginx04.pride-net.ru/cam_sv48_1/index.m3u8"
   },
   {
-    "n": "Нефтяников, 92",
-    "lat": 60.953686,
-    "lng": 76.592192,
-    "s": "https://stream3.dantser.org/NV_Neftyanik_92/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Нововартовская, 4",
-    "lat": 60.927478,
-    "lng": 76.60922,
-    "s": "https://stream3.dantser.org/NV_Novovart_4/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Нововартовская, 6",
-    "lat": 60.927091,
-    "lng": 76.610771,
-    "s": "https://stream3.dantser.org/NV_Novovart_6/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Нововартовская, 8",
-    "lat": 60.926713,
-    "lng": 76.612299,
-    "s": "https://stream3.dantser.org/NV_Novovart_8/tracks-v1/mono.ts.m3u8"
+    "n": "Нижневартовск, перекресток ул. Северная (Прайд)",
+    "lat": 60.9532,
+    "lng": 76.6002,
+    "s": "https://nginx01.pride-net.ru/sv56_pass_poe/index.m3u8"
   },
   {
     "n": "Омская, 23",
@@ -684,16 +282,10 @@
     "s": "https://stream3.dantser.org/NV_Permskaya_4/tracks-v1/mono.ts.m3u8"
   },
   {
-    "n": "Пермская, 6",
-    "lat": 60.938603,
-    "lng": 76.609517,
-    "s": "https://stream3.dantser.org/NV_Permskaya_6/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Профсоюзная, 3",
-    "lat": 60.936208,
-    "lng": 76.620494,
-    "s": "https://stream3.dantser.org/NV_Profsoyuz_3/tracks-v1/mono.ts.m3u8"
+    "n": "Прибрежная зона 2 (Прайд)",
+    "lat": 60.9221,
+    "lng": 76.592,
+    "s": "https://nginx01.pride-net.ru/cam_60l76_1/index.m3u8"
   },
   {
     "n": "Салманова, 4",
@@ -708,28 +300,22 @@
     "s": "https://stream3.dantser.org/NV_Salmanova_5/tracks-v1/mono.ts.m3u8"
   },
   {
-    "n": "Северная, 3",
-    "lat": 60.953025,
-    "lng": 76.567014,
-    "s": "https://stream3.dantser.org/NV_Severnaya_3/tracks-v1/mono.ts.m3u8"
+    "n": "Салманова, от Ленина в сторону Мира (Прайд)",
+    "lat": 60.9259,
+    "lng": 76.6283,
+    "s": "https://nginx01.pride-net.ru/cam_salman3_1/index.m3u8"
   },
   {
-    "n": "Северная, 11/1",
-    "lat": 60.954597,
-    "lng": 76.572105,
-    "s": "https://stream3.dantser.org/NV_Severnaya_11_1/tracks-v1/mono.ts.m3u8"
+    "n": "Салманова, от Мира в сторону Ленина (Прайд)",
+    "lat": 60.9284,
+    "lng": 76.631,
+    "s": "https://nginx01.pride-net.ru/cam_salman4_1/index.m3u8"
   },
   {
     "n": "Северная, 12",
     "lat": 60.94824,
     "lng": 76.55231,
     "s": "https://stream3.dantser.org/NV_Severnaya_12/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Северная, 19А",
-    "lat": 60.9566,
-    "lng": 76.582023,
-    "s": "https://stream3.dantser.org/NV_Severnaya_19a/tracks-v1/mono.ts.m3u8"
   },
   {
     "n": "Северная, 19Г",
@@ -742,18 +328,6 @@
     "lat": 60.955523,
     "lng": 76.584486,
     "s": "https://stream3.dantser.org/NV_Severnaya_48/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Северная, 48В",
-    "lat": 60.954839,
-    "lng": 76.584674,
-    "s": "https://stream3.dantser.org/NV_Severnaya_48v/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Северная, 68",
-    "lat": 60.952835,
-    "lng": 76.599365,
-    "s": "https://stream3.dantser.org/NV_Severnaya_68/tracks-v1/mono.ts.m3u8"
   },
   {
     "n": "Северная, 70",
@@ -774,124 +348,16 @@
     "s": "https://stream3.dantser.org/NV_Severnaya_84/tracks-v1/mono.ts.m3u8"
   },
   {
-    "n": "Северная, 116",
-    "lat": 60.935172,
-    "lng": 76.633507,
-    "s": "https://stream3.dantser.org/NV_Severnaya_116/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Сквер Строителей",
-    "lat": 60.935,
-    "lng": 76.5545,
-    "s": "https://stream3.dantser.org/NV_SkverStroit/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Спортивная, 5",
-    "lat": 60.943658,
-    "lng": 76.586161,
-    "s": "https://stream3.dantser.org/NV_Sportivn_5/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Спортивная, 13/1",
-    "lat": 60.942491,
-    "lng": 76.594311,
-    "s": "https://stream3.dantser.org/NV_Sportivn_13_1/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Спортивная, 13/2",
-    "lat": 60.941802,
-    "lng": 76.594936,
-    "s": "https://stream3.dantser.org/NV_Sportivn_13_2/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Спортивная, 15",
-    "lat": 60.94038,
-    "lng": 76.598976,
-    "s": "https://stream3.dantser.org/NV_Sportivn_15/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Спортивная, 17",
-    "lat": 60.939706,
-    "lng": 76.601606,
-    "s": "https://stream3.dantser.org/NV_Sportivn_17/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "ТК Славянский двор",
+    "n": "Сквер Учителей (Прайд)",
     "lat": 60.9345,
-    "lng": 76.549,
-    "s": "https://stream3.dantser.org/NV_SlavDvor/tracks-v1/mono.ts.m3u8"
+    "lng": 76.6188,
+    "s": "https://nginx01.pride-net.ru/cam_rom12_1/index.m3u8"
   },
   {
-    "n": "Ханты-Мансийская, 9",
-    "lat": 60.924717,
-    "lng": 76.600845,
-    "s": "https://stream3.dantser.org/NV_KhantyM_9/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Ханты-Мансийская, 15",
-    "lat": 60.926835,
-    "lng": 76.600498,
-    "s": "https://stream3.dantser.org/NV_KhantyM_15/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Ханты-Мансийская, 19",
-    "lat": 60.927891,
-    "lng": 76.604266,
-    "s": "https://stream3.dantser.org/NV_KhantyM_19/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Ханты-Мансийская, 19/2",
-    "lat": 60.939299,
-    "lng": 76.61787,
-    "s": "https://stream3.dantser.org/NV_KhantyM_19_2/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Ханты-Мансийская, 21/1",
-    "lat": 60.929299,
-    "lng": 76.605435,
-    "s": "https://stream3.dantser.org/NV_KhantyM_21_1/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Ханты-Мансийская, 26",
-    "lat": 60.932337,
-    "lng": 76.613642,
-    "s": "https://stream3.dantser.org/NV_KhantyM_26/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Ханты-Мансийская, 35",
-    "lat": 60.935543,
-    "lng": 76.612659,
-    "s": "https://stream3.dantser.org/NV_KhantyM_35/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Ханты-Мансийская, 45",
-    "lat": 60.939313,
-    "lng": 76.61663,
-    "s": "https://stream3.dantser.org/NV_KhantyM_45/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Чапаева, 7",
-    "lat": 60.930005,
-    "lng": 76.586504,
-    "s": "https://stream3.dantser.org/NV_Chapaeva_7/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Чапаева, 9",
-    "lat": 60.93143,
-    "lng": 76.588089,
-    "s": "https://stream3.dantser.org/NV_Chapaeva_9/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Чапаева, 11",
-    "lat": 60.93265,
-    "lng": 76.589979,
-    "s": "https://stream3.dantser.org/NV_Chapaeva_11/tracks-v1/mono.ts.m3u8"
-  },
-  {
-    "n": "Чапаева, 15/1",
-    "lat": 60.935518,
-    "lng": 76.5924,
-    "s": "https://stream3.dantser.org/NV_Chapaeva_15_1/tracks-v1/mono.ts.m3u8"
+    "n": "Учительский бульвар (Прайд)",
+    "lat": 60.9345,
+    "lng": 76.6225,
+    "s": "https://nginx03.pride-net.ru/geroi23/index.m3u8"
   },
   {
     "n": "Чапаева, 53",
@@ -900,27 +366,339 @@
     "s": "https://stream3.dantser.org/NV_Chapaeva_53/tracks-v1/mono.ts.m3u8"
   },
   {
-    "n": "пр. Победы, 5",
-    "lat": 60.93,
-    "lng": 76.5645,
-    "s": "https://stream3.dantser.org/NV_Pobedy_5/tracks-v1/mono.ts.m3u8"
+    "n": "Чапаева, 7",
+    "lat": 60.930005,
+    "lng": 76.586504,
+    "s": "https://stream3.dantser.org/NV_Chapaeva_7/tracks-v1/mono.ts.m3u8"
   },
   {
-    "n": "пр. Победы, 13",
-    "lat": 60.9295,
-    "lng": 76.56,
-    "s": "https://stream3.dantser.org/NV_Pobedy_13/tracks-v1/mono.ts.m3u8"
+    "n": "кольцо Чапаева - Ленина (Прайд)",
+    "lat": 60.934623,
+    "lng": 76.590366,
+    "s": "https://nginx03.pride-net.ru/ln19/index.m3u8"
   },
   {
-    "n": "пр. Победы, 22",
-    "lat": 60.928,
-    "lng": 76.556,
-    "s": "https://stream3.dantser.org/NV_Pobedy_22/tracks-v1/mono.ts.m3u8"
+    "n": "перекреcток Чапаева - 60 лет Октября (Прайд)",
+    "lat": 60.927771,
+    "lng": 76.583049,
+    "s": "https://nginx01.pride-net.ru/per60l46/index.m3u8"
   },
   {
-    "n": "пр. Победы, 23",
-    "lat": 60.929,
-    "lng": 76.5555,
-    "s": "https://stream3.dantser.org/NV_Pobedy_23/tracks-v1/mono.ts.m3u8"
+    "n": "перекресток 60 лет Октября - Дружбы Народов (Прайд)",
+    "lat": 60.9256,
+    "lng": 76.5918,
+    "s": "https://nginx03.pride-net.ru/dn7/index.m3u8"
+  },
+  {
+    "n": "перекресток 60 лет Октября - Кузоваткина (Прайд)",
+    "lat": 60.930699,
+    "lng": 76.549441,
+    "s": "https://nginx01.pride-net.ru/cam_60l4_1/index.m3u8"
+  },
+  {
+    "n": "перекресток 60 лет Октября - Победы (Прайд)",
+    "lat": 60.9309,
+    "lng": 76.5596,
+    "s": "https://nginx03.pride-net.ru/60l12aii/index.m3u8"
+  },
+  {
+    "n": "перекресток Героев Самотлора - Московкина (Прайд)",
+    "lat": 60.934185,
+    "lng": 76.623952,
+    "s": "https://nginx03.pride-net.ru/geroi25/index.m3u8"
+  },
+  {
+    "n": "перекресток Героев Самотлора - Профсоюзная (Прайд)",
+    "lat": 60.936249,
+    "lng": 76.62612,
+    "s": "https://nginx03.pride-net.ru/prof9/index.m3u8"
+  },
+  {
+    "n": "перекресток Зимняя - Интернациональная (Прайд)",
+    "lat": 60.959408,
+    "lng": 76.564322,
+    "s": "https://nginx03.pride-net.ru/inter2/index.m3u8"
+  },
+  {
+    "n": "перекресток Интернациональная - Дзержинского (Прайд)",
+    "lat": 60.94658,
+    "lng": 76.596792,
+    "s": "https://nginx01.pride-net.ru/inter49iii/index.m3u8"
+  },
+  {
+    "n": "перекресток Интернациональная - Нефтяников (Прайд)",
+    "lat": 60.950105,
+    "lng": 76.587694,
+    "s": "https://nginx03.pride-net.ru/int_nf/index.m3u8"
+  },
+  {
+    "n": "перекресток Интернациональная - Пермская (Прайд)",
+    "lat": 60.942836,
+    "lng": 76.610016,
+    "s": "https://nginx03.pride-net.ru/int22/index.m3u8"
+  },
+  {
+    "n": "перекресток Интернациональная - Чапаева (Прайд)",
+    "lat": 60.944988,
+    "lng": 76.601561,
+    "s": "https://nginx03.pride-net.ru/inter49i/index.m3u8"
+  },
+  {
+    "n": "перекресток Кузоваткина - Мира (Прайд)",
+    "lat": 60.94504,
+    "lng": 76.548159,
+    "s": "https://nginx03.pride-net.ru/mend29/index.m3u8"
+  },
+  {
+    "n": "перекресток Ленина - Дзержинского (Прайд)",
+    "lat": 60.9359,
+    "lng": 76.5854,
+    "s": "https://nginx03.pride-net.ru/ln17/index.m3u8"
+  },
+  {
+    "n": "перекресток Ленина - Дружбы Народов (Прайд)",
+    "lat": 60.932405,
+    "lng": 76.59912,
+    "s": "https://nginx03.pride-net.ru/DN22ii/index.m3u8"
+  },
+  {
+    "n": "перекресток Ленина - Мусы Джалиля (Прайд)",
+    "lat": 60.936946,
+    "lng": 76.581423,
+    "s": "https://nginx03.pride-net.ru/musdz25/index.m3u8"
+  },
+  {
+    "n": "перекресток Ленина - Нефтяников (Прайд)",
+    "lat": 60.93823,
+    "lng": 76.576177,
+    "s": "https://nginx03.pride-net.ru/nf44_4p/index.m3u8"
+  },
+  {
+    "n": "перекресток Ленина - Ханты-Мансийской (Прайд)",
+    "lat": 60.930156,
+    "lng": 76.608015,
+    "s": "https://nginx03.pride-net.ru/hm21_2/index.m3u8"
+  },
+  {
+    "n": "перекресток Ленина - героев Самотлора (Прайд)",
+    "lat": 60.9279,
+    "lng": 76.6171,
+    "s": "https://nginx02.pride-net.ru/geroi16/index.m3u8"
+  },
+  {
+    "n": "перекресток Мира - Дзержинского (Прайд)",
+    "lat": 60.94015,
+    "lng": 76.589899,
+    "s": "https://nginx01.pride-net.ru/Mira60i/index.m3u8"
+  },
+  {
+    "n": "перекресток Мира - Дружбы Народов (Прайд)",
+    "lat": 60.9367,
+    "lng": 76.6037,
+    "s": "https://nginx01.pride-net.ru/mira76_d_nar/index.m3u8"
+  },
+  {
+    "n": "перекресток Мира - Маршала Жукова (Прайд)",
+    "lat": 60.945429,
+    "lng": 76.566285,
+    "s": "https://nginx03.pride-net.ru/mira26/index.m3u8"
+  },
+  {
+    "n": "перекресток Мира - Нефтяников (Прайд)",
+    "lat": 60.942487,
+    "lng": 76.58071,
+    "s": "https://nginx01.pride-net.ru/mr50/index.m3u8"
+  },
+  {
+    "n": "перекресток Мира - Нефтяников (Прайд)",
+    "lat": 60.941883,
+    "lng": 76.583172,
+    "s": "https://nginx01.pride-net.ru/mr50_2/index.m3u8"
+  },
+  {
+    "n": "перекресток Мира - Пермская (Прайд)",
+    "lat": 60.936,
+    "lng": 76.6065,
+    "s": "https://nginx01.pride-net.ru/mira76_x_mans/index.m3u8"
+  },
+  {
+    "n": "перекресток Мира - Ханты-Мансийской (Прайд)",
+    "lat": 60.934388,
+    "lng": 76.612564,
+    "s": "https://nginx03.pride-net.ru/mira85/index.m3u8"
+  },
+  {
+    "n": "перекресток Мира - проспект Победы (Прайд)",
+    "lat": 60.94524,
+    "lng": 76.55826,
+    "s": "https://nginx03.pride-net.ru/mira23/index.m3u8"
+  },
+  {
+    "n": "перекресток Мусы Джалиля - 60 лет Октября (Прайд)",
+    "lat": 60.930036,
+    "lng": 76.573962,
+    "s": "https://nginx01.pride-net.ru/cam_60let23_ext/index.m3u8"
+  },
+  {
+    "n": "перекресток Нововартовская - Героев Самотлора (Прайд)",
+    "lat": 60.9263,
+    "lng": 76.6153,
+    "s": "https://nginx03.pride-net.ru/novvart8/index.m3u8"
+  },
+  {
+    "n": "перекресток Омская - Дружбы Народов (Прайд)",
+    "lat": 60.930781,
+    "lng": 76.597372,
+    "s": "https://nginx03.pride-net.ru/omsk62/index.m3u8"
+  },
+  {
+    "n": "перекресток Омская - Нефтяников (Прайд)",
+    "lat": 60.9361,
+    "lng": 76.5739,
+    "s": "https://nginx03.pride-net.ru/omsk26/index.m3u8"
+  },
+  {
+    "n": "перекресток Омская - Ханты-Мансийская (Прайд)",
+    "lat": 60.928503,
+    "lng": 76.606293,
+    "s": "https://nginx03.pride-net.ru/hm21i/index.m3u8"
+  },
+  {
+    "n": "перекресток Романтиков - Восточный пр-д (Прайд)",
+    "lat": 60.931472,
+    "lng": 76.613383,
+    "s": "https://nginx03.pride-net.ru/hm26/index.m3u8"
+  },
+  {
+    "n": "перекресток Северная - Маршала Жукова (Прайд)",
+    "lat": 60.950967,
+    "lng": 76.561763,
+    "s": "https://nginx03.pride-net.ru/gk40/index.m3u8"
+  },
+  {
+    "n": "перекресток Спортивная - Дзержинского (Прайд)",
+    "lat": 60.9419,
+    "lng": 76.5918,
+    "s": "https://nginx01.pride-net.ru/sp13i/index.m3u8"
+  },
+  {
+    "n": "перекресток Спортивная - Нефтяников (Прайд)",
+    "lat": 60.9452,
+    "lng": 76.5838,
+    "s": "https://nginx03.pride-net.ru/nf37/index.m3u8"
+  },
+  {
+    "n": "перекресток Ханты-Мансийская - Интернациональная (Прайд)",
+    "lat": 60.9404,
+    "lng": 76.6191,
+    "s": "https://nginx01.pride-net.ru/hm45_1_ext_ext/index.m3u8"
+  },
+  {
+    "n": "перекресток Ханты-Мансийская - Профсоюзная (Прайд)",
+    "lat": 60.93857,
+    "lng": 76.617046,
+    "s": "https://nginx01.pride-net.ru/hm45_2_ext/index.m3u8"
+  },
+  {
+    "n": "перекресток Чапаева - Мира (Прайд)",
+    "lat": 60.938865,
+    "lng": 76.594963,
+    "s": "https://nginx01.pride-net.ru/mira60ii/index.m3u8"
+  },
+  {
+    "n": "перекресток Чапаева - Северная (Прайд)",
+    "lat": 60.95135,
+    "lng": 76.608406,
+    "s": "https://nginx01.pride-net.ru/sev70/index.m3u8"
+  },
+  {
+    "n": "перекресток Чапаева - Спортивная (Прайд)",
+    "lat": 60.9406,
+    "lng": 76.5969,
+    "s": "https://nginx03.pride-net.ru/sport13iii/index.m3u8"
+  },
+  {
+    "n": "перекресток Чапаева - Таежная (Прайд)",
+    "lat": 60.932478,
+    "lng": 76.588107,
+    "s": "https://nginx03.pride-net.ru/Chap11/index.m3u8"
+  },
+  {
+    "n": "перекресток Чапаева- Пикмана (Прайд)",
+    "lat": 60.9255,
+    "lng": 76.5806,
+    "s": "https://nginx01.pride-net.ru/cam_60l48/index.m3u8"
+  },
+  {
+    "n": "проезд Восточный (Прайд)",
+    "lat": 60.9279,
+    "lng": 76.6275,
+    "s": "https://nginx03.pride-net.ru/cam_salm5_1/index.m3u8"
+  },
+  {
+    "n": "ул Салманова в сторону ул Мира (Прайд)",
+    "lat": 60.9332,
+    "lng": 76.6358,
+    "s": "https://nginx04.pride-net.ru/sv118_1_0280/index.m3u8"
+  },
+  {
+    "n": "ул. Осенняя в сторону ул Рабочая (Прайд)",
+    "lat": 60.8891,
+    "lng": 76.6557,
+    "s": "https://nginx04.pride-net.ru/cam_osen7-1/index.m3u8"
+  },
+  {
+    "n": "улица Интернациональная (Прайд)",
+    "lat": 60.9457,
+    "lng": 76.5993,
+    "s": "https://nginx01.pride-net.ru/inter49iii_2/index.m3u8"
+  },
+  {
+    "n": "улица Интернациональная (Прайд)",
+    "lat": 60.9437,
+    "lng": 76.6065,
+    "s": "https://nginx01.pride-net.ru/inter59/index.m3u8"
+  },
+  {
+    "n": "улица Мира (Прайд)",
+    "lat": 60.9448,
+    "lng": 76.5716,
+    "s": "https://nginx01.pride-net.ru/mira32/index.m3u8"
+  },
+  {
+    "n": "улица Нефтяников (Прайд)",
+    "lat": 60.9417,
+    "lng": 76.58,
+    "s": "https://nginx01.pride-net.ru/mr50_3/index.m3u8"
+  },
+  {
+    "n": "улица Пермская (Прайд)",
+    "lat": 60.942,
+    "lng": 76.6091,
+    "s": "https://nginx01.pride-net.ru/inter59a/index.m3u8"
+  },
+  {
+    "n": "улица Пермская (Прайд)",
+    "lat": 60.9448,
+    "lng": 76.6121,
+    "s": "https://nginx01.pride-net.ru/perm21_1p/index.m3u8"
+  },
+  {
+    "n": "улица Пермская (Прайд)",
+    "lat": 60.9475,
+    "lng": 76.615,
+    "s": "https://nginx01.pride-net.ru/perm21_6p/index.m3u8"
+  },
+  {
+    "n": "улица Салманова в сторону улицы Московкина (Прайд)",
+    "lat": 60.9308,
+    "lng": 76.6336,
+    "s": "https://nginx04.pride-net.ru/mr103_1_0280/index.m3u8"
+  },
+  {
+    "n": "улица Северная в сторону Кузоваткина (Прайд)",
+    "lat": 60.9487,
+    "lng": 76.5519,
+    "s": "https://nginx01.pride-net.ru/sv16/index.m3u8"
   }
 ]

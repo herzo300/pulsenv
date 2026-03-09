@@ -5,14 +5,15 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'map_screen.dart';
 import '../services/sound_service.dart';
 
-/// Splash Screen «Цифровая Невесомость»
-/// - Горизонтальная сканирующая линия бежит сверху вниз
-/// - Плавающие невесомые данные (буквы/цифры) всплывают как в космосе
-/// - Глубокий темный фон с мягким градиентом
+/// Splash screen "Digital Gravity".
+/// - Generative energy streams converge into the central Pulse mark.
+/// - Floating glyphs create a zero-gravity data field behind the UI.
+/// - A deep dark canvas and scanline keep the existing cinematic tone.
 class GravitySplashScreen extends StatefulWidget {
   const GravitySplashScreen({super.key});
 
@@ -38,6 +39,7 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
   static const Color _cyan = Color(0xFF00E5FF);
   static const Color _teal = Color(0xFF1DE9B6);
   static const Color _blue = Color(0xFF448AFF);
+  static const Color _violet = Color(0xFF7C4DFF);
 
   @override
   void initState() {
@@ -51,17 +53,20 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
-    )..addStatusListener((status) {
-        if (status == AnimationStatus.forward || status == AnimationStatus.completed || status == AnimationStatus.dismissed) {
+    )
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.forward ||
+            status == AnimationStatus.completed ||
+            status == AnimationStatus.dismissed) {
           if (status == AnimationStatus.forward) {
             // Pulsar beat trigger
             if (_ready && !_exiting) {
-               SoundService().playPulse();
+              SoundService().playPulse();
             }
           }
         }
-    })
-    ..repeat();
+      })
+      ..repeat();
 
     _fadeController = AnimationController(
       vsync: this,
@@ -78,7 +83,8 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
       setState(() {
         _time = elapsed.inMilliseconds / 1000.0;
       });
-    })..start();
+    })
+      ..start();
 
     _simulateLoading();
     SoundService().playSplash();
@@ -139,6 +145,12 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
               ),
             ),
 
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _EnergyConvergencePainter(time: _time),
+              ),
+            ),
+
             // 2. Floating data glyphs
             Positioned.fill(
               child: CustomPaint(
@@ -172,7 +184,11 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
                         animation: _pulseController,
                         builder: (context, _) {
                           final glow = _ready
-                              ? 0.6 + math.sin(_pulseController.value * math.pi * 2) * 0.4
+                              ? 0.6 +
+                                  math.sin(_pulseController.value *
+                                          math.pi *
+                                          2) *
+                                      0.4
                               : 0.3;
                           return Column(
                             mainAxisSize: MainAxisSize.min,
@@ -202,43 +218,62 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
                               ),
                               const SizedBox(height: 24),
                               Text(
-                                'ЦИФРОВАЯ',
-                                style: TextStyle(
+                                '\u0426\u0418\u0424\u0420\u041E\u0412\u0410\u042F',
+                                style: GoogleFonts.orbitron(
                                   color: _cyan.withOpacity(0.6),
-                                  fontSize: 11,
+                                  fontSize: 12,
                                   letterSpacing: 10,
-                                  fontWeight: FontWeight.w300,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               ShaderMask(
-                                shaderCallback: (bounds) => const LinearGradient(
-                                  colors: [_cyan, _teal, _blue],
+                                shaderCallback: (bounds) =>
+                                    const LinearGradient(
+                                  colors: [_cyan, _teal, _blue, _violet],
+                                  stops: [0.0, 0.35, 0.7, 1.0],
                                 ).createShader(bounds),
-                                child: const Text(
-                                  'НЕВЕСОМОСТЬ',
-                                  style: TextStyle(
+                                child: Text(
+                                  '\u041D\u0415\u0412\u0415\u0421\u041E\u041C\u041E\u0421\u0422\u042C',
+                                  style: GoogleFonts.orbitron(
                                     color: Colors.white,
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 6,
+                                    fontSize: 29,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 5.5,
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 10),
                               Text(
-                                'ПУЛЬС · НИЖНЕВАРТОВСК',
-                                style: TextStyle(
+                                '\u0413\u043E\u0440\u043E\u0434\u0441\u043A\u0438\u0435 '
+                                '\u0441\u0438\u0433\u043D\u0430\u043B\u044B '
+                                '\u0441\u0445\u043E\u0434\u044F\u0442\u0441\u044F '
+                                '\u0432 \u0435\u0434\u0438\u043D\u044B\u0439 '
+                                '\u0446\u0438\u0444\u0440\u043E\u0432\u043E\u0439 '
+                                '\u043F\u0443\u043B\u044C\u0441',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.inter(
+                                  color: Colors.white.withOpacity(0.68),
+                                  fontSize: 13,
+                                  height: 1.35,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                '\u041F\u0423\u041B\u042C\u0421 \u00B7 '
+                                '\u041D\u0418\u0416\u041D\u0415\u0412\u0410\u0420\u0422\u041E\u0412\u0421\u041A',
+                                style: GoogleFonts.inter(
                                   color: Colors.white.withOpacity(0.3),
-                                  fontSize: 10,
-                                  letterSpacing: 5,
+                                  fontSize: 11,
+                                  letterSpacing: 3.2,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
                           );
                         },
                       ),
-
                       const SizedBox(height: 48),
 
                       // Core button
@@ -248,7 +283,9 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
                           animation: _pulseController,
                           builder: (context, _) {
                             final heartbeat = _ready
-                                ? math.sin(_pulseController.value * math.pi * 2) * 0.1
+                                ? math.sin(
+                                        _pulseController.value * math.pi * 2) *
+                                    0.1
                                 : 0.0;
                             final scale = _ready ? 1.0 + heartbeat : 0.85;
 
@@ -266,13 +303,15 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
                                     ],
                                   ),
                                   border: Border.all(
-                                    color: _cyan.withOpacity(_ready ? 0.8 : 0.2),
+                                    color:
+                                        _cyan.withOpacity(_ready ? 0.8 : 0.2),
                                     width: 1.5,
                                   ),
                                   boxShadow: _ready
                                       ? [
                                           BoxShadow(
-                                            color: _cyan.withOpacity(0.4 + heartbeat),
+                                            color: _cyan
+                                                .withOpacity(0.4 + heartbeat),
                                             blurRadius: 25,
                                             spreadRadius: 3,
                                           ),
@@ -281,8 +320,11 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
                                 ),
                                 child: Center(
                                   child: Icon(
-                                    _ready ? Icons.fingerprint : Icons.hourglass_empty_rounded,
-                                    color: _cyan.withOpacity(_ready ? 1.0 : 0.4),
+                                    _ready
+                                        ? Icons.fingerprint
+                                        : Icons.hourglass_empty_rounded,
+                                    color:
+                                        _cyan.withOpacity(_ready ? 1.0 : 0.4),
                                     size: 30,
                                   ),
                                 ),
@@ -298,24 +340,28 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 500),
                         child: _ready
-                            ? const Text(
-                                'АКТИВИРОВАТЬ СИСТЕМУ',
-                                key: ValueKey('ready'),
-                                style: TextStyle(
+                            ? Text(
+                                '\u0410\u041A\u0422\u0418\u0412\u0418\u0420\u041E\u0412\u0410\u0422\u042C '
+                                '\u0421\u0418\u0421\u0422\u0415\u041C\u0423',
+                                key: const ValueKey('ready'),
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.inter(
                                   color: Colors.white,
-                                  fontSize: 11,
-                                  letterSpacing: 4,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  letterSpacing: 3.4,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               )
                             : Text(
-                                'КАЛИБРОВКА СЕНСОРОВ...',
+                                '\u041A\u0410\u041B\u0418\u0411\u0420\u041E\u0412\u041A\u0410 '
+                                '\u0421\u0415\u041D\u0421\u041E\u0420\u041E\u0412...',
                                 key: const ValueKey('loading'),
-                                style: TextStyle(
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.inter(
                                   color: _cyan.withOpacity(0.5),
-                                  fontSize: 11,
-                                  letterSpacing: 4,
-                                  fontWeight: FontWeight.w400,
+                                  fontSize: 12,
+                                  letterSpacing: 3.0,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                       ),
@@ -418,9 +464,9 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
   }
 }
 
-// ════════════════════════════════════════════
+// ==========================================
 // Floating Glyph data
-// ════════════════════════════════════════════
+// ==========================================
 
 class _FloatingGlyph {
   double x, y;
@@ -442,7 +488,8 @@ class _FloatingGlyph {
   });
 
   factory _FloatingGlyph.random(math.Random rng) {
-    const chars = '01АБВ∑∫λπΔΩ≈•◦∞×÷ⓅⓊⓁⓈ';
+    const chars =
+        '01\u0410\u0411\u0412\u2211\u222B\u03BB\u03C0\u0394\u03A9\u2248\u2022\u25E6\u221E\u00D7\u00F7\u24C5\u24CA\u24C1\u24C8';
     return _FloatingGlyph(
       x: rng.nextDouble(),
       y: rng.nextDouble(),
@@ -456,9 +503,9 @@ class _FloatingGlyph {
   }
 }
 
-// ════════════════════════════════════════════
+// ==========================================
 // Painters
-// ════════════════════════════════════════════
+// ==========================================
 
 class _DeepSpacePainter extends CustomPainter {
   final double time;
@@ -509,7 +556,8 @@ class _GlyphPainter extends CustomPainter {
 
       // Pulsating alpha
       final alphaOsc = g.alpha * (0.5 + 0.5 * math.sin(time * 1.5 + g.phase));
-      final color = const Color(0xFF00E5FF).withOpacity(alphaOsc.clamp(0.01, 0.25));
+      final color =
+          const Color(0xFF00E5FF).withOpacity(alphaOsc.clamp(0.01, 0.25));
 
       final tp = TextPainter(
         text: TextSpan(
@@ -530,6 +578,139 @@ class _GlyphPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _GlyphPainter old) => true;
+}
+
+class _EnergyConvergencePainter extends CustomPainter {
+  final double time;
+  _EnergyConvergencePainter({required this.time});
+
+  static const List<Color> _streamPalette = [
+    Color(0xFF00E5FF),
+    Color(0xFF1DE9B6),
+    Color(0xFF448AFF),
+    Color(0xFF7C4DFF),
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width * 0.5, size.height * 0.36);
+    final radius = size.shortestSide * 0.56;
+    final haloPulse = 0.88 + math.sin(time * 0.9) * 0.12;
+
+    final halo = Paint()
+      ..shader = ui.Gradient.radial(
+        center,
+        radius * 0.75,
+        [
+          const Color(0xFF00E5FF).withOpacity(0.12 * haloPulse),
+          const Color(0xFF448AFF).withOpacity(0.08 * haloPulse),
+          Colors.transparent,
+        ],
+        const [0.0, 0.5, 1.0],
+      );
+    canvas.drawCircle(center, radius * 0.75, halo);
+
+    for (int i = 0; i < 18; i++) {
+      final phase = i / 18;
+      final startAngle = phase * math.pi * 2 + time * 0.12;
+      final startRadius = radius * (0.9 + 0.18 * math.sin(time * 0.35 + i));
+      final start = Offset(
+        center.dx + math.cos(startAngle) * startRadius,
+        center.dy + math.sin(startAngle) * startRadius * 0.82,
+      );
+
+      final bend = 0.2 + 0.08 * math.sin(time * 0.7 + i);
+      final controlA = Offset.lerp(start, center, 0.28)! +
+          Offset(
+            math.cos(startAngle + math.pi / 2) * size.width * bend,
+            math.sin(startAngle + math.pi / 2) * size.height * bend * 0.38,
+          );
+      final controlB = Offset.lerp(start, center, 0.72)! +
+          Offset(
+            math.cos(startAngle - math.pi / 2) * size.width * bend * 0.18,
+            math.sin(startAngle - math.pi / 2) * size.height * bend * 0.12,
+          );
+
+      final path = Path()
+        ..moveTo(start.dx, start.dy)
+        ..cubicTo(
+          controlA.dx,
+          controlA.dy,
+          controlB.dx,
+          controlB.dy,
+          center.dx,
+          center.dy,
+        );
+
+      final streamOpacity =
+          (0.22 + 0.06 * math.sin(time * 1.1 + i)).clamp(0.12, 0.32);
+      final streamColor =
+          _streamPalette[i % _streamPalette.length].withOpacity(streamOpacity);
+
+      final glowPaint = Paint()
+        ..color = streamColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 8
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 12);
+      canvas.drawPath(path, glowPaint);
+
+      final linePaint = Paint()
+        ..shader = ui.Gradient.linear(
+          start,
+          center,
+          [
+            streamColor.withOpacity(0.0),
+            streamColor.withOpacity(0.7),
+            const Color(0xFFECFEFF).withOpacity(0.9),
+          ],
+          const [0.0, 0.5, 1.0],
+        )
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.25 + (i % 3) * 0.45
+        ..strokeCap = StrokeCap.round;
+      canvas.drawPath(path, linePaint);
+
+      final particleT = (time * (0.19 + (i % 4) * 0.025) + phase) % 1.0;
+      final particle =
+          _cubicPoint(start, controlA, controlB, center, particleT);
+      final particlePaint = Paint()
+        ..color = const Color(0xFFECFEFF).withOpacity(0.9)
+        ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 6);
+      canvas.drawCircle(particle, 2.8 + (i % 2) * 1.1, particlePaint);
+    }
+
+    for (int ring = 0; ring < 3; ring++) {
+      final progress = ((time * 0.16) + ring * 0.26) % 1.0;
+      final ringRadius = ui.lerpDouble(radius * 0.08, radius * 0.28, progress)!;
+      final ringPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = const Color(0xFF00E5FF).withOpacity((1 - progress) * 0.18);
+      canvas.drawCircle(center, ringRadius, ringPaint);
+    }
+  }
+
+  Offset _cubicPoint(
+    Offset p0,
+    Offset p1,
+    Offset p2,
+    Offset p3,
+    double t,
+  ) {
+    final mt = 1 - t;
+    final a = mt * mt * mt;
+    final b = 3 * mt * mt * t;
+    final c = 3 * mt * t * t;
+    final d = t * t * t;
+    return Offset(
+      (a * p0.dx) + (b * p1.dx) + (c * p2.dx) + (d * p3.dx),
+      (a * p0.dy) + (b * p1.dy) + (c * p2.dy) + (d * p3.dy),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _EnergyConvergencePainter old) => true;
 }
 
 class _GridOverlayPainter extends CustomPainter {

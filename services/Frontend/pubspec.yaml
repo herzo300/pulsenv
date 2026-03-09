@@ -53,6 +53,8 @@ dependencies:
   chewie: ^1.13.0
   geolocator: ^14.0.2
   awesome_notifications: ^0.11.0
+  google_fonts: ^8.0.2
+  fl_chart: ^1.1.1
 
 dev_dependencies:
   flutter_test:
@@ -72,7 +74,6 @@ flutter:
     - assets/infographic_data.json
     - assets/icon.png
     - assets/cesium_view.html
-    - assets/city_story.html
     - assets/cameras_nv.json
     - assets/sounds/
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 
 <head>
   <meta charset="utf-8">
@@ -18,6 +18,11 @@
       padding: 0;
       overflow: hidden;
       background: #020617;
+    }
+
+    body {
+      font-family: Inter, Segoe UI, sans-serif;
+      color: #fff;
     }
 
     .cesium-viewer-bottom,
@@ -62,175 +67,612 @@
       z-index: 999;
       pointer-events: none;
     }
+
+    #loading {
+      --loader-progress: 8%;
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 50% 40%, rgba(0, 229, 255, 0.12), transparent 36%),
+        linear-gradient(180deg, rgba(2, 6, 23, 0.96) 0%, rgba(2, 6, 23, 0.98) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      z-index: 9999;
+      transition: opacity 0.72s ease, visibility 0.72s ease;
+    }
+
+    #loading.is-ready {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .loading-grid {
+      position: absolute;
+      inset: -12% -8%;
+      background-image:
+        linear-gradient(rgba(0, 229, 255, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 229, 255, 0.08) 1px, transparent 1px);
+      background-size: 58px 58px;
+      transform: perspective(920px) rotateX(76deg) translateY(16%);
+      transform-origin: center top;
+      opacity: 0.65;
+      animation: gridPulse 5.2s ease-in-out infinite;
+    }
+
+    .loading-city {
+      position: absolute;
+      width: min(56vw, 520px);
+      height: min(40vw, 320px);
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -56%);
+      filter: drop-shadow(0 0 18px rgba(0, 229, 255, 0.18));
+    }
+
+    .loading-city .block {
+      position: absolute;
+      border: 1px solid rgba(0, 229, 255, 0.95);
+      background: linear-gradient(180deg, rgba(0, 229, 255, 0.08), rgba(0, 229, 255, 0.02));
+      box-shadow: inset 0 0 0 1px rgba(0, 229, 255, 0.08);
+      animation: cityGlow 2.8s ease-in-out infinite;
+    }
+
+    .loading-city .block::before,
+    .loading-city .block::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border: 1px solid rgba(0, 229, 255, 0.45);
+      transform-origin: top left;
+      pointer-events: none;
+    }
+
+    .loading-city .block::before {
+      transform: translate(12px, -10px);
+    }
+
+    .loading-city .block::after {
+      transform: translate(12px, -10px) skewY(45deg);
+      clip-path: polygon(100% 0, 100% 100%, 0 100%, 40% 0);
+      opacity: 0.45;
+    }
+
+    .block.b1 {
+      left: 11%;
+      bottom: 18%;
+      width: 72px;
+      height: 92px;
+      animation-delay: 0s;
+    }
+
+    .block.b2 {
+      left: 33%;
+      bottom: 25%;
+      width: 88px;
+      height: 132px;
+      animation-delay: 0.18s;
+    }
+
+    .block.b3 {
+      left: 56%;
+      bottom: 19%;
+      width: 84px;
+      height: 108px;
+      animation-delay: 0.34s;
+    }
+
+    .block.b4 {
+      left: 43%;
+      bottom: 11%;
+      width: 132px;
+      height: 66px;
+      animation-delay: 0.48s;
+    }
+
+    .loading-scan {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 20%;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.95), transparent);
+      box-shadow: 0 0 24px rgba(0, 229, 255, 0.52);
+      animation: scanLine 2.6s cubic-bezier(.35, 0, .2, 1) infinite;
+    }
+
+    .loading-copy {
+      position: relative;
+      z-index: 2;
+      width: min(520px, calc(100vw - 40px));
+      margin-top: 280px;
+      text-align: center;
+    }
+
+    .loading-kicker {
+      display: inline-flex;
+      padding: 7px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(0, 229, 255, 0.32);
+      background: rgba(0, 229, 255, 0.09);
+      color: #7DEBFF;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    #loadingTitle {
+      margin: 18px 0 10px;
+      font-size: clamp(24px, 4.4vw, 40px);
+      line-height: 1.04;
+      letter-spacing: -0.03em;
+      font-weight: 800;
+    }
+
+    #loadingHint {
+      max-width: 480px;
+      margin: 0 auto;
+      color: #94A3B8;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .loading-progress {
+      width: min(340px, calc(100vw - 64px));
+      height: 10px;
+      margin: 22px auto 10px;
+      padding: 1px;
+      border-radius: 999px;
+      border: 1px solid rgba(0, 229, 255, 0.24);
+      background: rgba(15, 23, 42, 0.68);
+      overflow: hidden;
+      box-shadow: inset 0 0 0 1px rgba(0, 229, 255, 0.08);
+    }
+
+    #loadingProgressBar {
+      display: block;
+      width: var(--loader-progress);
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #00E5FF 0%, #7DD3FC 100%);
+      box-shadow: 0 0 18px rgba(0, 229, 255, 0.4);
+      transition: width 0.45s ease;
+    }
+
+    #loadingPercent {
+      color: #7DD3FC;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+    }
+
+    @keyframes gridPulse {
+
+      0%,
+      100% {
+        opacity: 0.42;
+      }
+
+      50% {
+        opacity: 0.68;
+      }
+    }
+
+    @keyframes cityGlow {
+
+      0%,
+      100% {
+        opacity: 0.72;
+      }
+
+      50% {
+        opacity: 1;
+      }
+    }
+
+    @keyframes scanLine {
+      0% {
+        transform: translateY(0);
+        opacity: 0;
+      }
+
+      12% {
+        opacity: 1;
+      }
+
+      88% {
+        opacity: 1;
+      }
+
+      100% {
+        transform: translateY(58vh);
+        opacity: 0;
+      }
+    }
   </style>
 </head>
 
 <body>
-  <div id="loading"
-    style="position:fixed;top:0;left:0;width:100%;height:100%;background:#020617;color:#00E5FF;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:sans-serif;z-index:9999;">
-    <div
-      style="width:40px;height:40px;border:3px solid #00E5FF;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;">
+  <div id="loading">
+    <div class="loading-grid"></div>
+    <div class="loading-city" aria-hidden="true">
+      <span class="block b1"></span>
+      <span class="block b2"></span>
+      <span class="block b3"></span>
+      <span class="block b4"></span>
     </div>
-    <p style="margin-top:20px;font-weight:bold;letter-spacing:2px;font-size:12px;">ПУЛЬС 3D...</p>
+    <div class="loading-scan"></div>
+    <div class="loading-copy">
+      <div class="loading-kicker">City Pulse 3D</div>
+      <h1 id="loadingTitle">Стыковка 2D и 3D</h1>
+      <p id="loadingHint">Якорим объемную сцену в центре текущего обзора и собираем каркас города.</p>
+      <div class="loading-progress"><span id="loadingProgressBar"></span></div>
+      <div id="loadingPercent">08%</div>
+    </div>
   </div>
-  <style>
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-  </style>
   <div id="cesiumContainer"></div>
+  <div id="geoportalFallback" style="display:none;position:fixed;inset:0;z-index:998;background:#020617;">
+    <iframe id="geoportalFallbackFrame" src="" referrerpolicy="no-referrer" style="width:100%;height:100%;border:0;"
+      title="Nizhnevartovsk Geoportal 3D"></iframe>
+  </div>
   <div id="camCount" style="display:none;">📹 0 камер</div>
   <div id="statusBadge" style="display:none;"></div>
   <script>
-    window.setIonToken = (token) => { Cesium.Ion.defaultAccessToken = token; };
+    window.setIonToken = (token) => {
+      Cesium.Ion.defaultAccessToken = token;
+    };
+
+    const DEFAULT_LAUNCH_CONTEXT = {
+      lat: 60.91927,
+      lng: 76.55536,
+      zoom: 13.2,
+      topAltitude: 8200,
+      diveAltitude: 2400,
+      heading: 0.18,
+      finalHeading: 0.24,
+      finalPitch: -42,
+    };
+
+    const GEOPORTAL_LAYERS = {
+      '2025': {
+        id: 1114,
+        matrix: [-0.972733, -0.202718, 0.112672, 724182.353291, 0.231926, -0.850230, 0.472565, 3022657.267975, 0.0, 0.485811, 0.874063, 5549873.669934, 0.0, 0.0, 0.0, 1.0]
+      },
+      '2023': {
+        id: 1060,
+        matrix: [-0.972733, -0.202718, 0.112672, 724182.3533, 0.231926, -0.85023, 0.472565, 3022657.268, 0.0, 0.485811, 0.874063, 5549873.67, 0.0, 0.0, 0.0, 1.0]
+      }
+    };
+
+    let launchContext = { ...DEFAULT_LAUNCH_CONTEXT };
+    let activeTileset = null;
+    let tilesLoaded = false;
+    let diveStarted = false;
+    let markerEntities = [];
+    let cameraEntities = [];
 
     const viewer = new Cesium.Viewer('cesiumContainer', {
       terrainProvider: new Cesium.EllipsoidTerrainProvider(),
-      animation: false, timeline: false, navigationHelpButton: false,
-      sceneModePicker: true, baseLayerPicker: true, fullscreenButton: false,
-      homeButton: true, geocoder: false, selectionIndicator: true, infoBox: true,
-      skyAtmosphere: true, fog: true, requestRenderMode: false, logarithmicDepthBuffer: true,
+      animation: false,
+      timeline: false,
+      navigationHelpButton: false,
+      sceneModePicker: true,
+      baseLayerPicker: true,
+      fullscreenButton: false,
+      homeButton: true,
+      geocoder: false,
+      selectionIndicator: true,
+      infoBox: true,
+      skyAtmosphere: true,
+      fog: true,
+      requestRenderMode: false,
+      logarithmicDepthBuffer: true,
       contextOptions: {
         webgl: {
           alpha: false,
           antialias: true,
           preserveDrawingBuffer: false,
-          failIfMajorPerformanceCaveat: false
-        }
-      }
+          failIfMajorPerformanceCaveat: false,
+        },
+      },
     });
 
-    // ── Status badge ──
+    function notifyHost(type, payload = {}) {
+      const message = JSON.stringify({ type, ...payload });
+      try {
+        if (window.CityPulse3DChannel && typeof window.CityPulse3DChannel.postMessage === 'function') {
+          window.CityPulse3DChannel.postMessage(message);
+        }
+      } catch (_) { }
+      try {
+        window.parent?.postMessage({ type: `citypulse:${type}`, ...payload }, '*');
+      } catch (_) { }
+    }
+
     function showStatus(text, color) {
       const badge = document.getElementById('statusBadge');
-      if (badge) {
-        badge.textContent = text;
-        badge.style.color = color || '#94a3b8';
-        badge.style.borderLeft = `3px solid ${color || '#94a3b8'}`;
-        badge.style.display = 'block';
+      if (!badge) return;
+      badge.textContent = text;
+      badge.style.color = color || '#94a3b8';
+      badge.style.borderLeft = `3px solid ${color || '#94a3b8'}`;
+      badge.style.display = 'block';
+    }
+
+    function setLoadingState(title, hint, progress) {
+      const clamped = Math.max(0.04, Math.min(progress, 1));
+      const root = document.getElementById('loading');
+      const titleEl = document.getElementById('loadingTitle');
+      const hintEl = document.getElementById('loadingHint');
+      const percentEl = document.getElementById('loadingPercent');
+      if (titleEl) titleEl.textContent = title;
+      if (hintEl) hintEl.textContent = hint;
+      if (percentEl) percentEl.textContent = `${String(Math.round(clamped * 100)).padStart(2, '0')}%`;
+      if (root) root.style.setProperty('--loader-progress', `${Math.round(clamped * 100)}%`);
+      notifyHost('scene-stage', { title, hint, progress: clamped });
+    }
+
+    function hideLoading() {
+      const loader = document.getElementById('loading');
+      if (!loader) return;
+      loader.classList.add('is-ready');
+      window.setTimeout(() => {
+        loader.style.display = 'none';
+      }, 720);
+    }
+
+    function decodePayload(data) {
+      if (typeof data !== 'string') return data || {};
+      try {
+        if (data.startsWith('{') || data.startsWith('[')) {
+          return JSON.parse(data);
+        }
+        return JSON.parse(atob(data));
+      } catch (_) {
+        return {};
       }
     }
 
-    // ── Geoportal 3D tiles ──
-    const GEOPORTAL_LAYERS = {
-      '2025': { id: 1114, matrix: [-0.972733, -0.202718, 0.112672, 724182.353291, 0.231926, -0.850230, 0.472565, 3022657.267975, 0.0, 0.485811, 0.874063, 5549873.669934, 0.0, 0.0, 0.0, 1.0] },
-      '2023': { id: 1060, matrix: [-0.972733, -0.202718, 0.112672, 724182.3533, 0.231926, -0.85023, 0.472565, 3022657.268, 0.0, 0.485811, 0.874063, 5549873.67, 0.0, 0.0, 0.0, 1.0] }
-    };
-    let activeTileset = null;
-    let tilesLoaded = false;
+    function applyLaunchView() {
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(
+          launchContext.lng,
+          launchContext.lat,
+          launchContext.topAltitude || DEFAULT_LAUNCH_CONTEXT.topAltitude,
+        ),
+        orientation: {
+          heading: Cesium.Math.toRadians(launchContext.heading || 0),
+          pitch: Cesium.Math.toRadians(-88),
+          roll: 0,
+        },
+      });
+    }
+
+    function beginDiveFlight(mode) {
+      if (diveStarted) return;
+      diveStarted = true;
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(
+          launchContext.lng,
+          launchContext.lat,
+          launchContext.diveAltitude || DEFAULT_LAUNCH_CONTEXT.diveAltitude,
+        ),
+        orientation: {
+          heading: Cesium.Math.toRadians(
+            launchContext.finalHeading ?? launchContext.heading ?? 0,
+          ),
+          pitch: Cesium.Math.toRadians(
+            launchContext.finalPitch ?? DEFAULT_LAUNCH_CONTEXT.finalPitch,
+          ),
+          roll: 0,
+        },
+        duration: 2.8,
+        easingFunction: Cesium.EasingFunction.CUBIC_OUT,
+        complete: () => {
+          notifyHost('camera-dive-complete', { mode });
+        },
+      });
+    }
+
+    function setLaunchContext(data) {
+      const payload = decodePayload(data);
+      launchContext = {
+        ...DEFAULT_LAUNCH_CONTEXT,
+        ...payload,
+      };
+      setLoadingState(
+        'Стыковка 2D и 3D',
+        'Ныряем в ту же точку, где был центр 2D-карты.',
+        0.16,
+      );
+      applyLaunchView();
+    }
+
+    function bindTilesetProgress(tileset) {
+      if (!tileset || !tileset.tileLoadProgressEvent) return;
+      tileset.tileLoadProgressEvent.addEventListener((pending) => {
+        if (tilesLoaded) return;
+        if (pending > 0) {
+          const normalized = Math.max(0.44, Math.min(0.9, 0.92 - (Math.min(pending, 42) / 60)));
+          setLoadingState(
+            'Каркас города собирается',
+            'Подтягиваем геометрию кварталов и первые текстуры фасадов.',
+            normalized,
+          );
+        } else {
+          setLoadingState(
+            'Финальная сборка сцены',
+            'Фиксируем освещение, сетку и уровень детализации.',
+            0.94,
+          );
+        }
+      });
+    }
 
     async function loadGeoportalTiles(year = '2025') {
       if (!viewer || !viewer.scene) return;
       if (activeTileset) viewer.scene.primitives.remove(activeTileset);
       const config = GEOPORTAL_LAYERS[year];
+      setLoadingState(
+        'Подключение 3D-тайлов',
+        'Запрашиваем объемный контур города и привязываем его к текущему центру обзора.',
+        0.32,
+      );
+
       try {
-        const tileset = await Cesium.Cesium3DTileset.fromUrl(
+        const candidates = [
+          `https://geoportal.n-vartovsk.ru/tls/1/${config.id}?group=User_2&file=tileset.json`,
+          `https://geoportal.n-vartovsk.ru/tls/1/${config.id}/tileset.json?group=1&file=tileset.json`,
           `https://geoportal.n-vartovsk.ru/tls/1/${config.id}/tileset.json`,
-          { skipLevelOfDetail: true, baseScreenSpaceError: 1024, skipScreenSpaceErrorFactor: 16, skipLevels: 1, immediatelyLoadDesiredLevelOfDetail: false, loadSiblings: false, cullWithChildrenBounds: true }
-        );
+          `https://geoportal.n-vartovsk.ru/tls/1/${config.id}?group=1&file=${config.id}`,
+        ];
+
+        let tileset = null;
+        let lastErr = null;
+
+        for (const url of candidates) {
+          try {
+            tileset = await Cesium.Cesium3DTileset.fromUrl(url, {
+              skipLevelOfDetail: true,
+              baseScreenSpaceError: 1024,
+              skipScreenSpaceErrorFactor: 16,
+              skipLevels: 1,
+              immediatelyLoadDesiredLevelOfDetail: false,
+              loadSiblings: false,
+              cullWithChildrenBounds: true,
+            });
+            if (tileset) break;
+          } catch (err) {
+            lastErr = err;
+          }
+        }
+
+        if (!tileset) throw lastErr || new Error('No tileset candidate worked');
+
+        bindTilesetProgress(tileset);
         viewer.scene.primitives.add(tileset);
         activeTileset = tileset;
         tileset.modelMatrix = Cesium.Matrix4.fromArray(config.matrix);
         await tileset.readyPromise;
+
         tilesLoaded = true;
-        viewer.zoomTo(tileset).catch(() => { });
-        hideLoading();
-        showStatus('3D Геопортал · ' + year, '#22c55e');
+        setLoadingState(
+          'Текстуры синхронизированы',
+          'Открываем рабочую 3D-сцену и завершаем переход.',
+          1,
+        );
+        beginDiveFlight('geoportal');
+        window.setTimeout(hideLoading, 520);
+        showStatus(`3D Геопортал · ${year}`, '#22c55e');
+        notifyHost('scene-ready', { mode: 'geoportal' });
       } catch (e) {
-        console.warn("Geoportal unavailable, trying fallback:", e.message || e);
-        loadFallbackBuildings();
+        console.warn('Geoportal unavailable, trying fallback:', e.message || e);
+        await loadFallbackBuildings();
       }
     }
 
-    // ── Fallback: OSM Buildings via Cesium Ion ──
     async function loadFallbackBuildings() {
-      try {
-        // Use Cesium World Terrain for elevation
-        viewer.terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(1);
+      setLoadingState(
+        'Переключение на резервный контур',
+        'Геопортал недоступен, собираем OSM-здания для сохранения непрерывного входа.',
+        0.54,
+      );
 
-        // Add OSM Buildings tileset from Cesium Ion
+      try {
+        if (Cesium.Ion && Cesium.Ion.defaultAccessToken) {
+          viewer.terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(1);
+        }
+
         const osmBuildings = await Cesium.createOsmBuildingsAsync();
         viewer.scene.primitives.add(osmBuildings);
         activeTileset = osmBuildings;
         tilesLoaded = true;
 
-        // Fly to Nizhnevartovsk
-        viewer.camera.flyTo({
-          destination: Cesium.Cartesian3.fromDegrees(76.5531, 60.9344, 2000),
-          orientation: {
-            heading: Cesium.Math.toRadians(0),
-            pitch: Cesium.Math.toRadians(-35),
-            roll: 0.0
-          },
-          duration: 2
-        });
-
-        hideLoading();
-        showStatus('OSM Buildings (фоллбэк)', '#f59e0b');
+        setLoadingState(
+          'Резервная сцена готова',
+          'Текстуры отсутствуют, но навигация и пространственный контекст сохранены.',
+          1,
+        );
+        beginDiveFlight('osm');
+        window.setTimeout(hideLoading, 520);
+        showStatus('OSM Buildings (fallback)', '#f59e0b');
+        notifyHost('scene-ready', { mode: 'osm' });
       } catch (e2) {
-        console.warn("OSM Buildings fallback also failed:", e2.message || e2);
-        // Final fallback: just show globe with markers
-        hideLoading();
-        showStatus('Глобус (3D тайлы недоступны)', '#ef4444');
+        console.warn('OSM Buildings fallback also failed:', e2.message || e2);
+        showGeoportalFallback(e2);
       }
     }
 
-    function hideLoading() {
-      const ld = document.getElementById('loading');
-      if (ld) ld.style.display = 'none';
+    function showGeoportalFallback(reason) {
+      const fallback = document.getElementById('geoportalFallback');
+      const frame = document.getElementById('geoportalFallbackFrame');
+      const cesium = document.getElementById('cesiumContainer');
+
+      if (frame && !frame.src) {
+        frame.src = 'https://geoportal.n-vartovsk.ru/map';
+      }
+      if (cesium) cesium.style.display = 'none';
+      if (fallback) fallback.style.display = 'block';
+
+      tilesLoaded = true;
+      setLoadingState(
+        'Включена официальная 3D-карта',
+        'Открываем резервный iframe геопортала без потери текущего контекста.',
+        1,
+      );
+      window.setTimeout(hideLoading, 520);
+      showStatus('Официальная 3D карта геопортала', '#22c55e');
+      notifyHost('scene-ready', { mode: 'iframe' });
+      if (reason) console.warn('Geoportal iframe fallback reason:', reason);
     }
 
-    loadGeoportalTiles('2025');
-
-    // Camera to Nizhnevartovsk
-    viewer.camera.setView({
-      destination: Cesium.Cartesian3.fromDegrees(76.55536, 60.91927, 800),
-      orientation: { heading: Cesium.Math.toRadians(0.179), pitch: Cesium.Math.toRadians(-25), roll: 0.0 }
-    });
-
-    // SVG camera icon as data URI
-    const CAM_SVG = 'data:image/svg+xml,' + encodeURIComponent(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="%2300E5FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>'
-    );
-
-    // Track camera entities separately
-    let cameraEntities = [];
-
     function addCameras(camerasJsonOrBase64) {
-      // Remove old camera entities
-      cameraEntities.forEach(e => viewer.entities.remove(e));
+      cameraEntities.forEach((entity) => viewer.entities.remove(entity));
       cameraEntities = [];
 
       let cameras;
       try {
-        if (typeof camerasJsonOrBase64 === 'string' && !camerasJsonOrBase64.startsWith('[') && !camerasJsonOrBase64.startsWith('{')) {
+        if (
+          typeof camerasJsonOrBase64 === 'string' &&
+          !camerasJsonOrBase64.startsWith('[') &&
+          !camerasJsonOrBase64.startsWith('{')
+        ) {
           cameras = JSON.parse(atob(camerasJsonOrBase64));
         } else {
-          cameras = typeof camerasJsonOrBase64 === 'string' ? JSON.parse(camerasJsonOrBase64) : camerasJsonOrBase64;
+          cameras = typeof camerasJsonOrBase64 === 'string'
+            ? JSON.parse(camerasJsonOrBase64)
+            : camerasJsonOrBase64;
         }
-      } catch (e) { console.error("Camera parse error", e); return; }
+      } catch (e) {
+        console.error('Camera parse error', e);
+        return;
+      }
 
       if (!Array.isArray(cameras)) return;
 
-      cameras.forEach(cam => {
+      const camSvg = 'data:image/svg+xml,' + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="%2300E5FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>'
+      );
+
+      cameras.forEach((cam) => {
         const lat = parseFloat(cam.lat);
         const lng = parseFloat(cam.lng);
-        if (isNaN(lat) || isNaN(lng)) return;
+        if (Number.isNaN(lat) || Number.isNaN(lng)) return;
 
         const streamUrl = cam.s || '';
         const name = cam.n || 'Камера';
-
         const entity = viewer.entities.add({
-          name: '📹 ' + name,
+          name: `📹 ${name}`,
           position: Cesium.Cartesian3.fromDegrees(lng, lat, 15),
           billboard: {
-            image: CAM_SVG,
-            width: 28, height: 28,
+            image: camSvg,
+            width: 28,
+            height: 28,
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
             disableDepthTestDistance: Number.POSITIVE_INFINITY,
-            scaleByDistance: new Cesium.NearFarScalar(500, 1.2, 8000, 0.4)
+            scaleByDistance: new Cesium.NearFarScalar(500, 1.2, 8000, 0.4),
           },
           label: {
             text: name,
@@ -242,93 +684,146 @@
             verticalOrigin: Cesium.VerticalOrigin.TOP,
             pixelOffset: new Cesium.Cartesian2(0, 8),
             disableDepthTestDistance: Number.POSITIVE_INFINITY,
-            scaleByDistance: new Cesium.NearFarScalar(500, 1.0, 5000, 0.0)
+            scaleByDistance: new Cesium.NearFarScalar(500, 1.0, 5000, 0.0),
           },
-          description: '<div style="padding:12px;color:white;font-family:sans-serif;background:rgba(15,23,42,1);border-radius:8px;">' +
-            '<h3 style="margin:0 0 8px 0;color:#00E5FF;border-bottom:1px solid #00E5FF;padding-bottom:5px;">📹 КАМЕРА</h3>' +
-            '<p style="margin:4px 0;"><b>📍 Адрес:</b> ' + name + '</p>' +
-            (streamUrl ? '<p style="margin:8px 0 0 0;"><a href="' + streamUrl + '" style="color:#00E5FF;" target="_blank">▶ Смотреть трансляцию</a></p>' : '') +
-            '<p style="margin:8px 0 0 0;font-size:11px;color:#94a3b8;">Источник: cams-online.ru</p>' +
-            '</div>'
+          description: '<div style="padding:12px;color:white;font-family:sans-serif;background:rgba(15,23,42,1);border-radius:8px;">'
+            + '<h3 style="margin:0 0 8px 0;color:#00E5FF;border-bottom:1px solid #00E5FF;padding-bottom:5px;">📹 КАМЕРА</h3>'
+            + `<p style="margin:4px 0;"><b>📍 Адрес:</b> ${name}</p>`
+            + (streamUrl ? `<p style="margin:8px 0 0 0;"><a href="${streamUrl}" style="color:#00E5FF;" target="_blank">▶ Смотреть трансляцию</a></p>` : '')
+            + '<p style="margin:8px 0 0 0;font-size:11px;color:#94a3b8;">Источник: cams-online.ru</p>'
+            + '</div>',
         });
         cameraEntities.push(entity);
       });
 
       const counter = document.getElementById('camCount');
-      if (counter) { counter.textContent = '📹 ' + cameraEntities.length + ' камер'; counter.style.display = 'block'; }
+      if (counter) {
+        counter.textContent = `📹 ${cameraEntities.length} камер`;
+        counter.style.display = 'block';
+      }
     }
-
-    // Markers for complaints/projects
-    let markerEntities = [];
 
     function updateMarkers(dataOrBase64) {
       try {
         let data;
-        if (typeof dataOrBase64 === 'string' && !dataOrBase64.startsWith('[') && !dataOrBase64.startsWith('{')) {
+        if (
+          typeof dataOrBase64 === 'string' &&
+          !dataOrBase64.startsWith('[') &&
+          !dataOrBase64.startsWith('{')
+        ) {
           data = JSON.parse(atob(dataOrBase64));
         } else {
-          data = typeof dataOrBase64 === 'string' ? JSON.parse(dataOrBase64) : dataOrBase64;
+          data = typeof dataOrBase64 === 'string'
+            ? JSON.parse(dataOrBase64)
+            : dataOrBase64;
         }
         if (!Array.isArray(data)) return;
 
-        markerEntities.forEach(e => viewer.entities.remove(e));
+        markerEntities.forEach((entity) => viewer.entities.remove(entity));
         markerEntities = [];
 
-        data.forEach(m => {
-          const lat = parseFloat(m.lat);
-          const lng = parseFloat(m.lng);
-          const height = parseFloat(m.height || 10);
-          if (isNaN(lat) || isNaN(lng)) return;
+        data.forEach((item) => {
+          const lat = parseFloat(item.lat);
+          const lng = parseFloat(item.lng);
+          const height = parseFloat(item.height || 10);
+          if (Number.isNaN(lat) || Number.isNaN(lng)) return;
 
-          const position = Cesium.Cartesian3.fromDegrees(lng, lat, m.type === 'construction' ? height / 2 : 5);
+          const position = Cesium.Cartesian3.fromDegrees(
+            lng,
+            lat,
+            item.type === 'construction' ? height / 2 : 5,
+          );
+
           let entity;
-
-          if (m.type === 'construction') {
+          if (item.type === 'construction') {
             entity = viewer.entities.add({
-              name: m.title || 'Стройка', position: position,
-              box: { dimensions: new Cesium.Cartesian3(20, 20, height), material: Cesium.Color.fromCssColorString(m.color || '#F59E0B').withAlpha(0.6), outline: true, outlineColor: Cesium.Color.WHITE },
-              label: { text: m.title || '🏗', font: 'bold 12px sans-serif', fillColor: Cesium.Color.WHITE, outlineColor: Cesium.Color.BLACK, outlineWidth: 2, style: Cesium.LabelStyle.FILL_AND_OUTLINE, verticalOrigin: Cesium.VerticalOrigin.BOTTOM, pixelOffset: new Cesium.Cartesian2(0, -30), disableDepthTestDistance: Number.POSITIVE_INFINITY },
-              description: '<div style="padding:15px;color:white;font-family:sans-serif;background:rgba(15,23,42,1);border-radius:8px;"><h3 style="margin:0 0 10px 0;color:#F59E0B;border-bottom:1px solid #F59E0B;padding-bottom:5px;">🏗 ПАСПОРТ ОБЪЕКТА</h3><p style="margin:5px 0;"><b>📍 Адрес:</b> ' + (m.title || '—') + '</p><p style="margin:5px 0;"><b>🏢 Застройщик:</b> ' + (m.developer || '—') + '</p><p style="margin:5px 0;"><b>📅 Срок сдачи:</b> ' + (m.deadline || '—') + '</p><p style="margin:5px 0;"><b>📐 Этажность:</b> ' + (m.floors || '—') + '</p><p style="margin:10px 0 0 0;font-size:12px;color:#cbd5e1;font-style:italic;">' + (m.description || '') + '</p></div>'
+              name: item.title || 'Стройка',
+              position,
+              box: {
+                dimensions: new Cesium.Cartesian3(20, 20, height),
+                material: Cesium.Color.fromCssColorString(item.color || '#F59E0B').withAlpha(0.6),
+                outline: true,
+                outlineColor: Cesium.Color.WHITE,
+              },
+              label: {
+                text: item.title || '🏗',
+                font: 'bold 12px sans-serif',
+                fillColor: Cesium.Color.WHITE,
+                outlineColor: Cesium.Color.BLACK,
+                outlineWidth: 2,
+                style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                pixelOffset: new Cesium.Cartesian2(0, -30),
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+              },
             });
           } else {
             entity = viewer.entities.add({
-              name: m.title || 'Объект', position: position,
-              point: { pixelSize: 12, color: Cesium.Color.fromCssColorString(m.color || '#00E5FF'), outlineColor: Cesium.Color.WHITE, outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY },
-              label: { text: m.title || '📍', font: '12px sans-serif', fillColor: Cesium.Color.WHITE, outlineColor: Cesium.Color.BLACK, outlineWidth: 2, style: Cesium.LabelStyle.FILL_AND_OUTLINE, verticalOrigin: Cesium.VerticalOrigin.BOTTOM, pixelOffset: new Cesium.Cartesian2(0, -15), disableDepthTestDistance: Number.POSITIVE_INFINITY }
+              name: item.title || 'Объект',
+              position,
+              point: {
+                pixelSize: 12,
+                color: Cesium.Color.fromCssColorString(item.color || '#00E5FF'),
+                outlineColor: Cesium.Color.WHITE,
+                outlineWidth: 2,
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+              },
+              label: {
+                text: item.title || '📍',
+                font: '12px sans-serif',
+                fillColor: Cesium.Color.WHITE,
+                outlineColor: Cesium.Color.BLACK,
+                outlineWidth: 2,
+                style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                pixelOffset: new Cesium.Cartesian2(0, -15),
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+              },
             });
           }
+
           markerEntities.push(entity);
         });
-
-        if (!tilesLoaded) hideLoading();
       } catch (e) {
-        console.error("Cesium error", e);
+        console.error('Cesium error', e);
       }
     }
 
-    window.addEventListener('message', (event) => {
-      const message = event.data || {};
-      if (message.type === 'citypulse:setCameras') {
-        addCameras(message.payload || []);
-      }
-      if (message.type === 'citypulse:setMarkers') {
-        updateMarkers(message.payload || []);
-      }
-    });
-
-    window.parent?.postMessage({ type: 'citypulse:3d-ready' }, '*');
-
-    // Safety timeout — never keep spinner forever
-    setTimeout(() => {
-      const ld = document.getElementById('loading');
-      if (ld && ld.style.display !== 'none') {
-        hideLoading();
-        if (!tilesLoaded) showStatus('Загрузка тайлов не удалась', '#ef4444');
-      }
-    }, 15000);
-
     viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#020617');
     viewer.scene.globe.depthTestAgainstTerrain = false;
+
+    setLoadingState(
+      'Запуск 3D-движка',
+      'Поднимаем движок, готовим рендер и ждем координаты текущего центра карты.',
+      0.08,
+    );
+    applyLaunchView();
+    loadGeoportalTiles('2025');
+    notifyHost('viewer-ready');
+
+    window.setLaunchContext = setLaunchContext;
+    window.addCameras = addCameras;
+    window.updateMarkers = updateMarkers;
+
+    setTimeout(() => {
+      const loader = document.getElementById('loading');
+      if (loader && loader.style.display !== 'none' && !tilesLoaded) {
+        setLoadingState(
+          'Задержка тайлов',
+          '3D-тайлы отвечают медленно. Пробуем закончить вход через резервный контур.',
+          0.72,
+        );
+      }
+    }, 9000);
+
+    setTimeout(() => {
+      const loader = document.getElementById('loading');
+      if (loader && loader.style.display !== 'none' && !tilesLoaded) {
+        hideLoading();
+        showStatus('Загрузка тайлов затянулась', '#ef4444');
+        notifyHost('scene-timeout');
+      }
+    }, 15000);
   </script>
 </body>
 

@@ -36,7 +36,7 @@ const CONFIG = {
 
 const CATEGORIES = {
   // Приоритетные категории (ЧП первым!)
-  'ЧП': { icon: '🚨', color: '#dc2626', priority: 1 },
+  'ЧП': { icon: '🚨', color: '#FF3D00', priority: 1 },
 
   // ЖКХ и инфраструктура
   'ЖКХ': { icon: '🏠', color: '#f97316', priority: 2 },
@@ -54,7 +54,8 @@ const CATEGORIES = {
   // Мусор и экология
   'Мусор': { icon: '🗑️', color: '#84cc16', priority: 3 },
   'Бытовой мусор': { icon: '🗑️', color: '#84cc16', priority: 3 },
-  'Экология': { icon: '🌿', color: '#10b981', priority: 3 },
+  'Экология': { icon: '🌿', color: '#00E676', priority: 3 },
+  'Мероприятие': { icon: '🎭', color: '#eab308', priority: 3 },
   'Камеры': { icon: '📷', color: '#6366f1', priority: 4 },
 
   // Общественные пространства
@@ -68,18 +69,18 @@ const CATEGORIES = {
   'Строительство': { icon: '🚧', color: '#d97706', priority: 4 },
 
   // Безопасность и погода
-  'Безопасность': { icon: '🛡️', color: '#dc2626', priority: 2 },
+  'Безопасность': { icon: '🛡️', color: '#FF3D00', priority: 2 },
   'Снег/Наледь': { icon: '❄️', color: '#38bdf8', priority: 2 },
 
   // Социальные
-  'Медицина': { icon: '🏥', color: '#14b8a6', priority: 2 },
-  'Здравоохранение': { icon: '🏥', color: '#14b8a6', priority: 2 },
+  'Медицина': { icon: '🏥', color: '#00E5FF', priority: 2 },
+  'Здравоохранение': { icon: '🏥', color: '#00E5FF', priority: 2 },
   'Образование': { icon: '🎓', color: '#8b5cf6', priority: 3 },
   'Социальная сфера': { icon: '👥', color: '#6366f1', priority: 4 },
 
   // Другие
   'Животные': { icon: '🐶', color: '#f59e0b', priority: 4 },
-  'Торговля': { icon: '🛒', color: '#10b981', priority: 4 },
+  'Торговля': { icon: '🛒', color: '#00E676', priority: 4 },
   'Трудовое право': { icon: '📄', color: '#64748b', priority: 4 },
 
   // По умолчанию
@@ -90,7 +91,7 @@ const CATEGORIES = {
 const MAIN_CATEGORIES = [
   'ЧП', 'ЖКХ', 'Дороги', 'Благоустройство', 'Транспорт', 'Освещение',
   'Мусор', 'Детские площадки', 'Парковки', 'Безопасность', 'Снег/Наледь',
-  'Медицина', 'Экология', 'Камеры', 'Прочее'
+  'Медицина', 'Экология', 'Мероприятие', 'Камеры', 'Прочее'
 ];
 
 const CAMERAS = [];
@@ -120,6 +121,7 @@ const state = {
   supabase: null,
   markerCluster: null,
   cameraLayer: null,
+  eventLayer: null,
   markers: new Map(),
   complaints: [],
   currentCategoryFilter: 'all',
@@ -135,7 +137,11 @@ const state = {
     total: 0
   },
   is3DMode: false,
-  cameraMarkers: []
+  cameraMarkers: [],
+  eventMarkers: [],
+  splashAudioEnabled: true,
+  splashProgress: 10,
+  mapRefreshTimer: null
 };
 
 const SPLASH_MESSAGES = [
@@ -145,8 +151,39 @@ const SPLASH_MESSAGES = [
   'Почти готово'
 ];
 
-let splashMessageIndex = 0;
-let splashMessageInterval = null;
+const SPLASH_VARIANTS = [
+  {
+    key: 'aurora',
+    themeName: 'Aurora Mesh',
+    kicker: 'Live civic signal',
+    title: 'Пульс Города',
+    subtitle: 'Мягкие градиенты, стеклянные слои и спокойный цифровой ритм города.',
+    mode: 'Aurora',
+    icon: '◉',
+    audio: 'audio/splash-aurora.mp3'
+  },
+  {
+    key: 'grid',
+    themeName: 'Signal Grid',
+    kicker: 'Urban scanline',
+    title: 'Пульс Города',
+    subtitle: 'Контрастная сетка, editorial-графика и острые акценты в духе kinetic UI.',
+    mode: 'Grid',
+    icon: '▲',
+    audio: 'audio/splash-grid.mp3'
+  },
+  {
+    key: 'pulse',
+    themeName: 'Liquid Pulse',
+    kicker: 'Motion chrome',
+    title: 'Пульс Города',
+    subtitle: 'Люминесцентные блики, жидкий металл и динамика современных launch screens.',
+    mode: 'Pulse',
+    icon: '◌',
+    audio: 'audio/splash-pulse.mp3'
+  }
+];
+let splashController = null;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SUPABASE CLIENT
@@ -156,7 +193,7 @@ async function initSupabase() {
   let supabaseLib = window.supabase;
 
   if (!supabaseLib || !supabaseLib.createClient) {
-    setSplashStatus('Подключаем Supabase...');
+    setSplashStatus('Подключаем Supabase...', 24);
     console.log('⏳ Loading Supabase...');
     try {
       await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js');
@@ -166,7 +203,7 @@ async function initSupabase() {
         await loadScript('https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js');
         supabaseLib = window.supabase;
       } catch (e2) {
-        setSplashStatus('Работаем в демо-режиме');
+        setSplashStatus('Работаем в демо-режиме', 38);
         console.error('❌ Supabase load failed');
         return false;
       }
@@ -176,7 +213,7 @@ async function initSupabase() {
   if (!supabaseLib?.createClient) return false;
 
   state.supabase = supabaseLib.createClient(CONFIG.supabase.url, CONFIG.supabase.anonKey);
-  setSplashStatus('Supabase подключен');
+  setSplashStatus('Supabase подключен', 46);
   console.log('✅ Supabase OK');
   return true;
 }
@@ -201,13 +238,13 @@ function initMap() {
       <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#f8fafc;color:#475569;font-family:system-ui;padding:24px;text-align:center;">
         <div style="font-size:48px;margin-bottom:16px;">🗺️</div>
         <div style="font-size:16px;font-weight:600;">Карта не загрузилась</div>
-        <button onclick="location.reload()" style="margin-top:16px;padding:10px 20px;background:#0d9488;color:white;border:none;border-radius:8px;cursor:pointer;">↻ Обновить</button>
+        <button onclick="location.reload()" style="margin-top:16px;padding:10px 20px;background:var(--primary);color:#020617;border:none;border-radius:8px;cursor:pointer;">↻ Обновить</button>
       </div>`;
     hideSplash();
     return false;
   }
 
-  setSplashStatus('Инициализируем карту...');
+  setSplashStatus('Инициализируем карту...', 58);
 
   state.map = L.map('map', {
     center: CONFIG.center,
@@ -239,7 +276,8 @@ function initMap() {
 
   state.map.addLayer(state.markerCluster);
   state.cameraLayer = L.layerGroup().addTo(state.map);
-  setSplashStatus('Карта готова');
+  state.eventLayer = L.layerGroup().addTo(state.map);
+  setSplashStatus('Карта готова', 72);
   console.log('✅ Map OK');
   return true;
 }
@@ -268,7 +306,7 @@ function createClusterIcon(cluster) {
   });
 
   // ЧП cluster has priority color
-  const color = hasEmergency ? '#dc2626' : (CATEGORIES[maxCat]?.color || '#64748b');
+  const color = hasEmergency ? '#FF3D00' : (CATEGORIES[maxCat]?.color || '#64748b');
   let size = count > 25 ? 48 : count > 10 ? 42 : 36;
 
   return L.divIcon({
@@ -278,10 +316,19 @@ function createClusterIcon(cluster) {
   });
 }
 
+function getMarkerBadge(complaint) {
+  const source = (complaint.source || '').toLowerCase();
+  if (complaint.category === 'Мероприятие' || complaint.source_kind === 'event') return 'AF';
+  if (source.startsWith('vk:')) return 'VK';
+  if (source.startsWith('tg:') || source.startsWith('telegram:')) return 'TG';
+  return '';
+}
+
 function createMarkerIcon(complaint) {
   const status = complaint.status || 'open';
   const cat = CATEGORIES[complaint.category] || CATEGORIES['Прочее'];
   const isEmergency = complaint.category === 'ЧП';
+  const badge = getMarkerBadge(complaint);
 
   return L.divIcon({
     className: 'custom-marker',
@@ -289,7 +336,8 @@ function createMarkerIcon(complaint) {
       <div class="marker-pulse" style="background:${cat.color}33;${isEmergency ? 'animation:emergency-pulse 1s infinite;' : ''}"></div>
       <div class="marker-pin status-${status}" style="border-color:${cat.color};">
         <span style="transform:rotate(45deg);font-size:14px;">${cat.icon}</span>
-      </div>`,
+      </div>
+      ${badge ? `<div style="position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#0f172a;color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 4px 12px rgba(15,23,42,0.24);">${badge}</div>` : ''}`,
     iconSize: [32, 32],
     iconAnchor: [16, 32],
     popupAnchor: [0, -32]
@@ -304,6 +352,14 @@ function createMarkerIcon(complaint) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 let currentComplaintId = null;
+const CAMERA_HUD_STATE = {
+  timer: null,
+  weather: null,
+  weatherFetchedAt: 0,
+  pendingWeatherPromise: null
+};
+const CAMERA_HUD_TIMEZONE = 'Asia/Yekaterinburg';
+const CAMERA_HUD_WEATHER_TTL_MS = 10 * 60 * 1000;
 
 function openBottomSheet(complaint) {
   currentComplaintId = complaint.id;
@@ -311,6 +367,10 @@ function openBottomSheet(complaint) {
   const cat = CATEGORIES[complaint.category] || CATEGORIES['Прочее'];
   const isEmergency = complaint.category === 'ЧП';
   const status = complaint.status || 'open';
+  const isActionable = complaint.source_table === 'complaints' && complaint.category !== 'Мероприятие';
+  const actionsEl = document.querySelector('.sheet-actions');
+  const commentsSectionEl = document.querySelector('.sheet-comments-section');
+  const descEl = document.getElementById('sheet-desc');
 
   // Update Header
   document.getElementById('sheet-icon').textContent = cat.icon;
@@ -318,18 +378,18 @@ function openBottomSheet(complaint) {
   document.getElementById('sheet-icon').style.color = cat.color;
 
   const titleEl = document.getElementById('sheet-title');
-  titleEl.textContent = `${isEmergency ? '⚠️ ' : ''}${complaint.summary || complaint.category}`;
+  titleEl.textContent = `${isEmergency ? '⚠️ ' : ''}${complaint.summary || complaint.title || complaint.category}`;
   if (isEmergency) titleEl.style.color = 'var(--danger)';
   else titleEl.style.color = 'var(--text)';
 
   const statusEl = document.getElementById('sheet-status');
-  statusEl.textContent = STATUS_LABELS[status] || status;
+  statusEl.textContent = complaint.category === 'Мероприятие' ? 'Событие' : (STATUS_LABELS[status] || status);
   statusEl.className = `sheet-status ${status}`;
 
   // Update Body
   document.getElementById('sheet-address').textContent = complaint.address ? `📍 ${complaint.address}` : '📍 Нет адреса';
-  document.getElementById('sheet-time').textContent = `🕒 ${getTimeAgo(complaint.created_at)}`;
-  document.getElementById('sheet-desc').textContent = complaint.description || 'Описание не указано.';
+  document.getElementById('sheet-time').textContent = formatMarkerTime(complaint);
+  descEl.innerHTML = `<div>${escapeHtml(complaint.description || 'Описание не указано.').replace(/\n/g, '<br>')}</div>${complaint.link ? `<div style="margin-top:12px;"><a href="${complaint.link}" target="_blank" rel="noopener" style="color:var(--primary);font-weight:600;">Открыть источник</a></div>` : ''}`;
 
   // Counters
   document.getElementById('sheet-count-join').textContent = complaint.supporters || 0;
@@ -347,20 +407,39 @@ function openBottomSheet(complaint) {
 
   // Open Sheet
   sheet.classList.add('open');
-  loadComments(complaint.id);
+  if (actionsEl) actionsEl.style.display = isActionable ? 'flex' : 'none';
+  if (commentsSectionEl) commentsSectionEl.style.display = isActionable ? 'block' : 'none';
+  if (isActionable) {
+    loadComments(complaint.id);
+  } else {
+    const countEl = document.getElementById('sheet-comments-count');
+    const listEl = document.getElementById('sheet-comments-list');
+    if (countEl) countEl.textContent = '0';
+    if (listEl) listEl.innerHTML = '';
+  }
 
   // Setup Buttons
-  document.getElementById('sheet-btn-join').onclick = () => handleAction(complaint.id, 'join');
-  document.getElementById('sheet-btn-like').onclick = () => handleAction(complaint.id, 'like');
-  document.getElementById('sheet-btn-dislike').onclick = () => handleAction(complaint.id, 'dislike');
+  if (isActionable) {
+    document.getElementById('sheet-btn-join').onclick = () => handleAction(complaint.id, 'join');
+    document.getElementById('sheet-btn-like').onclick = () => handleAction(complaint.id, 'like');
+    document.getElementById('sheet-btn-dislike').onclick = () => handleAction(complaint.id, 'dislike');
 
-  document.getElementById('desc-btn-good').onclick = () => handleAction(complaint.id, 'good');
-  document.getElementById('desc-btn-bad').onclick = () => handleAction(complaint.id, 'bad');
+    document.getElementById('desc-btn-good').onclick = () => handleAction(complaint.id, 'good');
+    document.getElementById('desc-btn-bad').onclick = () => handleAction(complaint.id, 'bad');
+  }
 }
 
 function closeBottomSheet() {
   const sheet = document.getElementById('marker-bottom-sheet');
   if (sheet) sheet.classList.remove('open');
+  const video = document.getElementById('live-camera-player');
+  if (video) {
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+  }
+  stopCameraHud();
+  destroyCameraPlayback();
   currentComplaintId = null;
 }
 
@@ -514,7 +593,7 @@ window.handleAction = async function (id, action) {
   }
 };
 function addMarker(complaint, animate = false) {
-  if (!complaint.lat || !complaint.lng) return null;
+  if (complaint.lat == null || complaint.lng == null) return null;
   if (state.markers.has(complaint.id)) return state.markers.get(complaint.id);
 
   const marker = L.marker([complaint.lat, complaint.lng], {
@@ -530,9 +609,16 @@ function addMarker(complaint, animate = false) {
   });
   marker.complaintData = complaint;
   state.markers.set(complaint.id, marker);
+  if (complaint.category === 'Мероприятие' || complaint.source_kind === 'event') {
+    state.eventMarkers.push(marker);
+  }
 
   if (matchesFilters(complaint)) {
-    state.markerCluster.addLayer(marker);
+    if (complaint.category === 'Мероприятие' || complaint.source_kind === 'event') {
+      state.eventLayer.addLayer(marker);
+    } else {
+      state.markerCluster.addLayer(marker);
+    }
 
     if (animate) {
       focusOnNewMarker(marker, complaint);
@@ -613,37 +699,103 @@ function calculateStats() {
 // DATA LOADING
 // ═══════════════════════════════════════════════════════════════════════════════
 
+function clearMapData() {
+  state.markerCluster?.clearLayers();
+  state.eventLayer?.clearLayers();
+  state.markers.clear();
+  state.eventMarkers = [];
+}
+
+function replaceMapData(items) {
+  clearMapData();
+  state.complaints = items;
+  items.forEach(item => addMarker(item));
+  calculateStats();
+  updateUI();
+  sync3DData();
+  applyFilters();
+  return items;
+}
+
+function normalizeReportMarker(item) {
+  if (item.lat == null || item.lng == null) return null;
+  const source = item.source || '';
+  let sourceLabel = source || 'Источник';
+  if (source.startsWith('vk:')) sourceLabel = `VK · ${source.split(':', 2)[1]}`;
+  if (source.startsWith('tg:') || source.startsWith('telegram:')) sourceLabel = `Telegram · ${source.split(':', 2)[1]}`;
+
+  return {
+    id: `report-${item.id}`,
+    origin_id: item.id,
+    summary: item.title || item.summary || item.category || 'Сообщение',
+    description: item.description || '',
+    lat: Number(item.lat),
+    lng: Number(item.lng),
+    address: item.address || null,
+    category: item.category || 'Прочее',
+    status: item.status || 'open',
+    source,
+    source_label: sourceLabel,
+    source_kind: (source.startsWith('vk:') || source.startsWith('tg:') || source.startsWith('telegram:')) ? 'public' : 'report',
+    source_table: 'reports',
+    created_at: item.created_at || new Date().toISOString(),
+    updated_at: item.updated_at || item.created_at || new Date().toISOString(),
+    images: item.images || [],
+    likes_count: item.likes_count || 0,
+    dislikes_count: item.dislikes_count || 0,
+    supporters: item.supporters || 0,
+    link: item.post_link || null
+  };
+}
+
+async function fetchBackendMapFeed() {
+  const response = await fetch('/api/map/feed?limit=250&event_days=7', { cache: 'no-store' });
+  if (!response.ok) {
+    throw new Error(`Map feed HTTP ${response.status}`);
+  }
+  const payload = await response.json();
+  return Array.isArray(payload.markers) ? payload.markers : [];
+}
+
+async function fetchSupabaseReportsFallback() {
+  if (!state.supabase) return [];
+
+  const { data, error } = await state.supabase
+    .from('reports')
+    .select('*')
+    .not('lat', 'is', null)
+    .not('lng', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1000);
+
+  if (error) throw error;
+  return data.map(normalizeReportMarker).filter(Boolean);
+}
+
 async function loadComplaints() {
   console.log('📥 Loading...');
-  setSplashStatus('Загружаем обращения...');
+  setSplashStatus('Загружаем обращения...', 82);
 
-  if (state.supabase) {
-    try {
-      const { data, error } = await state.supabase
-        .from('complaints')
-        .select('*')
-        .not('lat', 'is', null)
-        .not('lng', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(1000);
-
-      if (error) {
-        console.error('❌ Load error:', error);
-        return loadDemoComplaints();
-      }
-
-      console.log(`✅ Loaded ${data.length} complaints`);
-      state.complaints = data;
-      data.forEach(c => addMarker(c));
-      calculateStats();
-      updateUI();
-      sync3DData();
-      return data;
-    } catch (err) {
-      console.error('❌ Exception:', err);
-      return loadDemoComplaints();
+  try {
+    const feedMarkers = await fetchBackendMapFeed();
+    if (feedMarkers.length > 0) {
+      console.log(`✅ Loaded ${feedMarkers.length} map markers from backend feed`);
+      return replaceMapData(feedMarkers);
     }
+  } catch (error) {
+    console.warn('Backend map feed unavailable, falling back to Supabase reports', error);
   }
+
+  try {
+    const fallbackMarkers = await fetchSupabaseReportsFallback();
+    if (fallbackMarkers.length > 0) {
+      console.log(`✅ Loaded ${fallbackMarkers.length} report markers from Supabase`);
+      return replaceMapData(fallbackMarkers);
+    }
+  } catch (error) {
+    console.error('❌ Supabase reports fallback error:', error);
+  }
+
   return loadDemoComplaints();
 }
 
@@ -660,17 +812,19 @@ function loadDemoComplaints() {
     { id: 'd7', summary: 'Снег не убран', category: 'Снег/Наледь', status: 'open', lat: 60.9330, lng: 76.5520, address: 'пр. Победы', supporters: 12, created_at: new Date(now - 86400000 * 15).toISOString() }
   ];
 
-  state.complaints = demoData;
-  demoData.forEach(c => addMarker(c));
-  calculateStats();
-  updateUI();
-  sync3DData();
-  return demoData;
+  return replaceMapData(demoData);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // REALTIME SUBSCRIPTION
 // ═══════════════════════════════════════════════════════════════════════════════
+
+function startDataRefreshLoop() {
+  if (state.mapRefreshTimer) clearInterval(state.mapRefreshTimer);
+  state.mapRefreshTimer = setInterval(() => {
+    loadComplaints().catch(error => console.error('Map refresh error', error));
+  }, 60000);
+}
 
 function subscribeToRealtime() {
   if (!state.supabase) return;
@@ -735,30 +889,48 @@ function handleDeletedComplaint(complaint) {
 // FILTERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
+function matchesDayFilter(complaint) {
+  if (state.currentDayFilter === 'all') return true;
+
+  const created = new Date(complaint.created_at);
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (complaint.category === 'Мероприятие' || complaint.source_kind === 'event') {
+    const targetDate = new Date(created.getFullYear(), created.getMonth(), created.getDate());
+    const diffMs = targetDate.getTime() - todayStart.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    switch (state.currentDayFilter) {
+      case 'today': return diffDays === 0;
+      case '3days': return diffDays >= 0 && diffDays <= 2;
+      case 'week': return diffDays >= 0 && diffDays <= 6;
+      case 'month': return diffDays >= 0 && diffDays <= 30;
+      default: return true;
+    }
+  }
+
+  const diffDays = (now - created) / (1000 * 60 * 60 * 24);
+  switch (state.currentDayFilter) {
+    case 'today': return diffDays <= 1;
+    case '3days': return diffDays <= 3;
+    case 'week': return diffDays <= 7;
+    case 'month': return diffDays <= 30;
+    default: return true;
+  }
+}
+
 function matchesFilters(complaint) {
   if (state.currentCategoryFilter !== 'all' && complaint.category !== state.currentCategoryFilter) {
     return false;
   }
-
-  if (state.currentDayFilter !== 'all') {
-    const created = new Date(complaint.created_at);
-    const now = new Date();
-    const diffDays = (now - created) / (1000 * 60 * 60 * 24);
-
-    switch (state.currentDayFilter) {
-      case 'today': if (diffDays > 1) return false; break;
-      case '3days': if (diffDays > 3) return false; break;
-      case 'week': if (diffDays > 7) return false; break;
-      case 'month': if (diffDays > 30) return false; break;
-    }
-  }
-
-  return true;
+  return matchesDayFilter(complaint);
 }
 
 function applyFilters() {
   state.markerCluster.clearLayers();
   if (state.cameraLayer) state.cameraLayer.clearLayers();
+  if (state.eventLayer) state.eventLayer.clearLayers();
 
   const isCameraMode = state.currentCategoryFilter === 'Камеры';
 
@@ -769,7 +941,11 @@ function applyFilters() {
   state.complaints.forEach(complaint => {
     const marker = state.markers.get(complaint.id);
     if (marker && matchesFilters(complaint)) {
-      state.markerCluster.addLayer(marker);
+      if (complaint.category === 'Мероприятие' || complaint.source_kind === 'event') {
+        state.eventLayer.addLayer(marker);
+      } else {
+        state.markerCluster.addLayer(marker);
+      }
     }
   });
 
@@ -826,64 +1002,56 @@ function updateUI() {
 }
 
 function hideSplash() {
-  stopSplashTicker();
-  const splash = document.getElementById('splash');
-  if (splash) {
-    splash.classList.add('hidden');
-    setTimeout(() => splash.remove(), 500);
-  }
+  splashController?.hide();
   state.isLoading = false;
 }
 
-function setSplashStatus(text) {
+function setSplashStatus(text, progress = null) {
+  if (splashController) {
+    splashController.setStatus(text, progress);
+    return;
+  }
+
   const statusEl = document.getElementById('splash-status');
   if (statusEl) statusEl.textContent = text;
 }
 
 function startSplashTicker() {
-  stopSplashTicker();
-  setSplashStatus(SPLASH_MESSAGES[0]);
-  splashMessageInterval = setInterval(() => {
-    splashMessageIndex = (splashMessageIndex + 1) % SPLASH_MESSAGES.length;
-    setSplashStatus(SPLASH_MESSAGES[splashMessageIndex]);
-  }, 1300);
+  splashController?.startTicker();
 }
 
 function stopSplashTicker() {
-  if (splashMessageInterval) {
-    clearInterval(splashMessageInterval);
-    splashMessageInterval = null;
-  }
+  splashController?.stopTicker();
 }
 
 function initSplashInteractions() {
-  const splash = document.getElementById('splash');
-  const skipBtn = document.getElementById('splash-start-btn');
-  if (!splash) return;
-
-  if (skipBtn) {
-    skipBtn.addEventListener('click', () => {
-      setSplashStatus('Открываем карту...');
-      hideSplash();
-    });
+  if (!window.SplashSystem) {
+    console.warn('SplashSystem module is not available');
+    return;
   }
 
-  splash.addEventListener('pointerdown', (event) => {
-    const ripple = document.createElement('span');
-    ripple.className = 'splash-ripple';
-    ripple.style.left = `${event.clientX}px`;
-    ripple.style.top = `${event.clientY}px`;
-    splash.appendChild(ripple);
-    setTimeout(() => ripple.remove(), 850);
-  });
-
-  startSplashTicker();
+  splashController = window.SplashSystem.create({
+    rootId: 'splash',
+    messages: SPLASH_MESSAGES,
+    variants: SPLASH_VARIANTS,
+    initialProgress: state.splashProgress,
+    audioEnabled: state.splashAudioEnabled,
+    onAudioChange: (enabled) => {
+      state.splashAudioEnabled = enabled;
+    },
+    onProgress: (progress) => {
+      state.splashProgress = progress;
+    },
+    onHidden: () => {
+      state.isLoading = false;
+    }
+  }).init();
 }
 
 function showNotification(message, type = 'info') {
   const colors = {
-    emergency: '#dc2626',
-    new: '#10b981',
+    emergency: '#FF3D00',
+    new: '#00E676',
     info: '#3b82f6',
     error: '#ef4444'
   };
@@ -911,6 +1079,15 @@ function formatDate(dateStr) {
   });
 }
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function getTimeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -924,6 +1101,14 @@ function getTimeAgo(dateStr) {
   return formatDate(dateStr);
 }
 
+function formatMarkerTime(item) {
+  if (item.category === 'Мероприятие' || item.source_kind === 'event') {
+    const dt = new Date(item.created_at);
+    return `🗓 ${dt.toLocaleString('ru-RU', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' })}${item.source_label ? ` · ${item.source_label}` : ''}`;
+  }
+  return `🕒 ${getTimeAgo(item.created_at)}${item.source_label ? ` · ${item.source_label}` : ''}`;
+}
+
 // Animation keyframes
 const style = document.createElement('style');
 style.textContent = `
@@ -931,7 +1116,7 @@ style.textContent = `
   @keyframes slideUp { from{transform:translateX(-50%) translateY(0);opacity:1} to{transform:translateX(-50%) translateY(-20px);opacity:0} }
   @keyframes emergency-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,0.4)} 50%{box-shadow:0 0 0 8px rgba(220,38,38,0)} }
   .custom-cluster{background:transparent!important;border:none!important;}
-  .popup-card.emergency{border:2px solid #dc2626;background:rgba(254,226,226,0.9)!important;}
+  .popup-card.emergency{border:2px solid #FF3D00;background:rgba(255,61,0,0.14)!important;}
 `;
 document.head.appendChild(style);
 
@@ -970,10 +1155,9 @@ async function init() {
   await loadComplaints();
   initCameraLayer();
   startCameraAiMonitor();
+  startDataRefreshLoop();
 
-  subscribeToRealtime();
-
-  setSplashStatus('Готово');
+  setSplashStatus('Готово', 100);
   setTimeout(hideSplash, 550);
   console.log('✅ Ready');
 }
@@ -985,6 +1169,7 @@ if (document.readyState === 'loading') {
 }
 
 window.addEventListener('beforeunload', () => {
+  if (state.mapRefreshTimer) clearInterval(state.mapRefreshTimer);
   if (state.realtimeSubscription) {
     state.supabase.removeChannel(state.realtimeSubscription);
   }
@@ -1032,10 +1217,10 @@ const MapPulse = {
     this.targetBpm = newBpm;
 
     let mood = 'Спокойно';
-    let color = '#10b981';
+    let color = '#00E676';
     if (this.targetBpm > 120 || emergencyCount > 0) {
       mood = 'ЧП / Тревога';
-      color = '#dc2626';
+      color = '#FF3D00';
     } else if (this.targetBpm > 90) {
       mood = 'Активно';
       color = '#f59e0b';
@@ -1081,8 +1266,8 @@ const MapPulse = {
     this.ctx.clearRect(0, 0, width, height);
     this.ctx.beginPath();
 
-    let color = '#10b981';
-    if (this.bpm > 120) color = '#dc2626';
+    let color = '#00E676';
+    if (this.bpm > 120) color = '#FF3D00';
     else if (this.bpm > 90) color = '#f59e0b';
 
     this.ctx.strokeStyle = color;
@@ -1169,8 +1354,8 @@ function sync3DData() {
       id: item.id,
       lat: item.lat,
       lng: item.lng,
-      title: item.summary || item.category || 'Объект',
-      type: item.category === 'Строительство' ? 'construction' : 'complaint',
+      title: item.summary || item.title || item.category || 'Объект',
+      type: item.category === 'Строительство' ? 'construction' : (item.category === 'Мероприятие' ? 'event' : 'complaint'),
       color: CATEGORIES[item.category]?.color || '#00E5FF',
       description: item.description || '',
       developer: item.author_name || '',
@@ -1201,13 +1386,24 @@ function initCameraLayer() {
     .then(response => response.json())
     .then(cameras => {
       CAMERAS.length = 0;
+      state.cameraMarkers = [];
+
       cameras.forEach((cam, index) => {
+        const lat = Number(cam.lat);
+        const lon = Number(cam.lng);
+        const url = typeof cam.s === 'string' ? cam.s.trim() : '';
+        if (!Number.isFinite(lat) || !Number.isFinite(lon) || !url || cam.active === false) return;
+
         CAMERAS.push({
           id: `cam_${index + 1}`,
           name: cam.n,
-          lat: cam.lat,
-          lon: cam.lng,
-          url: cam.s,
+          lat,
+          lon,
+          url,
+          peopleCount: Number.isFinite(Number(cam.peopleCount ?? cam.people_count))
+            ? Number(cam.peopleCount ?? cam.people_count)
+            : null,
+          detectorEnabled: cam.detectorEnabled === true || cam.detector_ready === true,
           desc: `Камера наблюдения: ${cam.n}`
         });
       });
@@ -1233,6 +1429,217 @@ function initCameraLayer() {
     .catch(error => console.error('Camera layer load error', error));
 }
 
+function destroyCameraPlayback() {
+  stopCameraHud();
+  const video = document.getElementById('live-camera-player');
+  if (!video) return;
+  try {
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+  } catch (e) {
+    console.warn('Camera player cleanup error', e);
+  }
+}
+
+function getCameraHudTimeLabel() {
+  return new Date().toLocaleTimeString('ru-RU', {
+    timeZone: CAMERA_HUD_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+}
+
+function getCameraHudDateLabel() {
+  return new Date().toLocaleDateString('ru-RU', {
+    timeZone: CAMERA_HUD_TIMEZONE,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+}
+
+function mapCameraWeatherCode(code, isDay) {
+  if (code === 0) {
+    return {
+      icon: isDay ? '☀️' : '🌙',
+      label: isDay ? 'Ясно' : 'Ясная ночь',
+      accent: '#7DE7FF'
+    };
+  }
+
+  if ([1, 2].includes(code)) {
+    return {
+      icon: isDay ? '⛅' : '☁️',
+      label: 'Переменная облачность',
+      accent: '#8BE7FF'
+    };
+  }
+
+  if (code === 3) {
+    return { icon: '☁️', label: 'Пасмурно', accent: '#86B7DA' };
+  }
+
+  if ([45, 48].includes(code)) {
+    return { icon: '🌫️', label: 'Туман', accent: '#B8D7EA' };
+  }
+
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) {
+    return { icon: '🌧️', label: 'Дождь', accent: '#3DA8FF' };
+  }
+
+  if (code >= 71 && code <= 77) {
+    return { icon: '❄️', label: 'Снег', accent: '#C8F4FF' };
+  }
+
+  if (code >= 95) {
+    return { icon: '⚡', label: 'Гроза', accent: '#FFC857' };
+  }
+
+  return { icon: '☁️', label: 'Нет данных', accent: '#FFC857' };
+}
+
+function ensureCameraHudWeather(force = false) {
+  const isFresh = CAMERA_HUD_STATE.weather &&
+    (Date.now() - CAMERA_HUD_STATE.weatherFetchedAt) < CAMERA_HUD_WEATHER_TTL_MS;
+  if (!force && isFresh) return Promise.resolve(CAMERA_HUD_STATE.weather);
+  if (CAMERA_HUD_STATE.pendingWeatherPromise) {
+    return CAMERA_HUD_STATE.pendingWeatherPromise;
+  }
+
+  const params = new URLSearchParams({
+    latitude: String(CONFIG.center[0]),
+    longitude: String(CONFIG.center[1]),
+    current: 'temperature_2m,apparent_temperature,weather_code,is_day',
+    timezone: 'auto',
+    forecast_days: '1'
+  });
+
+  CAMERA_HUD_STATE.pendingWeatherPromise = fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`Weather request failed: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(payload => {
+      const current = payload && payload.current ? payload.current : {};
+      const code = Number.isFinite(Number(current.weather_code))
+        ? Number(current.weather_code)
+        : -1;
+      const isDay = Number(current.is_day || 0) === 1;
+      const mapped = mapCameraWeatherCode(code, isDay);
+      const temperature = Number(current.temperature_2m);
+      const apparent = Number(current.apparent_temperature);
+      CAMERA_HUD_STATE.weather = {
+        ...mapped,
+        temperatureLabel: Number.isFinite(temperature) ? `${Math.round(temperature)}°` : '--°',
+        feelsLikeLabel: Number.isFinite(apparent)
+          ? `Ощущается ${Math.round(apparent)}°`
+          : 'Погодный канал...'
+      };
+      CAMERA_HUD_STATE.weatherFetchedAt = Date.now();
+      return CAMERA_HUD_STATE.weather;
+    })
+    .catch(error => {
+      console.warn('Camera HUD weather error', error);
+      CAMERA_HUD_STATE.weather = {
+        icon: '☁️',
+        label: 'Нет данных',
+        accent: '#FFC857',
+        temperatureLabel: '--°',
+        feelsLikeLabel: 'Погода недоступна'
+      };
+      CAMERA_HUD_STATE.weatherFetchedAt = Date.now();
+      return CAMERA_HUD_STATE.weather;
+    })
+    .finally(() => {
+      CAMERA_HUD_STATE.pendingWeatherPromise = null;
+    });
+
+  return CAMERA_HUD_STATE.pendingWeatherPromise;
+}
+
+function renderCameraHud(cam) {
+  const weather = CAMERA_HUD_STATE.weather || {
+    icon: '⌛',
+    label: 'Синхронизация',
+    accent: '#9AF8FF',
+    temperatureLabel: '--°',
+    feelsLikeLabel: 'Погодный канал...'
+  };
+  const peopleCountRaw = cam.peopleCount;
+  const peopleCount = peopleCountRaw == null ? Number.NaN : Number(peopleCountRaw);
+  const hasPeopleCount = Number.isFinite(peopleCount);
+  const detectorEnabled = cam.detectorEnabled === true || hasPeopleCount;
+
+  const iconEl = document.getElementById('live-camera-weather-icon');
+  const weatherValueEl = document.getElementById('live-camera-weather');
+  const weatherLabelEl = document.getElementById('live-camera-weather-label');
+  const weatherMetaEl = document.getElementById('live-camera-weather-meta');
+  const timeValueEl = document.getElementById('live-camera-time');
+  const timeLabelEl = document.getElementById('live-camera-time-label');
+  const peopleValueEl = document.getElementById('live-camera-people');
+  const peopleLabelEl = document.getElementById('live-camera-people-label');
+  const detectorEl = document.getElementById('live-camera-detector');
+  const weatherChipEl = document.getElementById('live-camera-weather-chip');
+
+  if (iconEl) iconEl.textContent = weather.icon;
+  if (weatherValueEl) weatherValueEl.textContent = weather.temperatureLabel;
+  if (weatherLabelEl) weatherLabelEl.textContent = weather.label;
+  if (weatherMetaEl) weatherMetaEl.textContent = weather.feelsLikeLabel;
+  if (timeValueEl) timeValueEl.textContent = getCameraHudTimeLabel();
+  if (timeLabelEl) timeLabelEl.textContent = getCameraHudDateLabel();
+  if (peopleValueEl) peopleValueEl.textContent = hasPeopleCount ? String(peopleCount) : '--';
+  if (peopleLabelEl) {
+    peopleLabelEl.textContent = detectorEnabled ? 'AI counter online' : 'Detector standby';
+  }
+  if (detectorEl) {
+    detectorEl.textContent = detectorEnabled
+      ? `AI VISION · ${hasPeopleCount ? 'People telemetry synced' : 'People counter online'}`
+      : 'AI VISION · Vision channel pending';
+  }
+  if (weatherChipEl) {
+    weatherChipEl.style.borderColor = weather.accent;
+    weatherChipEl.style.boxShadow = `0 0 24px ${weather.accent}33`;
+  }
+}
+
+function startCameraHud(cam) {
+  stopCameraHud();
+  renderCameraHud(cam);
+  ensureCameraHudWeather().then(() => renderCameraHud(cam));
+  CAMERA_HUD_STATE.timer = setInterval(() => {
+    renderCameraHud(cam);
+    const stale = !CAMERA_HUD_STATE.weatherFetchedAt ||
+      (Date.now() - CAMERA_HUD_STATE.weatherFetchedAt) > CAMERA_HUD_WEATHER_TTL_MS;
+    if (stale) {
+      ensureCameraHudWeather().then(() => renderCameraHud(cam));
+    }
+  }, 1000);
+}
+
+function stopCameraHud() {
+  if (CAMERA_HUD_STATE.timer) {
+    clearInterval(CAMERA_HUD_STATE.timer);
+    CAMERA_HUD_STATE.timer = null;
+  }
+}
+
+async function attachCameraPlayback(url) {
+  const video = document.getElementById('live-camera-player');
+  const fallbackLink = document.getElementById('live-camera-fallback-link');
+  if (!video) return;
+
+  destroyCameraPlayback();
+  if (fallbackLink) fallbackLink.style.display = 'none';
+  video.src = url;
+  video.load();
+  const started = await video.play().then(() => true).catch(() => false);
+  if (!started && fallbackLink) fallbackLink.style.display = 'inline';
+}
+
 function openCameraDetails(cam) {
   const sheet = document.getElementById('marker-bottom-sheet');
   if (!sheet) return;
@@ -1244,9 +1651,55 @@ function openCameraDetails(cam) {
   document.getElementById('sheet-address').textContent = 'Координаты: ' + cam.lat + ', ' + cam.lon;
   document.getElementById('sheet-desc').innerHTML = `
     <div style="margin-bottom:12px;">${cam.desc}</div>
-    <div style="width:100%; height:200px; background:#000; border-radius:12px; overflow:hidden; position:relative;">
-      <video src="${cam.url}" style="width:100%; height:100%; border:none; object-fit:cover;" controls autoplay muted playsinline></video>
-      <div style="position:absolute; top:10px; right:10px; background:rgba(255,0,0,0.8); color:white; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700;">LIVE</div>
+    <div style="width:100%; height:200px; background:#000; border-radius:12px; overflow:hidden; position:relative; border:1px solid rgba(125,231,255,0.22); box-shadow:0 18px 42px rgba(0,0,0,0.38);">
+      <video id="live-camera-player" style="width:100%; height:100%; border:none; object-fit:cover;" controls autoplay muted playsinline></video>
+      <div style="position:absolute; inset:0; pointer-events:none; background:linear-gradient(180deg, rgba(4,8,16,0.52) 0%, rgba(4,8,16,0.06) 42%, rgba(4,8,16,0.58) 100%);"></div>
+      <div style="position:absolute; top:10px; left:10px; right:10px; display:flex; align-items:flex-start; justify-content:space-between; gap:10px; pointer-events:none;">
+        <div style="display:flex; flex-wrap:wrap; gap:8px; max-width:calc(100% - 92px);">
+          <div id="live-camera-weather-chip" style="min-width:112px; padding:8px 10px; border-radius:14px; background:rgba(14,21,34,0.72); border:1px solid rgba(154,248,255,0.7); box-shadow:0 0 24px rgba(154,248,255,0.16);">
+            <div style="display:flex; align-items:center; gap:6px; color:#9AF8FF; font-size:9px; font-weight:800; letter-spacing:1.1px; text-transform:uppercase;">
+              <span id="live-camera-weather-icon">⌛</span>
+              <span>Погода</span>
+            </div>
+            <div id="live-camera-weather" style="margin-top:6px; color:#fff; font-size:15px; font-weight:800;">--°</div>
+            <div id="live-camera-weather-label" style="margin-top:2px; color:rgba(255,255,255,0.74); font-size:10px;">Синхронизация</div>
+          </div>
+          <div style="min-width:112px; padding:8px 10px; border-radius:14px; background:rgba(14,21,34,0.72); border:1px solid rgba(154,248,255,0.42);">
+            <div style="display:flex; align-items:center; gap:6px; color:#9AF8FF; font-size:9px; font-weight:800; letter-spacing:1.1px; text-transform:uppercase;">
+              <span>⏱</span>
+              <span>Нижневартовск</span>
+            </div>
+            <div id="live-camera-time" style="margin-top:6px; color:#fff; font-size:15px; font-weight:800;">--:--:--</div>
+            <div id="live-camera-time-label" style="margin-top:2px; color:rgba(255,255,255,0.74); font-size:10px;">--.--.----</div>
+          </div>
+          <div style="min-width:112px; padding:8px 10px; border-radius:14px; background:rgba(14,21,34,0.72); border:1px solid rgba(255,200,87,0.42);">
+            <div style="display:flex; align-items:center; gap:6px; color:#FFC857; font-size:9px; font-weight:800; letter-spacing:1.1px; text-transform:uppercase;">
+              <span>👥</span>
+              <span>Люди в кадре</span>
+            </div>
+            <div id="live-camera-people" style="margin-top:6px; color:#fff; font-size:15px; font-weight:800;">--</div>
+            <div id="live-camera-people-label" style="margin-top:2px; color:rgba(255,255,255,0.74); font-size:10px;">Detector standby</div>
+          </div>
+        </div>
+        <div style="padding:8px 10px; border-radius:999px; background:rgba(27,16,32,0.76); border:1px solid rgba(255,78,78,0.84); box-shadow:0 0 20px rgba(255,78,78,0.18); color:#fff; font-size:10px; font-weight:800; letter-spacing:1px;">
+          <span style="display:inline-block; width:8px; height:8px; margin-right:6px; border-radius:50%; background:#ff4e4e; box-shadow:0 0 10px rgba(255,78,78,0.8);"></span>LIVE HUD
+        </div>
+      </div>
+      <div style="position:absolute; left:10px; right:10px; bottom:10px; display:flex; justify-content:space-between; gap:8px; pointer-events:none;">
+        <div style="flex:1; min-width:0; padding:8px 10px; border-radius:12px; border:1px solid rgba(55,221,254,0.24); background:rgba(10,16,24,0.5);">
+          <div style="color:#7DE7FF; font-size:9px; font-weight:800; letter-spacing:1.2px;">WX LINK</div>
+          <div id="live-camera-weather-meta" style="margin-top:3px; color:rgba(255,255,255,0.72); font-size:10px;">Погодный канал...</div>
+        </div>
+        <div style="flex:1; min-width:0; padding:8px 10px; border-radius:12px; border:1px solid rgba(55,221,254,0.24); background:rgba(10,16,24,0.5); text-align:right;">
+          <div style="color:#7DE7FF; font-size:9px; font-weight:800; letter-spacing:1.2px;">AI VISION</div>
+          <div id="live-camera-detector" style="margin-top:3px; color:rgba(255,255,255,0.72); font-size:10px;">Vision channel pending</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:8px;">
+      <a id="live-camera-fallback-link" href="${cam.url}" target="_blank" style="display:none; color:var(--primary); font-size:12px;">
+        Открыть поток во внешнем плеере
+      </a>
     </div>
     <div style="margin-top:12px; font-size:12px; color:var(--text-secondary);">
       AI Мониторинг: <span style="color:var(--success)">АКТИВЕН</span> · Аномалий не обнаружено.
@@ -1258,6 +1711,8 @@ function openCameraDetails(cam) {
   gallery.style.display = 'none';
 
   sheet.classList.add('open');
+  startCameraHud(cam);
+  attachCameraPlayback(cam.url);
 }
 
 /**
@@ -1286,5 +1741,3 @@ function startCameraAiMonitor() {
     }
   }, 45000);
 }
-
-

@@ -32,9 +32,6 @@ from services.supabase_service import (
 )
 from services.zai_service import analyze_complaint, get_ai_provider_status
 from services.rate_limiter import check_rate_limit
-from services.vocal_remover_service import (
-    separate_audio, check_installation as uvr_check, MODELS as UVR_MODELS
-)
 from backend.database import SessionLocal
 from backend.models import Report, User
 from core.config import (
@@ -62,10 +59,6 @@ class ComplaintStates(StatesGroup):
     selecting_category = State()
     awaiting_payment = State()
 
-class UvrStates(StatesGroup):
-    waiting_audio = State()
-    selecting_model = State()
-
 class AdminFilter(BaseFilter):
     async def __call__(self, message: Message) -> bool:
         is_adm = message.from_user.id in ADMIN_TELEGRAM_IDS
@@ -90,13 +83,13 @@ def main_kb(user_id: int = None):
     is_admin = user_id in ADMIN_TELEGRAM_IDS if user_id else False
     
     if USE_SUPABASE_PRIMARY and SUPABASE_URL:
-        # Используем storage-страницы карты и city story для гарантированного рендеринга HTML
+        # Используем storage-страницы карты и инфографики для гарантированного рендеринга HTML
         map_url = f"{SUPABASE_URL}/storage/v1/object/public/apps/map.html?v={ver}"
-        info_url = f"{SUPABASE_URL}/storage/v1/object/public/apps/city_story.html?v={ver}"
+        info_url = f"{SUPABASE_URL}/storage/v1/object/public/apps/info.html?v={ver}"
         has_https = True
     else:
         map_url = f"{PUBLIC_API_BASE_URL}/map?v={ver}"
-        info_url = f"{PUBLIC_API_BASE_URL}/citystory?v={ver}"
+        info_url = f"{PUBLIC_API_BASE_URL}/infographic?v={ver}"
         has_https = PUBLIC_API_BASE_URL.startswith("https://")
     
     kb = [
@@ -133,7 +126,6 @@ def admin_kb(user_id: int = None):
     kb = [
         [KeyboardButton(text="📝 Новая жалоба")], # Админ тоже может подать
         [KeyboardButton(text="🗺️ Управление картой", web_app=WebAppInfo(url=map_url))],
-        [KeyboardButton(text="✂️ Sound Separator")],
         [KeyboardButton(text="🔄 Синхронизировать с Supabase")],
         [KeyboardButton(text="🏠 Главное меню")]
     ]
@@ -195,9 +187,9 @@ async def cmd_stats_text(message: Message):
     except: ver = 1
     
     if USE_SUPABASE_PRIMARY and SUPABASE_URL:
-        link = f"{SUPABASE_URL}/storage/v1/object/public/apps/city_story.html?v={ver or 100}"
+        link = f"{SUPABASE_URL}/storage/v1/object/public/apps/info.html?v={ver or 100}"
     else:
-        link = f"{PUBLIC_API_BASE_URL}/citystory?v={ver or 100}"
+        link = f"{PUBLIC_API_BASE_URL}/infographic?v={ver or 100}"
 
     await message.answer(
         f"📊 *Статистика и аналитика*\n\n"
@@ -246,79 +238,6 @@ async def cmd_help(message: Message):
         "Для просмотра карты и статистики используйте встроенное приложение (кнопки в меню).",
         parse_mode="Markdown"
     )
-
-# ══════════════════════════════════════════════════════════════════════════════
-# VOCAL REMOVER (ADMIN ONLY)
-# ══════════════════════════════════════════════════════════════════════════════
-@router.message(Command("uvr"), AdminFilter())
-async def cmd_uvr(message: Message, state: FSMContext):
-    is_ready, status = await uvr_check()
-    await message.answer(f"🎵 *Vocal Remover API*\n\n{status}\n\nОтправьте аудиофайл или голосовое сообщение.", parse_mode="Markdown")
-    await state.set_state(UvrStates.waiting_audio)
-
-@router.message(UvrStates.waiting_audio, F.audio | F.voice)
-async def handle_uvr_audio(message: Message, state: FSMContext):
-    file_id = message.audio.file_id if message.audio else message.voice.file_id
-    await state.update_data(file_id=file_id)
-    
-    buttons = []
-    for k, v in UVR_MODELS.items():
-        buttons.append([InlineKeyboardButton(text=v['name'], callback_data=f"uvr_mod:{k}")])
-    
-    await message.answer("Выберите модель для разделения:", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-    await state.set_state(UvrStates.selecting_model)
-
-@router.callback_query(F.data.startswith("uvr_mod:"), UvrStates.selecting_model)
-async def process_uvr(callback: CallbackQuery, state: FSMContext):
-    model_key = callback.data.split(":")[1]
-    data = await state.get_data()
-    file_id = data.get("file_id")
-    
-    await callback.message.edit_text(f"⏳ Начинаю обработку...\nМодель: {model_key}\n\n1. Загрузка файла на сервер...")
-    
-    tmp_path = None
-    try:
-        file = await bot.get_file(file_id)
-        # Use .wav for better compatibility or keep .mp3 as requested
-        suffix = os.path.splitext(file.file_path)[1] or ".mp3"
-        
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            tmp_path = tmp.name
-            
-        logger.info(f"Downloading file to {tmp_path}")
-        await bot.download_file(file.file_path, tmp_path)
-        
-        await callback.message.edit_text(f"⏳ Модель: {model_key}\n\n1. ✅ Файл загружен\n2. 🔄 Отправка в MVSEP...")
-        
-        vocals, instrumental, info = await separate_audio(tmp_path, model_key=model_key)
-        
-        await callback.message.edit_text(f"⏳ Модель: {model_key}\n\n1. ✅ Файл загружен\n2. ✅ Обработано в cloud\n3. 🔄 Отправка вам...")
-        
-        if vocals and os.path.exists(vocals):
-            await bot.send_audio(callback.from_user.id, types.FSInputFile(vocals), caption=f"🎤 Вокал (модель: {model_key})")
-        if instrumental and os.path.exists(instrumental):
-            await bot.send_audio(callback.from_user.id, types.FSInputFile(instrumental), caption=f"🎸 Инструментал (модель: {model_key})")
-                
-        await callback.message.delete()
-    except Exception as e:
-        import traceback
-        err_detail = str(e)
-        logger.error(f"UVR Error: {traceback.format_exc()}")
-        await callback.message.edit_text(
-            f"❌ Ошибка UVR:\n\n`{err_detail}`\n\n"
-            f"Модель: {model_key}\n"
-            f"Проверьте настройки API или попробуйте позже.", 
-            parse_mode="Markdown"
-        )
-    finally:
-        if tmp_path and os.path.exists(tmp_path):
-            try: os.remove(tmp_path)
-            except: pass
-        await state.clear()
-
-# ══════════════════════════════════════════════════════════════════════════════
-# ОБРАБОТКА ЖАЛОБ
-# ══════════════════════════════════════════════════════════════════════════════
 
 @router.message(ComplaintStates.waiting_complaint, F.photo)
 async def handle_complaint_photo(message: Message, state: FSMContext):
@@ -475,17 +394,6 @@ async def cmd_admin(message: Message):
 async def cmd_admin_stats(message: Message):
     # Псевдоним для /admin для кнопок
     await cmd_admin(message)
-
-@router.message(F.text == "🎵 Vocal Remover (UVR)", AdminFilter())
-@router.message(Command("uvr"), AdminFilter())
-async def cmd_uvr_btn(message: Message, state: FSMContext):
-    # Calling the actual command
-    await cmd_uvr(message, state)
-
-@router.message(F.text == "✂️ Sound Separator", AdminFilter())
-async def cmd_separator_btn(message: Message, state: FSMContext):
-    # For now sound separator use the same UVR logic but we can distinguish later
-    await cmd_uvr(message, state)
 
 @router.message(F.text == "🏠 Главное меню")
 async def cmd_back_to_main(message: Message):
