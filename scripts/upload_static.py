@@ -1,101 +1,144 @@
-"""Upload static files to Supabase Storage using the official Python SDK."""
+﻿"""Upload current public assets and release APK to Supabase Storage."""
 
 import os
 import sys
 import time
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SERVICE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_URL = os.getenv('SUPABASE_URL', '')
+SERVICE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY', '')
 
 if not SUPABASE_URL or not SERVICE_KEY:
-    print("ERROR: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set")
+    print('ERROR: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set')
     sys.exit(1)
 
-PUBLIC_DIR = os.path.join(os.path.dirname(__file__), "..", "public")
-BUCKET = "static"
+PUBLIC_DIR = os.path.join(os.path.dirname(__file__), '..', 'public')
+BUCKET = 'apps'
+
+
+def resolve_apk_path():
+    candidates = [
+        os.path.join(
+            PUBLIC_DIR,
+            '..',
+            'services',
+            'Frontend',
+            'build',
+            'app',
+            'outputs',
+            'flutter-apk',
+            'app-arm64-v8a-release.apk',
+        ),
+        os.path.join(
+            PUBLIC_DIR,
+            '..',
+            'services',
+            'Frontend',
+            'build',
+            'app',
+            'outputs',
+            'flutter-apk',
+            'app-release.apk',
+        ),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return None
+
 
 FILES = [
-    ("map.html", "map.html", "text/html"),
-    ("map_script.js", "map_script.js", "application/javascript"),
-    ("info.html", "info.html", "text/html"),
-    ("info_script_v2.js", "info_script_v2.js", "application/javascript"),
-    ("info_story_merge.css", "info_story_merge.css", "text/css"),
-    ("info_story_merge.js", "info_story_merge.js", "application/javascript"),
-    ("app.html", "app.html", "text/html"),
-    ("infographic_data.json", "infographic_data.json", "application/json"),
-    ("cesium_view.html", "cesium_view.html", "text/html"),
-    ("cameras_nv.json", "cameras_nv.json", "application/json"),
-    ("../services/Frontend/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk", "citypulse.apk", "application/octet-stream"),
+    ('map.html', 'map.html', 'text/html'),
+    ('map_script.js', 'map_script.js', 'application/javascript'),
+    ('info.html', 'info.html', 'text/html'),
+    ('info_script_v2.js', 'info_script_v2.js', 'application/javascript'),
+    ('info_story_merge.css', 'info_story_merge.css', 'text/css'),
+    ('info_story_merge.js', 'info_story_merge.js', 'application/javascript'),
+    ('cesium_view.html', 'cesium_view.html', 'text/html'),
+    ('cameras_nv.json', 'cameras_nv.json', 'application/json'),
+    ('splash_system.js', 'splash_system.js', 'application/javascript'),
+    ('audio/splash-aurora.mp3', 'audio/splash-aurora.mp3', 'audio/mpeg'),
+    ('audio/splash-grid.mp3', 'audio/splash-grid.mp3', 'audio/mpeg'),
+    ('audio/splash-pulse.mp3', 'audio/splash-pulse.mp3', 'audio/mpeg'),
 ]
+
 
 def main():
     try:
         from supabase import create_client
     except ImportError:
-        print("ERROR: supabase library not found. Run: python -m pip install supabase")
+        print('ERROR: supabase library not found. Run: python -m pip install supabase')
         return
 
-    print(f"Connecting to {SUPABASE_URL}...")
+    print(f'Connecting to {SUPABASE_URL}...')
     client = create_client(SUPABASE_URL, SERVICE_KEY)
     storage = client.storage
 
-    # Ensure bucket accepts larger files
     try:
-        storage.update_bucket(BUCKET, options={"file_size_limit": 104857600}) # 100MB
-        print(f"Bucket '{BUCKET}' limit updated to 100MB")
-    except: pass
+        storage.update_bucket(BUCKET, options={'file_size_limit': 314572800})
+        print(f"Bucket '{BUCKET}' limit updated to 300MB")
+    except Exception:
+        pass
 
-    print(f"Uploading {len(FILES)} files...")
+    upload_items = list(FILES)
+    apk_path = resolve_apk_path()
+    if apk_path:
+        upload_items.append((apk_path, 'citypulse.apk', 'application/vnd.android.package-archive'))
+
+    print(f'Uploading {len(upload_items)} files...')
     ok, fail = 0, 0
     bucket = storage.from_(BUCKET)
 
-    for local_name, target_name, content_type in FILES:
-        filepath = os.path.join(PUBLIC_DIR, local_name)
+    for local_name, target_name, content_type in upload_items:
+        filepath = local_name if os.path.isabs(local_name) else os.path.join(PUBLIC_DIR, local_name)
         if not os.path.exists(filepath):
-            print(f"  SKIP: {local_name} (not found)")
+            print(f'  SKIP: {local_name} (not found)')
             continue
 
-        with open(filepath, "rb") as f:
-            data = f.read()
+        with open(filepath, 'rb') as handle:
+            data = handle.read()
 
         size_kb = len(data) / 1024
-        print(f"  Uploading {local_name} -> {target_name} ({size_kb:.1f} KB)...", end=" ", flush=True)
+        print(f'  Uploading {target_name} ({size_kb:.1f} KB)...', end=' ', flush=True)
 
         try:
-            # Try upload with upsert=true
             bucket.upload(
                 path=target_name,
                 file=data,
                 file_options={
-                    "content-type": content_type,
-                    "upsert": "true",
+                    'content-type': content_type,
+                    'upsert': 'true',
                 },
             )
-            print("OK")
+            print('OK')
             ok += 1
-        except Exception as e:
-             # If upload fails, try update
+        except Exception:
             try:
                 bucket.update(
                     path=target_name,
                     file=data,
-                    file_options={"content-type": content_type},
+                    file_options={'content-type': content_type},
                 )
-                print("OK (updated)")
+                print('OK (updated)')
                 ok += 1
-            except Exception as e2:
-                print(f"FAIL: {str(e2)[:100]}")
+            except Exception as error:
+                print(f'FAIL: {str(error)[:160]}')
                 fail += 1
 
-        time.sleep(0.5)
+        time.sleep(0.3)
 
-    print(f"\nResult: {ok} OK, {fail} FAIL")
+    print(f'\nResult: {ok} OK, {fail} FAIL')
     if ok > 0:
-        base = f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET}"
-        print(f"\nPublic APK URL: {base}/citypulse.apk")
+        base = f'{SUPABASE_URL}/storage/v1/object/public/{BUCKET}'
+        print(f'Public map URL: {base}/map.html')
+        print(f'Public info URL: {base}/info.html')
+        print(f'Public APK URL: {base}/citypulse.apk')
 
-if __name__ == "__main__":
+    if fail:
+        sys.exit(1)
+
+
+if __name__ == '__main__':
     main()
