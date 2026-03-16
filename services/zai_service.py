@@ -29,19 +29,19 @@ CATEGORIES: list[str] = [
 ]
 
 # --- AI provider configuration ---
-ZAI_API_KEY: str = os.getenv("ZAI_API_KEY", "")
-ZAI_BASE: str = os.getenv("ZAI_BASE_URL", "https://api.z.ai/api/paas/v4")
-ZAI_TEXT_MODEL: str = os.getenv("ZAI_TEXT_MODEL", "glm-4.7-flash")
+XAI_API_KEY: str = os.getenv("XAI_API_KEY", "").strip()
+XAI_BASE: str = os.getenv("XAI_BASE_URL", "https://api.x.ai/v1")
+XAI_TEXT_MODEL: str = os.getenv("XAI_TEXT_MODEL", "grok-2-latest")
 
 # Log provider status at import
-if ZAI_API_KEY:
-    logger.info("Z.AI initialized (model: %s)", ZAI_TEXT_MODEL)
+if XAI_API_KEY:
+    logger.info("Grok initialized (model: %s)", XAI_TEXT_MODEL)
 else:
-    logger.warning("ZAI_API_KEY not set — will fallback to keyword")
+    logger.warning("XAI_API_KEY not set — will fallback to keyword")
 
-AI_TEXT_PROVIDER: str = os.getenv("AI_TEXT_PROVIDER", "zai").strip().lower()
-if AI_TEXT_PROVIDER not in ("zai", "keyword"):
-    AI_TEXT_PROVIDER = "zai"
+AI_TEXT_PROVIDER: str = os.getenv("AI_TEXT_PROVIDER", "grok").strip().lower()
+if AI_TEXT_PROVIDER not in ("grok", "keyword"):
+    AI_TEXT_PROVIDER = "grok"
 
 # --- System prompt and user prompt ---
 SYSTEM_PROMPT: str = (
@@ -150,39 +150,39 @@ async def _call_ai_api(
     return None
 
 
-async def _zai_analyze(text: str) -> Optional[Dict[str, Any]]:
-    """Analyze via Z.AI with caching."""
-    if not ZAI_API_KEY:
+async def _grok_analyze(text: str) -> Optional[Dict[str, Any]]:
+    """Analyze via Grok (xAI) with caching."""
+    if not XAI_API_KEY:
         return None
 
-    cached = get_cached_text(text, ZAI_TEXT_MODEL)
+    cached = get_cached_text(text, XAI_TEXT_MODEL)
     if cached:
         return cached
 
     payload = {
-        "model": ZAI_TEXT_MODEL,
+        "model": XAI_TEXT_MODEL,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": _make_prompt(text)},
         ],
-        "max_tokens": 2048,
+        "temperature": 0.1,
     }
     headers = {
-        "Authorization": f"Bearer {ZAI_API_KEY}",
+        "Authorization": f"Bearer {XAI_API_KEY}",
         "Content-Type": "application/json",
     }
 
     content = await _call_ai_api(
-        f"{ZAI_BASE}/chat/completions", payload, headers, "Z.AI"
+        f"{XAI_BASE}/chat/completions", payload, headers, "Grok"
     )
     if not content:
-        logger.error("Z.AI: all attempts failed")
+        logger.error("Grok: all attempts failed")
         return None
 
     result = _parse_json(content)
     if result:
-        logger.info("Z.AI (%s): category=%s", ZAI_TEXT_MODEL, result.get("category"))
-        set_cached_text(text, result, ZAI_TEXT_MODEL)
+        logger.info("Grok (%s): category=%s", XAI_TEXT_MODEL, result.get("category"))
+        set_cached_text(text, result, XAI_TEXT_MODEL)
     return result
 
 
@@ -275,7 +275,7 @@ def set_ai_provider(provider: str) -> bool:
     """Switch active provider at runtime (no restart required)."""
     global AI_TEXT_PROVIDER
     p = (provider or "").strip().lower()
-    if p not in ("zai", "keyword"):
+    if p not in ("grok", "keyword"):
         return False
     AI_TEXT_PROVIDER = p
     logger.info("AI text provider switched to: %s", AI_TEXT_PROVIDER)
@@ -286,8 +286,8 @@ def get_ai_provider_status() -> Dict[str, Any]:
     """Provider status for admin panel."""
     return {
         "active": AI_TEXT_PROVIDER,
-        "zai_configured": bool(ZAI_API_KEY),
-        "zai_model": ZAI_TEXT_MODEL,
+        "xai_configured": bool(XAI_API_KEY),
+        "xai_model": XAI_TEXT_MODEL,
     }
 
 
@@ -299,16 +299,16 @@ async def analyze_complaint(text: str) -> Dict[str, Any]:
     location_hints, provider.
     """
     order: List[str]
-    if AI_TEXT_PROVIDER == "zai":
-        order = ["zai", "keyword"]
+    if AI_TEXT_PROVIDER == "grok":
+        order = ["grok", "keyword"]
     else:
         order = ["keyword"]
 
     for provider in order:
-        if provider == "zai":
-            result = await _zai_analyze(text)
+        if provider == "grok":
+            result = await _grok_analyze(text)
             if result:
-                result["provider"] = f"zai:{ZAI_TEXT_MODEL}"
+                result["provider"] = f"grok:{XAI_TEXT_MODEL}"
                 return _normalize_result(result)
         elif provider == "keyword":
             break

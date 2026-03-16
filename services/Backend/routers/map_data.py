@@ -17,13 +17,13 @@ from services.geo_service import geoparse
 
 router = APIRouter(tags=["map-data"])
 
-SUPABASE_URL = (os.getenv("SUPABASE_URL") or "https://xpainxohbdoruakcijyq.supabase.co").rstrip("/")
+SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").rstrip("/")
 SUPABASE_KEY = (
     os.getenv("SUPABASE_ANON_KEY")
     or os.getenv("SUPABASE_ANON_API_KEY")
-    or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwYWlueG9oYmRvcnVha2NpanlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3OTg2NjUsImV4cCI6MjA4NzM3NDY2NX0.hTBTRflUGR9LDXASS15u1IHBZOv9pMt_4CGXqevr0tc"
+    or ""
 )
-SUPABASE_REPORTS_URL = f"{SUPABASE_URL}/rest/v1/reports"
+SUPABASE_REPORTS_URL = f"{SUPABASE_URL}/rest/v1/reports" if SUPABASE_URL else ""
 AFISHA_URL = "https://www.n-vartovsk.ru/afisha/"
 
 VENUE_COORDS: dict[str, dict[str, Any]] = {
@@ -60,6 +60,9 @@ VENUE_COORDS: dict[str, dict[str, Any]] = {
 }
 
 EVENT_DATE_RE = re.compile(r"(?P<date>\d{2}\.\d{2}\.\d{4})(?:\s+(?P<time>\d{2}:\d{2}))?")
+MAP_REPORTS_TIMEOUT_SECONDS = 12.0
+MAP_EVENTS_TIMEOUT_SECONDS = 12.0
+MAP_FEED_ENABLE_GEOPARSE = (os.getenv("MAP_FEED_ENABLE_GEOPARSE") or "0").strip() == "1"
 
 
 def _now_local() -> datetime:
@@ -121,6 +124,8 @@ def _extract_event_datetime(text: str) -> datetime | None:
 
 
 async def _fetch_supabase_reports(limit: int) -> list[dict[str, Any]]:
+    if not SUPABASE_REPORTS_URL or not SUPABASE_KEY:
+        return []
     headers = {
         "apikey": SUPABASE_KEY,
         "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -141,7 +146,7 @@ async def _fetch_supabase_reports(limit: int) -> list[dict[str, Any]]:
 async def _enrich_report(report: dict[str, Any]) -> dict[str, Any] | None:
     lat = report.get("lat")
     lng = report.get("lng")
-    if lat is None or lng is None:
+    if (lat is None or lng is None) and MAP_FEED_ENABLE_GEOPARSE:
         text = "\n".join(filter(None, [report.get("title"), report.get("description")]))
         geo = await geoparse(text=text, ai_address=report.get("address"), location_hints=report.get("address"))
         lat = geo.get("lat")
@@ -255,9 +260,30 @@ async def get_map_feed(
     limit: int = Query(250, ge=50, le=500),
     event_days: int = Query(7, ge=1, le=7),
 ):
-    reports_task = asyncio.create_task(_load_public_markers(limit=limit))
-    events_task = asyncio.create_task(_load_city_events(days=event_days))
-    reports, events = await asyncio.gather(reports_task, events_task)
+    reports_task = asyncio.create_task(
+        asyncio.wait_for(
+            _load_public_markers(limit=limit),
+            timeout=MAP_REPORTS_TIMEOUT_SECONDS,
+        )
+    )
+    events_task = asyncio.create_task(
+        asyncio.wait_for(
+            _load_city_events(days=event_days),
+            timeout=MAP_EVENTS_TIMEOUT_SECONDS,
+        )
+    )
+    reports_result, events_result = await asyncio.gather(
+        reports_task,
+        events_task,
+        return_exceptions=True,
+    )
+
+    reports = reports_result if isinstance(reports_result, list) else []
+    events = (
+        events_result
+        if isinstance(events_result, dict)
+        else {"today": [], "week": []}
+    )
 
     markers = [*reports, *events["week"]]
     markers.sort(key=lambda item: item.get("created_at") or "", reverse=True)

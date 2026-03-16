@@ -1,19 +1,18 @@
-// lib/services/mcp_complaints_service.dart
-/// Сервис для работы с жалобами через MCP
 library;
 
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'mcp_service.dart';
-import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-/// Сервис для работы с жалобами через MCP
+import '../config/mcp_config.dart';
+import 'mcp_service.dart';
+
 class MCPComplaintsService {
   final MCPService _mcpService = MCPService();
-  final String _baseUrl = 'http://127.0.0.1:8001';
 
-  /// Apply category/status/limit filters to a complaint list
+  String get _baseUrl => MCPConfig.reportsApiUrl.replaceFirst('/api/reports', '');
+
   List<Map<String, dynamic>> _applyFilters(
     List<Map<String, dynamic>> complaints, {
     String? category,
@@ -33,14 +32,16 @@ class MCPComplaintsService {
     return result;
   }
 
-  /// Получить все жалобы
   Future<List<Map<String, dynamic>>> getAllComplaints({
     String? category,
     String? status,
     int? limit,
   }) async {
+    if (MCPConfig.reportsApiUrl.isEmpty) {
+      return [];
+    }
+
     try {
-      // Пробуем через MCP Fetch
       final response = await _mcpService.callHTTP(
         'mcp_fetch',
         'fetch',
@@ -66,25 +67,25 @@ class MCPComplaintsService {
           );
         }
       }
-    } catch (e) {
-      debugPrint('MCP запрос не удался: $e');
+    } catch (error) {
+      debugPrint('MCP request failed: $error');
     }
 
-    // Fallback на прямой HTTP
     return _fetchDirectly(category: category, status: status, limit: limit);
   }
 
-  /// Прямой HTTP запрос (fallback)
   Future<List<Map<String, dynamic>>> _fetchDirectly({
     String? category,
     String? status,
     int? limit,
   }) async {
+    if (MCPConfig.reportsApiUrl.isEmpty) {
+      return [];
+    }
+
     try {
       final uri = Uri.parse('$_baseUrl/api/reports');
-      final response = await http.get(uri).timeout(
-            const Duration(seconds: 10),
-          );
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as List<dynamic>;
@@ -95,15 +96,18 @@ class MCPComplaintsService {
           limit: limit,
         );
       }
-    } catch (e) {
-      debugPrint('Прямой HTTP запрос не удался: $e');
+    } catch (error) {
+      debugPrint('Direct HTTP request failed: $error');
     }
 
     return [];
   }
 
-  /// Получить жалобу по ID
   Future<Map<String, dynamic>?> getComplaintById(int id) async {
+    if (MCPConfig.reportsApiUrl.isEmpty) {
+      return null;
+    }
+
     try {
       final response = await _mcpService.callHTTP(
         'mcp_fetch',
@@ -121,11 +125,10 @@ class MCPComplaintsService {
           return jsonDecode(body) as Map<String, dynamic>;
         }
       }
-    } catch (e) {
-      debugPrint('MCP запрос не удался: $e');
+    } catch (error) {
+      debugPrint('MCP request failed: $error');
     }
 
-    // Fallback
     try {
       final response = await http
           .get(Uri.parse('$_baseUrl/api/reports/$id'))
@@ -134,15 +137,18 @@ class MCPComplaintsService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       }
-    } catch (e) {
-      debugPrint('Прямой HTTP запрос не удался: $e');
+    } catch (error) {
+      debugPrint('Direct HTTP request failed: $error');
     }
 
     return null;
   }
 
-  /// Создать новую жалобу
   Future<bool> createComplaint(Map<String, dynamic> complaint) async {
+    if (MCPConfig.reportsApiUrl.isEmpty) {
+      return false;
+    }
+
     try {
       final response = await _mcpService.callHTTP(
         'mcp_fetch',
@@ -158,11 +164,10 @@ class MCPComplaintsService {
       );
 
       return response.isSuccess;
-    } catch (e) {
-      debugPrint('MCP запрос не удался: $e');
+    } catch (error) {
+      debugPrint('MCP request failed: $error');
     }
 
-    // Fallback
     try {
       final response = await http
           .post(
@@ -173,14 +178,17 @@ class MCPComplaintsService {
           .timeout(const Duration(seconds: 10));
 
       return response.statusCode == 200 || response.statusCode == 201;
-    } catch (e) {
-      debugPrint('Прямой HTTP запрос не удался: $e');
+    } catch (error) {
+      debugPrint('Direct HTTP request failed: $error');
       return false;
     }
   }
 
-  /// Обновить жалобу
   Future<bool> updateComplaint(int id, Map<String, dynamic> updates) async {
+    if (MCPConfig.reportsApiUrl.isEmpty) {
+      return false;
+    }
+
     try {
       final response = await _mcpService.callHTTP(
         'mcp_fetch',
@@ -196,11 +204,10 @@ class MCPComplaintsService {
       );
 
       return response.isSuccess;
-    } catch (e) {
-      debugPrint('MCP запрос не удался: $e');
+    } catch (error) {
+      debugPrint('MCP request failed: $error');
     }
 
-    // Fallback
     try {
       final response = await http
           .put(
@@ -211,13 +218,12 @@ class MCPComplaintsService {
           .timeout(const Duration(seconds: 10));
 
       return response.statusCode == 200;
-    } catch (e) {
-      debugPrint('Прямой HTTP запрос не удался: $e');
+    } catch (error) {
+      debugPrint('Direct HTTP request failed: $error');
       return false;
     }
   }
 
-  /// Получить статистику
   Future<Map<String, dynamic>> getStatistics() async {
     try {
       final complaints = await getAllComplaints();
@@ -230,16 +236,15 @@ class MCPComplaintsService {
         'by_category': <String, int>{},
       };
 
-      // Подсчет по категориям
-      for (var complaint in complaints) {
+      for (final complaint in complaints) {
         final category = complaint['category'] as String? ?? 'Прочее';
         stats['by_category'][category] =
             (stats['by_category'][category] as int? ?? 0) + 1;
       }
 
       return stats;
-    } catch (e) {
-      debugPrint('Ошибка получения статистики: $e');
+    } catch (error) {
+      debugPrint('Statistics request failed: $error');
       return {
         'total': 0,
         'open': 0,

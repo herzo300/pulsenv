@@ -9,6 +9,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import '../config/mcp_config.dart';
+
 /// Конфигурация MCP сервера
 class MCPServerConfig {
   final String name;
@@ -337,13 +339,16 @@ extension MCPServiceComplaints on MCPService {
     String? status,
     int? limit,
   }) async {
+    if (MCPConfig.reportsApiUrl.isEmpty) {
+      return [];
+    }
     try {
       // Пробуем через MCP Fetch Server если доступен
       final response = await callHTTP(
         'mcp_fetch',
         'fetch',
         params: {
-          'url': 'http://127.0.0.1:8001/api/reports',
+          'url': MCPConfig.reportsApiUrl,
           'method': 'GET',
         },
       );
@@ -363,7 +368,7 @@ extension MCPServiceComplaints on MCPService {
     // Fallback на прямой запрос
     try {
       final httpResponse = await http.get(
-        Uri.parse('http://127.0.0.1:8001/api/reports'),
+        Uri.parse(MCPConfig.reportsApiUrl),
       );
 
       if (httpResponse.statusCode == 200) {
@@ -379,12 +384,15 @@ extension MCPServiceComplaints on MCPService {
 
   /// Отправить жалобу через MCP
   Future<bool> submitComplaint(Map<String, dynamic> complaint) async {
+    if (MCPConfig.reportsApiUrl.isEmpty) {
+      return false;
+    }
     try {
       final response = await callHTTP(
         'mcp_fetch',
         'fetch',
         params: {
-          'url': 'http://127.0.0.1:8001/api/reports',
+          'url': MCPConfig.reportsApiUrl,
           'method': 'POST',
           'body': jsonEncode(complaint),
           'headers': {

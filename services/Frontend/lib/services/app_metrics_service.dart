@@ -58,7 +58,7 @@ class AppMetricsService with WidgetsBindingObserver {
     _heartbeatInFlight = true;
     try {
       await _backendApi.postJson(
-        '/api/admin/heartbeat',
+        '/api/runtime/heartbeat',
         {
           'platform': _platformName,
           'app_version': _appVersion,

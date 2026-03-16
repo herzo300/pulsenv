@@ -15,12 +15,14 @@ from services.zai_service import CATEGORIES  # Single source of truth
 
 logger = logging.getLogger(__name__)
 
-# OpenRouter integration removed.
-OPENROUTER_API_KEY: str = ""
-OPENROUTER_BASE: str = ""
-OPENROUTER_VISION_MODEL: str = ""
+XAI_API_KEY: str = os.getenv("XAI_API_KEY", "").strip()
+XAI_BASE: str = os.getenv("XAI_BASE_URL", "https://api.x.ai/v1")
+XAI_VISION_MODEL: str = os.getenv("XAI_VISION_MODEL", "grok-2-vision-latest")
 
-logger.info("OpenRouter vision disabled — image analysis will use text fallback")
+if XAI_API_KEY:
+    logger.info("Grok vision initialized (model: %s)", XAI_VISION_MODEL)
+else:
+    logger.warning("Grok vision key not set — image analysis will use text fallback")
 
 VISION_PROMPT: str = (
     "Проанализируй фото городской проблемы в Нижневартовске.\n"
@@ -99,17 +101,66 @@ def _normalize_vision_result(result: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-async def _openrouter_vision(
+async def _grok_vision(
     image_b64: str, media_type: str, caption: str = ""
 ) -> Optional[Dict[str, Any]]:
-    """Vision analysis via OpenRouter (REMOVED)."""
+    """Vision analysis via Grok (xAI)."""
+    if not XAI_API_KEY:
+        return None
+
+    payload = {
+        "model": XAI_VISION_MODEL,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": f"{VISION_PROMPT}\nДоп. описание: {caption}"},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{media_type};base64,{image_b64}"
+                        }
+                    }
+                ]
+            }
+        ],
+        "temperature": 0.1
+    }
+    
+    headers = {
+        "Authorization": f"Bearer {XAI_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    
+    proxy_url = None
+    from core.http_client import get_proxy_url
+    try:
+        proxy_url = get_proxy_url()
+    except Exception:
+        pass
+        
+    try:
+        async with get_http_client(timeout=60.0, proxy=proxy_url) as client:
+            r = await client.post(f"{XAI_BASE}/chat/completions", json=payload, headers=headers)
+            if r.status_code == 200:
+                data = r.json()
+                msg = data.get("choices", [{}])[0].get("message", {})
+                content = msg.get("content") or ""
+                if content:
+                    result = _parse_json(content)
+                    if result:
+                        return _normalize_vision_result(result)
+            else:
+                logger.error("Grok Vision HTTP %d: %s", r.status_code, r.text[:200])
+    except Exception as e:
+        logger.error("Grok Vision error: %s", e)
     return None
 
 
 async def analyze_image_with_glm4v(
     image_path: str, caption: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Analyze image: EXIF GPS + OpenRouter Vision → text fallback."""
+    """Analyze image: EXIF GPS + Grok Vision → text fallback."""
     # Extract GPS from EXIF
     exif_coords = None
     try:
@@ -135,10 +186,10 @@ async def analyze_image_with_glm4v(
             result["exif_lat"], result["exif_lon"] = exif_coords
         return result
 
-    # 1. OpenRouter Vision
-    result = await _openrouter_vision(image_b64, media_type, caption or "")
+    # 1. Grok Vision
+    result = await _grok_vision(image_b64, media_type, caption or "")
     if result:
-        result["provider"] = f"openrouter:{OPENROUTER_VISION_MODEL}"
+        result["provider"] = f"grok:{XAI_VISION_MODEL}"
         if exif_coords:
             result["exif_lat"], result["exif_lon"] = exif_coords
         return result

@@ -1,8 +1,37 @@
-import requests
 import json
+import os
+from pathlib import Path
 
-url = "https://xpainxohbdoruakcijyq.supabase.co/rest/v1/infographic_data"
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwYWlueG9oYmRvcnVha2NpanlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3OTg2NjUsImV4cCI6MjA4NzM3NDY2NX0.hTBTRflUGR9LDXASS15u1IHBZOv9pMt_4CGXqevr0tc"
+import requests
+from dotenv import load_dotenv
+
+ROOT = Path(__file__).resolve().parents[2]
+for env_path in (
+    Path(os.getenv("SOOBSHIO_ENV_FILE", "")).expanduser()
+    if os.getenv("SOOBSHIO_ENV_FILE")
+    else None,
+    Path.home() / ".soobshio" / "runtime.env",
+    ROOT / ".env.runtime",
+    ROOT / ".env",
+):
+    if env_path and env_path.exists():
+        load_dotenv(dotenv_path=env_path, override=False)
+        break
+
+supabase_url = (os.getenv("SUPABASE_URL") or "").rstrip("/")
+supabase_key = (
+    os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    or os.getenv("SUPABASE_SECRET_API_KEY")
+    or os.getenv("SUPABASE_ANON_KEY")
+    or os.getenv("SUPABASE_ANON_API_KEY")
+    or ""
+).strip()
+
+if not supabase_url or not supabase_key:
+    raise RuntimeError("SUPABASE_URL and Supabase API key must be configured")
+
+url = f"{supabase_url}/rest/v1/infographic_data"
+key = supabase_key
 
 headers = {
     "apikey": key,
@@ -11,7 +40,11 @@ headers = {
     "Prefer": "resolution=merge-duplicates"
 }
 
-with open("assets/infographic_data.json", "r", encoding="utf-8") as f:
+with open(
+    Path(__file__).resolve().parent / "assets" / "infographic_data.json",
+    "r",
+    encoding="utf-8",
+) as f:
     data_content = json.load(f)
 
 # The table schema seems to have data_type and data

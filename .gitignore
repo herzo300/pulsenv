@@ -27,6 +27,8 @@ ENV/
 *.ipa
 *.dSYM/
 flutter_*.lock
+.dart_tool/
+build/
 
 # Sessions
 *.session
@@ -51,6 +53,7 @@ monitoring_err.txt
 
 # Temp
 temp/
+tmp/
 .hypothesis/
 .pytest_cache/
 nul
@@ -79,6 +82,7 @@ data/
 
 # Node (Cloudflare Worker)
 cloudflare-worker/node_modules/
+node_modules/
 
 # Test files (moved to scripts/tests/)
 test_*.py

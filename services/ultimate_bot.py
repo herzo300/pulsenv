@@ -335,12 +335,16 @@ async def process_confirm(callback: CallbackQuery, state: FSMContext):
         user = db.query(User).filter(User.telegram_id == callback.from_user.id).first()
         if not user:
             user = User(telegram_id=callback.from_user.id, username=callback.from_user.username)
-            db.add(user); db.commit(); db.refresh(user)
+            db.add(user)
+            db.commit()
+            db.refresh(user)
             
         report = Report(user_id=user.id, title=data.get("title"), description=data.get("description"),
                         category=data.get("category"), address=data.get("address"),
                         lat=data.get("lat"), lng=data.get("lon"), status="open")
-        db.add(report); db.commit(); db.refresh(report)
+        db.add(report)
+        db.commit()
+        db.refresh(report)
         
         try:
             await supabase_push_complaint({
@@ -356,7 +360,8 @@ async def process_confirm(callback: CallbackQuery, state: FSMContext):
     except Exception as e:
         await callback.message.edit_text(f"❌ Ошибка: {e}")
     finally:
-        db.close(); await state.clear()
+        db.close()
+        await state.clear()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # АДМИН-ПАНЕЛЬ

@@ -28,55 +28,61 @@ def parse_and_push_events():
     
     events_data = [
         {
-            "title": "Городской фестиваль искусств", 
-            "description": "Мастер-классы, живая музыка и танцы на главной площади. Отличная возможность провести вечер с семьей.",
+            "title": "Экскурсия «Память сильнее времени»", 
+            "description": "Интерактивная экскурсия. Погружение в историю города, быт прошлого и памятные вехи.",
             "date": now + timedelta(hours=2),
-            "lat": 60.9416, "lng": 76.5587,
-            "address": "Площадь Нефтяников"
+            "lat": 60.9380, "lng": 76.5610,
+            "address": "Краеведческий музей"
         },
         {
-            "title": "Спортивный марафон", 
-            "description": "Забег для всех желающих вокруг озера. Дистанции от 5км до 21км. Регистрация на месте.",
-            "date": now + timedelta(hours=1),
-            "lat": 60.9320, "lng": 76.5410,
-            "address": "Комсомольское озеро"
+            "title": "«Календарь живых традиций»", 
+            "description": "Экскурсия и программа в Музее истории русского быта. Узнайте, как зарождалось село Нижневартовское.",
+            "date": now + timedelta(hours=4),
+            "lat": 60.9250, "lng": 76.5450,
+            "address": "Музей истории русского быта"
         },
         {
-            "title": "Выставка 'Северная палитра'", 
-            "description": "Экспозиция работ местных художников. Вход свободный до закрытия галереи сегодня.",
-            "date": now + timedelta(hours=3),
+            "title": "Выставка «Радость творчества»", 
+            "description": "Персональная выставка Александры Баженовой. Уникальные работы местного автора.",
+            "date": midnight + timedelta(days=2, hours=10),
             "lat": 60.9385, "lng": 76.5650,
             "address": "Городская художественная галерея"
         },
         {
-            "title": "Вечер кино под открытым небом", 
-            "description": "Показ классических советских комедий. Берите пледы и чай в термосе!",
-            "date": midnight - timedelta(hours=2), # 2 hours before midnight
-            "lat": 60.9440, "lng": 76.5700,
-            "address": "Парк Победы"
+            "title": "Спектакль «...до лампочки»", 
+            "description": "Увлекательный спектакль о приручении электрического света. Для всей семьи.",
+            "date": midnight + timedelta(days=5, hours=18),
+            "lat": 60.9300, "lng": 76.5350,
+            "address": "Городской драматический театр"
+        },
+        {
+            "title": "Стендап Иван Абрамов", 
+            "description": "Новый стендап-концерт от звезды ТНТ. Жизненный юмор, импровизация.",
+            "date": midnight + timedelta(days=7, hours=19),
+            "lat": 60.9310, "lng": 76.5510,
+            "address": "Дворец Искусств"
         }
     ]
+
+    GEMINI_API_KEY = "AIzaSyCZEjOhSOn5j0o-5BYMa0aotzkmdJdUfqg"
+
+    def rewrite_description(desc):
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+            prompt = f"Перепиши кратко, уникально и очень вовлекающе для интерактивной городской афиши следующее описание: {desc}. Без воды, только самое главное и стильное."
+            payload = {"contents": [{"parts": [{"text": prompt}]}]}
+            r = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=10)
+            if r.status_code == 200:
+                return r.json()['candidates'][0]['content']['parts'][0]['text'].strip()
+        except Exception as e:
+            logging.error(f"Ai rewrite failed: {e}")
+        return desc
+
+    for e in events_data:
+        e["description"] = rewrite_description(e["description"])
+
     
     try:
-        # We try to fetch real ones, but if it fails or structure is unknown, just use these.
-        r = requests.get('https://nv86.ru/afisha/', timeout=10)
-        if r.status_code == 200:
-            soup = BeautifulSoup(r.text, 'html.parser')
-            items = soup.select('.afisha-item')
-            if items:
-                real_events = []
-                for idx, item in enumerate(items[:3]):
-                    title = item.select_one('.title')
-                    desc = item.select_one('.desc')
-                    real_events.append({
-                        "title": title.text.strip() if title else f"Мероприятие {idx+1}",
-                        "description": desc.text.strip() if desc else "Подробности на сайте nv86.ru",
-                        "date": now + timedelta(hours=random.randint(1, 4)),
-                        "lat": 60.938 + random.uniform(-0.01, 0.01), "lng": 76.559 + random.uniform(-0.01, 0.01),
-                        "address": "Нижневартовск"
-                    })
-                events_data.extend(real_events)
-                
         # Existing checks
         existing = requests.get(f"{URL}/reports?category=eq.Мероприятие&select=title", headers=HEADERS)
         existing_titles = set([e['title'] for e in existing.json()]) if existing.status_code == 200 else set()

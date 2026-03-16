@@ -24,13 +24,15 @@ import 'about_screen.dart';
 import '../widgets/city_pulse_wave.dart';
 import '../services/sound_service.dart';
 import 'cesium_map_screen.dart';
+import 'mapbox_three_map_screen.dart';
 import 'settings_screen.dart';
 import '../services/notification_service.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
+import '../utils/offline_tiles_service.dart';
 
-/// Р вЂњР В»Р В°Р Р†Р Р…РЎвЂ№Р в„– РЎРЊР С”РЎР‚Р В°Р Р… Р С”Р В°РЎР‚РЎвЂљРЎвЂ№ РІР‚вЂќ Р С•РЎвЂљР С•Р В±РЎР‚Р В°Р В¶Р В°Р ВµРЎвЂљ Р В¶Р В°Р В»Р С•Р В±РЎвЂ№ Р Р…Р В° Р С”Р В°РЎР‚РЎвЂљР Вµ Р СњР С‘Р В¶Р Р…Р ВµР Р†Р В°РЎР‚РЎвЂљР С•Р Р†РЎРѓР С”Р В°
-/// РЎРѓ РЎР‚Р ВµР В°Р В»-РЎвЂљР В°Р в„–Р С Р С•Р В±Р Р…Р С•Р Р†Р В»Р ВµР Р…Р С‘РЎРЏР СР С‘ Р С‘ РЎвЂћР С‘Р В»РЎРЉРЎвЂљРЎР‚Р В°РЎвЂ Р С‘Р ВµР в„– Р С—Р С• РЎРѓРЎвЂљР В°РЎвЂљРЎС“РЎРѓР В°Р С/Р С”Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘РЎРЏР С.
+/// Главный экран карты — отображает жалобы на карте Нижневартовска
+/// с реал-тайм обновлениями и фильтрацией по статусам/категориям.
 class _NeoGlassPanel extends StatelessWidget {
   const _NeoGlassPanel({
     required this.child,
@@ -209,11 +211,11 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
-  // РІвЂќР‚РІвЂќР‚РІвЂќР‚ Р С™Р С•Р Р…РЎвЂљРЎР‚Р С•Р В»Р В»Р ВµРЎР‚РЎвЂ№ Р С‘ РЎРѓР ВµРЎР‚Р Р†Р С‘РЎРѓРЎвЂ№ РІвЂќР‚РІвЂќР‚РІвЂќР‚
+  // ─── Контроллеры и сервисы ───
   final MapController _mapController = MapController();
   final MCPService _mcpService = MCPService();
 
-  // РІвЂќР‚РІвЂќР‚РІвЂќР‚ Р РЋР С•РЎРѓРЎвЂљР С•РЎРЏР Р…Р С‘Р Вµ РІвЂќР‚РІвЂќР‚РІвЂќР‚
+  // ─── Состояние ───
   List<Marker> _markers = [];
   bool _isLoading = true;
   bool _showCamerasLayer = false;
@@ -234,12 +236,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   bool _isMapMoving = false;
   bool _isNightMode = true;
 
-  // РІвЂќР‚РІвЂќР‚РІвЂќР‚ Р РЋР С•РЎРѓРЎвЂљР С•РЎРЏР Р…Р С‘Р Вµ Р Т‘Р В»РЎРЏ Р В°Р Р†РЎвЂљР С•Р В·РЎС“Р СР В° РІвЂќР‚РІвЂќР‚РІвЂќР‚
+  // ─── Состояние для автозума ───
   LatLng? _preZoomCenter;
   double? _preZoomLevel;
   Map<String, dynamic>? _focusedComplaint;
 
-  // РІвЂќР‚РІвЂќР‚РІвЂќР‚ Р С™Р С•Р Р…РЎРѓРЎвЂљР В°Р Р…РЎвЂљРЎвЂ№ РІвЂќР‚РІвЂќР‚РІвЂќР‚
+  // ─── Константы ───
   static const LatLng _center = kMapCenterDefault;
   static const Duration _updateInterval = Duration(seconds: 30);
   static const Duration _mapMotionCooldown = Duration(milliseconds: 750);
@@ -247,7 +249,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   static const Duration _nizhnevartovskOffset = Duration(hours: 5);
   static const String _visualModePrefKey = 'map_visual_mode_is_night';
 
-  // РІвЂќР‚РІвЂќР‚РІвЂќР‚ Р В¦Р Р†Р ВµРЎвЂљР С•Р Р†Р В°РЎРЏ Р С—Р В°Р В»Р С‘РЎвЂљРЎР‚Р В° РІвЂќР‚РІвЂќР‚РІвЂќР‚
+  // ─── Цветовая палитра ───
   static const Color _colorDanger = PulseColors.negative;
   static const Color _colorSuccess = PulseColors.success;
   static const Color _colorNeutral = PulseColors.neutral;
@@ -256,57 +258,21 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   static const Color _colorSurface = PulseColors.background;
   static const Color _colorBottomSheet = PulseColors.backgroundRaised;
 
-  // РІвЂќР‚РІвЂќР‚РІвЂќР‚ Р С™Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘Р С‘ РІвЂќР‚РІвЂќР‚РІвЂќР‚
+  // ─── Категории ───
   static const List<(String, IconData, Color)> _categories = [
-    ('Р вЂќР С•РЎР‚Р С•Р С–Р С‘', Icons.directions_car, _colorDanger),
-    ('Р вЂ“Р С™Р Тђ', Icons.home, _colorPrimary),
-    (
-      'Р С›РЎРѓР Р†Р ВµРЎвЂ°Р ВµР Р…Р С‘Р Вµ',
-      Icons.lightbulb,
-      Color(0xFFf59e0b)
-    ),
-    (
-      'Р СћРЎР‚Р В°Р Р…РЎРѓР С—Р С•РЎР‚РЎвЂљ',
-      Icons.directions_bus,
-      Color(0xFF3b82f6)
-    ),
-    ('Р В­Р С”Р С•Р В»Р С•Р С–Р С‘РЎРЏ', Icons.eco, _colorSuccess),
-    (
-      'Р вЂР ВµР В·Р С•Р С—Р В°РЎРѓР Р…Р С•РЎРѓРЎвЂљРЎРЉ',
-      Icons.shield,
-      Color(0xFF6366f1)
-    ),
-    (
-      'Р РЋР Р…Р ВµР С–/Р СњР В°Р В»Р ВµР Т‘РЎРЉ',
-      Icons.ac_unit,
-      Color(0xFF38bdf8)
-    ),
-    (
-      'Р СљР ВµР Т‘Р С‘РЎвЂ Р С‘Р Р…Р В°',
-      Icons.local_hospital,
-      Color(0xFFef4444)
-    ),
-    (
-      'Р С›Р В±РЎР‚Р В°Р В·Р С•Р Р†Р В°Р Р…Р С‘Р Вµ',
-      Icons.school,
-      Color(0xFF818cf8)
-    ),
-    (
-      'Р СџР В°РЎР‚Р С”Р С•Р Р†Р С”Р С‘',
-      Icons.local_parking,
-      Color(0xFF9ca3af)
-    ),
-    (
-      'Р РЋРЎвЂљРЎР‚Р С•Р С‘РЎвЂљР ВµР В»РЎРЉРЎРѓРЎвЂљР Р†Р С•',
-      Icons.architecture_rounded,
-      Color(0xFFF59E0B)
-    ),
-    (
-      'Р СљР ВµРЎР‚Р С•Р С—РЎР‚Р С‘РЎРЏРЎвЂљР С‘Р Вµ',
-      Icons.event_available_rounded,
-      Color(0xFFEAB308)
-    ),
-    ('Р СџРЎР‚Р С•РЎвЂЎР ВµР Вµ', Icons.report_problem, _colorNeutral),
+    ('Дороги', Icons.directions_car, _colorDanger),
+    ('Р–РљРҐ', Icons.home, _colorPrimary),
+    ('Освещение', Icons.lightbulb, Color(0xFFf59e0b)),
+    ('Транспорт', Icons.directions_bus, Color(0xFF3b82f6)),
+    ('Экология', Icons.eco, _colorSuccess),
+    ('Безопасность', Icons.shield, Color(0xFF6366f1)),
+    ('Снег/Наледь', Icons.ac_unit, Color(0xFF38bdf8)),
+    ('Медицина', Icons.local_hospital, Color(0xFFef4444)),
+    ('Образование', Icons.school, Color(0xFF818cf8)),
+    ('Парковки', Icons.local_parking, Color(0xFF9ca3af)),
+    ('Строительство', Icons.architecture_rounded, Color(0xFFF59E0B)),
+    ('Мероприятие', Icons.event_available_rounded, Color(0xFFEAB308)),
+    ('Прочее', Icons.report_problem, _colorNeutral),
   ];
 
   @override
@@ -336,7 +302,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       for (final item in data) {
         final lat = item['lat'];
         final lng = item['lng'];
-        final name = item['n'] ?? 'Р С™Р В°Р СР ВµРЎР‚Р В°';
+        final name = item['n'] ?? 'Камера';
         final url = item['s'];
         final rawPeopleCount = item['peopleCount'] ?? item['people_count'];
         final peopleCount =
@@ -480,9 +446,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     });
   }
 
-  // РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
-  // Р вЂ”Р В°Р С–РЎР‚РЎС“Р В·Р С”Р В° Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦
-  // РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
+  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+  // Загрузка данных
+  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
   void _startPeriodicUpdates() {
     _updateTimer = Timer.periodic(_updateInterval, (_) {
@@ -524,18 +490,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           _showComplaintDetails(activeComplaint);
 
           // Play category specific sound
-          SoundService().playCategorySound(
-              activeComplaint['category'] ?? 'Р СџРЎР‚Р С•РЎвЂЎР ВµР Вµ');
+          SoundService()
+              .playCategorySound(activeComplaint['category'] ?? 'Прочее');
 
           // Show in-app notification
           NotificationService().showNewComplaintNotification(
             context,
-            title: activeComplaint['title'] ??
-                'Р СњР С•Р Р†Р В°РЎРЏ Р В¶Р В°Р В»Р С•Р В±Р В°',
-            category:
-                activeComplaint['category'] ?? 'Р СџРЎР‚Р С•РЎвЂЎР ВµР Вµ',
-            color: _getCategoryColor(
-                activeComplaint['category'] ?? 'Р СџРЎР‚Р С•РЎвЂЎР ВµР Вµ'),
+            title: activeComplaint['title'] ?? 'Новая жалоба',
+            category: activeComplaint['category'] ?? 'Прочее',
+            color: _getCategoryColor(activeComplaint['category'] ?? 'Прочее'),
           );
 
           // Show system push notification
@@ -543,10 +506,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             id: activeComplaint['id'] is int
                 ? activeComplaint['id']
                 : math.Random().nextInt(1000000),
-            title:
-                'Р СњР С•Р Р†Р В°РЎРЏ Р В¶Р В°Р В»Р С•Р В±Р В°: ${activeComplaint['category'] ?? 'Р СџРЎР‚Р С•РЎвЂЎР ВµР Вµ'}',
+            title: 'Новая жалоба: ${activeComplaint['category'] ?? 'Прочее'}',
             body: activeComplaint['title'] ??
-                'Р СњР В°Р В¶Р СР С‘РЎвЂљР Вµ, РЎвЂЎРЎвЂљР С•Р В±РЎвЂ№ Р С—Р С•РЎРѓР СР С•РЎвЂљРЎР‚Р ВµРЎвЂљРЎРЉ Р С—Р С•Р Т‘РЎР‚Р С•Р В±Р Р…Р С•РЎРѓРЎвЂљР С‘',
+                'Нажмите, чтобы посмотреть подробности',
             category: activeComplaint['category'],
           );
 
@@ -563,8 +525,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           });
         }
       } else {
-        debugPrint(
-            'Р вЂќР В°Р Р…Р Р…РЎвЂ№Р Вµ Р Р…Р Вµ Р С—Р С•Р В»РЎС“РЎвЂЎР ВµР Р…РЎвЂ№, Р С—РЎС“РЎРѓРЎвЂљР С•Р в„– РЎРѓР С—Р С‘РЎРѓР С•Р С” Р В¶Р В°Р В»Р С•Р В±');
+        debugPrint('Данные не получены, пустой список жалоб');
         if (!mounted) return;
         setState(() {
           _allComplaints = [];
@@ -576,14 +537,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           _categoryCounts.clear();
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Р СњР ВµРЎвЂљ Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦, Р С—РЎР‚Р С•Р Р†Р ВµРЎР‚РЎРЉРЎвЂљР Вµ РЎРѓР С•Р ВµР Т‘Р С‘Р Р…Р ВµР Р…Р С‘Р Вµ')),
+          const SnackBar(content: Text('Нет данных, проверьте соединение')),
         );
       }
     } catch (e) {
-      debugPrint(
-          'Р С™РЎР‚Р С‘РЎвЂљР С‘РЎвЂЎР ВµРЎРѓР С”Р В°РЎРЏ Р С•РЎв‚¬Р С‘Р В±Р С”Р В° Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С”Р С‘ Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦: $e');
+      debugPrint('Критическая ошибка загрузки данных: $e');
       if (!mounted) return;
       setState(() {
         _allComplaints = [];
@@ -596,8 +554,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text(
-                'Р С›РЎв‚¬Р С‘Р В±Р С”Р В° Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С”Р С‘ Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦, Р С—РЎР‚Р С•Р Р†Р ВµРЎР‚РЎРЉРЎвЂљР Вµ РЎРѓР С•Р ВµР Т‘Р С‘Р Р…Р ВµР Р…Р С‘Р Вµ')),
+            content: Text('Ошибка загрузки данных, проверьте соединение')),
       );
     }
 
@@ -627,8 +584,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           final complaints = data.cast<Map<String, dynamic>>();
 
           if (complaints.isNotEmpty) {
-            debugPrint(
-                'Р СџР С•Р В»РЎС“РЎвЂЎР ВµР Р…Р С• Р В¶Р В°Р В»Р С•Р В± Р С‘Р В· API: ${complaints.length}');
+            debugPrint('Получено жалоб из API: ${complaints.length}');
             return complaints;
           }
         }
@@ -640,14 +596,14 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     return [];
   }
 
-  // РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
-  // Р С›Р В±РЎР‚Р В°Р В±Р С•РЎвЂљР С”Р В° Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦
-  // РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
+  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+  // Обработка данных
+  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
   List<Map<String, dynamic>> _filterByDate(List<Map<String, dynamic>> data) {
     if (_selectedDaysFilter == null) return data;
 
-    // Р РЋР С—Р ВµРЎвЂ Р С‘Р В°Р В»РЎРЉР Р…РЎвЂ№Р в„– РЎвЂћР С‘Р В»РЎРЉРЎвЂљРЎР‚ "Р СњР С•Р Р†РЎвЂ№Р Вµ" (-1) - Р В¶Р В°Р В»Р С•Р В±РЎвЂ№ Р Т‘Р С• 3 РЎвЂЎР В°РЎРѓР С•Р Р†
+    // Специальный фильтр "Новые" (-1) - жалобы до 3 часов
     if (_selectedDaysFilter == -1) {
       final threeHoursAgo = DateTime.now().subtract(const Duration(hours: 3));
       return data.where((item) {
@@ -712,15 +668,14 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       final status = (item['status'] ?? 'open') as String;
       final dt = _parseDateTime(item);
 
-      // Р вЂ“Р В°Р В»Р С•Р В±Р В° РЎРѓРЎвЂЎР С‘РЎвЂљР В°Р ВµРЎвЂљРЎРѓРЎРЏ Р Р…Р С•Р Р†Р С•Р в„–, Р ВµРЎРѓР В»Р С‘ Р С•Р Р…Р В° РЎРѓР С•Р В·Р Т‘Р В°Р Р…Р В° Р СР ВµР Р…Р ВµР Вµ 3 РЎвЂЎР В°РЎРѓР С•Р Р† Р Р…Р В°Р В·Р В°Р Т‘
+      // Жалоба считается новой, если она создана менее 3 часов назад
       final isNew = dt != null && dt.isAfter(threeHoursAgo);
 
       if (isNew) newCount++;
       if (status == 'resolved') resolvedCount++;
 
       try {
-        final category =
-            (item['category'] ?? 'Р СџРЎР‚Р С•РЎвЂЎР ВµР Вµ') as String;
+        final category = (item['category'] ?? 'Прочее') as String;
         markers.add(_buildMarker(
           point: LatLng((lat as num).toDouble(), (lng as num).toDouble()),
           status: status,
@@ -730,14 +685,13 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               : Map<String, dynamic>.from(item),
         ));
       } catch (e) {
-        debugPrint(
-            'Р С›РЎв‚¬Р С‘Р В±Р С”Р В° Р С•Р В±РЎР‚Р В°Р В±Р С•РЎвЂљР С”Р С‘ Р СР В°РЎР‚Р С”Р ВµРЎР‚Р В°: $e. Item: $item');
+        debugPrint('Ошибка обработки маркера: $e. Item: $item');
       }
     }
 
     final counts = <String, int>{};
     for (final item in data) {
-      final cat = (item['category'] ?? 'Р СџРЎР‚Р С•РЎвЂЎР ВµР Вµ') as String;
+      final cat = (item['category'] ?? 'Прочее') as String;
       counts[cat] = (counts[cat] ?? 0) + 1;
     }
 
@@ -749,8 +703,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         final lat = item['lat'] ?? item['latitude'];
         final lng = item['lng'] ?? item['longitude'];
         if (lat != null && lng != null) {
-          _markerCategories
-              .add((item['category'] ?? 'Р СџРЎР‚Р С•РЎвЂЎР ВµР Вµ') as String);
+          _markerCategories.add((item['category'] ?? 'Прочее') as String);
         }
       }
       _totalComplaints = total;
@@ -772,9 +725,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     ];
   }
 
-  // РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
-  // Р С’Р Р…Р С‘Р СР В°РЎвЂ Р С‘РЎРЏ Р С”Р В°РЎР‚РЎвЂљРЎвЂ№
-  // РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
+  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+  // Анимация карты
+  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
   void _animateMapTo(LatLng center, double zoom) {
     const steps = 12;
@@ -813,13 +766,13 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     return t * t * (3 - 2 * t);
   }
 
-  /// Р вЂ”РЎС“Р С Р Р…Р В° Р С—РЎР‚Р С•Р В±Р В»Р ВµР СРЎС“ РЎРѓ РЎРѓР С•РЎвЂ¦РЎР‚Р В°Р Р…Р ВµР Р…Р С‘Р ВµР С Р С—РЎР‚Р ВµР Т‘РЎвЂ№Р Т‘РЎС“РЎвЂ°Р ВµР в„– Р С—Р С•Р В·Р С‘РЎвЂ Р С‘Р С‘
+  /// Зум на проблему с сохранением предыдущей позиции
   void _zoomToComplaint(Map<String, dynamic> complaint) {
     final lat = complaint['lat'] ?? complaint['latitude'];
     final lng = complaint['lng'] ?? complaint['longitude'];
     if (lat == null || lng == null) return;
 
-    // Р РЋР С•РЎвЂ¦РЎР‚Р В°Р Р…РЎРЏР ВµР С РЎвЂљР ВµР С”РЎС“РЎвЂ°РЎС“РЎР‹ Р С—Р С•Р В·Р С‘РЎвЂ Р С‘РЎР‹ Р Т‘Р В»РЎРЏ Р Р†Р С•Р В·Р Р†РЎР‚Р В°РЎвЂљР В°
+    // Сохраняем текущую позицию для возврата
     final camera = _mapController.camera;
     _preZoomCenter = camera.center;
     _preZoomLevel = camera.zoom;
@@ -828,14 +781,14 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       _focusedComplaint = complaint;
     });
 
-    // Р вЂ”РЎС“Р С Р Р…Р В° Р С—РЎР‚Р С•Р В±Р В»Р ВµР СРЎС“
+    // Зум на проблему
     _animateMapTo(
       LatLng((lat as num).toDouble(), (lng as num).toDouble()),
       17.0,
     );
   }
 
-  /// Р вЂ™Р С•Р В·Р Р†РЎР‚Р В°РЎвЂљ Р С” Р С—РЎР‚Р ВµР Т‘РЎвЂ№Р Т‘РЎС“РЎвЂ°Р ВµР в„– Р С—Р С•Р В·Р С‘РЎвЂ Р С‘Р С‘
+  /// Возврат к предыдущей позиции
   void _zoomBack() {
     if (_preZoomCenter != null && _preZoomLevel != null) {
       _animateMapTo(_preZoomCenter!, _preZoomLevel!);
@@ -850,9 +803,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     });
   }
 
-  // РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
-  // Р вЂ™РЎвЂ№Р С—Р В°Р Т‘Р В°РЎР‹РЎвЂ°Р ВµР Вµ Р СР ВµР Р…РЎР‹ РЎвЂћР С‘Р В»РЎРЉРЎвЂљРЎР‚Р В°РЎвЂ Р С‘Р С‘
-  // РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
+  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+  // Выпадающее меню фильтрации
+  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
   Widget _buildCategoryDropdown() {
     final borderColor = _selectedCategory != null
@@ -898,7 +851,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                       color: _uiTextSecondary, size: 18),
                   const SizedBox(width: 8),
                   Text(
-                    'Р’СЃРµ РєР°С‚РµРіРѕСЂРёРё',
+                    'Все категории',
                     style: TextStyle(
                       color: _uiTextPrimary,
                       fontSize: 13,
@@ -916,7 +869,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                           color: _uiTextSecondary, size: 18),
                       const SizedBox(width: 10),
                       Text(
-                        'Р’СЃРµ РєР°С‚РµРіРѕСЂРёРё',
+                        'Все категории',
                         style: TextStyle(
                           color: _uiTextPrimary,
                           fontSize: 13,
@@ -993,36 +946,36 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     );
   }
 
-  // РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
-  // UI Р СР В°РЎР‚Р С”Р ВµРЎР‚Р С•Р Р† Р С‘ popup'Р С•Р Р†
-  // РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
+  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+  // UI маркеров и popup'ов
+  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
   IconData _getCategoryIcon(String category) {
     switch (category) {
-      case 'Р вЂќР С•РЎР‚Р С•Р С–Р С‘':
+      case 'Дороги':
         return Icons.add_road;
-      case 'Р С›РЎРѓР Р†Р ВµРЎвЂ°Р ВµР Р…Р С‘Р Вµ':
+      case 'Освещение':
         return Icons.lightbulb;
-      case 'Р вЂ“Р С™Р Тђ':
+      case 'Р–РљРҐ':
         return Icons.home_repair_service;
-      case 'Р СћРЎР‚Р В°Р Р…РЎРѓР С—Р С•РЎР‚РЎвЂљ':
+      case 'Транспорт':
         return Icons.directions_bus;
-      case 'Р В­Р С”Р С•Р В»Р С•Р С–Р С‘РЎРЏ':
+      case 'Экология':
         return Icons.eco;
-      case 'Р вЂР ВµР В·Р С•Р С—Р В°РЎРѓР Р…Р С•РЎРѓРЎвЂљРЎРЉ':
+      case 'Безопасность':
         return Icons.security;
-      case 'Р РЋР Р…Р ВµР С–/Р СњР В°Р В»Р ВµР Т‘РЎРЉ':
+      case 'Снег/Наледь':
         return Icons.ac_unit;
-      case 'Р СљР ВµР Т‘Р С‘РЎвЂ Р С‘Р Р…Р В°':
-      case 'Р вЂ”Р Т‘РЎР‚Р В°Р Р†Р С•Р С•РЎвЂ¦РЎР‚Р В°Р Р…Р ВµР Р…Р С‘Р Вµ':
+      case 'Медицина':
+      case 'Здравоохранение':
         return Icons.local_hospital;
-      case 'Р С›Р В±РЎР‚Р В°Р В·Р С•Р Р†Р В°Р Р…Р С‘Р Вµ':
+      case 'Образование':
         return Icons.school;
-      case 'Р СџР В°РЎР‚Р С”Р С•Р Р†Р С”Р С‘':
+      case 'Парковки':
         return Icons.local_parking;
-      case 'Р вЂР В»Р В°Р С–Р С•РЎС“РЎРѓРЎвЂљРЎР‚Р С•Р в„–РЎРѓРЎвЂљР Р†Р С•':
+      case 'Благоустройство':
         return Icons.park;
-      case 'Р СљР ВµРЎР‚Р С•Р С—РЎР‚Р С‘РЎРЏРЎвЂљР С‘Р Вµ':
+      case 'Мероприятие':
         return Icons.event_available_rounded;
       default:
         return Icons.help_outline;
@@ -1050,7 +1003,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     required String category,
     required Map<String, dynamic> complaint,
   }) {
-    final isCamera = category == 'Р С™Р В°Р СР ВµРЎР‚РЎвЂ№';
+    final isCamera = category == 'Камеры';
     final color =
         isCamera ? const Color(0xFF6366F1) : _getCategoryColor(category);
     final markerIcon =
@@ -1068,10 +1021,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         onTap: () {
           _emitSelectionHaptic();
           _zoomToComplaint(complaint);
-          if (category == 'Р С™Р В°Р СР ВµРЎР‚РЎвЂ№') {
+          if (category == 'Камеры') {
             final streamUrl = MapConfig.cityCams[complaint['title']];
-            _showLiveCamDialog(
-                complaint['title'] ?? 'Р С™Р В°Р СР ВµРЎР‚Р В°', streamUrl);
+            _showLiveCamDialog(complaint['title'] ?? 'Камера', streamUrl);
           } else {
             _showComplaintDetails(complaint);
           }
@@ -1090,15 +1042,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   String _getStatusText(String status) {
     return switch (status) {
-      'open' => 'Р СњР С•Р Р†Р В°РЎРЏ',
-      'pending' => 'Р вЂ™ РЎР‚Р В°Р В±Р С•РЎвЂљР Вµ',
-      'resolved' => 'Р В Р ВµРЎв‚¬Р ВµР Р…Р В°',
-      _ => 'Р СњР ВµР С‘Р В·Р Р†Р ВµРЎРѓРЎвЂљР Р…Р С•',
+      'open' => 'Новая',
+      'pending' => 'В работе',
+      'resolved' => 'Решена',
+      _ => 'Неизвестно',
     };
   }
 
   String _formatDate(dynamic raw) {
-    if (raw == null) return 'Р СњР Вµ РЎС“Р С”Р В°Р В·Р В°Р Р…Р В°';
+    if (raw == null) return 'Не указана';
     DateTime? dt;
     if (raw is int) {
       dt = DateTime.fromMillisecondsSinceEpoch(raw);
@@ -1109,15 +1061,14 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         return raw;
       }
     }
-    if (dt == null) return 'Р СњР Вµ РЎС“Р С”Р В°Р В·Р В°Р Р…Р В°';
+    if (dt == null) return 'Не указана';
     return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
   void _showComplaintDetails(Map<String, dynamic> complaint) {
     final status = (complaint['status'] ?? 'open') as String;
     final statusColor = _getStatusColor(status);
-    final category =
-        (complaint['category'] ?? 'Р СџРЎР‚Р С•РЎвЂЎР ВµР Вµ') as String;
+    final category = (complaint['category'] ?? 'Прочее') as String;
     final categoryColor = _getCategoryColor(category);
     final dateRaw = complaint['created_at'] ??
         complaint['createdAt'] ??
@@ -1149,7 +1100,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Р В РЎС“РЎвЂЎР С”Р В°
+                      // Ручка
                       Container(
                         margin: const EdgeInsets.only(top: 12),
                         width: 40,
@@ -1165,7 +1116,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Р вЂ”Р В°Р С–Р С•Р В»Р С•Р Р†Р С•Р С” + Р С”Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘РЎРЏ
+                              // Заголовок + категория
                               Row(
                                 children: [
                                   Container(
@@ -1202,7 +1153,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                         ),
                                         Text(
                                           complaint['title'] as String? ??
-                                              'Р СџРЎР‚Р С•Р В±Р В»Р ВµР СР В°',
+                                              'Проблема',
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 18,
@@ -1216,7 +1167,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                               ),
                               const SizedBox(height: 20),
 
-                              if (category == 'Р С™Р В°Р СР ВµРЎР‚РЎвЂ№') ...[
+                              if (category == 'Камеры') ...[
                                 Container(
                                   height: 200,
                                   width: double.infinity,
@@ -1250,7 +1201,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                       ),
                                       const Center(
                                         child: Text(
-                                          'Р вЂ”Р С’Р вЂњР В Р Р€Р вЂ”Р С™Р С’ Р СџР С›Р СћР С›Р С™Р С’...',
+                                          'ЗАГРУЗКА ПОТОКА...',
                                           style: TextStyle(
                                               color: Colors.white38,
                                               fontSize: 10,
@@ -1263,7 +1214,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                 const SizedBox(height: 16),
                               ],
 
-                              // Р РЋРЎвЂљР В°РЎвЂљРЎС“РЎРѓ + Р Т‘Р В°РЎвЂљР В°
+                              // Статус + дата
                               Row(
                                 children: [
                                   Container(
@@ -1316,7 +1267,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
                               const SizedBox(height: 16),
 
-                              // Р С›Р С—Р С‘РЎРѓР В°Р Р…Р С‘Р Вµ
+                              // Описание
                               if (complaint['description'] != null) ...[
                                 Container(
                                   width: double.infinity,
@@ -1340,7 +1291,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                               size: 15),
                                           const SizedBox(width: 6),
                                           Text(
-                                            'Р С›Р С—Р С‘РЎРѓР В°Р Р…Р С‘Р Вµ',
+                                            'Описание',
                                             style: TextStyle(
                                               color:
                                                   Colors.white.withAlpha(140),
@@ -1354,10 +1305,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                       Builder(builder: (ctx) {
                                         final desc =
                                             complaint['description'] as String;
-                                        if (desc.contains(
-                                            'Р В¤Р С•РЎвЂљР С•: http')) {
-                                          final parts =
-                                              desc.split('Р В¤Р С•РЎвЂљР С•: ');
+                                        if (desc.contains('Фото: http')) {
+                                          final parts = desc.split('Фото: ');
                                           final textPart = parts[0].trim();
                                           final urlPart = parts[1].trim();
                                           return Column(
@@ -1385,7 +1334,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                                   errorBuilder: (context, err,
                                                           stack) =>
                                                       const Text(
-                                                          'Р С›РЎв‚¬Р С‘Р В±Р С”Р В° Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С”Р С‘ РЎвЂћР С•РЎвЂљР С•',
+                                                          'Ошибка загрузки фото',
                                                           style: TextStyle(
                                                               color: Colors.red,
                                                               fontSize: 12)),
@@ -1411,7 +1360,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                 const SizedBox(height: 12),
                               ],
 
-                              // Р С’Р Т‘РЎР‚Р ВµРЎРѓ
+                              // Адрес
                               if (complaint['address'] != null) ...[
                                 Container(
                                   width: double.infinity,
@@ -1443,7 +1392,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                 const SizedBox(height: 12),
                               ],
 
-                              // Р С™Р С•Р С•РЎР‚Р Т‘Р С‘Р Р…Р В°РЎвЂљРЎвЂ№ + Google Street View
+                              // Координаты + Google Street View
                               if (hasCoords)
                                 Padding(
                                   padding: const EdgeInsets.only(bottom: 12),
@@ -1482,7 +1431,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                               size: 16,
                                               color: _colorAccent),
                                           tooltip:
-                                              'Р РЋР СР С•РЎвЂљРЎР‚Р ВµРЎвЂљРЎРЉ Р Р† Google Street View',
+                                              'Смотреть в Google Street View',
                                           onPressed: () async {
                                             final url =
                                                 'google.streetview:cbll=$lat,$lng';
@@ -1507,13 +1456,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                   ),
                                 ),
 
-                              // Р В Р ВµР В°Р С”РЎвЂ Р С‘Р С‘ Р С‘ Р СњР В°Р С—Р С•Р СР С‘Р Р…Р В°Р Р…Р С‘РЎРЏ
+                              // Реакции и Напоминания
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  if (category ==
-                                      'Р СљР ВµРЎР‚Р С•Р С—РЎР‚Р С‘РЎРЏРЎвЂљР С‘Р Вµ')
+                                  if (category == 'Мероприятие')
                                     PopupMenuButton<Duration>(
                                       color: _colorSurface,
                                       onSelected: (Duration offset) {
@@ -1539,36 +1487,33 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                               .scheduleReminder(
                                             id: complaint['id']?.hashCode ?? 0,
                                             title:
-                                                'Р РЋР С•Р В±РЎвЂ№РЎвЂљР С‘Р Вµ: ${complaint['title']}',
+                                                'Событие: ${complaint['title']}',
                                             body:
-                                                'Р РЋР С•Р В±РЎвЂ№РЎвЂљР С‘Р Вµ Р Р…Р В°РЎвЂЎР Р…Р ВµРЎвЂљРЎРѓРЎРЏ РЎвЂЎР ВµРЎР‚Р ВµР В· ${offset.inMinutes >= 60 ? '${offset.inHours} РЎвЂЎ.' : '${offset.inMinutes} Р СР С‘Р Р….'}!',
+                                                'Событие начнется через ${offset.inMinutes >= 60 ? '${offset.inHours} ч.' : '${offset.inMinutes} мин.'}!',
                                             scheduledDate: reminderTime,
                                           );
                                           ScaffoldMessenger.of(contextInner)
                                               .showSnackBar(
                                             const SnackBar(
                                                 content: Text(
-                                                    'Р СњР В°Р С—Р С•Р СР С‘Р Р…Р В°Р Р…Р С‘Р Вµ РЎС“РЎРѓРЎвЂљР В°Р Р…Р С•Р Р†Р В»Р ВµР Р…Р С•!')),
+                                                    'Напоминание установлено!')),
                                           );
                                         }
                                       },
                                       itemBuilder: (contextInner) => [
                                         const PopupMenuItem(
                                             value: Duration(minutes: 30),
-                                            child: Text(
-                                                'Р вЂ”Р В° 30 Р СР С‘Р Р…',
+                                            child: Text('Р—Р° 30 РјРёРЅ',
                                                 style: TextStyle(
                                                     color: Colors.white))),
                                         const PopupMenuItem(
                                             value: Duration(hours: 2),
-                                            child: Text(
-                                                'Р вЂ”Р В° 2 РЎвЂЎР В°РЎРѓР В°',
+                                            child: Text('За 2 часа',
                                                 style: TextStyle(
                                                     color: Colors.white))),
                                         const PopupMenuItem(
                                             value: Duration(days: 1),
-                                            child: Text(
-                                                'Р вЂ”Р В° Р Т‘Р ВµР Р…РЎРЉ',
+                                            child: Text('За день',
                                                 style: TextStyle(
                                                     color: Colors.white))),
                                       ],
@@ -1588,8 +1533,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                                 color: categoryColor,
                                                 size: 18),
                                             const SizedBox(width: 8),
-                                            Text(
-                                                'Р СњР В°Р С—Р С•Р СР Р…Р С‘РЎвЂљРЎРЉ',
+                                            Text('Напомнить',
                                                 style: TextStyle(
                                                     color: Colors.white
                                                         .withAlpha(200))),
@@ -1597,9 +1541,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                         ),
                                       ),
                                     ),
-                                  if (category !=
-                                          'Р СљР ВµРЎР‚Р С•Р С—РЎР‚Р С‘РЎРЏРЎвЂљР С‘Р Вµ' &&
-                                      category != 'Р С™Р В°Р СР ВµРЎР‚РЎвЂ№')
+                                  if (category != 'Мероприятие' &&
+                                      category != 'Камеры')
                                     GestureDetector(
                                       onTap: () async {
                                         setModalState(() {
@@ -1608,7 +1551,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                           likes += isLiked ? 1 : -1;
                                           complaint['likes_count'] = likes;
                                         });
-                                        // Р С›РЎвЂљР С—РЎР‚Р В°Р Р†Р С”Р В° Р В»Р В°Р в„–Р С”Р В° Р Р† Supabase
+                                        // Отправка лайка в Supabase
                                         try {
                                           final id = complaint['id'];
                                           if (id != null) {
@@ -1657,7 +1600,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                             ),
                                             const SizedBox(width: 8),
                                             Text(
-                                              'Р Р€ Р СР ВµР Р…РЎРЏ РЎвЂљР В°Р С”Р В°РЎРЏ Р В¶Р Вµ ($likes)',
+                                              'У меня такая же ($likes)',
                                               style: TextStyle(
                                                 color: isLiked
                                                     ? Colors.redAccent
@@ -1674,7 +1617,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                               ),
                               const SizedBox(height: 12),
 
-                              // Р С™Р Р…Р С•Р С—Р С”Р В° Р’В«Р вЂ™Р ВµРЎР‚Р Р…РЎС“РЎвЂљРЎРЉРЎРѓРЎРЏР’В»
+                              // Кнопка «Вернуться»
                               const SizedBox(height: 4),
                               SizedBox(
                                 width: double.infinity,
@@ -1685,8 +1628,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                   },
                                   icon: const Icon(Icons.zoom_out_map_rounded,
                                       size: 18),
-                                  label: const Text(
-                                      'Р вЂ™Р ВµРЎР‚Р Р…РЎС“РЎвЂљРЎРЉРЎРѓРЎРЏ Р С” Р С•Р В±Р В·Р С•РЎР‚РЎС“'),
+                                  label: const Text('Вернуться к обзору'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor:
                                         _colorPrimary.withAlpha(40),
@@ -1727,9 +1669,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }) {
     if (url == null || url.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text(
-                'Р РЋРЎРѓРЎвЂ№Р В»Р С”Р В° Р Р…Р В° РЎвЂљРЎР‚Р В°Р Р…РЎРѓР В»РЎРЏРЎвЂ Р С‘РЎР‹ Р Р…Р Вµ Р Р…Р В°Р в„–Р Т‘Р ВµР Р…Р В°')),
+        const SnackBar(content: Text('Ссылка на трансляцию не найдена')),
       );
       return;
     }
@@ -1745,9 +1685,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     );
   }
 
-  // РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
-  // Р ВР Р…РЎвЂћР С•РЎР‚Р СР В°РЎвЂ Р С‘Р С•Р Р…Р Р…Р В°РЎРЏ Р С”Р В°РЎР‚РЎвЂљР С•РЎвЂЎР С”Р В° Р Р…Р В° Р С”Р В°РЎР‚РЎвЂљР Вµ (overlay)
-  // РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
+  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+  // Информационная карточка на карте (overlay)
+  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
   Widget _buildFocusedOverlay() {
     if (_focusedComplaint == null) return const SizedBox.shrink();
@@ -1755,8 +1695,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     final complaint = _focusedComplaint!;
     final status = (complaint['status'] ?? 'open') as String;
     final statusColor = _getStatusColor(status);
-    final category =
-        (complaint['category'] ?? 'Р СџРЎР‚Р С•РЎвЂЎР ВµР Вµ') as String;
+    final category = (complaint['category'] ?? 'Прочее') as String;
     final categoryColor = _getCategoryColor(category);
 
     return Positioned(
@@ -1793,8 +1732,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      complaint['title'] as String? ??
-                          'Р вЂР ВµР В· Р Р…Р В°Р В·Р Р†Р В°Р Р…Р С‘РЎРЏ',
+                      complaint['title'] as String? ?? 'Без названия',
                       style: TextStyle(
                         color: _uiTextPrimary,
                         fontSize: 14,
@@ -1816,7 +1754,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         ),
                         const SizedBox(width: 5),
                         Text(
-                          '${_getStatusText(status)} Р’В· $category',
+                          '${_getStatusText(status)} - $category',
                           style: TextStyle(
                             color: _uiTextSecondary,
                             fontSize: 11,
@@ -1851,9 +1789,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     );
   }
 
-  // РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
+  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
   // Build
-  // РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
+  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
   @override
   Widget build(BuildContext context) {
@@ -1862,7 +1800,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     return Scaffold(
       body: Stack(
         children: [
-          // Р С™Р В°РЎР‚РЎвЂљР В° (Р В±Р ВµРЎРѓР С—Р В»Р В°РЎвЂљР Р…Р В°РЎРЏ Р С—Р С•Р Т‘Р В»Р С•Р В¶Р С”Р В° OSM)
+          // Карта (бесплатная подложка OSM)
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
@@ -1880,11 +1818,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               ),
             ),
             children: [
-              TileLayer(
-                urlTemplate:
-                    _isSatellite ? MapConfig.satelliteUrl : MapConfig.tileUrl,
-                userAgentPackageName: MapConfig.userAgent,
-                maxNativeZoom: 19,
+              OfflineTilesService.instance.getTileLayer(
+                _isSatellite ? MapConfig.satelliteUrl : MapConfig.tileUrl,
               ),
               MarkerClusterLayerWidget(
                 options: MarkerClusterLayerOptions(
@@ -1929,7 +1864,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 ),
               ),
               if (_showCamerasLayer) MarkerLayer(markers: _cameraMarkers),
-              // Р СљР В°РЎРѓРЎв‚¬РЎвЂљР В°Р В±Р Р…Р В°РЎРЏ Р В»Р С‘Р Р…Р ВµР в„–Р С”Р В°
+              // Масштабная линейка
               Scalebar(
                 alignment: Alignment.bottomLeft,
                 textStyle: TextStyle(
@@ -1942,7 +1877,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     ? Colors.white.withAlpha(200)
                     : const Color(0xFF2563EB).withAlpha(180),
               ),
-              // Р С’РЎвЂљРЎР‚Р С‘Р В±РЎС“РЎвЂ Р С‘РЎРЏ OSM
+              // Атрибуция OSM
               SimpleAttributionWidget(
                 source: Text(
                   kOsmAttributionText,
@@ -1972,7 +1907,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Р ВР Р…Р Т‘Р С‘Р С”Р В°РЎвЂљР С•РЎР‚ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С”Р С‘
+          // Индикатор загрузки
           if (_isLoading)
             Container(
               color: Colors.black.withAlpha(128),
@@ -1981,7 +1916,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               ),
             ),
 
-          // Р вЂ™Р ВµРЎР‚РЎвЂ¦Р Р…РЎРЏРЎРЏ Р С—Р В°Р Р…Р ВµР В»РЎРЉ РЎРѓ Р В·Р В°Р С–Р С•Р В»Р С•Р Р†Р С”Р С•Р С Р С‘ РЎвЂћР С‘Р В»РЎРЉРЎвЂљРЎР‚Р В°Р СР С‘
+          // Верхняя панель с заголовком и фильтрами
           Positioned(
             top: paddingTop + 8,
             left: 16,
@@ -1999,12 +1934,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Р ВР С”Р С•Р Р…Р С”Р В° РЎРѓРЎвЂљР В°РЎвЂљР С‘РЎРѓРЎвЂљР С‘Р С”Р С‘
+          // Иконка статистики
           Positioned(
             top: paddingTop + 140,
             right: 16,
             child: Tooltip(
-              message: 'Р РЋРЎвЂљР В°РЎвЂљР С‘РЎРѓРЎвЂљР С‘Р С”Р В°',
+              message: 'Статистика',
               child: _buildControlButton(
                 icon: Icons.analytics_rounded,
                 onTap: _showStatsDialog,
@@ -2012,13 +1947,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Р ВР С”Р С•Р Р…Р С”Р В° РЎРѓР С—Р С‘РЎРѓР С”Р В° Р Р€Р С™
+          // Иконка списка УК
           Positioned(
             top: paddingTop + 200,
             right: 16,
             child: Tooltip(
-              message:
-                  'Р Р€Р С—РЎР‚Р В°Р Р†Р В»РЎРЏРЎР‹РЎвЂ°Р С‘Р Вµ Р С”Р С•Р СР С—Р В°Р Р…Р С‘Р С‘',
+              message: 'Управляющие компании',
               child: _buildControlButton(
                 icon: Icons.business_rounded,
                 onTap: _showUkDialog,
@@ -2026,12 +1960,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Р ВР С”Р С•Р Р…Р С”Р В° Р С”Р В°Р СР ВµРЎР‚ (Р Р†Р Р†Р ВµРЎР‚РЎвЂ¦РЎС“)
+          // Иконка камер (вверху)
           Positioned(
             top: paddingTop + 260,
             right: 16,
             child: Tooltip(
-              message: 'Р С™Р В°Р СР ВµРЎР‚РЎвЂ№ Р С–Р С•РЎР‚Р С•Р Т‘Р В°',
+              message: 'Камеры города',
               child: _buildControlButton(
                 icon: _showCamerasLayer ? Icons.videocam : Icons.videocam_off,
                 onTap: () =>
@@ -2040,12 +1974,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Р ВР С”Р С•Р Р…Р С”Р В° Р С‘Р Р…РЎвЂћР С•Р С–РЎР‚Р В°РЎвЂћР С‘Р С”Р С‘ (Р Р†Р Р†Р ВµРЎР‚РЎвЂ¦РЎС“)
+          // Иконка инфографики (вверху)
           Positioned(
             top: paddingTop + 320,
             right: 16,
             child: Tooltip(
-              message: 'Р ВР Р…РЎвЂћР С•Р С–РЎР‚Р В°РЎвЂћР С‘Р С”Р В°',
+              message: 'Инфографика',
               child: _buildControlButton(
                 icon: Icons.bar_chart_rounded,
                 onTap: () => Navigator.of(context).push(
@@ -2055,13 +1989,13 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Р С™Р Р…Р С•Р С—Р С”Р С‘ РЎС“Р С—РЎР‚Р В°Р Р†Р В»Р ВµР Р…Р С‘РЎРЏ
+          // Кнопки управления
           Positioned(
             bottom: 100,
             right: 16,
             child: Column(
               children: [
-                // Р С™Р Р…Р С•Р С—Р С”Р В° Р Р†Р С•Р В·Р Р†РЎР‚Р В°РЎвЂљР В° (Р Р†Р С‘Р Т‘Р С‘Р СР В° РЎвЂљР С•Р В»РЎРЉР С”Р С• Р С—РЎР‚Р С‘ РЎвЂћР С•Р С”РЎС“РЎРѓР Вµ)
+                // Кнопка возврата (видима только при фокусе)
                 if (_focusedComplaint != null) ...[
                   _buildControlButton(
                     icon: Icons.zoom_out_map_rounded,
@@ -2075,9 +2009,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 12.0),
                 Tooltip(
-                  message: _isNightMode
-                      ? 'Р”РЅРµРІРЅРѕР№ СЂРµР¶РёРј'
-                      : 'РќРѕС‡РЅРѕР№ РєРёР±РµСЂРїР°РЅРє',
+                  message: _isNightMode ? 'Дневной режим' : 'Ночной киберпанк',
                   child: _buildControlButton(
                     icon: _isNightMode
                         ? Icons.wb_sunny_rounded
@@ -2089,16 +2021,16 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 _buildPrimaryActionFab(),
                 const SizedBox(height: 12.0),
                 Tooltip(
-                  message: '3D Р В Р ВµР В¶Р С‘Р С (Cesium)',
+                  message: '3D Mode (Mapbox)',
                   child: _buildControlButton(
                     icon: Icons.view_in_ar_rounded,
-                    onTap: _openCesiumViewer,
+                    onTap: _openMapbox3DViewer,
                   ),
                 ),
 
                 const SizedBox(height: 12.0),
                 Tooltip(
-                  message: 'Р СњР В°РЎРѓРЎвЂљРЎР‚Р С•Р в„–Р С”Р С‘',
+                  message: 'Настройки',
                   child: _buildControlButton(
                     icon: Icons.settings_outlined,
                     onTap: () => Navigator.of(context).push(
@@ -2110,7 +2042,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Overlay РЎРѓ Р С‘Р Р…РЎвЂћР С•РЎР‚Р СР В°РЎвЂ Р С‘Р ВµР в„– Р С• Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…Р С•Р в„– Р С—РЎР‚Р С•Р В±Р В»Р ВµР СР Вµ
+          // Overlay с информацией о выбранной проблеме
           _buildFocusedOverlay(),
         ],
       ),
@@ -2152,7 +2084,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   children: [
                     Expanded(
                       child: Text(
-                        'РџРЈР›Р¬РЎ Р“РћР РћР”Рђ В· РќРР–РќР•Р’РђР РўРћР’РЎРљ',
+                        'ПУЛЬС ГОРОДА · НИЖНЕВАРТОВСК',
                         style: TextStyle(
                           color: _uiTextPrimary,
                           fontSize: 13,
@@ -2166,7 +2098,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                       icon: Icon(Icons.info_outline,
                           color: _uiAccent, size: 22.0),
                       splashRadius: 22,
-                      tooltip: 'Рћ РїСЂРѕРµРєС‚Рµ',
+                      tooltip: 'О проекте',
                       onPressed: () {
                         _emitSelectionHaptic();
                         Navigator.of(context).push(
@@ -2179,7 +2111,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     IconButton(
                       icon: Icon(Icons.bar_chart, color: _uiAccent, size: 22.0),
                       splashRadius: 22,
-                      tooltip: 'РРЅС„РѕРіСЂР°С„РёРєР°',
+                      tooltip: 'Инфографика',
                       onPressed: () {
                         _emitSelectionHaptic();
                         Navigator.of(context).push(
@@ -2194,8 +2126,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 6.0),
                 Text(
                   _isNightMode
-                      ? 'РќРѕС‡РЅРѕР№ РєРёР±РµСЂРїР°РЅРє В· РґР°РЅРЅС‹Рµ РїРѕРІРµСЂС… РєР°СЂС‚С‹'
-                      : 'Р”РЅРµРІРЅРѕР№ СЂРµР¶РёРј В· С‡РёСЃС‚Р°СЏ РєР°СЂС‚Р° Рё Р»РµРіРєРёРµ РѕСЃС‚СЂРѕРІРєРё',
+                      ? 'Ночной киберпанк · данные поверх карты'
+                      : 'Дневной режим · чистая карта и легкие островки',
                   style: TextStyle(
                     color: _uiTextSecondary,
                     fontSize: 12,
@@ -2212,11 +2144,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   Widget _buildFiltersIsland() {
     final filters = <Map<String, Object?>>[
-      {'days': null, 'label': 'Р’СЃРµ'},
-      {'days': -1, 'label': 'РќРѕРІС‹Рµ'},
-      {'days': 1, 'label': '1 Рґ'},
-      {'days': 7, 'label': '7 Рґ'},
-      {'days': 30, 'label': '30 Рґ'},
+      {'days': null, 'label': '\u0412\u0441\u0435'},
+      {'days': -1, 'label': '\u041d\u043e\u0432\u044b\u0435'},
+      {'days': 1, 'label': '1 \u0434'},
+      {'days': 7, 'label': '7 \u0434'},
+      {'days': 30, 'label': '30 \u0434'},
     ];
 
     return _NeoGlassPanel(
@@ -2301,7 +2233,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             Icon(Icons.pie_chart_rounded, color: _colorAccent),
             const SizedBox(width: 8),
             const Text(
-              'Р РЋРЎвЂљР В°РЎвЂљР С‘РЎРѓРЎвЂљР С‘Р С”Р В° Р Р…Р В° Р С”Р В°РЎР‚РЎвЂљР Вµ',
+              'Статистика на карте',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 18,
@@ -2314,23 +2246,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildStatItem('Всего обращений', _totalComplaints, Colors.white),
+            _buildStatItem('Требуют внимания', _newComplaints, _colorDanger),
             _buildStatItem(
-                'Р вЂ™РЎРѓР ВµР С–Р С• Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘Р в„–',
-                _totalComplaints,
-                Colors.white),
-            _buildStatItem(
-                'Р СћРЎР‚Р ВµР В±РЎС“РЎР‹РЎвЂљ Р Р†Р Р…Р С‘Р СР В°Р Р…Р С‘РЎРЏ',
-                _newComplaints,
-                _colorDanger),
-            _buildStatItem(
-                'Р Р€РЎРѓР С—Р ВµРЎв‚¬Р Р…Р С• РЎР‚Р ВµРЎв‚¬Р ВµР Р…РЎвЂ№',
-                _resolvedComplaints,
-                _colorSuccess),
+                'Успешно решены', _resolvedComplaints, _colorSuccess),
             const SizedBox(height: 16),
             const Divider(color: Colors.white24),
             const SizedBox(height: 8),
             Text(
-              'Р вЂќР В°Р Р…Р Р…РЎвЂ№Р Вµ Р С•Р В±Р Р…Р С•Р Р†Р В»РЎРЏРЎР‹РЎвЂљРЎРѓРЎРЏ Р Р† РЎР‚Р ВµР В¶Р С‘Р СР Вµ РЎР‚Р ВµР В°Р В»РЎРЉР Р…Р С•Р С–Р С• Р Р†РЎР‚Р ВµР СР ВµР Р…Р С‘. Р вЂ™РЎвЂ№ Р СР С•Р В¶Р ВµРЎвЂљР Вµ РЎвЂћР С‘Р В»РЎРЉРЎвЂљРЎР‚Р С•Р Р†Р В°РЎвЂљРЎРЉ Р В¶Р В°Р В»Р С•Р В±РЎвЂ№ Р С—Р С• Р С”Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘РЎРЏР С Р С‘ Р Р†РЎР‚Р ВµР СР ВµР Р…Р Р…РЎвЂ№Р С Р Т‘Р С‘Р В°Р С—Р В°Р В·Р С•Р Р…Р В°Р С РЎвЂЎР ВµРЎР‚Р ВµР В· Р Р†Р ВµРЎР‚РЎвЂ¦Р Р…РЎР‹РЎР‹ Р С—Р В°Р Р…Р ВµР В»РЎРЉ.',
+              'Данные обновляются в режиме реального времени. Вы можете фильтровать жалобы по категориям и временным диапазонам через верхнюю панель.',
               style: TextStyle(
                 color: Colors.white.withAlpha(160),
                 fontSize: 12,
@@ -2342,7 +2266,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Р вЂ”Р С’Р С™Р В Р В«Р СћР В¬',
+            child: const Text('ЗАКРЫТЬ',
                 style: TextStyle(
                     color: _colorAccent, fontWeight: FontWeight.bold)),
           ),
@@ -2384,10 +2308,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       builder: (ctx) => const Center(child: CircularProgressIndicator()),
     );
     try {
-      const supabaseUrl =
-          'https://xpainxohbdoruakcijyq.supabase.co/rest/v1/infographic_data?data_type=eq.uk_list&select=data';
-      const supabaseKey =
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwYWlueG9oYmRvcnVha2NpanlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3OTg2NjUsImV4cCI6MjA4NzM3NDY2NX0.hTBTRflUGR9LDXASS15u1IHBZOv9pMt_4CGXqevr0tc';
+      if (!MapConfig.hasSupabaseConfig) {
+        throw StateError('Supabase runtime config is not available');
+      }
+      final supabaseUrl =
+          '${MapConfig.supabaseRestBaseUrl}/infographic_data?data_type=eq.uk_list&select=data';
+      final supabaseKey = MapConfig.supabaseAnonKey;
 
       final response = await http.get(
         Uri.parse(supabaseUrl),
@@ -2407,21 +2333,19 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           final results = data[0]['data'] as List;
           _showUkListOverlay(results);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text(
-                  'Р вЂќР В°Р Р…Р Р…РЎвЂ№Р Вµ Р Р€Р С™ Р С—РЎС“РЎРѓРЎвЂљРЎвЂ№')));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Данные УК пусты')));
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-                'Р С›РЎв‚¬Р С‘Р В±Р С”Р В° Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С”Р С‘ Р Р€Р С™')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Ошибка загрузки УК')));
       }
     } catch (e) {
       if (mounted && Navigator.canPop(context)) {
         Navigator.pop(context);
       }
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Р С›РЎв‚¬Р С‘Р В±Р С”Р В° РЎРѓР ВµРЎвЂљР С‘: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Ошибка сети: $e')));
     }
   }
 
@@ -2443,8 +2367,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   children: [
                     const Icon(Icons.business, color: _colorAccent, size: 28),
                     const SizedBox(width: 8),
-                    Text(
-                        'Р Р€Р С—РЎР‚Р В°Р Р†Р В»РЎРЏРЎР‹РЎвЂ°Р С‘Р Вµ Р С”Р С•Р СР С—Р В°Р Р…Р С‘Р С‘ (${uks.length})',
+                    Text('Управляющие компании (${uks.length})',
                         style: const TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -2462,12 +2385,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         backgroundColor: _colorPrimary.withAlpha(50),
                         child: const Icon(Icons.apartment, color: _colorAccent),
                       ),
-                      title: Text(uk['TITLESM'] ?? uk['TITLE'] ?? 'Р Р€Р С™',
+                      title: Text(
+                          uk['TITLESM'] ?? uk['TITLE'] ?? '\u0423\u041a',
                           style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold)),
-                      subtitle: Text(
-                          uk['ADR'] ?? 'Р СњР ВµРЎвЂљ Р В°Р Т‘РЎР‚Р ВµРЎРѓР В°',
+                      subtitle: Text(uk['ADR'] ?? 'Нет адреса',
                           style: TextStyle(
                               color: Colors.white.withAlpha(150), fontSize: 12),
                           maxLines: 1,
@@ -2485,7 +2408,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                   color: _colorPrimary.withAlpha(80),
                                   width: 1.5),
                             ),
-                            title: Text(uk['TITLE'] ?? 'Р Р€Р С™',
+                            title: Text(uk['TITLE'] ?? '\u0423\u041a',
                                 style: const TextStyle(
                                     color: Colors.white, fontSize: 16)),
                             content: Column(
@@ -2521,7 +2444,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                   leading: const Icon(Icons.apartment,
                                       color: _colorAccent),
                                   title: Text(
-                                      'Р вЂ™ РЎС“Р С—РЎР‚Р В°Р Р†Р В»Р ВµР Р…Р С‘Р С‘ Р Т‘Р С•Р СР С•Р Р†: ${uk['CNT'] ?? '-'}',
+                                      'В управлении домов: ${uk['CNT'] ?? '-'}',
                                       style:
                                           const TextStyle(color: Colors.white)),
                                 ),
@@ -2530,7 +2453,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                   leading: const Icon(Icons.person,
                                       color: _colorAccent),
                                   title: Text(
-                                      'Р В РЎС“Р С”Р С•Р Р†Р С•Р Т‘Р С‘РЎвЂљР ВµР В»РЎРЉ: ${uk['FIO'] ?? '-'}',
+                                      'Руководитель: ${uk['FIO'] ?? '-'}',
                                       style:
                                           const TextStyle(color: Colors.white)),
                                 ),
@@ -2543,23 +2466,21 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                   ScaffoldMessenger.of(context)
                                       .showSnackBar(const SnackBar(
                                     content: Text(
-                                        'Р С’Р Р…Р С•Р Р…Р С‘Р СР Р…Р С•Р Вµ Р С—Р С‘РЎРѓРЎРЉР СР С• Р С•РЎвЂљР С—РЎР‚Р В°Р Р†Р В»Р ВµР Р…Р С• Р Р† Р Р€Р С™! (Р СћР ВµРЎРѓРЎвЂљ)'),
+                                        'Анонимное письмо отправлено в УК! (Тест)'),
                                     backgroundColor: _colorSuccess,
                                   ));
                                 },
                                 style: TextButton.styleFrom(
                                     backgroundColor:
                                         _colorAccent.withAlpha(30)),
-                                child: const Text(
-                                    'Р С›РЎвЂљР С—РЎР‚Р В°Р Р†Р С‘РЎвЂљРЎРЉ Р В°Р Р…Р С•Р Р…Р С‘Р СР Р…РЎС“РЎР‹ Р В¶Р В°Р В»Р С•Р В±РЎС“',
+                                child: const Text('Отправить анонимную жалобу',
                                     style: TextStyle(
                                         color: _colorAccent,
                                         fontWeight: FontWeight.bold)),
                               ),
                               TextButton(
                                 onPressed: () => Navigator.pop(ctx2),
-                                child: const Text(
-                                    'Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ',
+                                child: const Text('Закрыть',
                                     style: TextStyle(color: Colors.white)),
                               ),
                             ],
@@ -2634,8 +2555,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   Widget _buildPrimaryActionFab() {
     return Tooltip(
-      message:
-          'Р РЋР С•Р С•Р В±РЎвЂ°Р С‘РЎвЂљРЎРЉ Р С• Р С—РЎР‚Р С•Р В±Р В»Р ВµР СР Вµ',
+      message: 'Сообщить о проблеме',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
@@ -2766,16 +2686,26 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     );
   }
 
-  void _openCesiumViewer() {
+  void _openMapbox3DViewer() {
     final camera = _mapController.camera;
     final focusCenter = LatLng(camera.center.latitude, camera.center.longitude);
     final focusZoom = camera.zoom;
+    const mapboxToken =
+        String.fromEnvironment('MAPBOX_ACCESS_TOKEN', defaultValue: '');
+    final useMapbox = mapboxToken.trim().isNotEmpty;
 
     Navigator.of(context).push(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 900),
         reverseTransitionDuration: const Duration(milliseconds: 420),
         pageBuilder: (context, animation, secondaryAnimation) {
+          if (useMapbox) {
+            return MapboxThreeMapScreen(
+              complaints: _allComplaints,
+              initialCenter: focusCenter,
+              initialZoom: focusZoom,
+            );
+          }
           return CesiumMapScreen(
             complaints: _allComplaints,
             initialCenter: focusCenter,
@@ -2955,39 +2885,40 @@ class _LiveCamDialogState extends State<_LiveCamDialog> {
     Color accent = const Color(0xFF56E0FF);
 
     if (code == 0) {
-      label = isDay ? 'РЇСЃРЅРѕ' : 'РЇСЃРЅР°СЏ РЅРѕС‡СЊ';
+      label = isDay ? 'Ясно' : 'Ясная ночь';
       accent = const Color(0xFF7DE7FF);
     } else if ([1, 2].contains(code)) {
       icon = isDay ? Icons.wb_cloudy_rounded : Icons.cloud_queue_rounded;
-      label = 'РџРµСЂРµРјРµРЅРЅР°СЏ РѕР±Р»Р°С‡РЅРѕСЃС‚СЊ';
+      label = 'Переменная облачность';
       accent = const Color(0xFF8BE7FF);
     } else if (code == 3) {
       icon = Icons.cloud_rounded;
-      label = 'РџР°СЃРјСѓСЂРЅРѕ';
+      label = 'Пасмурно';
       accent = const Color(0xFF86B7DA);
     } else if ([45, 48].contains(code)) {
       icon = Icons.blur_on_rounded;
-      label = 'РўСѓРјР°РЅ';
+      label = 'Туман';
       accent = const Color(0xFFB8D7EA);
     } else if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) {
       icon = Icons.water_drop_rounded;
-      label = 'Р”РѕР¶РґСЊ';
+      label = 'Дождь';
       accent = const Color(0xFF3DA8FF);
     } else if (code >= 71 && code <= 77) {
       icon = Icons.ac_unit_rounded;
-      label = 'РЎРЅРµРі';
+      label = 'Снег';
       accent = const Color(0xFFC8F4FF);
     } else if (code >= 95) {
       icon = Icons.flash_on_rounded;
-      label = 'Р“СЂРѕР·Р°';
+      label = 'Гроза';
       accent = const Color(0xFFFFC857);
     }
 
-    final tempLabel =
-        temperature == null ? '--В°' : '${temperature.round().toString()}В°';
+    final tempLabel = temperature == null
+        ? '--\u00B0'
+        : '${temperature.round().toString()}\u00B0';
     final feelsLikeLabel = apparentTemperature == null
-        ? 'РћС‰СѓС‰Р°РµС‚СЃСЏ --В°'
-        : 'РћС‰СѓС‰Р°РµС‚СЃСЏ ${apparentTemperature.round()}В°';
+        ? 'Ощущается --°'
+        : 'Ощущается ${apparentTemperature.round()}°';
 
     return _CameraHudWeather(
       icon: icon,
@@ -3184,21 +3115,22 @@ class _LiveCamDialogState extends State<_LiveCamDialog> {
                                 children: [
                                   _buildHudChip(
                                     icon: _weather.icon,
-                                    title: 'РџРѕРіРѕРґР°',
+                                    title:
+                                        '\u041f\u043e\u0433\u043e\u0434\u0430',
                                     value: _weather.temperatureLabel,
                                     subtitle: _weather.label,
                                     accent: _weather.accent,
                                   ),
                                   _buildHudChip(
                                     icon: Icons.schedule_rounded,
-                                    title: 'РќРёР¶РЅРµРІР°СЂС‚РѕРІСЃРє',
+                                    title: 'Нижневартовск',
                                     value: _formatTime(_cityTime),
                                     subtitle: _formatDate(_cityTime),
                                     accent: const Color(0xFF9AF8FF),
                                   ),
                                   _buildHudChip(
                                     icon: Icons.groups_rounded,
-                                    title: 'Р›СЋРґРё РІ РєР°РґСЂРµ',
+                                    title: 'Люди в кадре',
                                     value: _peopleCount?.toString() ?? '--',
                                     subtitle: widget.detectorEnabled
                                         ? 'AI counter online'
@@ -3455,16 +3387,16 @@ class _CameraHudWeather {
 
   const _CameraHudWeather.loading()
       : icon = Icons.sync_rounded,
-        label = 'РЎРёРЅС…СЂРѕРЅРёР·Р°С†РёСЏ',
+        label = 'Синхронизация',
         temperatureLabel = '--В°',
-        feelsLikeLabel = 'РџРѕРіРѕРґРЅС‹Р№ РєР°РЅР°Р»...',
+        feelsLikeLabel = 'Погодный канал...',
         accent = const Color(0xFF9AF8FF);
 
   const _CameraHudWeather.error()
       : icon = Icons.cloud_off_rounded,
-        label = 'РќРµС‚ РґР°РЅРЅС‹С…',
+        label = 'Нет данных',
         temperatureLabel = '--В°',
-        feelsLikeLabel = 'РџРѕРіРѕРґР° РЅРµРґРѕСЃС‚СѓРїРЅР°',
+        feelsLikeLabel = 'Погода недоступна',
         accent = const Color(0xFFFFC857);
 
   final IconData icon;

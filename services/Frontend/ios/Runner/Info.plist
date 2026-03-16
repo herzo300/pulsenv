@@ -49,5 +49,15 @@
 	<string>Нужно разрешение на использование камеры для фиксации проблем</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Нужно разрешение на использование галереи для отправки фото проблем</string>
+
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.soobshio.reports.background.refresh</string>
+	</array>
 </dict>
 </plist>
+

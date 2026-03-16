@@ -8,15 +8,19 @@ import 'package:http/http.dart' as http;
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:flutter/scheduler.dart';
 
+import '../map/map_config.dart';
 import 'map_screen.dart';
 import 'gravity_splash_screen.dart';
 import 'cyber_splash_screen.dart';
+import 'monitor_splash_screen.dart';
+import 'swamp_splash_screen.dart';
+import 'ai_core_splash_screen.dart';
 import '../services/sound_service.dart';
 
 enum SplashState { loading, ready, exploding }
 
 // Различные варианты дизайна для оригинальности
-enum SplashDesign { particles, aurora, network, gravity, cyber }
+enum SplashDesign { particles, aurora, network, gravity, cyber, monitor, swamp, aiCore }
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -66,6 +70,12 @@ class _SplashScreenState extends State<SplashScreen>
         return const Color(0xFF00E5FF); // Cyan
       case SplashDesign.cyber:
         return const Color(0xFF00E5FF); // Cyan
+      case SplashDesign.monitor:
+        return const Color(0xFF1DE9B6); // Teal green
+      case SplashDesign.swamp:
+        return const Color(0xFFAABB22); // Swamp green
+      case SplashDesign.aiCore:
+        return const Color(0xFF00E5FF); // Cyan
     }
   }
 
@@ -79,8 +89,10 @@ class _SplashScreenState extends State<SplashScreen>
         return NetworkField(
             tiltX: _tiltX, tiltY: _tiltY, themeColor: _themeColor);
       case SplashDesign.gravity:
-        return const SizedBox.shrink();
       case SplashDesign.cyber:
+      case SplashDesign.monitor:
+      case SplashDesign.swamp:
+      case SplashDesign.aiCore:
         return const SizedBox.shrink();
     }
   }
@@ -129,10 +141,11 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _fetchMapEvents() async {
-    const supabaseUrl =
-        'https://xpainxohbdoruakcijyq.supabase.co/rest/v1/reports?select=id';
-    const supabaseKey =
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwYWlueG9oYmRvcnVha2NpanlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3OTg2NjUsImV4cCI6MjA4NzM3NDY2NX0.hTBTRflUGR9LDXASS15u1IHBZOv9pMt_4CGXqevr0tc';
+    if (!MapConfig.hasSupabaseConfig) {
+      return;
+    }
+    final supabaseUrl = '${MapConfig.reportsRestUrl}?select=id';
+    final supabaseKey = MapConfig.supabaseAnonKey;
 
     try {
       final res = await http.get(Uri.parse(supabaseUrl), headers: {
@@ -220,6 +233,19 @@ class _SplashScreenState extends State<SplashScreen>
     }
     if (_design == SplashDesign.cyber) {
       return const CyberSplashScreen();
+    }
+    if (_design == SplashDesign.monitor) {
+      return const MonitorSplashScreen();
+    }
+    if (_design == SplashDesign.swamp) {
+      return const SwampSplashScreen();
+    }
+    if (_design == SplashDesign.aiCore) {
+      return AiCoreSplashScreen(
+        onComplete: () {
+          _navigateToMap();
+        },
+      );
     }
 
     final baseColor = _themeColor;

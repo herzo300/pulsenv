@@ -6,9 +6,10 @@ Telegram webhook receiver, and email sending.
 
 import logging
 import os
+import secrets
 
 import httpx
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
@@ -24,6 +25,14 @@ router = APIRouter(tags=["core"])
 async def telegram_webhook(request: Request):
     """Receive Telegram webhook updates (requires WEBHOOK_BASE_URL in .env)."""
     try:
+        expected_secret = (os.getenv("TELEGRAM_WEBHOOK_SECRET_TOKEN") or "").strip()
+        if expected_secret:
+            provided_secret = (
+                request.headers.get("x-telegram-bot-api-secret-token") or ""
+            ).strip()
+            if not secrets.compare_digest(provided_secret, expected_secret):
+                raise HTTPException(status_code=403, detail="Invalid Telegram webhook secret")
+
         from services.telegram_bot import bot, dp
         from aiogram.types import Update
 
@@ -46,7 +55,11 @@ def get_config():
     """Public config for the map: Supabase Realtime URL and anon key."""
     result: dict = {}
     url = (os.getenv("SUPABASE_URL") or "").strip()
-    key = (os.getenv("SUPABASE_ANON_KEY") or "").strip()
+    key = (
+        os.getenv("SUPABASE_ANON_KEY")
+        or os.getenv("SUPABASE_ANON_API_KEY")
+        or ""
+    ).strip()
     if url:
         result["supabaseUrl"] = url.rstrip("/")
     if key:

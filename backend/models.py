@@ -1,12 +1,22 @@
 from datetime import datetime
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, Index
+
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 
 from .database import Base
 
 
 class User(Base):
-    """Модель пользователя"""
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
@@ -15,19 +25,17 @@ class User(Base):
     first_name = Column(String(100))
     last_name = Column(String(100))
     photo_url = Column(String(500), nullable=True)
-    balance = Column(Integer, default=0)  # баланс в Stars
-    notify_new = Column(Integer, default=0)  # 1 = подписка на уведомления о новых жалобах
-    digest_subscription_until = Column(DateTime, nullable=True)  # подписка на ежедневные сводки до этой даты (UTC)
+    balance = Column(Integer, default=0)
+    notify_new = Column(Integer, default=0)
+    digest_subscription_until = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    # Отношения
     reports = relationship("Report", back_populates="user")
     likes = relationship("Like", back_populates="user")
     comments = relationship("Comment", back_populates="user")
 
 
 class Report(Base):
-    """Модель жалобы"""
     __tablename__ = "reports"
 
     id = Column(Integer, primary_key=True)
@@ -42,8 +50,8 @@ class Report(Base):
     source = Column(String(50), default="mobile_app")
     telegram_message_id = Column(String(100), nullable=True)
     telegram_channel = Column(String(200), nullable=True)
-    supporters = Column(Integer, default=0)  # кол-во присоединившихся
-    supporters_notified = Column(Integer, default=0)  # 1 = email отправлен при 10+
+    supporters = Column(Integer, default=0)
+    supporters_notified = Column(Integer, default=0)
     likes_count = Column(Integer, default=0)
     dislikes_count = Column(Integer, default=0)
     uk_name = Column(String(300), nullable=True)
@@ -52,26 +60,24 @@ class Report(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     __table_args__ = (
-        Index('idx_category', 'category'),
-        Index('idx_status', 'status'),
-        Index('idx_created_at', 'created_at'),
-        Index('idx_user_id', 'user_id'),
-        Index('idx_lat_lng', 'lat', 'lng'),
+        Index("idx_category", "category"),
+        Index("idx_status", "status"),
+        Index("idx_created_at", "created_at"),
+        Index("idx_user_id", "user_id"),
+        Index("idx_lat_lng", "lat", "lng"),
     )
 
-    # Отношения
     user = relationship("User", back_populates="reports")
     likes = relationship("Like", back_populates="report", cascade="all, delete-orphan")
-    comments = relationship("Comment", back_populates="report", cascade="all, delete-orphan")
-
-
+    comments = relationship(
+        "Comment", back_populates="report", cascade="all, delete-orphan"
+    )
 
     @property
     def comments_count(self):
         return len(self.comments) if self.comments else 0
 
     def to_dict(self) -> dict:
-        """Canonical dict representation used by all API endpoints."""
         return {
             "id": self.id,
             "title": self.title,
@@ -93,7 +99,6 @@ class Report(Base):
 
 
 class Like(Base):
-    """Модель лайка"""
     __tablename__ = "likes"
 
     id = Column(Integer, primary_key=True)
@@ -101,17 +106,13 @@ class Like(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    __table_args__ = (
-        UniqueConstraint('report_id', 'user_id', name='unique_like'),
-    )
+    __table_args__ = (UniqueConstraint("report_id", "user_id", name="unique_like"),)
 
-    # Отношения
     report = relationship("Report", back_populates="likes")
     user = relationship("User", back_populates="likes")
 
 
 class Comment(Base):
-    """Модель комментария"""
     __tablename__ = "comments"
 
     id = Column(Integer, primary_key=True)
@@ -122,7 +123,6 @@ class Comment(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Отношения
     report = relationship("Report", back_populates="comments")
     user = relationship("User", back_populates="comments")
     parent = relationship("Comment", remote_side=[id], backref="replies")

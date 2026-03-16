@@ -15,7 +15,7 @@ services/Backend/
     ├── complaints.py    # /complaints/list, /statistics, /create, /{id}/status
     ├── ai.py            # /ai/analyze, /ai/proxy/*
     ├── telegram_router.py  # /telegram/monitor/*
-    ├── fcm.py           # /api/fcm-token, /api/notify-cluster, /api/fcm/subscribe
+    ├── map_data.py      # /api/map/feed, /api/cameras/live
     └── opendata.py      # /opendata/summary, /full, /refresh, /dataset, /search/uk
 ```
 
@@ -43,3 +43,4 @@ python scripts/deployment/deploy_map_and_infographic.py --refresh-opendata
 Скрипт:
 1. При `--refresh-opendata`: обновляет `opendata_full.json`, затем генерирует `infographic_data.json`.
 2. Без обновления: генерирует `infographic_data.json` из существующего `opendata_full.json`.
+

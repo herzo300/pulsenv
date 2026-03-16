@@ -5,6 +5,7 @@ Static file serving for map/infographic pages.
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -22,6 +23,19 @@ logger = logging.getLogger(__name__)
 
 # Project root (Soobshio_project)
 ROOT = Path(__file__).resolve().parent.parent.parent
+
+
+def _cors_origins() -> list[str]:
+    raw = (os.getenv("BACKEND_CORS_ORIGINS") or "").strip()
+    if raw:
+        return [item.strip() for item in raw.split(",") if item.strip()]
+    return [
+        "http://127.0.0.1:8001",
+        "http://localhost:8001",
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+        "http://10.0.2.2:8001",
+    ]
 
 
 @asynccontextmanager
@@ -52,11 +66,12 @@ async def lifespan(app: FastAPI):
             logger.warning("Error stopping Telegram monitor: %s", e)
 
 
+
 app = FastAPI(title="СообщиО API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -78,11 +93,27 @@ app.include_router(opendata.router)
 
 @app.middleware("http")
 async def capture_runtime_metrics(request: Request, call_next):
-    metrics_store.record_request(
-        ip=extract_client_ip(request),
-        path=request.url.path,
-    )
-    return await call_next(request)
+    response = await call_next(request)
+
+    request_bytes = int(request.headers.get("content-length") or 0)
+    response_bytes = int(response.headers.get("content-length") or 0)
+    device_id = (
+        request.headers.get("x-client-device-id")
+        or request.headers.get("x-device-id")
+        or f"anonymous:{extract_client_ip(request)}"
+    ).strip()
+
+    try:
+        metrics_store.record_request(
+            device_id=device_id[:128],
+            ip=extract_client_ip(request),
+            path=request.url.path,
+            request_bytes=request_bytes,
+            response_bytes=response_bytes,
+        )
+    except Exception as exc:  # pragma: no cover - runtime DB dependent
+        logger.warning("Runtime metrics write failed for %s: %s", request.url.path, exc)
+    return response
 
 # --- Map & Infographic HTML pages (served from public/) ---
 _map_html = ROOT / "public" / "map.html"

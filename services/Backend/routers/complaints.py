@@ -53,6 +53,7 @@ async def create_complaint_endpoint(request: dict, db: Session = Depends(get_db)
         db=db,
         title=request.get("title", ""),
         description=request.get("description", ""),
+        address=request.get("address"),
         latitude=request.get("latitude"),
         longitude=request.get("longitude"),
         category=request.get("category", "Прочее"),
@@ -63,6 +64,7 @@ async def create_complaint_endpoint(request: dict, db: Session = Depends(get_db)
         telegram_channel=request.get("telegram_channel"),
         nvd_vulnerability_ids=None,
     )
+
     return result
 
 

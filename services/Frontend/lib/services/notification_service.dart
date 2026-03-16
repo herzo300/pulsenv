@@ -89,9 +89,6 @@ class NotificationService {
 
     if (!context.mounted) return;
 
-    final prefs = await SharedPreferences.getInstance();
-    final vibrationEnabled = prefs.getBool('vibration_enabled') ?? true;
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(

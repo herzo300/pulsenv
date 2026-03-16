@@ -330,6 +330,23 @@ function createMarkerIcon(complaint) {
   const isEmergency = complaint.category === 'ЧП';
   const badge = getMarkerBadge(complaint);
 
+  if (complaint.category === 'Мероприятие' || complaint.source_kind === 'event') {
+    return L.divIcon({
+      className: 'event-cyber-marker',
+      html: `
+        <div class="cyber-pulse-ring"></div>
+        <div class="cyber-pulse-ring-inner"></div>
+        <div class="cyber-hexagon">
+          <div class="cyber-icon">${cat.icon}</div>
+        </div>
+        ${badge ? `<div style="position:absolute;bottom:-6px;right:-8px;min-width:20px;height:20px;padding:0 4px;border-radius:2px;background:#39FF14;color:#0f172a;font-size:10px;font-weight:900;z-index:10;transform:skewX(-10deg);border:1px solid #020617;">${badge}</div>` : ''}
+      `,
+      iconSize: [44, 44],
+      iconAnchor: [22, 22],
+      popupAnchor: [0, -22]
+    });
+  }
+
   return L.divIcon({
     className: 'custom-marker',
     html: `
@@ -772,6 +789,27 @@ async function fetchSupabaseReportsFallback() {
   return data.map(normalizeReportMarker).filter(Boolean);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// MOCK CYBER EVENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+const MOCK_EVENTS = [
+  { id: 'evt1', title: 'CyberJam 2026: Код и Неон', summary: 'CyberJam 2026: Код и Неон', category: 'Мероприятие', status: 'open', lat: 60.9410, lng: 76.5680, address: 'Кванториум', supporters: 154, likes_count: 55, created_at: new Date(Date.now() + 86400000).toISOString(), description: 'Взлом, кодинг и неон. 48 часов на создание лучшего кибер-проекта.', source_kind: 'event', source_label: 'CyberHub', link: 'https://nv-events.ru' },
+  { id: 'evt2', title: 'Голографическая выставка', summary: 'Голографическая выставка', category: 'Мероприятие', status: 'open', lat: 60.9320, lng: 76.5510, address: 'Дворец Искусств', supporters: 320, likes_count: 140, created_at: new Date(Date.now() + 86400000 * 3).toISOString(), description: 'Иммерсивное искусство нового поколения. Виртуальные инсталляции.', source_kind: 'event', source_label: 'ArtSpace', link: 'https://nv-events.ru' },
+  { id: 'evt3', title: 'Дрон-рейсинг', summary: 'Дрон-рейсинг', category: 'Мероприятие', status: 'open', lat: 60.9380, lng: 76.5400, address: 'Стадион', supporters: 42, likes_count: 12, created_at: new Date(Date.now() + 86400000 * 5).toISOString(), description: 'Соревнования по полетам на скоростных FPV-дронах. Неоновые трассы.', source_kind: 'event', source_label: 'DroneNV', link: 'https://nv-events.ru' },
+  { id: 'evt4', title: 'Night City Market', summary: 'Night City Market', category: 'Мероприятие', status: 'open', lat: 60.9450, lng: 76.5550, address: 'Парк Победы', supporters: 88, likes_count: 40, created_at: new Date(Date.now() + 86400000 * 2).toISOString(), description: 'Гастрономия уличных киосков в неоновом свете. Фестиваль уличной еды.', source_kind: 'event', source_label: 'CityFood', link: 'https://nv-events.ru' },
+  { id: 'evt5', title: 'Лекторий: ИИ-Сингулярность', summary: 'Лекторий: ИИ-Сингулярность', category: 'Мероприятие', status: 'open', lat: 60.9300, lng: 76.5700, address: 'Библиотека им. Пушкина', supporters: 105, likes_count: 22, created_at: new Date(Date.now() + 86400000 * 6).toISOString(), description: 'Обсуждение будущего сильного ИИ с ведущими инженерами.', source_kind: 'event', source_label: 'TechTalks', link: 'https://nv-events.ru' }
+];
+
+function injectMockEvents(markers) {
+  const existingIds = new Set(markers.map(m => String(m.id)));
+  MOCK_EVENTS.forEach(evt => {
+    if (!existingIds.has(String(evt.id))) {
+      markers.push(evt);
+    }
+  });
+  return markers;
+}
+
 async function loadComplaints() {
   console.log('📥 Loading...');
   setSplashStatus('Загружаем обращения...', 82);
@@ -780,7 +818,7 @@ async function loadComplaints() {
     const feedMarkers = await fetchBackendMapFeed();
     if (feedMarkers.length > 0) {
       console.log(`✅ Loaded ${feedMarkers.length} map markers from backend feed`);
-      return replaceMapData(feedMarkers);
+      return replaceMapData(injectMockEvents(feedMarkers));
     }
   } catch (error) {
     console.warn('Backend map feed unavailable, falling back to Supabase reports', error);
@@ -790,7 +828,7 @@ async function loadComplaints() {
     const fallbackMarkers = await fetchSupabaseReportsFallback();
     if (fallbackMarkers.length > 0) {
       console.log(`✅ Loaded ${fallbackMarkers.length} report markers from Supabase`);
-      return replaceMapData(fallbackMarkers);
+      return replaceMapData(injectMockEvents(fallbackMarkers));
     }
   } catch (error) {
     console.error('❌ Supabase reports fallback error:', error);
@@ -812,7 +850,7 @@ function loadDemoComplaints() {
     { id: 'd7', summary: 'Снег не убран', category: 'Снег/Наледь', status: 'open', lat: 60.9330, lng: 76.5520, address: 'пр. Победы', supporters: 12, created_at: new Date(now - 86400000 * 15).toISOString() }
   ];
 
-  return replaceMapData(demoData);
+  return replaceMapData(injectMockEvents(demoData));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -890,8 +928,6 @@ function handleDeletedComplaint(complaint) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function matchesDayFilter(complaint) {
-  if (state.currentDayFilter === 'all') return true;
-
   const created = new Date(complaint.created_at);
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -901,14 +937,21 @@ function matchesDayFilter(complaint) {
     const diffMs = targetDate.getTime() - todayStart.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
+    // Убираем мероприятия, которые уже прошли
+    if (diffDays < 0) return false;
+
+    if (state.currentDayFilter === 'all') return true;
+
     switch (state.currentDayFilter) {
       case 'today': return diffDays === 0;
       case '3days': return diffDays >= 0 && diffDays <= 2;
-      case 'week': return diffDays >= 0 && diffDays <= 6;
+      case 'week': return diffDays >= 0 && diffDays <= 7;
       case 'month': return diffDays >= 0 && diffDays <= 30;
       default: return true;
     }
   }
+
+  if (state.currentDayFilter === 'all') return true;
 
   const diffDays = (now - created) / (1000 * 60 * 60 * 24);
   switch (state.currentDayFilter) {
@@ -1117,6 +1160,15 @@ style.textContent = `
   @keyframes emergency-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,0.4)} 50%{box-shadow:0 0 0 8px rgba(220,38,38,0)} }
   .custom-cluster{background:transparent!important;border:none!important;}
   .popup-card.emergency{border:2px solid #FF3D00;background:rgba(255,61,0,0.14)!important;}
+  
+  /* CYBER HUD EVENT MARKER CSS */
+  @keyframes HUDspin { 100% { transform: rotate(405deg); } }
+  @keyframes HUDspin-reverse { 100% { transform: rotate(-375deg); } }
+  .event-cyber-marker { display:flex; align-items:center; justify-content:center; width:44px; height:44px; position:relative; z-index:1000; }
+  .cyber-pulse-ring { position:absolute; inset:-4px; border:1px dashed #39FF14; border-radius:10%; transform:rotate(45deg); animation:HUDspin 6s linear infinite; mix-blend-mode:screen; }
+  .cyber-pulse-ring-inner { position:absolute; inset:2px; border:2px solid rgba(57,255,20,0.5); border-radius:10%; transform:rotate(-15deg); animation:HUDspin-reverse 8s linear infinite; }
+  .cyber-hexagon { position:relative; width:26px; height:26px; background:#020617; border:2px solid #39FF14; transform:rotate(45deg); display:flex; align-items:center; justify-content:center; box-shadow:0 0 16px rgba(57,255,20,0.6), inset 0 0 8px rgba(57,255,20,0.4); z-index:2; }
+  .cyber-icon { transform:rotate(-45deg); font-size:14px; line-height:1; filter:drop-shadow(0 0 4px #39FF14); }
 `;
 document.head.appendChild(style);
 
@@ -1653,56 +1705,12 @@ function openCameraDetails(cam) {
     <div style="margin-bottom:12px;">${cam.desc}</div>
     <div style="width:100%; height:200px; background:#000; border-radius:12px; overflow:hidden; position:relative; border:1px solid rgba(125,231,255,0.22); box-shadow:0 18px 42px rgba(0,0,0,0.38);">
       <video id="live-camera-player" style="width:100%; height:100%; border:none; object-fit:cover;" controls autoplay muted playsinline></video>
-      <div style="position:absolute; inset:0; pointer-events:none; background:linear-gradient(180deg, rgba(4,8,16,0.52) 0%, rgba(4,8,16,0.06) 42%, rgba(4,8,16,0.58) 100%);"></div>
-      <div style="position:absolute; top:10px; left:10px; right:10px; display:flex; align-items:flex-start; justify-content:space-between; gap:10px; pointer-events:none;">
-        <div style="display:flex; flex-wrap:wrap; gap:8px; max-width:calc(100% - 92px);">
-          <div id="live-camera-weather-chip" style="min-width:112px; padding:8px 10px; border-radius:14px; background:rgba(14,21,34,0.72); border:1px solid rgba(154,248,255,0.7); box-shadow:0 0 24px rgba(154,248,255,0.16);">
-            <div style="display:flex; align-items:center; gap:6px; color:#9AF8FF; font-size:9px; font-weight:800; letter-spacing:1.1px; text-transform:uppercase;">
-              <span id="live-camera-weather-icon">⌛</span>
-              <span>Погода</span>
-            </div>
-            <div id="live-camera-weather" style="margin-top:6px; color:#fff; font-size:15px; font-weight:800;">--°</div>
-            <div id="live-camera-weather-label" style="margin-top:2px; color:rgba(255,255,255,0.74); font-size:10px;">Синхронизация</div>
-          </div>
-          <div style="min-width:112px; padding:8px 10px; border-radius:14px; background:rgba(14,21,34,0.72); border:1px solid rgba(154,248,255,0.42);">
-            <div style="display:flex; align-items:center; gap:6px; color:#9AF8FF; font-size:9px; font-weight:800; letter-spacing:1.1px; text-transform:uppercase;">
-              <span>⏱</span>
-              <span>Нижневартовск</span>
-            </div>
-            <div id="live-camera-time" style="margin-top:6px; color:#fff; font-size:15px; font-weight:800;">--:--:--</div>
-            <div id="live-camera-time-label" style="margin-top:2px; color:rgba(255,255,255,0.74); font-size:10px;">--.--.----</div>
-          </div>
-          <div style="min-width:112px; padding:8px 10px; border-radius:14px; background:rgba(14,21,34,0.72); border:1px solid rgba(255,200,87,0.42);">
-            <div style="display:flex; align-items:center; gap:6px; color:#FFC857; font-size:9px; font-weight:800; letter-spacing:1.1px; text-transform:uppercase;">
-              <span>👥</span>
-              <span>Люди в кадре</span>
-            </div>
-            <div id="live-camera-people" style="margin-top:6px; color:#fff; font-size:15px; font-weight:800;">--</div>
-            <div id="live-camera-people-label" style="margin-top:2px; color:rgba(255,255,255,0.74); font-size:10px;">Detector standby</div>
-          </div>
-        </div>
-        <div style="padding:8px 10px; border-radius:999px; background:rgba(27,16,32,0.76); border:1px solid rgba(255,78,78,0.84); box-shadow:0 0 20px rgba(255,78,78,0.18); color:#fff; font-size:10px; font-weight:800; letter-spacing:1px;">
-          <span style="display:inline-block; width:8px; height:8px; margin-right:6px; border-radius:50%; background:#ff4e4e; box-shadow:0 0 10px rgba(255,78,78,0.8);"></span>LIVE HUD
-        </div>
+      <button onclick="document.getElementById('live-camera-player').requestFullscreen()" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; font-size:12px; z-index:10; backdrop-filter: blur(4px);">⛶ На весь экран</button>
+      <div id="live-camera-fallback-link" style="display:none; position:absolute; inset:0; background:rgba(0,0,0,0.8); color:white; padding:20px; text-align:center; align-items:center; justify-content:center; flex-direction:column; z-index:20;">
+        <span style="font-size:24px; margin-bottom:10px;">⚠️</span>
+        <div style="margin-bottom: 12px;">Видеопоток недоступен на этом устройстве</div>
+        <a href="${cam.url}" target="_blank" style="color:var(--primary); display:inline-block; padding:8px 16px; border:1px solid var(--primary); border-radius:8px; text-decoration:none;">Открыть источник</a>
       </div>
-      <div style="position:absolute; left:10px; right:10px; bottom:10px; display:flex; justify-content:space-between; gap:8px; pointer-events:none;">
-        <div style="flex:1; min-width:0; padding:8px 10px; border-radius:12px; border:1px solid rgba(55,221,254,0.24); background:rgba(10,16,24,0.5);">
-          <div style="color:#7DE7FF; font-size:9px; font-weight:800; letter-spacing:1.2px;">WX LINK</div>
-          <div id="live-camera-weather-meta" style="margin-top:3px; color:rgba(255,255,255,0.72); font-size:10px;">Погодный канал...</div>
-        </div>
-        <div style="flex:1; min-width:0; padding:8px 10px; border-radius:12px; border:1px solid rgba(55,221,254,0.24); background:rgba(10,16,24,0.5); text-align:right;">
-          <div style="color:#7DE7FF; font-size:9px; font-weight:800; letter-spacing:1.2px;">AI VISION</div>
-          <div id="live-camera-detector" style="margin-top:3px; color:rgba(255,255,255,0.72); font-size:10px;">Vision channel pending</div>
-        </div>
-      </div>
-    </div>
-    <div style="margin-top:8px;">
-      <a id="live-camera-fallback-link" href="${cam.url}" target="_blank" style="display:none; color:var(--primary); font-size:12px;">
-        Открыть поток во внешнем плеере
-      </a>
-    </div>
-    <div style="margin-top:12px; font-size:12px; color:var(--text-secondary);">
-      AI Мониторинг: <span style="color:var(--success)">АКТИВЕН</span> · Аномалий не обнаружено.
     </div>
   `;
 

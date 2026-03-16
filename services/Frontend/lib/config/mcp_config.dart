@@ -1,38 +1,51 @@
-// lib/config/mcp_config.dart
-/// Конфигурация MCP серверов для приложения
 library;
+
+import 'package:flutter/foundation.dart';
 
 import '../services/mcp_service.dart';
 
-/// Настройки MCP серверов
+const String _mcpFetchUrlDefine =
+    String.fromEnvironment('MCP_FETCH_URL', defaultValue: '');
+const String _mcpReportsApiDefine =
+    String.fromEnvironment('MCP_REPORTS_API_URL', defaultValue: '');
+
+String _secureOrDevUrl(String configuredUrl) {
+  final normalized = configuredUrl.trim();
+  if (!kReleaseMode) {
+    return normalized;
+  }
+  return normalized.startsWith('https://') ? normalized : '';
+}
+
 class MCPConfig {
-  /// Инициализировать MCP сервис с настройками по умолчанию
+  static String get fetchUrl => _secureOrDevUrl(_mcpFetchUrlDefine);
+
+  static String get reportsApiUrl => _secureOrDevUrl(_mcpReportsApiDefine);
+
   static void initializeMCPService() {
     final mcpService = MCPService();
+    final fetchUrl = MCPConfig.fetchUrl;
 
-    // MCP Fetch Server (для парсинга Telegram и VK)
-    mcpService.addServer(MCPServerConfig(
-      name: 'mcp_fetch',
-      url: 'http://localhost:3000',
-      enabled: true,
-    ));
+    if (fetchUrl.isNotEmpty) {
+      mcpService.addServer(MCPServerConfig(
+        name: 'mcp_fetch',
+        url: fetchUrl,
+        enabled: true,
+      ));
 
-    // Firebase MCP endpoint: JSON-RPC должен идти в MCP Fetch Server.
-    // Сам целевой URL Firebase передается в params.url из MCPFirebaseService.
-    mcpService.addServer(MCPServerConfig(
-      name: 'firebase',
-      url: 'http://localhost:3000',
-      enabled: true,
-    ));
+      mcpService.addServer(MCPServerConfig(
+        name: 'firebase',
+        url: fetchUrl,
+        enabled: true,
+      ));
+    }
 
-    // Telegram Bot API через MCP
     mcpService.addServer(MCPServerConfig(
       name: 'telegram',
       url: 'https://api.telegram.org',
       enabled: true,
     ));
 
-    // Perplexity AI через MCP
     mcpService.addServer(MCPServerConfig(
       name: 'perplexity',
       url: 'https://api.perplexity.ai',
@@ -40,19 +53,21 @@ class MCPConfig {
     ));
   }
 
-  /// Получить конфигурацию из переменных окружения или настроек приложения
   static List<MCPServerConfig> getDefaultServers() {
+    final fetchUrl = MCPConfig.fetchUrl;
     return [
-      MCPServerConfig(
-        name: 'mcp_fetch',
-        url: 'http://localhost:3000',
-        enabled: true,
-      ),
-      MCPServerConfig(
-        name: 'firebase',
-        url: 'http://localhost:3000',
-        enabled: true,
-      ),
+      if (fetchUrl.isNotEmpty)
+        MCPServerConfig(
+          name: 'mcp_fetch',
+          url: fetchUrl,
+          enabled: true,
+        ),
+      if (fetchUrl.isNotEmpty)
+        MCPServerConfig(
+          name: 'firebase',
+          url: fetchUrl,
+          enabled: true,
+        ),
       MCPServerConfig(
         name: 'telegram',
         url: 'https://api.telegram.org',

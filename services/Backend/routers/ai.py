@@ -3,13 +3,18 @@
 import tempfile
 from typing import Any, Dict
 
-from fastapi import APIRouter
+import base64
+import os
+
+from fastapi import APIRouter, HTTPException
+from starlette.concurrency import run_in_threadpool
 
 from core.http_client import get_http_client
+from services.realesrgan_service import realesrgan_service
 from services.zai_service import (
     CATEGORIES,
-    ZAI_API_KEY,
-    ZAI_BASE,
+    XAI_API_KEY,
+    XAI_BASE,
     _call_ai_api,
     _parse_json,
     analyze_complaint,
@@ -21,12 +26,17 @@ router = APIRouter(prefix="/ai", tags=["ai"])
 _DEFAULT_CATEGORY = "Прочее"
 
 
+def _decode_image_b64(image_b64: str) -> bytes:
+    payload = image_b64.split(",", 1)[1] if image_b64.startswith("data:") else image_b64
+    return base64.b64decode(payload)
+
+
 async def _analyze_image_payload(image_b64: str, text: str) -> Dict[str, Any]:
     if not image_b64:
         return {"category": _DEFAULT_CATEGORY, "summary": "", "error": "Empty image"}
 
     try:
-        if ZAI_API_KEY:
+        if XAI_API_KEY:
             prompt = (
                 f"Проанализируй фото городской проблемы в Нижневартовске. {text}\n"
                 f"Категории: {', '.join(CATEGORIES)}\n\n"
@@ -37,7 +47,7 @@ async def _analyze_image_payload(image_b64: str, text: str) -> Dict[str, Any]:
                 'Верни только JSON: {"category":"...","summary":"...","severity":2}'
             )
             payload = {
-                "model": "glm-4v",
+                "model": "grok-2-vision-latest",
                 "messages": [
                     {
                         "role": "user",
@@ -59,14 +69,14 @@ async def _analyze_image_payload(image_b64: str, text: str) -> Dict[str, Any]:
                 "max_tokens": 1024,
             }
             headers = {
-                "Authorization": f"Bearer {ZAI_API_KEY}",
+                "Authorization": f"Bearer {XAI_API_KEY}",
                 "Content-Type": "application/json",
             }
             content = await _call_ai_api(
-                f"{ZAI_BASE}/chat/completions",
+                f"{XAI_BASE}/chat/completions",
                 payload,
                 headers,
-                "Z.AI Vision",
+                "Grok",
             )
             if content:
                 parsed = _parse_json(content)
@@ -74,11 +84,9 @@ async def _analyze_image_payload(image_b64: str, text: str) -> Dict[str, Any]:
                     return parsed
 
         # Fallback: use normalized local vision helper.
-        image_bytes = image_b64.split(",", 1)[1] if image_b64.startswith("data:") else image_b64
+        image_bytes = image_b64
         with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
-            import base64
-
-            tmp.write(base64.b64decode(image_bytes))
+            tmp.write(_decode_image_b64(image_bytes))
             tmp_path = tmp.name
 
         try:
@@ -196,6 +204,52 @@ async def analyze_image_for_complaint(request: dict):
     image_b64 = request.get("image", "")
     text = request.get("text", "")
     return await _analyze_image_payload(image_b64, text)
+
+
+@router.post("/upscale_image")
+async def upscale_image_for_complaint(request: dict):
+    image_b64 = str(request.get("image") or "").strip()
+    if not image_b64:
+        raise HTTPException(status_code=400, detail="image is required")
+
+    max_input_side = request.get("max_input_side") or 512
+    try:
+        max_input_side = int(max_input_side)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="max_input_side must be an integer") from exc
+
+    if max_input_side < 128 or max_input_side > 768:
+        raise HTTPException(status_code=400, detail="max_input_side must be between 128 and 768")
+
+    try:
+        image_bytes = _decode_image_b64(image_b64)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="invalid image payload") from exc
+
+    try:
+        result = await run_in_threadpool(
+            realesrgan_service.upscale_image_bytes,
+            image_bytes,
+            max_input_side=max_input_side,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"upscale failed: {exc}") from exc
+
+    encoded_image = base64.b64encode(result["image_bytes"]).decode("ascii")
+    return {
+        "image": encoded_image,
+        "mime_type": result["mime_type"],
+        "cached": result["cached"],
+        "source_width": result["source_width"],
+        "source_height": result["source_height"],
+        "input_width": result["input_width"],
+        "input_height": result["input_height"],
+        "output_width": result["output_width"],
+        "output_height": result["output_height"],
+        "engine": "Real-ESRGAN x4",
+    }
 
 
 @router.post("/sanitize_report")

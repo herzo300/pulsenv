@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>City Pulse 3D Mapbox</title>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.min.js"></script>
+  <style>
+    html, body, #map {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #020617;
+      font-family: Inter, Segoe UI, sans-serif;
+      color: #fff;
+    }
+
+    #status {
+      position: fixed;
+      bottom: 14px;
+      right: 14px;
+      z-index: 999;
+      border-radius: 10px;
+      border: 1px solid rgba(125, 211, 252, 0.45);
+      background: rgba(2, 6, 23, 0.7);
+      padding: 8px 12px;
+      font-size: 11px;
+      letter-spacing: 0.3px;
+      pointer-events: none;
+      color: #cbd5e1;
+      max-width: min(70vw, 360px);
+      line-height: 1.35;
+    }
+
+    #badge {
+      position: fixed;
+      bottom: 14px;
+      left: 14px;
+      z-index: 999;
+      border-radius: 999px;
+      border: 1px solid rgba(0, 229, 255, 0.45);
+      background: rgba(0, 229, 255, 0.12);
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      pointer-events: none;
+      color: #7dd3fc;
+    }
+
+    .mapboxgl-ctrl-logo,
+    .mapboxgl-ctrl-attrib {
+      opacity: 0.9;
+    }
+
+    .camera-marker {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      border: 2px solid #fff;
+      background: #00e5ff;
+      box-shadow: 0 0 12px rgba(0, 229, 255, 0.6);
+    }
+
+    .complaint-marker {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      border: 2px solid #fff;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.35);
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="badge">Nizhnevartovsk 3D</div>
+  <div id="status">Waiting for MAPBOX_ACCESS_TOKEN...</div>
+
+  <script>
+    const DEFAULT_CONTEXT = { lat: 60.9344, lng: 76.5531, zoom: 14.8 };
+
+    let map = null;
+    let mapboxToken = '';
+    let launchContext = { ...DEFAULT_CONTEXT };
+    let cameraMarkers = [];
+    let complaintMarkers = [];
+    let cameraVisible = true;
+    let threeLayerReady = false;
+
+    function setStatus(text) {
+      const node = document.getElementById('status');
+      if (node) node.textContent = text;
+    }
+
+    function decodePayload(data) {
+      if (!data) return null;
+      try {
+        return JSON.parse(atob(data));
+      } catch (_) {
+        try {
+          return JSON.parse(data);
+        } catch (_) {
+          return null;
+        }
+      }
+    }
+
+    function syncCameraVisibility() {
+      for (const marker of cameraMarkers) {
+        if (marker && marker.getElement) {
+          marker.getElement().style.display = cameraVisible ? 'block' : 'none';
+        }
+      }
+    }
+
+    function clearMarkers(target) {
+      for (const marker of target) {
+        if (marker && marker.remove) marker.remove();
+      }
+      target.length = 0;
+    }
+
+    function initMapIfNeeded() {
+      if (map) return;
+      if (!mapboxToken || !mapboxToken.trim()) {
+        setStatus('MAPBOX_ACCESS_TOKEN is missing. Build with --dart-define=MAPBOX_ACCESS_TOKEN=...');
+        return;
+      }
+
+      mapboxgl.accessToken = mapboxToken.trim();
+      map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/standard',
+        center: [launchContext.lng, launchContext.lat],
+        zoom: launchContext.zoom,
+        pitch: 62,
+        bearing: -17,
+        antialias: true,
+      });
+
+      map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'top-right');
+
+      map.on('load', () => {
+        tryAdd3DBuildings();
+        tryAddThreeLayer();
+        setStatus('Mapbox loaded. 3D layer active.');
+      });
+
+      map.on('error', (event) => {
+        const message = event?.error?.message || 'Unknown map error';
+        setStatus(`Mapbox error: ${message}`);
+      });
+    }
+
+    function tryAdd3DBuildings() {
+      if (!map || !map.getStyle()) return;
+      if (map.getLayer('city-3d-buildings')) return;
+
+      const layers = map.getStyle().layers || [];
+      const labelLayer = layers.find((layer) => layer.type === 'symbol' && layer.layout && layer.layout['text-field']);
+      const beforeId = labelLayer ? labelLayer.id : undefined;
+
+      map.addLayer(
+        {
+          id: 'city-3d-buildings',
+          source: 'composite',
+          'source-layer': 'building',
+          type: 'fill-extrusion',
+          minzoom: 14,
+          filter: ['==', 'extrude', 'true'],
+          paint: {
+            'fill-extrusion-color': '#93c5fd',
+            'fill-extrusion-height': ['coalesce', ['get', 'height'], 12],
+            'fill-extrusion-base': ['coalesce', ['get', 'min_height'], 0],
+            'fill-extrusion-opacity': 0.72,
+          },
+        },
+        beforeId,
+      );
+    }
+
+    function tryAddThreeLayer() {
+      if (!map || threeLayerReady || map.getLayer('three-city-layer')) return;
+
+      const center = [launchContext.lng, launchContext.lat];
+      const mercator = mapboxgl.MercatorCoordinate.fromLngLat(center, 24);
+      const scale = mercator.meterInMercatorCoordinateUnits();
+
+      const customLayer = {
+        id: 'three-city-layer',
+        type: 'custom',
+        renderingMode: '3d',
+        onAdd: function (_, gl) {
+          this.camera = new THREE.Camera();
+          this.scene = new THREE.Scene();
+
+          const lightA = new THREE.DirectionalLight(0xffffff, 0.75);
+          lightA.position.set(0, -70, 120).normalize();
+          this.scene.add(lightA);
+
+          const lightB = new THREE.AmbientLight(0x7dd3fc, 0.35);
+          this.scene.add(lightB);
+
+          const geometry = new THREE.BoxGeometry(70, 70, 110);
+          const material = new THREE.MeshPhongMaterial({
+            color: 0x00e5ff,
+            opacity: 0.45,
+            transparent: true,
+            shininess: 95,
+          });
+
+          this.cube = new THREE.Mesh(geometry, material);
+          this.cube.position.set(0, 0, 55);
+          this.scene.add(this.cube);
+
+          this.renderer = new THREE.WebGLRenderer({
+            canvas: map.getCanvas(),
+            context: gl,
+            antialias: true,
+          });
+          this.renderer.autoClear = false;
+        },
+        render: function (gl, matrix) {
+          const rotationZ = new THREE.Matrix4().makeRotationAxis(
+            new THREE.Vector3(0, 0, 1),
+            performance.now() * 0.00035,
+          );
+
+          const transform = new THREE.Matrix4()
+            .makeTranslation(mercator.x, mercator.y, mercator.z)
+            .scale(new THREE.Vector3(scale, -scale, scale))
+            .multiply(rotationZ);
+
+          const projection = new THREE.Matrix4().fromArray(matrix);
+          this.camera.projectionMatrix = projection.multiply(transform);
+
+          this.renderer.resetState();
+          this.renderer.render(this.scene, this.camera);
+          map.triggerRepaint();
+          gl.disable(gl.CULL_FACE);
+        },
+      };
+
+      map.addLayer(customLayer);
+      threeLayerReady = true;
+    }
+
+    function addCameras(camerasJsonOrBase64) {
+      clearMarkers(cameraMarkers);
+      const data = decodePayload(camerasJsonOrBase64);
+      if (!Array.isArray(data) || !map) return;
+
+      for (const item of data) {
+        const lat = Number(item?.lat);
+        const lng = Number(item?.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
+        const node = document.createElement('div');
+        node.className = 'camera-marker';
+        node.title = item?.n || 'Camera';
+
+        const marker = new mapboxgl.Marker({ element: node, anchor: 'center' })
+          .setLngLat([lng, lat])
+          .addTo(map);
+        cameraMarkers.push(marker);
+      }
+      syncCameraVisibility();
+      setStatus(`Mapbox loaded. Cameras: ${cameraMarkers.length}`);
+    }
+
+    function updateMarkers(dataOrBase64) {
+      clearMarkers(complaintMarkers);
+      const list = decodePayload(dataOrBase64);
+      if (!Array.isArray(list) || !map) return;
+
+      for (const item of list) {
+        const lat = Number(item?.lat);
+        const lng = Number(item?.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
+        const node = document.createElement('div');
+        node.className = 'complaint-marker';
+        node.style.background = item?.color || '#7c3aed';
+        node.title = item?.title || 'Complaint';
+
+        const marker = new mapboxgl.Marker({ element: node, anchor: 'center' })
+          .setLngLat([lng, lat])
+          .addTo(map);
+        complaintMarkers.push(marker);
+      }
+    }
+
+    function setCameraVisibility(visible) {
+      cameraVisible = visible === true;
+      syncCameraVisibility();
+    }
+
+    function setLaunchContext(dataOrBase64) {
+      const parsed = decodePayload(dataOrBase64);
+      if (!parsed) return;
+      launchContext = {
+        lat: Number(parsed?.lat) || DEFAULT_CONTEXT.lat,
+        lng: Number(parsed?.lng) || DEFAULT_CONTEXT.lng,
+        zoom: Number(parsed?.zoom) || DEFAULT_CONTEXT.zoom,
+      };
+
+      if (map) {
+        map.easeTo({
+          center: [launchContext.lng, launchContext.lat],
+          zoom: launchContext.zoom,
+          pitch: 62,
+          bearing: -17,
+          duration: 1200,
+        });
+      }
+    }
+
+    function setMapboxToken(token) {
+      if (typeof token === 'string') {
+        mapboxToken = token;
+      }
+      initMapIfNeeded();
+    }
+
+    window.setMapboxToken = setMapboxToken;
+    window.setLaunchContext = setLaunchContext;
+    window.addCameras = addCameras;
+    window.updateMarkers = updateMarkers;
+    window.setCameraVisibility = setCameraVisibility;
+  </script>
+</body>
+</html>

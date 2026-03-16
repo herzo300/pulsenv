@@ -1,55 +1,35 @@
-/// Конфигурация основной карты приложения.
+/// Configuration for the main map surface.
 ///
-/// Используется бесплатная подложка OpenStreetMap (без API-ключей).
-/// Соответствие Tile Usage Policy: https://operations.osmfoundation.org/policies/tiles/
+/// Uses the official OpenStreetMap tile layer.
 library;
 
 import 'package:latlong2/latlong.dart';
 
-/// Центр карты по умолчанию — Нижневартовск
 const LatLng kMapCenterDefault = LatLng(60.9344, 76.5531);
 
-/// Начальный и допустимые уровни зума
 const double kMapInitialZoom = 13.0;
 const double kMapMinZoom = 10.0;
 const double kMapMaxZoom = 18.0;
 
-/// Бесплатный тайловый слой OpenStreetMap (официальный).
-/// Обязательно указывать [kOsmUserAgent] в TileLayer.
 const String kOsmTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-const String kGoogleSatelliteUrl =
-    'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}';
-
-/// User-Agent для запросов к OSM (требование Tile Usage Policy).
 const String kOsmUserAgent = 'com.soobshio.app';
-
-/// Текст атрибуции для OSM (обязателен к отображению).
 const String kOsmAttributionText = 'OpenStreetMap contributors';
-
-/// URL страницы копирайта OSM (для onTap атрибуции).
 const String kOsmCopyrightUrl = 'https://www.openstreetmap.org/copyright';
+const String kSupabaseReportsMediaBucket = 'reports-media';
+const String kSatelliteTileUrlDefault = '';
+
+String _supabaseUrl = const String.fromEnvironment('SUPABASE_URL', defaultValue: '');
+String _supabaseAnonKey =
+    const String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '');
+String _satelliteTileUrl =
+    const String.fromEnvironment('SATELLITE_TILE_URL', defaultValue: kSatelliteTileUrlDefault);
 
 const Map<String, String> kCityCamsStreams = {
-  '60 лет Октября, 3':
-      'https://stream3.dantser.org/NV_60Let_3/tracks-v1/mono.ts.m3u8',
-  '60 лет Октября, 10':
-      'https://stream3.dantser.org/NV_60Let_10/tracks-v1/mono.ts.m3u8',
+  '60 лет Октября, 3': 'https://stream3.dantser.org/NV_60Let_3/tracks-v1/mono.ts.m3u8',
+  '60 лет Октября, 10': 'https://stream3.dantser.org/NV_60Let_10/tracks-v1/mono.ts.m3u8',
   'Героев Самотлора, 18': 'https://nginx02.pride-net.ru/geroi18/index.m3u8',
 };
 
-/// Supabase URL (для REST API и Storage).
-const String kSupabaseUrl = 'https://xpainxohbdoruakcijyq.supabase.co';
-const String kSupabaseRestBaseUrl = '$kSupabaseUrl/rest/v1';
-const String kSupabaseStorageBaseUrl = '$kSupabaseUrl/storage/v1';
-const String kSupabaseReportsUrl = '$kSupabaseRestBaseUrl/reports';
-const String kSupabaseReportsMediaBucket = 'reports-media';
-
-/// Supabase anon key для публичных запросов.
-const String kSupabaseAnonKey =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwYWlueG9oYmRvcnVha2NpanlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3OTg2NjUsImV4cCI6MjA4NzM3NDY2NX0.hTBTRflUGR9LDXASS15u1IHBZOv9pMt_4CGXqevr0tc';
-
-/// Конфиг карты для единого места настроек
 class MapConfig {
   const MapConfig._();
 
@@ -58,25 +38,42 @@ class MapConfig {
   static double get minZoom => kMapMinZoom;
   static double get maxZoom => kMapMaxZoom;
   static String get tileUrl => kOsmTileUrl;
-  static String get satelliteUrl => kGoogleSatelliteUrl;
+  static String get satelliteUrl =>
+      _satelliteTileUrl.trim().isNotEmpty ? _satelliteTileUrl.trim() : kOsmTileUrl;
   static String get userAgent => kOsmUserAgent;
-  static String get supabaseUrl => kSupabaseUrl;
-  static String get supabaseRestBaseUrl => kSupabaseRestBaseUrl;
-  static String get supabaseStorageBaseUrl => kSupabaseStorageBaseUrl;
-  static String get reportsRestUrl => kSupabaseReportsUrl;
+
+  static bool get hasSupabaseConfig =>
+      _supabaseUrl.trim().isNotEmpty && _supabaseAnonKey.trim().isNotEmpty;
+
+  static String get supabaseUrl => _supabaseUrl.trim();
+  static String get supabaseRestBaseUrl => '$supabaseUrl/rest/v1';
+  static String get supabaseStorageBaseUrl => '$supabaseUrl/storage/v1';
+  static String get reportsRestUrl => '$supabaseRestBaseUrl/reports';
   static String get reportsMediaBucket => kSupabaseReportsMediaBucket;
   static Map<String, String> get cityCams => kCityCamsStreams;
-  static String get supabaseAnonKey => kSupabaseAnonKey;
+  static String get supabaseAnonKey => _supabaseAnonKey.trim();
+
+  static void applySupabaseConfig({
+    required String url,
+    required String anonKey,
+  }) {
+    final normalizedUrl = url.trim().replaceFirst(RegExp(r'/$'), '');
+    final normalizedKey = anonKey.trim();
+    if (normalizedUrl.isNotEmpty) {
+      _supabaseUrl = normalizedUrl;
+    }
+    if (normalizedKey.isNotEmpty) {
+      _supabaseAnonKey = normalizedKey;
+    }
+  }
 
   static String storageUploadUrl(String bucket, String objectPath) {
-    final encodedPath =
-        objectPath.split('/').map(Uri.encodeComponent).join('/');
-    return '$kSupabaseStorageBaseUrl/object/$bucket/$encodedPath';
+    final encodedPath = objectPath.split('/').map(Uri.encodeComponent).join('/');
+    return '$supabaseStorageBaseUrl/object/$bucket/$encodedPath';
   }
 
   static String storagePublicUrl(String bucket, String objectPath) {
-    final encodedPath =
-        objectPath.split('/').map(Uri.encodeComponent).join('/');
-    return '$kSupabaseStorageBaseUrl/object/public/$bucket/$encodedPath';
+    final encodedPath = objectPath.split('/').map(Uri.encodeComponent).join('/');
+    return '$supabaseStorageBaseUrl/object/public/$bucket/$encodedPath';
   }
 }

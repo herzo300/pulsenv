@@ -23,6 +23,7 @@ class ComplaintService:
         db: Session,
         title: str,
         description: Optional[str] = None,
+        address: Optional[str] = None,
         latitude: Optional[float] = None,
         longitude: Optional[float] = None,
         category: str = "Прочее",
@@ -38,6 +39,7 @@ class ComplaintService:
             db_report = Report(
                 title=title,
                 description=description,
+                address=address,
                 lat=latitude,
                 lng=longitude,
                 category=category,

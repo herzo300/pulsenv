@@ -8,6 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 
+import '../map/map_config.dart';
+
 class InfographicScreen extends StatefulWidget {
   const InfographicScreen({super.key});
 
@@ -16,11 +18,6 @@ class InfographicScreen extends StatefulWidget {
 }
 
 class _InfographicScreenState extends State<InfographicScreen> {
-  static const _summaryUrl =
-      'https://xpainxohbdoruakcijyq.supabase.co/rest/v1/infographic_data?data_type=eq.summary&select=data';
-  static const _supabaseKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwYWlueG9oYmRvcnVha2NpanlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3OTg2NjUsImV4cCI6MjA4NzM3NDY2NX0.hTBTRflUGR9LDXASS15u1IHBZOv9pMt_4CGXqevr0tc';
-
   Map<String, dynamic>? _data;
   bool _loading = true;
   String? _error;
@@ -55,26 +52,30 @@ class _InfographicScreenState extends State<InfographicScreen> {
   }
 
   Future<Map<String, dynamic>> _fetch() async {
-    try {
-      final response = await http.get(
-        Uri.parse(_summaryUrl),
-        headers: {
-          'apikey': _supabaseKey,
-          'Authorization': 'Bearer $_supabaseKey',
-        },
-      ).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
-        if (decoded is List && decoded.isNotEmpty) {
-          final row = decoded.first;
-          if (row is Map<String, dynamic> &&
-              row['data'] is Map<String, dynamic>) {
-            return row['data'] as Map<String, dynamic>;
+    if (MapConfig.hasSupabaseConfig) {
+      try {
+        final response = await http.get(
+          Uri.parse(
+            '${MapConfig.supabaseRestBaseUrl}/infographic_data?data_type=eq.summary&select=data',
+          ),
+          headers: {
+            'apikey': MapConfig.supabaseAnonKey,
+            'Authorization': 'Bearer ${MapConfig.supabaseAnonKey}',
+          },
+        ).timeout(const Duration(seconds: 8));
+        if (response.statusCode == 200) {
+          final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+          if (decoded is List && decoded.isNotEmpty) {
+            final row = decoded.first;
+            if (row is Map<String, dynamic> &&
+                row['data'] is Map<String, dynamic>) {
+              return row['data'] as Map<String, dynamic>;
+            }
           }
         }
+      } catch (_) {
+        // Fall through to local snapshot.
       }
-    } catch (_) {
-      // Fall through to local snapshot.
     }
 
     final asset = await rootBundle.loadString('assets/infographic_data.json');
@@ -623,6 +624,10 @@ class _InfographicScreenState extends State<InfographicScreen> {
         return const Color(0xFF21F3C3);
       case 'social':
         return const Color(0xFF4D8DFF);
+      case 'active_life':
+        return const Color(0xFFFFB300); // Amber/Pinkish
+      case 'accessibility':
+        return const Color(0xFFE040FB); // Bright purple/pink
       case 'news':
         return const Color(0xFFFF7C5C);
       case 'eco':
@@ -658,6 +663,22 @@ class _InfographicScreenState extends State<InfographicScreen> {
         return Icons.recycling_rounded;
       case 'hail':
         return Icons.hail_rounded;
+      case 'local_activity':
+        return Icons.local_activity_rounded;
+      case 'directions_run':
+        return Icons.directions_run_rounded;
+      case 'palette':
+        return Icons.palette_rounded;
+      case 'accessible':
+        return Icons.accessible_rounded;
+      case 'emoji_events':
+        return Icons.emoji_events_rounded;
+      case 'rocket_launch':
+        return Icons.rocket_launch_rounded;
+      case 'auto_stories':
+        return Icons.auto_stories_rounded;
+      case 'star':
+        return Icons.star_rounded;
       default:
         return Icons.insights_rounded;
     }
@@ -1376,8 +1397,31 @@ class _InnerGlowPainter extends CustomPainter {
       oldDelegate.accent != accent;
 }
 
-class _InfographicBackdrop extends StatelessWidget {
+class _InfographicBackdrop extends StatefulWidget {
   const _InfographicBackdrop();
+
+  @override
+  State<_InfographicBackdrop> createState() => _InfographicBackdropState();
+}
+
+class _InfographicBackdropState extends State<_InfographicBackdrop>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 12),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1394,12 +1438,38 @@ class _InfographicBackdrop extends StatelessWidget {
               ]),
         ),
       ),
-      const Positioned(
-          top: -140, right: -100, child: _BlurBlob(Color(0x2E00E5FF), 280)),
-      const Positioned(
-          top: 240, left: -90, child: _BlurBlob(Color(0x247C4DFF), 240)),
-      const Positioned(
-          bottom: -120, right: 20, child: _BlurBlob(Color(0x1FF8D24A), 260)),
+      Positioned.fill(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            final t = _controller.value;
+            return Stack(
+              children: [
+                Positioned(
+                  top: -100 + (30 * math.sin(t * math.pi * 2)),
+                  right: -120 + (50 * math.cos(t * math.pi)),
+                  child: _BlurBlob(const Color(0x3B00FF87), 380),
+                ),
+                Positioned(
+                  top: 240 + (40 * math.cos(t * math.pi * 1.5)),
+                  left: -140 + (40 * math.sin(t * math.pi * 2)),
+                  child: _BlurBlob(const Color(0x3360EFFF), 420),
+                ),
+                Positioned(
+                  bottom: -150 + (60 * math.sin(t * math.pi)),
+                  right: -40 + (80 * math.cos(t * math.pi * 2.5)),
+                  child: _BlurBlob(const Color(0x2EB100FF), 400),
+                ),
+                Positioned(
+                  bottom: 120 + (50 * math.cos(t * math.pi * 1.2)),
+                  left: -80 + (60 * math.sin(t * math.pi * 0.8)),
+                  child: _BlurBlob(const Color(0x2800FF87), 320),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
       Positioned.fill(
           child: IgnorePointer(child: CustomPaint(painter: _GridPainter()))),
     ]);

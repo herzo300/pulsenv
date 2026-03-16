@@ -60,7 +60,7 @@ class _CityPulseWaveState extends State<CityPulseWave> with SingleTickerProvider
             intensity: intensity,
             color: pulseColor,
           ),
-          child: Container(height: 40, width: double.infinity),
+          child: SizedBox(height: 40, width: double.infinity),
         );
       },
     );
@@ -96,7 +96,6 @@ class _PulsePainter extends CustomPainter {
     final double midY = size.height / 2;
     
     // Draw digital vertical bars
-    final double barWidth = 3.0;
     final double spacing = 6.0;
 
     for (double x = 0; x <= size.width; x += spacing) {

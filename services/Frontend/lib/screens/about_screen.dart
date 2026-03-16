@@ -1,5 +1,5 @@
-import 'dart:math' as math;
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -14,17 +14,16 @@ class AboutScreen extends StatefulWidget {
 
 class _AboutScreenState extends State<AboutScreen>
     with SingleTickerProviderStateMixin {
-  static const Duration _adminHoldDuration = Duration(seconds: 10);
-
-  late AnimationController _pulseController;
-  Timer? _adminHoldTimer;
-  bool _isRadarPressed = false;
-  bool _isModelPressed = false;
-  bool _isAdminHoldArmed = false;
+  static const Duration _adminTapWindow = Duration(seconds: 4);
+  static const int _adminTapTarget = 10;
 
   static const Color _bg = Color(0xFF030310);
   static const Color _card = Color(0xFF0D0D22);
   static const Color _accent = Color(0xFF00D9FF);
+
+  late AnimationController _pulseController;
+  Timer? _adminTapResetTimer;
+  int _adminTapCount = 0;
 
   @override
   void initState() {
@@ -37,71 +36,78 @@ class _AboutScreenState extends State<AboutScreen>
 
   @override
   void dispose() {
-    _adminHoldTimer?.cancel();
+    _adminTapResetTimer?.cancel();
     _pulseController.dispose();
     super.dispose();
   }
 
-  void _updateSecretHold({
-    required _SecretHoldTarget target,
-    required bool isPressed,
-  }) {
-    if (target == _SecretHoldTarget.radar) {
-      _isRadarPressed = isPressed;
-    } else {
-      _isModelPressed = isPressed;
-    }
+  Future<void> _handleAdminTap() async {
+    _adminTapResetTimer?.cancel();
+    _adminTapCount += 1;
 
-    final isBothPressed = _isRadarPressed && _isModelPressed;
-
-    if (!isBothPressed) {
-      _adminHoldTimer?.cancel();
-      _adminHoldTimer = null;
-      if (_isAdminHoldArmed && mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      }
-      _isAdminHoldArmed = false;
-      return;
-    }
-
-    if (_isAdminHoldArmed) {
-      return;
-    }
-
-    _isAdminHoldArmed = true;
-    if (mounted) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            backgroundColor: Color(0xFF0B1222),
-            behavior: SnackBarBehavior.floating,
-            duration: _adminHoldDuration,
-            content: Text(
-              'Удерживайте обе иконки 10 секунд для входа в административный контур.',
-            ),
-          ),
-        );
-    }
-
-    _adminHoldTimer = Timer(_adminHoldDuration, () {
-      if (!mounted || !_isRadarPressed || !_isModelPressed) {
+    if (_adminTapCount >= _adminTapTarget) {
+      _adminTapCount = 0;
+      final twoFactorCode = await _promptTwoFactorCode();
+      if (!mounted || twoFactorCode == null || twoFactorCode.isEmpty) {
         return;
       }
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      _openAdminDashboard();
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => AdminDashboardScreen(
+            initialTwoFactorCode: twoFactorCode,
+          ),
+        ),
+      );
+      return;
+    }
+
+    _adminTapResetTimer = Timer(_adminTapWindow, () {
+      _adminTapCount = 0;
     });
   }
 
-  void _openAdminDashboard() {
-    _adminHoldTimer?.cancel();
-    _adminHoldTimer = null;
-    _isAdminHoldArmed = false;
-    _isRadarPressed = false;
-    _isModelPressed = false;
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+  Future<String?> _promptTwoFactorCode() async {
+    final codeController = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0B1324),
+          title: const Text(
+            '2FA код',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          ),
+          content: TextField(
+            controller: codeController,
+            autofocus: true,
+            keyboardType: TextInputType.visiblePassword,
+            textInputAction: TextInputAction.done,
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              hintText: 'Введите код',
+              hintStyle: TextStyle(color: Colors.white38),
+            ),
+            onSubmitted: (value) => Navigator.of(dialogContext).pop(value.trim()),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(codeController.text.trim()),
+              child: const Text('Войти'),
+            ),
+          ],
+        );
+      },
     );
+    codeController.dispose();
+    return code?.trim();
   }
 
   @override
@@ -141,7 +147,7 @@ class _AboutScreenState extends State<AboutScreen>
                       const SizedBox(height: 32),
                       _buildSectionTitle('МИССИЯ ПРОЕКТА'),
                       _buildTextCard(
-                        '«Пульс города» объединяет жителей, городские сервисы и карту инцидентов в едином контуре. Приложение помогает быстро зафиксировать проблему, увидеть ситуацию в районах и сократить путь от сигнала до реакции.',
+                        '«Пульс города» объединяет жителей, городские сервисы и карту инцидентов в одном мобильном контуре. Приложение помогает быстро зафиксировать проблему, увидеть ситуацию в районе и сократить путь от сигнала до реакции.',
                       ),
                       const SizedBox(height: 32),
                       _buildSectionTitle('КЛЮЧЕВЫЕ ВОЗМОЖНОСТИ'),
@@ -149,7 +155,6 @@ class _AboutScreenState extends State<AboutScreen>
                         Icons.radar_rounded,
                         'Радар обращений',
                         'Фиксация инцидентов, маршрутизация по категориям и единая точка сбора городских сигналов.',
-                        secretTarget: _SecretHoldTarget.radar,
                       ),
                       _buildFeatureItem(
                         Icons.query_stats_rounded,
@@ -159,8 +164,7 @@ class _AboutScreenState extends State<AboutScreen>
                       _buildFeatureItem(
                         Icons.view_in_ar_rounded,
                         '3D-моделирование и камеры',
-                        'Пространственная навигация по городу, просмотр рабочих видеопотоков и быстрый переход к проблемной точке.',
-                        secretTarget: _SecretHoldTarget.model,
+                        'Пространственная навигация по городу, просмотр видеопотоков и быстрый переход к проблемной точке.',
                       ),
                       const SizedBox(height: 32),
                       _buildSectionTitle('ТЕХНОЛОГИЧЕСКОЕ ЯДРО'),
@@ -174,28 +178,42 @@ class _AboutScreenState extends State<AboutScreen>
                           _AboutTag(label: 'FastAPI Metrics'),
                         ],
                       ),
+                      const SizedBox(height: 32),
+                      _buildSectionTitle('ПРАВИЛА И КОНФИДЕНЦИАЛЬНОСТЬ'),
+                      _buildFeatureItem(
+                        Icons.privacy_tip_rounded,
+                        'Данные и согласие',
+                        'Используя приложение, вы соглашаетесь с тем, что часть данных обрабатывается на защищенных международных серверах (распределенная инфраструктура). Данные не передаются третьим лицам без вашего согласия.',
+                      ),
+                      _buildFeatureItem(
+                        Icons.admin_panel_settings_rounded,
+                        'Режим администратора',
+                        'Скрытый режим для авторизованных сотрудников позволяет управлять геопространственными данными, включая скрытые 3D-модели.',
+                      ),
                       const SizedBox(height: 40),
                       Center(
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(
-                                  color: _accent, shape: BoxShape.circle),
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => unawaited(_handleAdminTap()),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            child: Column(
+                              children: [
+                                _FooterBeacon(),
+                                SizedBox(height: 8),
+                                Text(
+                                  'ВЕРСИЯ 2.1.ADMIN READY\nНИЖНЕВАРТОВСК · ЦИФРОВОЙ КОНТУР',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.white24,
+                                    fontSize: 10,
+                                    letterSpacing: 1.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'ВЕРСИЯ 2.1.ADMIN READY\nНИЖНЕВАРТОВСК · ЦИФРОВОЙ КОНТУР',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white24,
-                                fontSize: 10,
-                                letterSpacing: 1.5,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 40),
@@ -262,7 +280,7 @@ class _AboutScreenState extends State<AboutScreen>
                         colors: [
                           Colors.transparent,
                           _accent.withAlpha(150),
-                          Colors.transparent
+                          Colors.transparent,
                         ],
                       ),
                     ),
@@ -270,11 +288,11 @@ class _AboutScreenState extends State<AboutScreen>
                 );
               },
             ),
-            Center(
+            const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
+                  Text(
                     'ПУЛЬС ГОРОДА',
                     style: TextStyle(
                       color: Colors.white,
@@ -283,22 +301,8 @@ class _AboutScreenState extends State<AboutScreen>
                       letterSpacing: 8,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _accent.withAlpha(40),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'CITY SIGNAL ONLINE',
-                      style: TextStyle(
-                          color: _accent,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold),
-                    ),
-                  ),
+                  SizedBox(height: 8),
+                  _MonitorBadge(),
                 ],
               ),
             ),
@@ -340,10 +344,11 @@ class _AboutScreenState extends State<AboutScreen>
       child: Text(
         text,
         style: TextStyle(
-            color: Colors.white.withAlpha(200),
-            fontSize: 14,
-            height: 1.6,
-            letterSpacing: 0.5),
+          color: Colors.white.withAlpha(200),
+          fontSize: 14,
+          height: 1.6,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
@@ -351,53 +356,23 @@ class _AboutScreenState extends State<AboutScreen>
   Widget _buildFeatureItem(
     IconData icon,
     String title,
-    String desc, {
-    _SecretHoldTarget? secretTarget,
-  }) {
+    String desc,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Listener(
-            onPointerDown: secretTarget == null
-                ? null
-                : (_) => _updateSecretHold(
-                      target: secretTarget,
-                      isPressed: true,
-                    ),
-            onPointerUp: secretTarget == null
-                ? null
-                : (_) => _updateSecretHold(
-                      target: secretTarget,
-                      isPressed: false,
-                    ),
-            onPointerCancel: secretTarget == null
-                ? null
-                : (_) => _updateSecretHold(
-                      target: secretTarget,
-                      isPressed: false,
-                    ),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: _accent.withAlpha(secretTarget == null ? 20 : 28),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: _accent.withAlpha(secretTarget == null ? 40 : 70),
-                ),
-                boxShadow: secretTarget == null
-                    ? null
-                    : [
-                        BoxShadow(
-                          color: _accent.withAlpha(22),
-                          blurRadius: 18,
-                          spreadRadius: -8,
-                        ),
-                      ],
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _accent.withAlpha(20),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: _accent.withAlpha(40),
               ),
-              child: Icon(icon, color: _accent, size: 24),
             ),
+            child: Icon(icon, color: _accent, size: 24),
           ),
           const SizedBox(width: 20),
           Expanded(
@@ -407,15 +382,19 @@ class _AboutScreenState extends State<AboutScreen>
                 Text(
                   title,
                   style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold),
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   desc,
                   style: const TextStyle(
-                      color: Colors.white54, fontSize: 13, height: 1.5),
+                    color: Colors.white54,
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
                 ),
               ],
             ),
@@ -438,11 +417,6 @@ class _AboutScreenState extends State<AboutScreen>
   }
 }
 
-enum _SecretHoldTarget {
-  radar,
-  model,
-}
-
 class _AboutTag extends StatelessWidget {
   const _AboutTag({required this.label});
 
@@ -460,7 +434,49 @@ class _AboutTag extends StatelessWidget {
       child: Text(
         label,
         style: const TextStyle(
-            color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w600),
+          color: Colors.white54,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _FooterBeacon extends StatelessWidget {
+  const _FooterBeacon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 6,
+      height: 6,
+      decoration: const BoxDecoration(
+        color: Color(0xFF00D9FF),
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+}
+
+class _MonitorBadge extends StatelessWidget {
+  const _MonitorBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF00D9FF).withAlpha(40),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Text(
+        'CITY SIGNAL ONLINE',
+        style: TextStyle(
+          color: Color(0xFF00D9FF),
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -528,3 +544,4 @@ class _MonitorGridPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+

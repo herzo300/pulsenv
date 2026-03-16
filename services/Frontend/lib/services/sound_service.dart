@@ -1,10 +1,11 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 
-/// Сервис для управления звуками в приложении.
 class SoundService {
   static final SoundService _instance = SoundService._internal();
+
   factory SoundService() => _instance;
+
   SoundService._internal();
 
   final AudioPlayer _player = AudioPlayer();
@@ -17,34 +18,32 @@ class SoundService {
     _isMuted = mute;
   }
 
-  /// Проиграть звук для сплэш-экрана "Цифровая Невесомость"
   Future<void> playSplash() async {
     if (_isMuted) return;
     try {
       await _splashPlayer.play(AssetSource('sounds/soft_splash.wav'));
-    } catch (e) {
-      debugPrint('Ошибка воспроизведения звука сплэша: $e');
+    } catch (error) {
+      debugPrint('Splash sound failed: $error');
     }
   }
 
-  /// Проиграть звук на основе выбранного дизайна
   Future<void> playSplashDesign(String designName) async {
     if (_isMuted) return;
-    String file = const {
-      'aurora': 'splash_aurora.wav',
-      'network': 'splash_network.wav',
-      'gravity': 'soft_splash.wav',
-      'cyber': 'soft_splash.wav',
-    }[designName] ?? 'soft_splash.wav';
-    
+    final file = <String, String>{
+          'aurora': 'splash_aurora.wav',
+          'network': 'splash_network.wav',
+          'gravity': 'soft_splash.wav',
+          'cyber': 'soft_splash.wav',
+        }[designName] ??
+        'soft_splash.wav';
+
     try {
       await _splashPlayer.play(AssetSource('sounds/$file'));
-    } catch (e) {
-      debugPrint('Ошибка воспроизведения альт. сплэша ($designName): $file -> $e');
+    } catch (error) {
+      debugPrint('Alternate splash sound failed: $error');
     }
   }
 
-  /// Остановить звук сплэша
   Future<void> stopSplash() async {
     try {
       if (_splashPlayer.state == PlayerState.playing) {
@@ -53,79 +52,60 @@ class SoundService {
       if (_pulsePlayer.state == PlayerState.playing) {
         await _pulsePlayer.stop();
       }
-    } catch (e) {
-      debugPrint('Ошибка остановки сплэша: $e');
+    } catch (error) {
+      debugPrint('Stop splash failed: $error');
     }
   }
 
-  /// Проиграть звук пульса (сердцебиение)
   Future<void> playPulse() async {
     if (_isMuted) return;
     try {
       await _pulsePlayer.play(AssetSource('sounds/soft_pulse.wav'));
-    } catch (e) {
-      debugPrint('Ошибка воспроизведения пульса: $e');
+    } catch (error) {
+      debugPrint('Pulse sound failed: $error');
     }
   }
 
-  /// Проиграть звук появления новой жалобы (общий)
   Future<void> playNewComplaint() async {
     if (_isMuted) return;
     try {
       await _player.play(AssetSource('sounds/new_item.wav'));
-    } catch (e) {
-      debugPrint('Ошибка воспроизведения звука новой жалобы: $e');
+    } catch (error) {
+      debugPrint('New complaint sound failed: $error');
     }
   }
 
-  /// Проиграть звук для конкретной категории
+  Future<void> playSelection() async {
+    if (_isMuted) return;
+    try {
+      await _player.play(AssetSource('sounds/new_item.wav'));
+    } catch (error) {
+      debugPrint('Selection sound failed: $error');
+    }
+  }
+
   Future<void> playCategorySound(String category) async {
     if (_isMuted) return;
-    
-    String filename;
-    switch (category) {
-      case 'Дороги':
-        filename = 'cat_roads.wav';
-        break;
-      case 'ЖКХ':
-        filename = 'cat_zhkh.wav';
-        break;
-      case 'Освещение':
-        filename = 'cat_light.wav';
-        break;
-      case 'Транспорт':
-        filename = 'cat_transport.wav';
-        break;
-      case 'Экология':
-        filename = 'cat_ecology.wav';
-        break;
-      case 'Безопасность':
-        filename = 'cat_safety.wav';
-        break;
-      case 'Снег/Наледь':
-        filename = 'cat_snow.wav';
-        break;
-      case 'Медицина':
-      case 'Здравоохранение':
-        filename = 'cat_med.wav';
-        break;
-      case 'Образование':
-        filename = 'cat_edu.wav';
-        break;
-      case 'Парковки':
-        filename = 'cat_parking.wav';
-        break;
-      case 'Благоустройство':
-        filename = 'cat_garden.wav'; // Gardening/Parks
-        break;
-      default:
-        filename = 'cat_other.wav';
-    }
+
+    final filename = switch (category) {
+      'Дороги' => 'cat_roads.wav',
+      'ЖКХ' => 'cat_zhkh.wav',
+      'Освещение' => 'cat_light.wav',
+      'Транспорт' => 'cat_transport.wav',
+      'Экология' => 'cat_ecology.wav',
+      'Безопасность' => 'cat_safety.wav',
+      'Снег/Наледь' => 'cat_snow.wav',
+      'Медицина' || 'Здравоохранение' => 'cat_med.wav',
+      'Образование' => 'cat_edu.wav',
+      'Парковки' => 'cat_parking.wav',
+      'Благоустройство' => 'cat_garden.wav',
+      _ => 'cat_other.wav',
+    };
 
     try {
       await _player.play(AssetSource('sounds/$filename'));
-    } catch (e) {
-      debugPrint('Ошибка воспроизведения звука категории $category: $e');
+    } catch (error) {
+      debugPrint('Category sound failed for $category: $error');
     }
   }
 

@@ -325,6 +325,21 @@
       Cesium.Ion.defaultAccessToken = token;
     };
 
+    // АРХИТЕКТУРА СТОРОННЕГО СЕРВЕРА ДЛЯ 3D ТАЙЛОВ
+    const INFRA_CONFIG = {
+      // ПУТЬ 1: Google Photorealistic 3D Tiles (БЕСПЛАТНО / Без ключей)
+      // Берется из дефолтного токена Cesium (хватает на инди-проекты)
+      useGoogleTiles: true,
+
+      // ПУТЬ 2: Использовать официальное CDN-облако Cesium Ion
+      useCesiumIon: false, 
+      ionAssetId: null, // Сюда нужно будет вписать ID модели после ее загрузки в Ion
+      
+      // ПУТЬ 3: Использовать ваш Supabase Storage или любой свой сервер (Proxy)
+      useCustomServer: false,
+      customTilesetUrl: "https://[ВАШ_ПРОЕКТ].supabase.co/storage/v1/object/public/3dtiles/nv_2025/tileset.json"
+    };
+
     const DEFAULT_LAUNCH_CONTEXT = {
       lat: 60.91927,
       lng: 76.55536,
@@ -522,34 +537,53 @@
       );
 
       try {
-        const candidates = [
-          `https://geoportal.n-vartovsk.ru/tls/1/${config.id}?group=User_2&file=tileset.json`,
-          `https://geoportal.n-vartovsk.ru/tls/1/${config.id}/tileset.json?group=1&file=tileset.json`,
-          `https://geoportal.n-vartovsk.ru/tls/1/${config.id}/tileset.json`,
-          `https://geoportal.n-vartovsk.ru/tls/1/${config.id}?group=1&file=${config.id}`,
-        ];
-
         let tileset = null;
         let lastErr = null;
 
-        for (const url of candidates) {
+        const tileOptions = {
+          skipLevelOfDetail: true,
+          baseScreenSpaceError: 1024,
+          skipScreenSpaceErrorFactor: 16,
+          skipLevels: 1,
+          immediatelyLoadDesiredLevelOfDetail: false,
+          loadSiblings: false,
+          cullWithChildrenBounds: true,
+        };
+
+        if (INFRA_CONFIG.useGoogleTiles) {
+          // Интеграция с невероятно реалистичными тайлами Google Earth!
           try {
-            tileset = await Cesium.Cesium3DTileset.fromUrl(url, {
-              skipLevelOfDetail: true,
-              baseScreenSpaceError: 1024,
-              skipScreenSpaceErrorFactor: 16,
-              skipLevels: 1,
-              immediatelyLoadDesiredLevelOfDetail: false,
-              loadSiblings: false,
-              cullWithChildrenBounds: true,
-            });
-            if (tileset) break;
-          } catch (err) {
-            lastErr = err;
+            tileset = await Cesium.createGooglePhotorealistic3DTileset();
+          } catch(e) {
+            console.warn('Google Tiles init error:', e);
+            throw e;
+          }
+        } else if (INFRA_CONFIG.useCesiumIon && INFRA_CONFIG.ionAssetId) {
+          // Идеальный вариант: грузим из быстрого мирового CDN
+          tileset = await Cesium.Cesium3DTileset.fromIonAssetId(INFRA_CONFIG.ionAssetId, tileOptions);
+        } else if (INFRA_CONFIG.useCustomServer) {
+          // Загрузка с вашего сервера/Supabase
+          tileset = await Cesium.Cesium3DTileset.fromUrl(INFRA_CONFIG.customTilesetUrl, tileOptions);
+        } else {
+          // Попытка загрузить напрямую с геопортала (подвержено ошибкам CORS и долгой загрузке)
+          const candidates = [
+            `https://geoportal.n-vartovsk.ru/tls/1/${config.id}?group=User_2&file=tileset.json`,
+            `https://geoportal.n-vartovsk.ru/tls/1/${config.id}/tileset.json?group=1&file=tileset.json`,
+            `https://geoportal.n-vartovsk.ru/tls/1/${config.id}/tileset.json`,
+            `https://geoportal.n-vartovsk.ru/tls/1/${config.id}?group=1&file=${config.id}`,
+          ];
+
+          for (const url of candidates) {
+            try {
+              tileset = await Cesium.Cesium3DTileset.fromUrl(url, tileOptions);
+              if (tileset) break;
+            } catch (err) {
+              lastErr = err;
+            }
           }
         }
-
-        if (!tileset) throw lastErr || new Error('No tileset candidate worked');
+        
+        if (!tileset) throw lastErr || new Error('No tileset loaded from any source');
 
         bindTilesetProgress(tileset);
         viewer.scene.primitives.add(tileset);
@@ -809,21 +843,21 @@
       const loader = document.getElementById('loading');
       if (loader && loader.style.display !== 'none' && !tilesLoaded) {
         setLoadingState(
-          'Задержка тайлов',
-          '3D-тайлы отвечают медленно. Пробуем закончить вход через резервный контур.',
+          'Задержка тайлов сервера',
+          '3D-источник отвечает медленно из-за лимита сервера. Ожидаем пакеты...',
           0.72,
         );
       }
-    }, 9000);
+    }, 8000);
 
     setTimeout(() => {
       const loader = document.getElementById('loading');
       if (loader && loader.style.display !== 'none' && !tilesLoaded) {
         hideLoading();
-        showStatus('Загрузка тайлов затянулась', '#ef4444');
+        showStatus('Ошибка подключения к 3D CDN', '#ef4444');
         notifyHost('scene-timeout');
       }
-    }, 15000);
+    }, 25000);
   </script>
 </body>
 
