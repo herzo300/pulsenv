@@ -17,12 +17,12 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from .admin_metrics import extract_client_ip, metrics_store
-from .security import parse_cors_origins
-from .routers import admin_metrics, agent, ai, complaints, core, reports
-from .routers import map_data
-from .routers import uk_ratings, watchdog, visual_search, vlm, profile, daily_digest
-from .routers.telegram_router import router as telegram_router
+from services.Backend.admin_metrics import extract_client_ip, metrics_store
+from services.Backend.security import parse_cors_origins
+from services.Backend.routers import admin_metrics, agent, ai, complaints, core, reports
+from services.Backend.routers import map_data
+from services.Backend.routers import uk_ratings, watchdog, visual_search, vlm, profile, daily_digest
+from services.Backend.routers.telegram_router import router as telegram_router
 
 logger = logging.getLogger(__name__)
 
