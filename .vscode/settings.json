@@ -7,5 +7,6 @@
     "dart.flutterBuildAdditionalArgs": [
         "--no-tree-shake-icons"
     ],
-    "CodeGPT.apiKey": "Google AI Studio"
+    "CodeGPT.apiKey": "Google AI Studio",
+    "java.configuration.updateBuildConfiguration": "automatic"
 }

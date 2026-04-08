@@ -20,7 +20,7 @@ if (tg) {
 // CONFIGURATION
 // ══════════════════════════════════════════════════════════
 const CONFIG = {
-  supabaseApi: 'https://xpainxohbdoruakcijyq.supabase.co/functions/v1/api',
+  backendApi: '/api',
   weatherApi: 'https://api.open-meteo.com/v1/forecast',
   coords: { lat: 60.9344, lon: 76.5531 },
   timeout: 10000
@@ -468,7 +468,7 @@ function icon(name, size = 20) {
 // ══════════════════════════════════════════════════════════
 async function loadData() {
   try {
-    const res = await fetch(`${CONFIG.supabaseApi}/infographic`, {
+    const res = await fetch(`${CONFIG.backendApi}/infographic`, {
       signal: AbortSignal.timeout(CONFIG.timeout)
     });
     if (res.ok) {
@@ -604,7 +604,7 @@ setInterval(loadWeather, 10 * 60 * 1000);
 
 async function loadComplaints() {
   try {
-    const res = await fetch(`${CONFIG.supabaseApi}/complaints`, {
+    const res = await fetch(`${CONFIG.backendApi}/complaints`, {
       signal: AbortSignal.timeout(5000)
     });
     if (res.ok) {

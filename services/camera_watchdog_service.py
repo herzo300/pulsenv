@@ -1,6 +1,6 @@
 # services/camera_watchdog_service.py
 """
-Camera Watchdog — автоматический анализ снапшотов городских камер через Grok Vision.
+Camera Watchdog — автоматический анализ снапшотов городских камер через Z.AI Vision.
 Фоновая задача: периодически делает скриншоты с камер и ищет:
   - Мусорные свалки
   - ДТП / аварии
@@ -203,7 +203,7 @@ async def analyze_snapshot(image_bytes: bytes) -> Optional[Dict[str, Any]]:
 
 
 async def scan_camera(camera: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Scan a single camera: fetch snapshot → YOLO edge filter → [escalate] → Grok Vision → alert."""
+    """Scan a single camera: fetch snapshot → YOLO edge filter → [escalate] → Z.AI Vision → alert."""
     stream_url = camera.get("s") or camera.get("stream_url") or ""
     name = camera.get("n") or camera.get("name") or "Unknown"
     camera_id = camera.get("id") or name

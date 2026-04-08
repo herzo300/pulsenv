@@ -1,252 +1,2270 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Пульс города — Нижневартовск</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
-<script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Пульс города — Нижневартовск</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+  <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+
+  <style>
+    /* ===========================
+   DESIGN TOKENS
+   =========================== */
+    :root {
+      --bg-primary: #0a0c10;
+      --bg-surface: #12151c;
+      --bg-elevated: #1a1e28;
+      --text-primary: #f0f4f8;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent-cyan: #00f0ff;
+      --accent-violet: #7c3aed;
+      --accent-orange: #ff6b35;
+      --accent-green: #00ff88;
+      --accent-red: #ff4757;
+      --accent-amber: #ffc107;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
+      --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.4);
+      --glow-cyan: 0 0 20px rgba(0, 240, 255, 0.3);
+      --glow-violet: 0 0 20px rgba(124, 58, 237, 0.3);
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-display: 'Bebas Neue', sans-serif;
+      --transition-fast: 150ms ease;
+      --transition-normal: 300ms ease;
+    }
+
+    /* ===========================
+   RESET & BASE
+   =========================== */
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      -webkit-tap-highlight-color: transparent;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      touch-action: manipulation;
+    }
+
+    /* ===========================
+   AURORA BACKGROUND
+   =========================== */
+    #auroraCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ===========================
+   SPLASH SCREEN
+   =========================== */
+    #splash {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-primary);
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+
+    #splash.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .splash-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      padding: 24px;
+      max-width: 360px;
+      width: 100%;
+    }
+
+    .oil-drop-container {
+      position: relative;
+      width: 120px;
+      height: 144px;
+    }
+
+    .oil-drop {
+      width: 100%;
+      height: 100%;
+      animation: dropFloat 3s ease-in-out infinite;
+    }
+
+    @keyframes dropFloat {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-8px);
+      }
+    }
+
+    .pulse-rings {
+      position: absolute;
+      top: 60%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100px;
+      height: 100px;
+    }
+
+    .pulse-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 2px solid var(--accent-cyan);
+      opacity: 0;
+      animation: pulseExpand 2.4s ease-out infinite;
+    }
+
+    .pulse-ring:nth-child(2) {
+      animation-delay: 0.8s;
+    }
+
+    .pulse-ring:nth-child(3) {
+      animation-delay: 1.6s;
+    }
+
+    @keyframes pulseExpand {
+      0% {
+        transform: scale(0.5);
+        opacity: 0.8;
+      }
+
+      100% {
+        transform: scale(2.5);
+        opacity: 0;
+      }
+    }
+
+    .splash-title {
+      font-family: var(--font-display);
+      font-size: 36px;
+      letter-spacing: 2px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-transform: uppercase;
+    }
+
+    .title-icon {
+      font-size: 32px;
+      color: var(--accent-cyan);
+    }
+
+    .splash-subtitle {
+      font-family: var(--font-display);
+      font-size: 16px;
+      letter-spacing: 4px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+
+    /* Rhythm Canvas */
+    .rhythm-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+    }
+
+    #rhythmCanvas {
+      width: 100%;
+      max-width: 320px;
+      height: 80px;
+      border-radius: var(--radius-md);
+      background: rgba(18, 21, 28, 0.6);
+      backdrop-filter: blur(12px);
+    }
+
+    .rhythm-info {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .rhythm-bpm {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .rhythm-label {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .rhythm-mood {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent-green);
+      margin-left: 8px;
+    }
+
+    /* Splash Stats */
+    .splash-stats {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .stat-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 12px 16px;
+      background: rgba(26, 30, 40, 0.8);
+      backdrop-filter: blur(12px);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      min-width: 90px;
+      transition: transform var(--transition-fast);
+    }
+
+    .stat-card:active {
+      transform: scale(0.95);
+    }
+
+    .stat-icon {
+      font-size: 20px;
+      color: var(--accent-cyan);
+    }
+
+    .stat-card:nth-child(2) .stat-icon {
+      color: var(--accent-orange);
+    }
+
+    .stat-card:nth-child(3) .stat-icon {
+      color: var(--accent-green);
+    }
+
+    .stat-num {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Splash Progress */
+    .splash-progress {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .progress-bar {
+      position: relative;
+      width: 100%;
+      height: 6px;
+      background: var(--bg-elevated);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-violet));
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .progress-glow {
+      position: absolute;
+      top: -4px;
+      left: 0;
+      height: 14px;
+      width: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.3), transparent);
+      filter: blur(4px);
+      pointer-events: none;
+    }
+
+    .progress-text {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ===========================
+   MAIN APP
+   =========================== */
+    #app {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      z-index: 1;
+    }
+
+    /* ===========================
+   TAB NAVIGATION
+   =========================== */
+    #tabNav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      background: var(--bg-surface);
+      border-top: 1px solid rgba(148, 163, 184, 0.08);
+      padding: 6px 0;
+      padding-bottom: env(safe-area-inset-bottom, 6px);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    .tab-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 6px 4px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 500;
+      font-family: var(--font-body);
+      cursor: pointer;
+      transition: color var(--transition-fast);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .tab-btn .iconify {
+      font-size: 22px;
+      transition: color var(--transition-fast), transform var(--transition-fast);
+    }
+
+    .tab-btn.active {
+      color: var(--accent-cyan);
+    }
+
+    .tab-btn.active .iconify {
+      color: var(--accent-cyan);
+      transform: scale(1.1);
+    }
+
+    .tab-btn:active {
+      transform: scale(0.92);
+    }
+
+    /* ===========================
+   TAB CONTENT
+   =========================== */
+    .tab-content {
+      flex: 1;
+      display: none;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tab-content.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ===========================
+   MAP TAB
+   =========================== */
+    #mapTab {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      background: var(--bg-primary);
+    }
+
+    /* Leaflet overrides for dark theme */
+    .leaflet-tile-pane {
+      filter: saturate(0.7) brightness(0.85);
+    }
+
+    .leaflet-control-zoom {
+      display: none;
+    }
+
+    .leaflet-control-attribution {
+      background: rgba(18, 21, 28, 0.85) !important;
+      color: var(--text-muted) !important;
+      font-size: 9px !important;
+      backdrop-filter: blur(8px);
+    }
+
+    .leaflet-control-attribution a {
+      color: var(--accent-cyan) !important;
+    }
+
+    /* ===========================
+   TOP BAR
+   =========================== */
+    #topBar {
+      position: absolute;
+      top: 0;
+      left: 8px;
+      right: 8px;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: rgba(18, 21, 28, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(148, 163, 184, 0.08);
+      box-shadow: var(--shadow-glass);
+    }
+
+    .tb-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .oil-pulse-mini {
+      color: var(--accent-cyan);
+      display: flex;
+      animation: miniPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes miniPulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.6;
+      }
+    }
+
+    .tb-title {
+      font-family: var(--font-display);
+      font-size: 18px;
+      letter-spacing: 1px;
+      color: var(--text-primary);
+    }
+
+    .tb-right {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .stat-mini {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      line-height: 1;
+    }
+
+    .stat-mini .num {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-mini .lbl {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .stat-mini.red .num {
+      color: var(--accent-red);
+    }
+
+    .stat-mini.green .num {
+      color: var(--accent-green);
+    }
+
+    /* ===========================
+   FILTER PANEL
+   =========================== */
+    #filterPanel {
+      position: absolute;
+      top: 64px;
+      left: 8px;
+      right: 8px;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px;
+      background: rgba(18, 21, 28, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(148, 163, 184, 0.08);
+      box-shadow: var(--shadow-glass);
+      max-height: 180px;
+      overflow-y: auto;
+      transform: translateY(-120%);
+      opacity: 0;
+      transition: transform var(--transition-normal), opacity var(--transition-normal);
+    }
+
+    #filterPanel.visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .filter-chip {
+      padding: 5px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      background: rgba(26, 30, 40, 0.6);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .filter-chip.active {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    .filter-chip:active {
+      transform: scale(0.95);
+    }
+
+    /* ===========================
+   FAB (Floating Action Button)
+   =========================== */
+    .fab {
+      position: absolute;
+      bottom: 80px;
+      right: 16px;
+      z-index: 60;
+      width: 56px;
+      height: 56px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .fab-drop {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .fab-drop svg {
+      width: 56px;
+      height: 68px;
+      filter: drop-shadow(var(--glow-cyan));
+      animation: fabBounce 2s ease-in-out infinite;
+    }
+
+    @keyframes fabBounce {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-4px);
+      }
+    }
+
+    .fab-icon {
+      position: absolute;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--bg-primary);
+    }
+
+    .fab-ripples {
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .fab-ripple {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 2px solid var(--accent-cyan);
+      opacity: 0;
+      animation: fabRipple 2.4s ease-out infinite;
+    }
+
+    .fab-ripple:nth-child(2) {
+      animation-delay: 1.2s;
+    }
+
+    @keyframes fabRipple {
+      0% {
+        transform: scale(0.8);
+        opacity: 0.6;
+      }
+
+      100% {
+        transform: scale(1.6);
+        opacity: 0;
+      }
+    }
+
+    /* ===========================
+   TIMELINE PANEL
+   =========================== */
+    .timeline-panel {
+      position: absolute;
+      bottom: 70px;
+      left: 8px;
+      right: 8px;
+      z-index: 50;
+      height: 80px;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: rgba(18, 21, 28, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.08);
+      display: none;
+    }
+
+    .timeline-panel.visible {
+      display: block;
+    }
+
+    #timelineCanvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ===========================
+   STATS TAB
+   =========================== */
+    #statsTab {
+      padding: 16px;
+      padding-bottom: 80px;
+      overflow-y: auto;
+    }
+
+    .stats-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .stats-card {
+      background: var(--bg-elevated);
+      backdrop-filter: blur(12px);
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(148, 163, 184, 0.08);
+      padding: 16px;
+      box-shadow: var(--shadow-glass);
+    }
+
+    .stats-card h3 {
+      font-family: var(--font-display);
+      font-size: 20px;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+
+    .stats-card .chart-wrapper {
+      position: relative;
+      width: 100%;
+      max-height: 280px;
+    }
+
+    .stats-summary {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .summary-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px;
+      background: rgba(26, 30, 40, 0.6);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .summary-item .value {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .summary-item .value.orange {
+      color: var(--accent-orange);
+    }
+
+    .summary-item .value.violet {
+      color: var(--accent-violet);
+    }
+
+    .summary-item .value.green {
+      color: var(--accent-green);
+    }
+
+    .summary-item .label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 4px;
+    }
+
+    /* ===========================
+   RATING TAB
+   =========================== */
+    #ratingTab {
+      padding: 16px;
+      padding-bottom: 80px;
+      overflow-y: auto;
+    }
+
+    .rating-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .rating-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      background: var(--bg-elevated);
+      backdrop-filter: blur(12px);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(148, 163, 184, 0.08);
+      box-shadow: var(--shadow-glass);
+      transition: transform var(--transition-fast);
+    }
+
+    .rating-card:active {
+      transform: scale(0.98);
+    }
+
+    .rank-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      font-size: 16px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .rank-badge.gold {
+      background: linear-gradient(135deg, #ffd700, #ffb300);
+      color: #1a1a1a;
+    }
+
+    .rank-badge.silver {
+      background: linear-gradient(135deg, #c0c0c0, #a0a0a0);
+      color: #1a1a1a;
+    }
+
+    .rank-badge.bronze {
+      background: linear-gradient(135deg, #cd7f32, #a0522d);
+      color: #fff;
+    }
+
+    .rank-badge.default {
+      background: var(--bg-surface);
+      color: var(--text-muted);
+    }
+
+    .rating-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .rating-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .rating-score {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .rating-bar-bg {
+      flex: 1;
+      height: 8px;
+      background: rgba(26, 30, 40, 0.8);
+      border-radius: 4px;
+      overflow: hidden;
+      min-width: 60px;
+    }
+
+    .rating-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-violet));
+      transition: width 0.6s ease;
+    }
+
+    .rating-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      font-variant-numeric: tabular-nums;
+      min-width: 44px;
+      text-align: right;
+    }
+
+    /* ===========================
+   MODAL
+   =========================== */
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .modal.visible {
+      display: flex;
+    }
+
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-content {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      background: var(--bg-surface);
+      border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+      border: 1px solid rgba(148, 163, 184, 0.08);
+      border-bottom: none;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modalSlideUp 0.3s ease;
+    }
+
+    @keyframes modalSlideUp {
+      from {
+        transform: translateY(100%);
+      }
+
+      to {
+        transform: translateY(0);
+      }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .modal-header h3 {
+      font-family: var(--font-display);
+      font-size: 22px;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-primary);
+    }
+
+    .close-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(148, 163, 184, 0.1);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 20px;
+      transition: background var(--transition-fast);
+    }
+
+    .close-btn:active {
+      background: rgba(148, 163, 184, 0.2);
+    }
+
+    .modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .form-group label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .form-group label .iconify {
+      font-size: 16px;
+      color: var(--accent-cyan);
+    }
+
+    .form-group select,
+    .form-group textarea,
+    .form-group input[type="text"],
+    .form-group input[type="number"] {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-elevated);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 14px;
+      transition: border-color var(--transition-fast);
+      -webkit-appearance: none;
+    }
+
+    .form-group select:focus,
+    .form-group textarea:focus,
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.15);
+    }
+
+    .form-group select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 36px;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .form-group input::placeholder,
+    .form-group textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .gps-btn {
+      margin-left: auto;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--accent-cyan);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: none;
+      border: none;
+      font-family: var(--font-body);
+    }
+
+    .gps-btn:active {
+      opacity: 0.7;
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 10px;
+      padding: 16px;
+      border-top: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      border: none;
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-cyan), #00c8d4);
+      color: var(--bg-primary);
+    }
+
+    .btn-primary:active {
+      background: linear-gradient(135deg, #00c8d4, #00a8b4);
+    }
+
+    .btn-secondary {
+      background: rgba(148, 163, 184, 0.1);
+      color: var(--text-secondary);
+    }
+
+    .btn-secondary:active {
+      background: rgba(148, 163, 184, 0.15);
+    }
+
+    /* ===========================
+   TOAST
+   =========================== */
+    .toast {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      z-index: 300;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: var(--bg-elevated);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      box-shadow: var(--shadow-glass);
+      transform: translateY(-120%);
+      opacity: 0;
+      transition: transform var(--transition-normal), opacity var(--transition-normal);
+      pointer-events: none;
+    }
+
+    .toast.visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .toast-text {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .toast.success {
+      border-left: 3px solid var(--accent-green);
+    }
+
+    .toast.success .toast-icon {
+      color: var(--accent-green);
+    }
+
+    .toast.error {
+      border-left: 3px solid var(--accent-red);
+    }
+
+    .toast.error .toast-icon {
+      color: var(--accent-red);
+    }
+
+    .toast.info {
+      border-left: 3px solid var(--accent-cyan);
+    }
+
+    .toast.info .toast-icon {
+      color: var(--accent-cyan);
+    }
+
+    /* ===========================
+   CUSTOM SCROLLBAR
+   =========================== */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.2);
+      border-radius: 2px;
+    }
+
+    ::-webkit-scrollbar-thumb:active {
+      background: rgba(148, 163, 184, 0.35);
+    }
+
+    /* ===========================
+   RESPONSIVE
+   =========================== */
+    @media (min-width: 768px) {
+      .stats-summary {
+        grid-template-columns: repeat(4, 1fr);
+      }
+
+      #filterPanel {
+        left: 16px;
+        right: 16px;
+      }
+
+      #topBar {
+        left: 16px;
+        right: 16px;
+      }
+    }
+  </style>
 </head>
+
 <body>
-<!-- Aurora Background -->
-<canvas id="auroraCanvas"></canvas>
+  <!-- Aurora Background -->
+  <canvas id="auroraCanvas"></canvas>
 
-<!-- Splash Screen -->
-<div id="splash">
-  <div class="splash-content">
-    <div class="oil-drop-container">
-      <svg class="oil-drop" viewBox="0 0 200 240">
-        <defs>
-          <linearGradient id="oilGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style="stop-color:#0a0a1a;stop-opacity:1" />
-            <stop offset="50%" style="stop-color:#1a1a2e;stop-opacity:1" />
-            <stop offset="100%" style="stop-color:#16213e;stop-opacity:1" />
-          </linearGradient>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-            <feMerge>
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-        </defs>
-        <path class="drop-main" d="M100 20 C100 20, 40 80, 40 140 C40 180, 65 220, 100 220 C135 220, 160 180, 160 140 C160 80, 100 20, 100 20 Z" 
-              fill="url(#oilGradient)" filter="url(#glow)"/>
-        <ellipse class="drop-shine" cx="80" cy="80" rx="20" ry="30" fill="rgba(0,240,255,0.2)"/>
-        <circle class="drop-bubble" cx="100" cy="120" r="8" fill="rgba(0,255,136,0.15)"/>
-      </svg>
-      <div class="pulse-rings">
-        <div class="pulse-ring"></div>
-        <div class="pulse-ring"></div>
-        <div class="pulse-ring"></div>
-      </div>
-    </div>
-    
-    <h1 class="splash-title">
-      <span class="title-icon" data-icon="mdi:oil"></span>
-      Пульс города
-    </h1>
-    <div class="splash-subtitle">НИЖНЕВАРТОВСК</div>
-    
-    <div class="rhythm-container">
-      <canvas id="rhythmCanvas" width="320" height="80"></canvas>
-      <div class="rhythm-info">
-        <div class="rhythm-bpm" id="rhythmBpm">72</div>
-        <div class="rhythm-label">ударов/мин</div>
-        <div class="rhythm-mood" id="rhythmMood">Спокойно</div>
-      </div>
-    </div>
-    
-    <div class="splash-stats">
-      <div class="stat-card">
-        <span class="stat-icon" data-icon="mdi:alert-circle"></span>
-        <span class="stat-num" id="statTotal">—</span>
-        <span class="stat-label">проблем</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-icon" data-icon="mdi:alert"></span>
-        <span class="stat-num" id="statOpen">—</span>
-        <span class="stat-label">открыто</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-icon" data-icon="mdi:check-circle"></span>
-        <span class="stat-num" id="statResolved">—</span>
-        <span class="stat-label">решено</span>
-      </div>
-    </div>
-    
-    <div class="splash-progress">
-      <div class="progress-bar">
-        <div class="progress-fill" id="progressFill"></div>
-        <div class="progress-glow"></div>
-      </div>
-      <div class="progress-text" id="progressText">Загрузка данных...</div>
-    </div>
-  </div>
-</div>
-
-<!-- Main App -->
-<div id="app" style="display:none">
-  <!-- Tab Navigation -->
-  <div id="tabNav">
-    <button class="tab-btn active" data-tab="map">
-      <span data-icon="mdi:map"></span>
-      <span>Карта</span>
-    </button>
-    <button class="tab-btn" data-tab="stats">
-      <span data-icon="mdi:chart-box"></span>
-      <span>Статистика</span>
-    </button>
-    <button class="tab-btn" data-tab="rating">
-      <span data-icon="mdi:office-building"></span>
-      <span>Рейтинг УК</span>
-    </button>
-  </div>
-
-  <!-- Map Tab -->
-  <div id="mapTab" class="tab-content active">
-    <div id="map"></div>
-    
-    <!-- Top Bar -->
-    <div id="topBar">
-      <div class="tb-left">
-        <div class="oil-pulse-mini">
-          <svg viewBox="0 0 24 24" width="20" height="20">
-            <path d="M12 2C12 2 6 10 6 15C6 18.31 8.69 21 12 21C15.31 21 18 18.31 18 15C18 10 12 2 12 2Z" 
-                  fill="currentColor" opacity="0.8"/>
-          </svg>
-        </div>
-        <span class="tb-title">Пульс города</span>
-      </div>
-      <div class="tb-right">
-        <div class="stat-mini">
-          <span class="num" id="totalNum">0</span>
-          <span class="lbl">всего</span>
-        </div>
-        <div class="stat-mini red">
-          <span class="num" id="openNum">0</span>
-          <span class="lbl">открыто</span>
-        </div>
-        <div class="stat-mini green">
-          <span class="num" id="resolvedNum">0</span>
-          <span class="lbl">решено</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Filter Panel -->
-    <div id="filterPanel">
-      <div class="filter-row" id="categoryFilter"></div>
-      <div class="filter-row" id="statusFilter"></div>
-    </div>
-
-    <!-- FAB -->
-    <button class="fab" id="fabBtn" title="Подать жалобу">
-      <div class="fab-drop">
-        <svg viewBox="0 0 56 68">
+  <!-- Splash Screen -->
+  <div id="splash">
+    <div class="splash-content">
+      <div class="oil-drop-container">
+        <svg class="oil-drop" viewBox="0 0 200 240">
           <defs>
-            <linearGradient id="fabOilGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" style="stop-color:#00f0ff"/>
-              <stop offset="100%" style="stop-color:#00c8d4"/>
+            <linearGradient id="oilGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#0a0a1a;stop-opacity:1" />
+              <stop offset="50%" style="stop-color:#1a1a2e;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#16213e;stop-opacity:1" />
             </linearGradient>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
           </defs>
-          <path d="M28 4C28 4 12 20 12 32C12 42 18.5 50 28 50C37.5 50 44 42 44 32C44 20 28 4 28 4Z" 
-                fill="url(#fabOilGrad)"/>
+          <path class="drop-main"
+            d="M100 20 C100 20, 40 80, 40 140 C40 180, 65 220, 100 220 C135 220, 160 180, 160 140 C160 80, 100 20, 100 20 Z"
+            fill="url(#oilGradient)" filter="url(#glow)" />
+          <ellipse class="drop-shine" cx="80" cy="80" rx="20" ry="30" fill="rgba(0,240,255,0.2)" />
+          <circle class="drop-bubble" cx="100" cy="120" r="8" fill="rgba(0,255,136,0.15)" />
         </svg>
-        <span class="fab-icon">+</span>
+        <div class="pulse-rings">
+          <div class="pulse-ring"></div>
+          <div class="pulse-ring"></div>
+          <div class="pulse-ring"></div>
+        </div>
       </div>
-      <div class="fab-ripples">
-        <div class="fab-ripple"></div>
-        <div class="fab-ripple"></div>
-      </div>
-    </button>
 
-    <!-- Timeline -->
-    <div class="timeline-panel">
-      <canvas id="timelineCanvas"></canvas>
+      <h1 class="splash-title">
+        <span class="title-icon" data-icon="mdi:oil"></span>
+        Пульс города
+      </h1>
+      <div class="splash-subtitle">НИЖНЕВАРТОВСК</div>
+
+      <div class="rhythm-container">
+        <canvas id="rhythmCanvas" width="320" height="80"></canvas>
+        <div class="rhythm-info">
+          <div class="rhythm-bpm" id="rhythmBpm">72</div>
+          <div class="rhythm-label">ударов/мин</div>
+          <div class="rhythm-mood" id="rhythmMood">Спокойно</div>
+        </div>
+      </div>
+
+      <div class="splash-stats">
+        <div class="stat-card">
+          <span class="stat-icon" data-icon="mdi:alert-circle"></span>
+          <span class="stat-num" id="statTotal">—</span>
+          <span class="stat-label">проблем</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-icon" data-icon="mdi:alert"></span>
+          <span class="stat-num" id="statOpen">—</span>
+          <span class="stat-label">открыто</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-icon" data-icon="mdi:check-circle"></span>
+          <span class="stat-num" id="statResolved">—</span>
+          <span class="stat-label">решено</span>
+        </div>
+      </div>
+
+      <div class="splash-progress">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+          <div class="progress-glow"></div>
+        </div>
+        <div class="progress-text" id="progressText">Загрузка данных...</div>
+      </div>
     </div>
   </div>
 
-  <!-- Stats Tab -->
-  <div id="statsTab" class="tab-content">
-    <div class="stats-container">
-      <div id="statsContent"></div>
+  <!-- Main App -->
+  <div id="app" style="display:none">
+    <!-- Tab Navigation -->
+    <div id="tabNav">
+      <button class="tab-btn active" data-tab="map">
+        <span data-icon="mdi:map"></span>
+        <span>Карта</span>
+      </button>
+      <button class="tab-btn" data-tab="stats">
+        <span data-icon="mdi:chart-box"></span>
+        <span>Статистика</span>
+      </button>
+      <button class="tab-btn" data-tab="rating">
+        <span data-icon="mdi:office-building"></span>
+        <span>Рейтинг УК</span>
+      </button>
     </div>
-  </div>
 
-  <!-- Rating Tab -->
-  <div id="ratingTab" class="tab-content">
-    <div class="rating-container">
-      <div id="ratingContent"></div>
-    </div>
-  </div>
+    <!-- Map Tab -->
+    <div id="mapTab" class="tab-content active">
+      <div id="map"></div>
 
-  <!-- Complaint Form Modal -->
-  <div class="modal" id="complaintModal">
-    <div class="modal-backdrop" onclick="closeModal()"></div>
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3><span data-icon="mdi:file-document-edit"></span> Подать жалобу</h3>
-        <button class="close-btn" onclick="closeModal()">
-          <span data-icon="mdi:close"></span>
-        </button>
+      <!-- Top Bar -->
+      <div id="topBar">
+        <div class="tb-left">
+          <div class="oil-pulse-mini">
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path d="M12 2C12 2 6 10 6 15C6 18.31 8.69 21 12 21C15.31 21 18 18.31 18 15C18 10 12 2 12 2Z"
+                fill="currentColor" opacity="0.8" />
+            </svg>
+          </div>
+          <span class="tb-title">Пульс города</span>
+        </div>
+        <div class="tb-right">
+          <div class="stat-mini">
+            <span class="num" id="totalNum">0</span>
+            <span class="lbl">всего</span>
+          </div>
+          <div class="stat-mini red">
+            <span class="num" id="openNum">0</span>
+            <span class="lbl">открыто</span>
+          </div>
+          <div class="stat-mini green">
+            <span class="num" id="resolvedNum">0</span>
+            <span class="lbl">решено</span>
+          </div>
+        </div>
       </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label><span data-icon="mdi:tag"></span> Категория</label>
-          <select id="formCategory"></select>
+
+      <!-- Filter Panel -->
+      <div id="filterPanel">
+        <div class="filter-row" id="categoryFilter"></div>
+        <div class="filter-row" id="statusFilter"></div>
+      </div>
+
+      <!-- FAB -->
+      <button class="fab" id="fabBtn" title="Подать жалобу">
+        <div class="fab-drop">
+          <svg viewBox="0 0 56 68">
+            <defs>
+              <linearGradient id="fabOilGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#00f0ff" />
+                <stop offset="100%" style="stop-color:#00c8d4" />
+              </linearGradient>
+            </defs>
+            <path d="M28 4C28 4 12 20 12 32C12 42 18.5 50 28 50C37.5 50 44 42 44 32C44 20 28 4 28 4Z"
+              fill="url(#fabOilGrad)" />
+          </svg>
+          <span class="fab-icon">+</span>
         </div>
-        <div class="form-group">
-          <label><span data-icon="mdi:text"></span> Описание проблемы</label>
-          <textarea id="formDescription" rows="4" placeholder="Опишите проблему подробно..."></textarea>
+        <div class="fab-ripples">
+          <div class="fab-ripple"></div>
+          <div class="fab-ripple"></div>
         </div>
-        <div class="form-group">
-          <label>
-            <span data-icon="mdi:map-marker"></span> Адрес
-            <span class="gps-btn" id="gpsBtn">
-              <span data-icon="mdi:crosshairs-gps"></span> Определить
-            </span>
-          </label>
-          <input type="text" id="formAddress" placeholder="ул. Ленина, 15"/>
+      </button>
+
+      <!-- Timeline -->
+      <div class="timeline-panel">
+        <canvas id="timelineCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Stats Tab -->
+    <div id="statsTab" class="tab-content">
+      <div class="stats-container">
+        <div id="statsContent"></div>
+      </div>
+    </div>
+
+    <!-- Rating Tab -->
+    <div id="ratingTab" class="tab-content">
+      <div class="rating-container">
+        <div id="ratingContent"></div>
+      </div>
+    </div>
+
+    <!-- Complaint Form Modal -->
+    <div class="modal" id="complaintModal">
+      <div class="modal-backdrop" onclick="closeModal()"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3><span data-icon="mdi:file-document-edit"></span> Подать жалобу</h3>
+          <button class="close-btn" onclick="closeModal()">
+            <span data-icon="mdi:close"></span>
+          </button>
         </div>
-        <div class="form-row">
+        <div class="modal-body">
           <div class="form-group">
-            <label><span data-icon="mdi:latitude"></span> Широта</label>
-            <input type="number" id="formLat" step="0.0001" placeholder="60.9344"/>
+            <label><span data-icon="mdi:tag"></span> Категория</label>
+            <select id="formCategory"></select>
           </div>
           <div class="form-group">
-            <label><span data-icon="mdi:longitude"></span> Долгота</label>
-            <input type="number" id="formLng" step="0.0001" placeholder="76.5531"/>
+            <label><span data-icon="mdi:text"></span> Описание проблемы</label>
+            <textarea id="formDescription" rows="4" placeholder="Опишите проблему подробно..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>
+              <span data-icon="mdi:map-marker"></span> Адрес
+              <span class="gps-btn" id="gpsBtn">
+                <span data-icon="mdi:crosshairs-gps"></span> Определить
+              </span>
+            </label>
+            <input type="text" id="formAddress" placeholder="ул. Ленина, 15" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label><span data-icon="mdi:latitude"></span> Широта</label>
+              <input type="number" id="formLat" step="0.0001" placeholder="60.9344" />
+            </div>
+            <div class="form-group">
+              <label><span data-icon="mdi:longitude"></span> Долгота</label>
+              <input type="number" id="formLng" step="0.0001" placeholder="76.5531" />
+            </div>
           </div>
         </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeModal()">
+            <span data-icon="mdi:close"></span> Отмена
+          </button>
+          <button class="btn btn-primary" onclick="submitComplaint()">
+            <span data-icon="mdi:send"></span> Отправить
+          </button>
+        </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal()">
-          <span data-icon="mdi:close"></span> Отмена
-        </button>
-        <button class="btn btn-primary" onclick="submitComplaint()">
-          <span data-icon="mdi:send"></span> Отправить
-        </button>
-      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">
+      <span class="toast-icon" id="toastIcon"></span>
+      <span class="toast-text" id="toastText"></span>
     </div>
   </div>
 
-  <!-- Toast -->
-  <div class="toast" id="toast">
-    <span class="toast-icon" id="toastIcon"></span>
-    <span class="toast-text" id="toastText"></span>
-  </div>
-</div>
+  <script>
+    // ========================================================
+    //  CITY PULSE — TELEGRAM WEB APP
+    // ========================================================
+    (function () {
+      'use strict';
 
-<script>
+      // --- Constants ---
+      const VARZOVSK_LAT = 60.9344;
+      const VARZOVSK_LNG = 76.5531;
+      const DEFAULT_ZOOM = 13;
+      const API_BASE = window.location.origin;
+      const CATEGORIES = [
+        { id: 'plumbing', label: 'Водопровод', icon: 'mdi:water-pump' },
+        { id: 'heating', label: 'Отопление', icon: 'mdi:radiator' },
+        { id: 'electrical', label: 'Электричество', icon: 'mdi:lightning-bolt' },
+        { id: 'structure', label: 'Конструктив', icon: 'mdi:home-analytics' },
+        { id: 'cleaning', label: 'Уборка', icon: 'mdi:broom' },
+        { id: 'landscaping', label: 'Благоустройство', icon: 'mdi:tree' },
+        { id: 'pest', label: 'Дезинсекция', icon: 'mdi:bug-outline' },
+        { id: 'other', label: 'Другое', icon: 'mdi:dots-horizontal' }
+      ];
+      const STATUSES = [
+        { id: 'open', label: 'Открыто', color: '#ff4757' },
+        { id: 'in_progress', label: 'В работе', color: '#ffc107' },
+        { id: 'resolved', label: 'Решено', color: '#00ff88' }
+      ];
+      const MOOD_MAP = {
+        calm: 'Спокойно',
+        moderate: 'Умеренно',
+        tense: 'Напряжённо',
+        critical: 'Критично'
+      };
+
+      // --- State ---
+      let tg = null;
+      let map = null;
+      let markerCluster = null;
+      let allComplaints = [];
+      let activeCategoryFilters = new Set();
+      let activeStatusFilters = new Set(new Set(STATUSES.map(s => s.id)));
+      let chartsInitialized = false;
+      let currentTab = 'map';
+
+      // ========================================================
+      //  TELEGRAM INITIALIZATION
+      // ========================================================
+      function initTelegram() {
+        if (typeof Telegram === 'undefined' || !Telegram.WebApp) {
+          console.warn('Telegram WebApp SDK not loaded, running in standalone mode.');
+          return;
+        }
+        tg = Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        tg.setHeaderColor('#0a0c10');
+        tg.setBackgroundColor('#0a0c10');
+        tg.enableClosingConfirmation();
+        console.log('Telegram WebApp initialized');
+      }
+
+      // ========================================================
+      //  TAB NAVIGATION
+      // ========================================================
+      function initTabs() {
+        const buttons = document.querySelectorAll('.tab-btn');
+        buttons.forEach(btn => {
+          btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        });
+      }
+
+      function switchTab(tabId) {
+        currentTab = tabId;
+        document.querySelectorAll('.tab-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.tab === tabId);
+        });
+        document.querySelectorAll('.tab-content').forEach(tc => {
+          tc.classList.toggle('active', tc.id === tabId + 'Tab');
+        });
+
+        if (tabId === 'stats' && !chartsInitialized) {
+          setTimeout(initCharts, 100);
+        }
+        if (tabId === 'rating') {
+          setTimeout(initRating, 100);
+        }
+        if (map) {
+          setTimeout(() => map.invalidateSize(), 200);
+        }
+      }
+
+      // ========================================================
+      //  LEAFLET MAP
+      // ========================================================
+      function initMap() {
+        map = L.map('map', {
+          center: [VARZOVSK_LAT, VARZOVSK_LNG],
+          zoom: DEFAULT_ZOOM,
+          zoomControl: false,
+          attributionControl: true
+        });
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+          maxZoom: 19
+        }).addTo(map);
+
+        markerCluster = L.markerClusterGroup({
+          maxClusterRadius: 40,
+          spiderfyOnMaxZoom: true,
+          showCoverageOnHover: false
+        });
+        map.addLayer(markerCluster);
+
+        // Fix for map not rendering correctly on initial hidden state
+        setTimeout(() => map.invalidateSize(), 300);
+      }
+
+      // ========================================================
+      //  MARKERS
+      // ========================================================
+      function createMarkerIcon(status) {
+        const colorMap = {
+          open: '#ff4757',
+          in_progress: '#ffc107',
+          resolved: '#00ff88'
+        };
+        const color = colorMap[status] || '#00f0ff';
+        return L.divIcon({
+          className: 'custom-marker',
+          html: `<svg width="28" height="36" viewBox="0 0 28 36">
+        <defs>
+          <filter id="mGlow"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="${color}" flood-opacity="0.5"/></filter>
+        </defs>
+        <path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.27 21.73 0 14 0z"
+              fill="${color}" filter="url(#mGlow)"/>
+        <circle cx="14" cy="13" r="5" fill="#0a0c10"/>
+      </svg>`,
+          iconSize: [28, 36],
+          iconAnchor: [14, 36],
+          popupAnchor: [0, -36]
+        });
+      }
+
+      function renderMarkers(complaints) {
+        markerCluster.clearLayers();
+        complaints.forEach(c => {
+          if (!c.lat || !c.lng) return;
+          const marker = L.marker([c.lat, c.lng], {
+            icon: createMarkerIcon(c.status)
+          });
+          const statusLabel = STATUSES.find(s => s.id === c.status)?.label || c.status;
+          const catLabel = CATEGORIES.find(cat => cat.id === c.category)?.label || c.category;
+          const popupContent = `
+        <div style="font-family:Inter,sans-serif;min-width:200px;color:#0a0c10;">
+          <strong style="font-size:14px;">${catLabel}</strong><br>
+          <span style="color:#666;font-size:12px;">${c.description || 'Без описания'}</span><br>
+          <div style="margin-top:6px;display:flex;align-items:center;gap:6px;">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.status === 'open' ? '#ff4757' : c.status === 'in_progress' ? '#ffc107' : '#00ff88'
+            };"></span>
+            <span style="font-size:12px;">${statusLabel}</span>
+          </div>
+          ${c.address ? `<div style="margin-top:4px;font-size:11px;color:#888;">${c.address}</div>` : ''}
+        </div>
+      `;
+          marker.bindPopup(popupContent);
+          markerCluster.addLayer(marker);
+        });
+      }
+
+      // ========================================================
+      //  API — LOAD COMPLAINTS
+      // ========================================================
+      async function loadComplaints() {
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+
+        try {
+          progressFill.style.width = '30%';
+          progressText.textContent = 'Подключение к серверу...';
+
+          const response = await fetch(`${API_BASE}/api/complaints`);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+          progressFill.style.width = '70%';
+          progressText.textContent = 'Загрузка данных...';
+
+          allComplaints = await response.json();
+          progressFill.style.width = '100%';
+          progressText.textContent = 'Готово!';
+
+          updateSplashStats();
+          renderFilteredMarkers();
+          initFilters();
+        } catch (err) {
+          console.warn('API load failed, using demo data:', err.message);
+          progressText.textContent = 'Демо-режим...';
+          loadDemoData();
+          updateSplashStats();
+          renderFilteredMarkers();
+          initFilters();
+        }
+      }
+
+      function loadDemoData() {
+        const demoAddresses = [
+          'ул. Ленина, 15', 'ул. Индустриальная, 23', 'ул. Мира, 8',
+          'ул. Таежная, 42', 'ул. Нефтяников, 5', 'ул. Дружбы Народов, 17',
+          'ул. Ханты-Мансийская, 30', 'ул. Спортивная, 12', 'ул. Северная, 7',
+          'ул. Заречная, 21'
+        ];
+        allComplaints = Array.from({ length: 15 }, (_, i) => {
+          const statusRoll = Math.random();
+          const status = statusRoll < 0.4 ? 'open' : statusRoll < 0.7 ? 'in_progress' : 'resolved';
+          const cat = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
+          const latOffset = (Math.random() - 0.5) * 0.06;
+          const lngOffset = (Math.random() - 0.5) * 0.08;
+          return {
+            id: i + 1,
+            category: cat.id,
+            status,
+            description: `Жалоба #${i + 1}: ${cat.label}`,
+            address: demoAddresses[i % demoAddresses.length],
+            lat: VARZOVSK_LAT + latOffset,
+            lng: VARZOVSK_LNG + lngOffset,
+            created_at: new Date(Date.now() - Math.random() * 30 * 86400000).toISOString()
+          };
+        });
+      }
+
+      // ========================================================
+      //  FILTERS
+      // ========================================================
+      function initFilters() {
+        const catContainer = document.getElementById('categoryFilter');
+        const statusContainer = document.getElementById('statusFilter');
+
+        catContainer.innerHTML = CATEGORIES.map(c =>
+          `<div class="filter-chip active" data-category="${c.id}">${c.label}</div>`
+        ).join('');
+
+        statusContainer.innerHTML = STATUSES.map(s =>
+          `<div class="filter-chip active" data-status="${s.id}">${s.label}</div>`
+        ).join('');
+
+        catContainer.querySelectorAll('.filter-chip').forEach(chip => {
+          chip.addEventListener('click', () => {
+            const cat = chip.dataset.category;
+            if (activeCategoryFilters.has(cat)) {
+              activeCategoryFilters.delete(cat);
+              chip.classList.remove('active');
+            } else {
+              activeCategoryFilters.add(cat);
+              chip.classList.add('active');
+            }
+            renderFilteredMarkers();
+          });
+        });
+
+        statusContainer.querySelectorAll('.filter-chip').forEach(chip => {
+          chip.addEventListener('click', () => {
+            const st = chip.dataset.status;
+            if (activeStatusFilters.has(st)) {
+              activeStatusFilters.delete(st);
+              chip.classList.remove('active');
+            } else {
+              activeStatusFilters.add(st);
+              chip.classList.add('active');
+            }
+            renderFilteredMarkers();
+          });
+        });
+      }
+
+      function renderFilteredMarkers() {
+        const filtered = allComplaints.filter(c => {
+          if (activeCategoryFilters.size > 0 && !activeCategoryFilters.has(c.category)) return false;
+          if (activeStatusFilters.size > 0 && !activeStatusFilters.has(c.status)) return false;
+          return true;
+        });
+        renderMarkers(filtered);
+        updateTopBarStats(filtered);
+      }
+
+      // ========================================================
+      //  TOP BAR STATS
+      // ========================================================
+      function updateTopBarStats(complaints) {
+        const total = complaints.length;
+        const open = complaints.filter(c => c.status === 'open').length;
+        const resolved = complaints.filter(c => c.status === 'resolved').length;
+        document.getElementById('totalNum').textContent = total;
+        document.getElementById('openNum').textContent = open;
+        document.getElementById('resolvedNum').textContent = resolved;
+      }
+
+      // ========================================================
+      //  SPLASH STATS
+      // ========================================================
+      function updateSplashStats() {
+        const total = allComplaints.length;
+        const open = allComplaints.filter(c => c.status === 'open').length;
+        const resolved = allComplaints.filter(c => c.status === 'resolved').length;
+        document.getElementById('statTotal').textContent = total;
+        document.getElementById('statOpen').textContent = open;
+        document.getElementById('statResolved').textContent = resolved;
+        updateTopBarStats(allComplaints);
+      }
+
+      // ========================================================
+      //  CHARTS (STATISTICS TAB)
+      // ========================================================
+      function initCharts() {
+        if (chartsInitialized) return;
+        chartsInitialized = true;
+
+        const container = document.getElementById('statsContent');
+        const byCategory = {};
+        const byStatus = {};
+        const byMonth = {};
+
+        allComplaints.forEach(c => {
+          byCategory[c.category] = (byCategory[c.category] || 0) + 1;
+          byStatus[c.status] = (byStatus[c.status] || 0) + 1;
+          const month = new Date(c.created_at).toLocaleDateString('ru-RU', { month: 'short', year: '2-digit' });
+          byMonth[month] = (byMonth[month] || 0) + 1;
+        });
+
+        const total = allComplaints.length;
+        const openCount = byStatus.open || 0;
+        const resolvedCount = byStatus.resolved || 0;
+        const inProgressCount = byStatus.in_progress || 0;
+        const resolutionRate = total > 0 ? Math.round((resolvedCount / total) * 100) : 0;
+
+        container.innerHTML = `
+      <div class="stats-summary">
+        <div class="summary-item">
+          <span class="value">${total}</span>
+          <span class="label">Всего</span>
+        </div>
+        <div class="summary-item">
+          <span class="value orange">${openCount}</span>
+          <span class="label">Открыто</span>
+        </div>
+        <div class="summary-item">
+          <span class="value violet">${inProgressCount}</span>
+          <span class="label">В работе</span>
+        </div>
+        <div class="summary-item">
+          <span class="value green">${resolutionRate}%</span>
+          <span class="label">Решено</span>
+        </div>
+      </div>
+      <div class="stats-card">
+        <h3>По категориям</h3>
+        <div class="chart-wrapper"><canvas id="categoryChart"></canvas></div>
+      </div>
+      <div class="stats-card">
+        <h3>По статусам</h3>
+        <div class="chart-wrapper"><canvas id="statusChart"></canvas></div>
+      </div>
+      <div class="stats-card">
+        <h3>Динамика по месяцам</h3>
+        <div class="chart-wrapper"><canvas id="timelineChart"></canvas></div>
+      </div>
+    `;
+
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.borderColor = 'rgba(148,163,184,0.1)';
+        Chart.defaults.font.family = 'Inter';
+
+        // Category chart — horizontal bar
+        const catLabels = Object.keys(byCategory).map(id => CATEGORIES.find(c => c.id === id)?.label || id);
+        const catValues = Object.values(byCategory);
+        new Chart(document.getElementById('categoryChart'), {
+          type: 'bar',
+          data: {
+            labels: catLabels,
+            datasets: [{
+              data: catValues,
+              backgroundColor: [
+                'rgba(0,240,255,0.7)', 'rgba(124,58,237,0.7)', 'rgba(255,107,53,0.7)',
+                'rgba(0,255,136,0.7)', 'rgba(255,71,87,0.7)', 'rgba(255,193,7,0.7)',
+                'rgba(148,163,184,0.7)', 'rgba(236,72,153,0.7)'
+              ],
+              borderRadius: 6,
+              borderSkipped: false
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { color: 'rgba(148,163,184,0.08)' } }, y: { grid: { display: false } } }
+          }
+        });
+
+        // Status chart — doughnut
+        new Chart(document.getElementById('statusChart'), {
+          type: 'doughnut',
+          data: {
+            labels: ['Открыто', 'В работе', 'Решено'],
+            datasets: [{
+              data: [openCount, inProgressCount, resolvedCount],
+              backgroundColor: ['#ff4757', '#ffc107', '#00ff88'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            cutout: '65%',
+            plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, pointStyleWidth: 10 } } }
+          }
+        });
+
+        // Timeline chart — line
+        const monthLabels = Object.keys(byMonth);
+        const monthValues = Object.values(byMonth);
+        new Chart(document.getElementById('timelineChart'), {
+          type: 'line',
+          data: {
+            labels: monthLabels,
+            datasets: [{
+              label: 'Жалобы',
+              data: monthValues,
+              borderColor: '#00f0ff',
+              backgroundColor: 'rgba(0,240,255,0.1)',
+              fill: true,
+              tension: 0.4,
+              pointBackgroundColor: '#00f0ff',
+              pointRadius: 4,
+              pointHoverRadius: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { color: 'rgba(148,163,184,0.08)' } },
+              y: { beginAtZero: true, grid: { color: 'rgba(148,163,184,0.08)' } }
+            }
+          }
+        });
+      }
+
+      // ========================================================
+      //  RATING TAB (UK RATING)
+      // ========================================================
+      function initRating() {
+        const container = document.getElementById('ratingContent');
+        if (container.children.length > 0) return;
+
+        // Demo rating data — replace with API call
+        const ukData = [
+          { name: 'УК "ВартовскСервис"', score: 87 },
+          { name: 'УК "Комфорт-НВ"', score: 79 },
+          { name: 'УК "ЖилСервис"', score: 72 },
+          { name: 'УК "Наш Дом"', score: 65 },
+          { name: 'УК "Городская"', score: 58 },
+          { name: 'УК "СитиМенеджмент"', score: 51 },
+          { name: 'УК "НовоВартовск"', score: 44 },
+          { name: 'УК "Тепло-НВ"', score: 38 }
+        ];
+
+        ukData.sort((a, b) => b.score - a.score);
+
+        container.innerHTML = ukData.map((uk, i) => {
+          const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : 'default';
+          return `
+        <div class="rating-card">
+          <div class="rank-badge ${rankClass}">${i + 1}</div>
+          <div class="rating-info">
+            <div class="rating-name">${uk.name}</div>
+            <div class="rating-score">Рейтинг</div>
+          </div>
+          <div class="rating-bar-bg">
+            <div class="rating-bar-fill" style="width:${uk.score}%"></div>
+          </div>
+          <div class="rating-value">${uk.score}</div>
+        </div>
+      `;
+        }).join('');
+      }
+
+      // ========================================================
+      //  COMPLAINT FORM (MODAL)
+      // ========================================================
+      function initForm() {
+        const select = document.getElementById('formCategory');
+        select.innerHTML = '<option value="" disabled selected>Выберите категорию</option>' +
+          CATEGORIES.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
+
+        // FAB
+        document.getElementById('fabBtn').addEventListener('click', () => {
+          document.getElementById('complaintModal').classList.add('visible');
+        });
+
+        // GPS
+        document.getElementById('gpsBtn').addEventListener('click', () => {
+          if ('geolocation' in navigator) {
+            navigator.geolocation.getCurrentPosition(pos => {
+              document.getElementById('formLat').value = pos.coords.latitude.toFixed(4);
+              document.getElementById('formLng').value = pos.coords.longitude.toFixed(4);
+              showToast('info', 'Координаты определены');
+            }, () => {
+              showToast('error', 'Не удалось определить координаты');
+            });
+          } else {
+            showToast('error', 'Геолокация недоступна');
+          }
+        });
+      }
+
+      // Expose to global scope for inline onclick handlers
+      window.closeModal = function () {
+        document.getElementById('complaintModal').classList.remove('visible');
+      };
+
+      window.submitComplaint = function () {
+        const category = document.getElementById('formCategory').value;
+        const description = document.getElementById('formDescription').value.trim();
+        const address = document.getElementById('formAddress').value.trim();
+        const lat = parseFloat(document.getElementById('formLat').value) || null;
+        const lng = parseFloat(document.getElementById('formLng').value) || null;
+
+        if (!category) { showToast('error', 'Выберите категорию'); return; }
+        if (!description) { showToast('error', 'Опишите проблему'); return; }
+
+        const payload = {
+          type: 'complaint',
+          category,
+          description,
+          address,
+          lat,
+          lng
+        };
+
+        // Send via Telegram WebApp
+        if (tg) {
+          tg.sendData(JSON.stringify(payload));
+          showToast('success', 'Жалоба отправлена!');
+        } else {
+          // Fallback: POST to API
+          fetch(`${API_BASE}/api/complaints`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
+            .then(res => {
+              if (res.ok) {
+                showToast('success', 'Жалоба отправлена!');
+                setTimeout(() => loadComplaints(), 500);
+              } else {
+                showToast('error', 'Ошибка при отправке');
+              }
+            })
+            .catch(() => showToast('error', 'Ошибка сети'));
+        }
+
+        closeModal();
+        // Reset form
+        document.getElementById('formCategory').selectedIndex = 0;
+        document.getElementById('formDescription').value = '';
+        document.getElementById('formAddress').value = '';
+        document.getElementById('formLat').value = '';
+        document.getElementById('formLng').value = '';
+      };
+
+      // ========================================================
+      //  TOAST
+      // ========================================================
+      let toastTimeout = null;
+      function showToast(type, message) {
+        const toast = document.getElementById('toast');
+        const icon = document.getElementById('toastIcon');
+        const text = document.getElementById('toastText');
+
+        toast.className = 'toast ' + type;
+
+        const icons = {
+          success: 'mdi:check-circle',
+          error: 'mdi:alert-circle',
+          info: 'mdi:information'
+        };
+        icon.setAttribute('data-icon', icons[type] || icons.info);
+
+        text.textContent = message;
+        toast.classList.add('visible');
+
+        // Re-render iconify
+        if (window.Iconify) {
+          Iconify.scan();
+        }
+
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+          toast.classList.remove('visible');
+        }, 3000);
+      }
+
+      // ========================================================
+      //  PARTICLES.JS BACKGROUND
+      // ========================================================
+      function initParticles() {
+        if (typeof particlesJS === 'undefined') return;
+
+        const container = document.createElement('div');
+        container.id = 'particles-js';
+        container.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;';
+        document.body.prepend(container);
+
+        particlesJS('particles-js', {
+          particles: {
+            number: { value: 40, density: { enable: true, value_area: 900 } },
+            color: { value: ['#00f0ff', '#7c3aed', '#00ff88'] },
+            shape: { type: 'circle' },
+            opacity: { value: 0.15, random: true },
+            size: { value: 3, random: true },
+            line_linked: { enable: true, distance: 150, color: '#00f0ff', opacity: 0.06, width: 1 },
+            move: { enable: true, speed: 0.8, direction: 'none', random: true, out_mode: 'out' }
+          },
+          interactivity: {
+            detect_on: 'canvas',
+            events: { onhover: { enable: false }, onclick: { enable: false }, resize: true }
+          },
+          retina_detect: true
+        });
+      }
+
+      // ========================================================
+      //  AURORA BACKGROUND (Canvas)
+      // ========================================================
+      function initAurora() {
+        const canvas = document.getElementById('auroraCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        function resize() {
+          canvas.width = window.innerWidth;
+          canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        let t = 0;
+        function draw() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          // Gradient blobs
+          const blobs = [
+            { x: canvas.width * 0.3, y: canvas.height * 0.4, r: 250, color: 'rgba(0,240,255,0.04)' },
+            { x: canvas.width * 0.7, y: canvas.height * 0.6, r: 200, color: 'rgba(124,58,237,0.04)' },
+            { x: canvas.width * 0.5, y: canvas.height * 0.8, r: 180, color: 'rgba(0,255,136,0.03)' }
+          ];
+
+          blobs.forEach((b, i) => {
+            const offsetX = Math.sin(t * 0.003 + i * 2) * 40;
+            const offsetY = Math.cos(t * 0.002 + i * 1.5) * 30;
+            const grad = ctx.createRadialGradient(b.x + offsetX, b.y + offsetY, 0, b.x + offsetX, b.y + offsetY, b.r);
+            grad.addColorStop(0, b.color);
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          });
+
+          t++;
+          requestAnimationFrame(draw);
+        }
+        draw();
+      }
+
+      // ========================================================
+      //  RHYTHM CANVAS (SPLASH)
+      // ========================================================
+      function initRhythmCanvas() {
+        const canvas = document.getElementById('rhythmCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        let t = 0;
+        const bpmEl = document.getElementById('rhythmBpm');
+        const moodEl = document.getElementById('rhythmMood');
+
+        function draw() {
+          const w = canvas.width;
+          const h = canvas.height;
+          ctx.clearRect(0, 0, w, h);
+
+          // ECG-like waveform
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(0,240,255,0.6)';
+          ctx.lineWidth = 2;
+          ctx.shadowColor = '#00f0ff';
+          ctx.shadowBlur = 6;
+
+          const speed = 0.04;
+          for (let x = 0; x < w; x++) {
+            const phase = (x * speed + t * 0.05) % (Math.PI * 2);
+            let y = h / 2;
+
+            // Simulate heartbeat pattern
+            const beat = Math.sin(phase * 3) * Math.exp(-Math.pow(phase - Math.PI, 2) * 2);
+            y -= beat * h * 0.35;
+            y += Math.sin(x * 0.02 + t * 0.03) * 5;
+
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+
+          t++;
+          requestAnimationFrame(draw);
+        }
+        draw();
+
+        // Update BPM periodically
+        setInterval(() => {
+          const bpm = 60 + Math.floor(Math.random() * 30);
+          bpmEl.textContent = bpm;
+          if (bpm < 75) moodEl.textContent = MOOD_MAP.calm;
+          else if (bpm < 85) moodEl.textContent = MOOD_MAP.moderate;
+          else moodEl.textContent = MOOD_MAP.tense;
+        }, 3000);
+      }
+
+      // ========================================================
+      //  ANIME.JS — SPLASH ANIMATIONS
+      // ========================================================
+      function initSplashAnimations() {
+        if (typeof anime === 'undefined') return;
+
+        // Animate stat cards entrance
+        anime({
+          targets: '.stat-card',
+          translateY: [20, 0],
+          opacity: [0, 1],
+          delay: anime.stagger(100, { start: 300 }),
+          easing: 'easeOutCubic',
+          duration: 500
+        });
+
+        // Animate progress bar
+        anime({
+          targets: '#progressFill',
+          width: '100%',
+          duration: 2000,
+          easing: 'easeInOutQuad'
+        });
+      }
+
+      // ========================================================
+      //  BOOT SEQUENCE
+      // ========================================================
+      async function boot() {
+        initTelegram();
+        initTabs();
+        initMap();
+        initForm();
+        initAurora();
+        initParticles();
+        initRhythmCanvas();
+        initSplashAnimations();
+
+        // Load data
+        await loadComplaints();
+
+        // Short delay then transition
+        setTimeout(() => {
+          document.getElementById('splash').classList.add('hidden');
+          const app = document.getElementById('app');
+          app.style.display = '';
+
+          // Animate app entrance
+          if (typeof anime !== 'undefined') {
+            anime({
+              targets: '#app',
+              opacity: [0, 1],
+              duration: 400,
+              easing: 'easeOutCubic'
+            });
+          } else {
+            app.style.opacity = '1';
+          }
+
+          // Re-scan icons after DOM visible
+          if (window.Iconify) {
+            Iconify.scan();
+          }
+        }, 800);
+      }
+
+      // Start when DOM is ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+      } else {
+        boot();
+      }
+    })();
+  </script>
 </body>
+
 </html>

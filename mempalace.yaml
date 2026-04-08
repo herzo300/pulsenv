@@ -1,0 +1,35 @@
+wing: soobshio_project
+ignore:
+- .venv
+- .git
+- __pycache__
+- node_modules
+- .omc
+- .agents
+- .cursor
+- .qwen
+- .vscode
+- "~"
+- "*.pyc"
+- "*.pt"
+- "*.db"
+- "*.session"
+rooms:
+- name: backend
+  description: FastAPI API server, routers, models, database layer
+- name: core
+  description: Core application config, utilities, shared modules
+- name: services
+  description: Backend services (monitors, AI, digest) and Flutter Frontend
+- name: data
+  description: Data files, datasets, cached responses
+- name: documentation
+  description: Project docs, reports, guides
+- name: ops
+  description: DevOps, deployment configs, Docker
+- name: scripts
+  description: Maintenance, deployment, and test scripts
+- name: testing
+  description: Test suites and test utilities
+- name: general
+  description: Root-level files, configs, entry points

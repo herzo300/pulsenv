@@ -17,7 +17,10 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # MCP Fetch Server конфигурация
-MCP_FETCH_SERVER_URL = os.getenv("MCP_FETCH_SERVER_URL", "http://localhost:3000")
+MCP_FETCH_SERVER_URL = os.getenv(
+    "MCP_FETCH_SERVER_URL",
+    (os.getenv("PUBLIC_API_BASE_URL") or "http://45.153.68.59").rstrip("/"),
+)
 MCP_FETCH_ENABLED = os.getenv("MCP_FETCH_ENABLED", "false").lower() == "true"
 MCP_FETCH_TIMEOUT = float(os.getenv("MCP_FETCH_TIMEOUT", "30.0"))
 

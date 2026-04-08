@@ -1,14 +1,12 @@
 # backend/database.py
 """
 Database engine and session configuration.
-Supports SQLite (local dev) and PostgreSQL (Supabase pooler).
+Supports SQLite (local dev) and PostgreSQL runtime deployments.
 """
 
 import logging
 import os
-import re
 from pathlib import Path
-from urllib.parse import parse_qsl, quote_plus, urlencode, urlparse
 
 from dotenv import load_dotenv
 from sqlalchemy.dialects.postgresql.base import PGDialect
@@ -110,46 +108,8 @@ def _patch_postgres_dialect() -> None:
 _patch_postgres_dialect()
 
 
-def _normalize_supabase_url(url: str) -> str:
-    """Fix user info for Supabase pooler: user must be postgres.PROJECT_REF."""
-    if "pooler.supabase.com" not in url:
-        return url
-    if "postgresql" not in url and "postgres://" not in url:
-        return url
-
-    ref = os.getenv("SUPABASE_PROJECT_REF", "")
-    password = os.getenv("SUPABASE_DB_PASSWORD", "")
-    if not ref or not password:
-        return url
-
-    url_clean = re.sub(r"@\[([^\]]+)\]", r"@\1", url)
-    try:
-        u = urlparse(url_clean)
-    except Exception:
-        return url
-
-    if not u.hostname:
-        return url
-
-    # Extract password from URL if env var is empty
-    if not password and "@" in u.netloc:
-        userinfo = u.netloc.rsplit("@", 1)[0]
-        if ":" in userinfo:
-            _, password = userinfo.split(":", 1)
-
-    user = f"postgres.{ref}"
-    port = u.port or 6543
-    db = (u.path or "/postgres").lstrip("/") or "postgres"
-    query_items = dict(parse_qsl(u.query, keep_blank_values=True))
-    query_items.setdefault("sslmode", "require")
-    query = urlencode(query_items)
-    return f"postgresql://{user}:{quote_plus(password)}@{u.hostname}:{port}/{db}?{query}"
-
-
 _raw_url = os.getenv("DATABASE_URL", "sqlite:///./soobshio.db")
-DATABASE_URL: str = (
-    _normalize_supabase_url(_raw_url) if "postgres" in _raw_url else _raw_url
-)
+DATABASE_URL: str = _raw_url
 
 _is_sqlite = DATABASE_URL.startswith("sqlite")
 

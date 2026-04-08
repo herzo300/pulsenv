@@ -8,8 +8,6 @@ from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
-from services.supabase_service import get_supabase_service
-
 logger = logging.getLogger(__name__)
 
 INFOGRAPHIC_JSON = os.path.join(
@@ -62,7 +60,6 @@ def generate_analysis(title: str, trend_data: List[Dict], val_key: str = "value"
     return " ".join(parts)
 
 def build_trend(rows: List[Dict], val_keys: List[str], year_key: str = "YEAR") -> List[Dict]:
-    import random
     if not rows: return []
     data_map = {}
     for r in rows:
@@ -91,29 +88,6 @@ def build_trend(rows: List[Dict], val_keys: List[str], year_key: str = "YEAR") -
         trend.append(entry)
         
     if not trend: return []
-    
-    # Predict 2025 and 2026 based on AI forecast model
-    random.seed(42) # Fixed seed for predictable forecast values
-    for extra_y in ["2025", "2026"]:
-        entry = {"year": extra_y}
-        for k in val_keys:
-            v = last_vals.get(k, 100.0)
-            if "SALARY" in k.upper():
-                factor = random.uniform(1.08, 1.11)
-            elif "BIRTH" in k.upper() or "MARRIAGE" in k.upper():
-                factor = random.uniform(1.01, 1.05)
-            elif "GID" in k.upper(): 
-                factor = random.uniform(1.05, 1.15)
-            else:
-                factor = random.uniform(1.02, 1.07)
-                
-            new_v = round(v * factor, 1)
-            entry[k.lower()] = new_v
-            last_vals[k] = new_v
-            
-        if len(val_keys) == 1:
-            entry["value"] = entry[val_keys[0].lower()]
-        trend.append(entry)
 
     return trend
 
@@ -124,7 +98,7 @@ def build_infographic(opendata: dict) -> dict:
         "city": "Нижневартовск",
         "region": "ХМАО-Югра",
         "founded": 1909,
-        "population_current": 284471,
+        "population_current": 293130,
         "area_km2": 268.56,
         "blocks": []
     }
@@ -133,7 +107,7 @@ def build_infographic(opendata: dict) -> dict:
     econ_items = []
     salary_trend = build_trend(opendata.get("averagesalary", {}).get("rows", []), ["SALARY"], "YEAR")
     if salary_trend:
-        econ_items.append({"type": "line_chart", "title": "Средняя зарплата (₽)", "color": "gold", "data": salary_trend})
+        econ_items.append({"type": "line_chart", "title": "ЗП руководителей МУ (тыс. ₽)", "color": "gold", "data": salary_trend})
     
     fuel_rows = opendata.get("roadgasstationprice", {}).get("rows", [])
     if fuel_rows:
@@ -213,7 +187,7 @@ def build_infographic(opendata: dict) -> dict:
     if trans_items:
         result["blocks"].append({
             "id": "transport", "title": "Транспорт", "icon": "directions_bus", 
-            "analysis": f"Транспортный каркас города включает {len(bus_rows)} автобусных маршрутов большой вместимости.",
+            "analysis": f"Транспортный каркас города включает {len(bus_rows)} автобусных маршрутов (включая сезонные и отменённые).",
             "trend": "recovery", "items": trans_items
         })
 
@@ -226,8 +200,11 @@ def build_infographic(opendata: dict) -> dict:
     perm_rows = opendata.get("buildpermission", {}).get("rows", [])
     if perm_rows:
         perm_trend = build_trend(perm_rows, ["GID"], "DAT")
-        if perm_trend:
+        has_nonzero = any(entry.get("value", 0) != 0 or entry.get("gid", 0) != 0 for entry in perm_trend)
+        if perm_trend and has_nonzero:
             build_items.append({"type": "bar_chart", "title": "Выдано разрешений", "color": "emerald", "data": perm_trend})
+        elif perm_rows:
+            build_items.append({"type": "stat", "title": "Разрешения на строительство", "val": str(len(perm_rows)), "sub": "Записей в реестре"})
             
     real_estate = opendata.get("propertyregisterrealestate", {}).get("rows", [])
     if real_estate:
@@ -236,7 +213,7 @@ def build_infographic(opendata: dict) -> dict:
     if build_items:
         result["blocks"].append({
             "id": "construction", "title": "Строительство", "icon": "business", 
-            "analysis": f"В активе комплексного развития города находится {len(perm_rows)} градостроительных разрешений. Данные интегрируются с 3D-моделью.",
+            "analysis": f"В реестре строительных разрешений зарегистрировано {len(perm_rows)} записей. Данные интегрируются с городской картой и аналитикой.",
             "trend": "growth", "items": build_items
         })
 
@@ -337,14 +314,9 @@ def build_infographic(opendata: dict) -> dict:
     result["total_datasets"] = len([k for k in opendata if not k.startswith("_")])
     return result
 
-async def sync_infographic_to_supabase(data: dict) -> bool:
-    svc = get_supabase_service()
-    if not svc.is_configured: return False
-    try:
-        return await svc.save_infographic_data("summary", data)
-    except Exception as e: 
-        logger.error(f"Supabase sync err: {e}")
-        return False
+async def sync_infographic_to_runtime(data: dict) -> bool:
+    save_infographic_json(data)
+    return True
 
 def save_infographic_json(data: dict):
     try:
@@ -364,8 +336,8 @@ async def update_infographic_from_opendata():
     print("Building infographic...")
     info = build_infographic(opendata)
     save_infographic_json(info)
-    print("Done! Syncing to supabase...")
-    await sync_infographic_to_supabase(info)
+    print("Done! Refreshing local runtime infographic...")
+    await sync_infographic_to_runtime(info)
     print("Finished.")
     return info
 

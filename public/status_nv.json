@@ -1,0 +1,1522 @@
+{
+  "updated_at": 1774699060.7906723,
+  "summary": {
+    "total": 216,
+    "online": 16,
+    "offline": 200
+  },
+  "cameras": [
+    {
+      "n": "60 лет Октября, 10",
+      "s": "https://stream3.dantser.org/NV_60Let_10/tracks-v1/mono.ts.m3u8",
+      "status": "up",
+      "latency": 10501.25,
+      "code": 200
+    },
+    {
+      "n": "60 лет Октября, 3",
+      "s": "https://stream3.dantser.org/NV_60Let_3/tracks-v1/mono.ts.m3u8",
+      "status": "up",
+      "latency": 10486.74,
+      "code": 200
+    },
+    {
+      "n": "60 лет Октября, 54",
+      "s": "https://stream3.dantser.org/NV_60Let_54/tracks-v1/mono.ts.m3u8",
+      "status": "up",
+      "latency": 10499.77,
+      "code": 200
+    },
+    {
+      "n": "Героев Самотлора, в сторону Северная (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_geroi28_1/index.m3u8",
+      "status": "up",
+      "latency": 10588.58,
+      "code": 200
+    },
+    {
+      "n": "Двор ул. Ленина 28 камера 1 (Прайд)",
+      "s": "https://nginx01.pride-net.ru/ln28_1/index.m3u8",
+      "status": "up",
+      "latency": 10606.57,
+      "code": 200
+    },
+    {
+      "n": "Двор ул. Ленина 28 камера 2 (Прайд)",
+      "s": "https://nginx01.pride-net.ru/ln28_2/index.m3u8",
+      "status": "up",
+      "latency": 10622.47,
+      "code": 200
+    },
+    {
+      "n": "Декабристов, 11",
+      "s": "https://stream3.dantser.org/NV_Dekabristov_11/tracks-v1/mono.ts.m3u8",
+      "status": "up",
+      "latency": 10484.07,
+      "code": 200
+    },
+    {
+      "n": "Излучинск, перекресток Пионерная - Таежная (Прайд)",
+      "s": "https://nginx03.pride-net.ru/taeg12/index.m3u8",
+      "status": "up",
+      "latency": 10680.97,
+      "code": 200
+    },
+    {
+      "n": "Кольцо 60 лет Октября - Ханты-Мансийская (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_60let59/index.m3u8",
+      "status": "down",
+      "latency": 10648.54,
+      "code": 404
+    },
+    {
+      "n": "Ленина, 21",
+      "s": "https://stream3.dantser.org/NV_Lenina_21/tracks-v1/mono.ts.m3u8",
+      "status": "up",
+      "latency": 10474.06,
+      "code": 200
+    },
+    {
+      "n": "Ленина, 37",
+      "s": "https://stream3.dantser.org/NV_Lenina_37/tracks-v1/mono.ts.m3u8",
+      "status": "up",
+      "latency": 10496.11,
+      "code": 200
+    },
+    {
+      "n": "Ленина, 39",
+      "s": "https://stream3.dantser.org/NV_Lenina_39/tracks-v1/mono.ts.m3u8",
+      "status": "up",
+      "latency": 10482.04,
+      "code": 200
+    },
+    {
+      "n": "Мira, 24",
+      "s": "https://stream3.dantser.org/NV_Mira_24/tracks-v1/mono.ts.m3u8",
+      "status": "up",
+      "latency": 10481.48,
+      "code": 200
+    },
+    {
+      "n": "Маршала Жукова, 9",
+      "s": "https://stream3.dantser.org/NV_Zhukova_9/tracks-v1/mono.ts.m3u8",
+      "status": "up",
+      "latency": 10480.71,
+      "code": 200
+    },
+    {
+      "n": "Мегион, Городская площадь (Прайд)",
+      "s": "https://nginx03.pride-net.ru/m_zar15i/index.m3u8",
+      "status": "up",
+      "latency": 10618.44,
+      "code": 200
+    },
+    {
+      "n": "Мегион, Перекресток Заречная - Губкина (Прайд)",
+      "s": "https://nginx03.pride-net.ru/zar_16/index.m3u8",
+      "status": "up",
+      "latency": 10617.77,
+      "code": 200
+    },
+    {
+      "n": "Мира, 13",
+      "s": "https://stream3.dantser.org/NV_Mira_13/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Мира, 15",
+      "s": "https://stream3.dantser.org/NV_Mira_15/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Мира, 25",
+      "s": "https://stream3.dantser.org/NV_Mira_25/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Мира, 26",
+      "s": "https://stream3.dantser.org/NV_Mira_26/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Мира, 32",
+      "s": "https://stream3.dantser.org/NV_Mira_32/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Мира, 50",
+      "s": "https://stream3.dantser.org/NV_Mira_50/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Мира, 54",
+      "s": "https://stream3.dantser.org/NV_Mira_54/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Мира, 62",
+      "s": "https://stream3.dantser.org/NV_Mira_62/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Мира, 66",
+      "s": "https://stream3.dantser.org/NV_Mira_66/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Мира, 66А",
+      "s": "https://stream3.dantser.org/NV_Mira_66a/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Мира, 93",
+      "s": "https://stream3.dantser.org/NV_Mira_93/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Мира, 94",
+      "s": "https://stream3.dantser.org/NV_Mira_94/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Мира, 95",
+      "s": "https://stream3.dantser.org/NV_Mira_95/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Мира, 99",
+      "s": "https://stream3.dantser.org/NV_Mira_99/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, Интернациональная, в сторону Зимней (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_inter2g_i_1/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, Интернациональная, в сторону Северной (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_inter2g_i_2/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, Прибрежная зона 3 (Прайд)",
+      "s": "https://nginx03.pride-net.ru/cam_kurop1_1/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, ТЦ Форт (Прайд)",
+      "s": "https://nginx02.pride-net.ru/cam_60l46_fort/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, Ханты-Мансийская в сторону 60 лет Октября (Прайд)",
+      "s": "https://nginx02.pride-net.ru/cam_hm19_1/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток Индустриальная - Ленина (Прайд)",
+      "s": "https://nginx01.pride-net.ru/industr20_1/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток Интернациональная - Северная Вид2 (Прайд)",
+      "s": "https://nginx04.pride-net.ru/geroi30_vario5_50/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток Ленина - Салманова (Прайд)",
+      "s": "https://nginx03.pride-net.ru/cam_ln41_1/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток Мусы Джалиля - Пикмана (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_60l44_1/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток Салманова - Мира (Прайд)",
+      "s": "https://nginx04.pride-net.ru/mr103_2_0280/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток Салманова - Московкина (Прайд)",
+      "s": "https://nginx04.pride-net.ru/mosk5_1_0280/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток Северная - Героев Самотлора (Прайд)",
+      "s": "https://nginx04.pride-net.ru/geroi30_1_0280/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток Северная - Зимняя (Прайд)",
+      "s": "https://nginx04.pride-net.ru/cam_sv48_1/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток ул. Северная (Прайд)",
+      "s": "https://nginx01.pride-net.ru/sv56_pass_poe/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Омская, 23",
+      "s": "https://stream3.dantser.org/NV_Omskaya_23/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Омская, 64",
+      "s": "https://stream3.dantser.org/NV_Omskaya_64/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Пермская, 4",
+      "s": "https://stream3.dantser.org/NV_Permskaya_4/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Прибрежная зона 2 (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_60l76_1/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Салманова, 4",
+      "s": "https://stream3.dantser.org/NV_Salmanova_4/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Салманова, 5",
+      "s": "https://stream3.dantser.org/NV_Salmanova_5/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Салманова, от Ленина в сторону Мира (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_salman3_1/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Салманова, от Мира в сторону Ленина (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_salman4_1/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Северная, 12",
+      "s": "https://stream3.dantser.org/NV_Severnaya_12/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Северная, 19Г",
+      "s": "https://stream3.dantser.org/NV_Severnaya_19g/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Северная, 48",
+      "s": "https://stream3.dantser.org/NV_Severnaya_48/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Северная, 70",
+      "s": "https://stream3.dantser.org/NV_Severnaya_70/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Северная, 72",
+      "s": "https://stream3.dantser.org/NV_Severnaya_72/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Северная, 84",
+      "s": "https://stream3.dantser.org/NV_Severnaya_84/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Сквер Учителей (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_rom12_1/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Учительский бульвар (Прайд)",
+      "s": "https://nginx03.pride-net.ru/geroi23/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Чапаева, 53",
+      "s": "https://stream3.dantser.org/NV_Chapaeva_53/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Чапаева, 7",
+      "s": "https://stream3.dantser.org/NV_Chapaeva_7/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "кольцо Чапаева - Ленина (Прайд)",
+      "s": "https://nginx03.pride-net.ru/ln19/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекреcток Чапаева - 60 лет Октября (Прайд)",
+      "s": "https://nginx01.pride-net.ru/per60l46/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток 60 лет Октября - Дружбы Народов (Прайд)",
+      "s": "https://nginx03.pride-net.ru/dn7/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток 60 лет Октября - Кузоваткина (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_60l4_1/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток 60 лет Октября - Победы (Прайд)",
+      "s": "https://nginx03.pride-net.ru/60l12aii/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Героев Самотлора - Московкина (Прайд)",
+      "s": "https://nginx03.pride-net.ru/geroi25/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Героев Самотлора - Профсоюзная (Прайд)",
+      "s": "https://nginx03.pride-net.ru/prof9/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Зимняя - Интернациональная (Прайд)",
+      "s": "https://nginx03.pride-net.ru/inter2/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Интернациональная - Дзержинского (Прайд)",
+      "s": "https://nginx01.pride-net.ru/inter49iii/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Интернациональная - Нефтяников (Прайд)",
+      "s": "https://nginx03.pride-net.ru/int_nf/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Интернациональная - Пермская (Прайд)",
+      "s": "https://nginx03.pride-net.ru/int22/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Интернациональная - Чапаева (Прайд)",
+      "s": "https://nginx03.pride-net.ru/inter49i/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Кузоваткина - Мира (Прайд)",
+      "s": "https://nginx03.pride-net.ru/mend29/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Ленина - Дзержинского (Прайд)",
+      "s": "https://nginx03.pride-net.ru/ln17/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Ленина - Дружбы Народов (Прайд)",
+      "s": "https://nginx03.pride-net.ru/DN22ii/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Ленина - Мусы Джалиля (Прайд)",
+      "s": "https://nginx03.pride-net.ru/musdz25/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Ленина - Нефтяников (Прайд)",
+      "s": "https://nginx03.pride-net.ru/nf44_4p/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Ленина - Ханты-Мансийской (Прайд)",
+      "s": "https://nginx03.pride-net.ru/hm21_2/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Ленина - героев Самотлора (Прайд)",
+      "s": "https://nginx02.pride-net.ru/geroi16/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - Дзержинского (Прайд)",
+      "s": "https://nginx01.pride-net.ru/Mira60i/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - Дружбы Народов (Прайд)",
+      "s": "https://nginx01.pride-net.ru/mira76_d_nar/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - Маршала Жукова (Прайд)",
+      "s": "https://nginx03.pride-net.ru/mira26/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - Нефтяников (Прайд)",
+      "s": "https://nginx01.pride-net.ru/mr50/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - Нефтяников (Прайд)",
+      "s": "https://nginx01.pride-net.ru/mr50_2/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - Пермская (Прайд)",
+      "s": "https://nginx01.pride-net.ru/mira76_x_mans/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - Ханты-Мансийской (Прайд)",
+      "s": "https://nginx03.pride-net.ru/mira85/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - проспект Победы (Прайд)",
+      "s": "https://nginx03.pride-net.ru/mira23/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мусы Джалиля - 60 лет Октября (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_60let23_ext/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Нововартовская - Героев Самотлора (Прайд)",
+      "s": "https://nginx03.pride-net.ru/novvart8/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Омская - Дружбы Народов (Прайд)",
+      "s": "https://nginx03.pride-net.ru/omsk62/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Омская - Нефтяников (Прайд)",
+      "s": "https://nginx03.pride-net.ru/omsk26/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Омская - Ханты-Мансийская (Прайд)",
+      "s": "https://nginx03.pride-net.ru/hm21i/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Романтиков - Восточный пр-д (Прайд)",
+      "s": "https://nginx03.pride-net.ru/hm26/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Северная - Маршала Жукова (Прайд)",
+      "s": "https://nginx03.pride-net.ru/gk40/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Спортивная - Дзержинского (Прайд)",
+      "s": "https://nginx01.pride-net.ru/sp13i/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Спортивная - Нефтяников (Прайд)",
+      "s": "https://nginx03.pride-net.ru/nf37/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Ханты-Мансийская - Интернациональная (Прайд)",
+      "s": "https://nginx01.pride-net.ru/hm45_1_ext_ext/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Ханты-Мансийская - Профсоюзная (Прайд)",
+      "s": "https://nginx01.pride-net.ru/hm45_2_ext/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Чапаева - Мира (Прайд)",
+      "s": "https://nginx01.pride-net.ru/mira60ii/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Чапаева - Северная (Прайд)",
+      "s": "https://nginx01.pride-net.ru/sev70/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Чапаева - Спортивная (Прайд)",
+      "s": "https://nginx03.pride-net.ru/sport13iii/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Чапаева - Таежная (Прайд)",
+      "s": "https://nginx03.pride-net.ru/Chap11/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Чапаева- Пикмана (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_60l48/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "проезд Восточный (Прайд)",
+      "s": "https://nginx03.pride-net.ru/cam_salm5_1/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "ул Салманова в сторону ул Мира (Прайд)",
+      "s": "https://nginx04.pride-net.ru/sv118_1_0280/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "ул. Осенняя в сторону ул Рабочая (Прайд)",
+      "s": "https://nginx04.pride-net.ru/cam_osen7-1/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Интернациональная (Прайд)",
+      "s": "https://nginx01.pride-net.ru/inter49iii_2/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Интернациональная (Прайд)",
+      "s": "https://nginx01.pride-net.ru/inter59/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Мира (Прайд)",
+      "s": "https://nginx01.pride-net.ru/mira32/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Нефтяников (Прайд)",
+      "s": "https://nginx01.pride-net.ru/mr50_3/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Пермская (Прайд)",
+      "s": "https://nginx01.pride-net.ru/inter59a/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Пермская (Прайд)",
+      "s": "https://nginx01.pride-net.ru/perm21_1p/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Пермская (Прайд)",
+      "s": "https://nginx01.pride-net.ru/perm21_6p/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Салманова в сторону улицы Московкина (Прайд)",
+      "s": "https://nginx04.pride-net.ru/mr103_1_0280/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Северная в сторону Кузоваткина (Прайд)",
+      "s": "https://nginx01.pride-net.ru/sv16/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, Комсомольский бульвар, вид 1 (Прайд)",
+      "s": "https://nginx04.pride-net.ru/cam_mr27ii_1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, улица Северная, в сторону улицы Маршала Жукова (Прайд)",
+      "s": "https://nginx02.pride-net.ru/cam_sev9",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток Северная - Зимняя (Прайд)",
+      "s": "https://nginx04.pride-net.ru/cam_sv48_1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, ТЦ Форт (Прайд)",
+      "s": "https://nginx02.pride-net.ru/cam_60l46_fort",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, Ханты-Мансийская в сторону 60 лет Октября (Прайд)",
+      "s": "https://nginx02.pride-net.ru/cam_hm19_1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток Интернациональная - Северная Вид2 (Прайд)",
+      "s": "https://nginx04.pride-net.ru/geroi30_vario5_50",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток Ленина - Салманова (Прайд)",
+      "s": "https://nginx03.pride-net.ru/cam_ln41_1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток Салманова - Московкина (Прайд)",
+      "s": "https://nginx04.pride-net.ru/mosk5_1_0280",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток Салманова - Мира (Прайд)",
+      "s": "https://nginx04.pride-net.ru/mr103_2_0280",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Салманова в сторону улицы Московкина (Прайд)",
+      "s": "https://nginx04.pride-net.ru/mr103_1_0280",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "ул Салманова в сторону ул Мира (Прайд)",
+      "s": "https://nginx04.pride-net.ru/sv118_1_0280",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток Северная - Героев Самотлора (Прайд)",
+      "s": "https://nginx04.pride-net.ru/geroi30_1_0280",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "ул. Осенняя в сторону ул Рабочая (Прайд)",
+      "s": "https://nginx04.pride-net.ru/cam_osen7-1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, Прибрежная зона 3 (Прайд)",
+      "s": "https://nginx03.pride-net.ru/cam_kurop1_1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Сквер Учителей (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_rom12_1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток Индустриальная - Ленина (Прайд)",
+      "s": "https://nginx01.pride-net.ru/industr20_1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, Интернациональная, в сторону Северной (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_inter2g_i_2",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, Интернациональная, в сторону Зимней (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_inter2g_i_1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток Мусы Джалиля - Пикмана (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_60l44_1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Прибрежная зона 2 (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_60l76_1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Прибрежная зона 1 (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_60l88_1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Героев Самотлора, в сторону Северная (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_geroi28_1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Салманова, от Мира в сторону Ленина (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_salman4_1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Салманова, от Ленина в сторону Мира (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_salman3_1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "проезд Восточный (Прайд)",
+      "s": "https://nginx03.pride-net.ru/cam_salm5_1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Учительский бульвар (Прайд)",
+      "s": "https://nginx03.pride-net.ru/geroi23",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Нижневартовск, перекресток ул. Северная (Прайд)",
+      "s": "https://nginx01.pride-net.ru/sv56_pass_poe",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Излучинск, перекресток Пионерная - Таежная (Прайд)",
+      "s": "https://nginx03.pride-net.ru/taeg12",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Мегион, Городская площадь (Прайд)",
+      "s": "https://nginx03.pride-net.ru/m_zar15i",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Излучинск, кольцо Энергетиков - Строителей (Прайд)",
+      "s": "https://nginx03.pride-net.ru/en11",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Мегион, Перекресток Заречная - Губкина (Прайд)",
+      "s": "https://nginx03.pride-net.ru/zar_16",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Чапаева - Спортивная (Прайд)",
+      "s": "https://nginx03.pride-net.ru/sport13iii",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Чапаева- Пикмана (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_60l48",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Северная в сторону Кузоваткина (Прайд)",
+      "s": "https://nginx01.pride-net.ru/sv16",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Ханты-Мансийская - Интернациональная (Прайд)",
+      "s": "https://nginx01.pride-net.ru/hm45_1_ext_ext",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток 60 лет Октября - Победы (Прайд)",
+      "s": "https://nginx03.pride-net.ru/60l12aii",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Омская - Кузоваткина (Прайд)",
+      "s": "https://nginx03.pride-net.ru/omsk2",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Нововартовская - Героев Самотлора (Прайд)",
+      "s": "https://nginx03.pride-net.ru/novvart8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Ленина - героев Самотлора (Прайд)",
+      "s": "https://nginx02.pride-net.ru/geroi16",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Ленина - Дзержинского (Прайд)",
+      "s": "https://nginx03.pride-net.ru/ln17",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Мира (Прайд)",
+      "s": "https://nginx01.pride-net.ru/mira32",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Спортивная - Дзержинского (Прайд)",
+      "s": "https://nginx01.pride-net.ru/sp13i",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Омская - Нефтяников (Прайд)",
+      "s": "https://nginx03.pride-net.ru/omsk26",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Спортивная - Нефтяников (Прайд)",
+      "s": "https://nginx03.pride-net.ru/nf37",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - Пермская (Прайд)",
+      "s": "https://nginx01.pride-net.ru/mira76_x_mans",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток 60 лет Октября - Дружбы Народов (Прайд)",
+      "s": "https://nginx03.pride-net.ru/dn7",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Нефтяников (Прайд)",
+      "s": "https://nginx01.pride-net.ru/mr50_3",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Пермская (Прайд)",
+      "s": "https://nginx01.pride-net.ru/perm21_6p",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Пермская (Прайд)",
+      "s": "https://nginx01.pride-net.ru/perm21_1p",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Интернациональная (Прайд)",
+      "s": "https://nginx01.pride-net.ru/inter49iii_2",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Пермская (Прайд)",
+      "s": "https://nginx01.pride-net.ru/inter59a",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "улица Интернациональная (Прайд)",
+      "s": "https://nginx01.pride-net.ru/inter59",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - Дружбы Народов (Прайд)",
+      "s": "https://nginx01.pride-net.ru/mira76_d_nar",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - Романтиков (Прайд)",
+      "s": "https://nginx03.pride-net.ru/mira94",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мусы Джалиля - 60 лет Октября (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_60let23_ext",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Романтиков - Восточный пр-д (Прайд)",
+      "s": "https://nginx03.pride-net.ru/hm26",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Ханты-Мансийская - Профсоюзная (Прайд)",
+      "s": "https://nginx01.pride-net.ru/hm45_2_ext",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток 60 лет Октября - Кузоваткина (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_60l4_1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Героев Самотлора - Восточный проезд (Прайд)",
+      "s": "https://nginx02.pride-net.ru/geroi18",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Героев Самотлора - Московкина (Прайд)",
+      "s": "https://nginx03.pride-net.ru/geroi25",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Героев Самотлора - Профсоюзная (Прайд)",
+      "s": "https://nginx03.pride-net.ru/prof9",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - Героев Самотлора (Прайд)",
+      "s": "https://nginx03.pride-net.ru/mira98_ext",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - Нефтяников (Прайд)",
+      "s": "https://nginx01.pride-net.ru/mr50_2",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Ленина - Мусы Джалиля (Прайд)",
+      "s": "https://nginx03.pride-net.ru/musdz25",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - Маршала Жукова (Прайд)",
+      "s": "https://nginx03.pride-net.ru/mira26",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Зимняя - Интернациональная (Прайд)",
+      "s": "https://nginx03.pride-net.ru/inter2",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - проспект Победы (Прайд)",
+      "s": "https://nginx03.pride-net.ru/mira23",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Кольцо 60 лет Октября - Ханты-Мансийская (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_60let59",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Двор ул. Ленина 28 камера 2 (Прайд)",
+      "s": "https://nginx01.pride-net.ru/ln28_2",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Двор ул. Ленина 28 камера 1 (Прайд)",
+      "s": "https://nginx01.pride-net.ru/ln28_1",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Омская - Ханты-Мансийская (Прайд)",
+      "s": "https://nginx03.pride-net.ru/hm21i",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Набережная реки Обь (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_60l8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Ленина - Нефтяников (Прайд)",
+      "s": "https://nginx03.pride-net.ru/nf44_4p",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Омская - Дружбы Народов (Прайд)",
+      "s": "https://nginx03.pride-net.ru/omsk62",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Храм Рождества Христова (Прайд)",
+      "s": "https://nginx01.pride-net.ru/cam_60l51",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Интернациональная - Пермская (Прайд)",
+      "s": "https://nginx03.pride-net.ru/int22",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Интернациональная - Дзержинского (Прайд)",
+      "s": "https://nginx01.pride-net.ru/inter49iii",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Интернациональная - Чапаева (Прайд)",
+      "s": "https://nginx03.pride-net.ru/inter49i",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Чапаева - Северная (Прайд)",
+      "s": "https://nginx01.pride-net.ru/sev70",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "кольцо Чапаева - Ленина (Прайд)",
+      "s": "https://nginx03.pride-net.ru/ln19",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекреcток Чапаева - 60 лет Октября (Прайд)",
+      "s": "https://nginx01.pride-net.ru/per60l46",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Кузоваткина - Мира (Прайд)",
+      "s": "https://nginx03.pride-net.ru/mend29",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Ленина - Ханты-Мансийской (Прайд)",
+      "s": "https://nginx03.pride-net.ru/hm21_2",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Чапаева - Мира (Прайд)",
+      "s": "https://nginx01.pride-net.ru/mira60ii",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - Ханты-Мансийской (Прайд)",
+      "s": "https://nginx03.pride-net.ru/mira85",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - Нефтяников (Прайд)",
+      "s": "https://nginx01.pride-net.ru/mr50",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Интернациональная - Нефтяников (Прайд)",
+      "s": "https://nginx03.pride-net.ru/int_nf",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Нефтяников - 60 лет Октября (Прайд)",
+      "s": "https://nginx03.pride-net.ru/nf2",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Чапаева - Таежная (Прайд)",
+      "s": "https://nginx03.pride-net.ru/Chap11",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Ленина - Дружбы Народов (Прайд)",
+      "s": "https://nginx03.pride-net.ru/DN22ii",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Мира - Дзержинского (Прайд)",
+      "s": "https://nginx01.pride-net.ru/Mira60i",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Северная - Маршала Жукова (Прайд)",
+      "s": "https://nginx03.pride-net.ru/gk40",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Интернациональная - Северная (Прайд)",
+      "s": "https://nginx03.pride-net.ru/int13",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "перекресток Нефтяников - Северная (Прайд)",
+      "s": "https://nginx03.pride-net.ru/nf93",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Lenina 31",
+      "s": "https://stream3.dantser.org/NV_Lenina_31/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Permskaya 8",
+      "s": "https://stream3.dantser.org/NV_Permskaya_8/tracks-v1/mono.ts.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Камера 60l12aii (Прайд)",
+      "s": "https://nginx01.pride-net.ru/60l12aii/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Камера cam_osen7-1 (Прайд)",
+      "s": "https://nginx02.pride-net.ru/cam_osen7-1/index.m3u8",
+      "status": "down",
+      "latency": 9999,
+      "code": 0
+    },
+    {
+      "n": "Камера industr20_2 (Прайд)",
+      "s": "https://nginx01.pride-net.ru/industr20_2/index.m3u8",
+      "status": "up",
+      "latency": 5372.1,
+      "code": 200
+    }
+  ]
+}

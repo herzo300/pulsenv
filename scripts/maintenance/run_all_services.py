@@ -38,7 +38,6 @@ def main():
     base_dir = Path(__file__).resolve().parent.parent.parent
     
     services = [
-        ("Telegram Bot", "start_telegram_bot.py"),
         ("Monitoring", "start_all_monitoring.py"),
         ("Daily Categorizer", "scripts/maintenance/daily_complaint_categorizer.py"),
     ]

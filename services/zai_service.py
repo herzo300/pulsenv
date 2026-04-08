@@ -10,7 +10,6 @@ import json
 import logging
 import os
 import re
-import ssl
 import time
 from typing import Any, Dict, List, Optional
 
@@ -565,9 +564,9 @@ def _strong_keyword_hint(text: str) -> Dict[str, Any]:
 
     address = None
     patterns = [
-        r"(?:ул(?:ица)?\.?\s+)([А-Яа-яЁёA-Za-z0-9\\-\\s]+?)\\s*,?\\s*(\\d+[А-Яа-яЁёA-Za-z]?)",
-        r"(?:на\\s+улице\\s+)([А-Яа-яЁёA-Za-z0-9\\-\\s]+?)\\s+(\\d+[А-Яа-яЁёA-Za-z]?)",
-        r"(?:на\\s+проспекте\\s+)([А-Яа-яЁёA-Za-z0-9\\-\\s]+?)\\s+(\\d+[А-Яа-яЁёA-Za-z]?)",
+        r"(?:ул(?:ица)?\.?\s+)([А-Яа-яЁёA-Za-z0-9\-\s]+?)\s*,?\s*(\d+[А-Яа-яЁёA-Za-z]?)",
+        r"(?:на\s+улице\s+)([А-Яа-яЁёA-Za-z0-9\-\s]+?)\s+(\d+[А-Яа-яЁёA-Za-z]?)",
+        r"(?:на\s+проспекте\s+)([А-Яа-яЁёA-Za-z0-9\-\s]+?)\s+(\d+[А-Яа-яЁёA-Za-z]?)",
     ]
     for pattern in patterns:
         match = re.search(pattern, text or "", re.IGNORECASE)
@@ -736,9 +735,7 @@ def _normalize_result(result: Dict[str, Any]) -> Dict[str, Any]:
 # --- Convenience wrappers ---
 
 
-async def analyze_complaint_with_llm(
-    text: str, category_filter: List[str] = None
-) -> Dict[str, Any]:
+async def analyze_complaint_with_llm(text: str) -> Dict[str, Any]:
     """Alias for analyze_complaint (backward compatibility)."""
     return await analyze_complaint(text)
 

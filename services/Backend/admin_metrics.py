@@ -1,4 +1,4 @@
-"""Supabase/Postgres-backed runtime metrics and admin session management."""
+"""Postgres-backed runtime metrics and admin session management."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import json
 import os
 import secrets
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -49,11 +50,13 @@ DEFAULT_ACCESS_POLICY = {
 ROOT = Path(__file__).resolve().parent.parent.parent
 FALLBACK_SQLITE_PATH = ROOT / "data" / "admin_runtime_fallback.db"
 CAMERA_SOURCE_FILES = (
+    ROOT / "public" / "cameras_nv_full.json",
     ROOT / "services" / "Frontend" / "assets" / "cameras_nv.json",
     ROOT / "public" / "cameras_nv.json",
 )
 CAMERA_PROBE_TIMEOUT_SECONDS = 6.0
 CAMERA_PROBE_USER_AGENT = "SoobshioCameraProbe/1.0"
+CAMERA_PROBE_MAX_WORKERS = max(4, min(24, int(os.getenv("CAMERA_PROBE_MAX_WORKERS", "16"))))
 ADMIN_2FA_PASSWORD = (
     os.getenv("ADMIN_2FA_PASSWORD", "").strip()
     or os.getenv("TG_2FA_PASSWORD", "").strip()
@@ -112,6 +115,16 @@ def _safe_float(value: Any) -> float | None:
 def _camera_fingerprint(*, name: str, lat: float, lng: float, stream_url: str) -> str:
     stable = f"{name.strip()}|{lat:.6f}|{lng:.6f}|{stream_url.strip()}"
     return _hash_text(stable)
+
+
+def _normalize_camera_stream_url(stream_url: str) -> str:
+    normalized = (stream_url or "").strip()
+    if not normalized:
+        return ""
+    lower = normalized.lower()
+    if "pride-net.ru" in lower and ".m3u8" not in lower:
+        return normalized.rstrip("/") + "/index.m3u8"
+    return normalized
 
 
 def extract_client_ip(request: Request) -> str:
@@ -238,14 +251,14 @@ class AdminCameraCatalog(Base):
 
 
 class AdminRuntimeStore:
-    """DB-backed runtime metrics store suitable for Supabase Postgres."""
+    """DB-backed runtime metrics store suitable for production Postgres."""
 
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._engine = engine
         self._session_factory = SessionLocal
         self._initialized = False
-        self._storage_mode = "supabase_postgres"
+        self._storage_mode = "postgres_runtime"
         self._admin_claim_attempts: dict[str, list[float]] = {}
 
     def _db(self) -> Session:
@@ -289,27 +302,42 @@ class AdminRuntimeStore:
         if not isinstance(payload, list):
             return []
 
-        cameras: list[dict[str, Any]] = []
+        cameras_by_id: dict[str, dict[str, Any]] = {}
         for item in payload:
             if not isinstance(item, dict):
                 continue
             lat = _safe_float(item.get("lat") if item.get("lat") is not None else item.get("latitude"))
             lng = _safe_float(item.get("lng") if item.get("lng") is not None else item.get("lon"))
-            stream_url = (item.get("s") or item.get("url") or "").strip()
+            stream_url = _normalize_camera_stream_url(item.get("s") or item.get("url") or "")
             if lat is None or lng is None or not stream_url:
                 continue
             name = str(item.get("n") or item.get("name") or "Камера").strip() or "Камера"
             camera_id = _camera_fingerprint(name=name, lat=lat, lng=lng, stream_url=stream_url)
-            cameras.append(
-                {
-                    "camera_id": camera_id,
-                    "name": name[:255],
-                    "lat": lat,
-                    "lng": lng,
-                    "stream_url": stream_url[:2000],
-                }
-            )
-        return cameras
+            candidate = {
+                "camera_id": camera_id,
+                "name": name[:255],
+                "lat": lat,
+                "lng": lng,
+                "stream_url": stream_url[:2000],
+                "is_secret": bool(item.get("secret") is True),
+                "provider": str(item.get("provider") or "").strip()[:64],
+                "street": str(item.get("street") or "").strip()[:255],
+                "district": str(item.get("district") or "").strip()[:255],
+            }
+            existing = cameras_by_id.get(camera_id)
+            if existing is None:
+                cameras_by_id[camera_id] = candidate
+                continue
+            existing["is_secret"] = bool(existing.get("is_secret")) or bool(candidate.get("is_secret"))
+            if len(candidate["stream_url"]) > len(existing.get("stream_url") or ""):
+                existing["stream_url"] = candidate["stream_url"]
+            if candidate.get("provider") and not existing.get("provider"):
+                existing["provider"] = candidate["provider"]
+            if candidate.get("street") and not existing.get("street"):
+                existing["street"] = candidate["street"]
+            if candidate.get("district") and not existing.get("district"):
+                existing["district"] = candidate["district"]
+        return list(cameras_by_id.values())
 
     def _sync_camera_catalog_locked(self, db: Session) -> int:
         source_cameras = self._load_camera_source_rows()
@@ -320,6 +348,7 @@ class AdminRuntimeStore:
             row.camera_id: row
             for row in db.query(AdminCameraCatalog).all()
         }
+        source_ids = {cam["camera_id"] for cam in source_cameras}
         now = _utcnow()
 
         for cam in source_cameras:
@@ -337,6 +366,10 @@ class AdminRuntimeStore:
             row.lng = cam["lng"]
             row.stream_url = cam["stream_url"]
             row.updated_at = now
+
+        for camera_id, row in existing.items():
+            if camera_id not in source_ids:
+                db.delete(row)
         return len(source_cameras)
 
     def sync_camera_catalog(self) -> int:
@@ -616,9 +649,24 @@ class AdminRuntimeStore:
         for key in keys:
             self._admin_claim_attempts.pop(key, None)
 
-    def _camera_to_dict(self, camera: AdminCameraCatalog) -> dict[str, Any]:
+    def _camera_source_index(self) -> dict[str, dict[str, Any]]:
+        return {
+            row["camera_id"]: row
+            for row in self._load_camera_source_rows()
+        }
+
+    def _camera_to_dict(
+        self,
+        camera: AdminCameraCatalog,
+        source_meta: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        source_meta = source_meta or {}
+        is_secret = bool(source_meta.get("is_secret") is True)
         hidden_in_map = bool(
-            camera.hidden_by_admin or camera.hidden_due_to_offline or not camera.streamable
+            is_secret
+            or camera.hidden_by_admin
+            or camera.hidden_due_to_offline
+            or not camera.streamable
         )
         return {
             "camera_id": camera.camera_id,
@@ -629,9 +677,14 @@ class AdminRuntimeStore:
             "stream_url": camera.stream_url,
             "s": camera.stream_url,
             "streamable": bool(camera.streamable),
+            "is_secret": is_secret,
+            "visibility_tier": "secret" if is_secret else "public",
             "hidden_in_map": hidden_in_map,
             "hidden_by_admin": bool(camera.hidden_by_admin),
             "hidden_due_to_offline": bool(camera.hidden_due_to_offline),
+            "provider": source_meta.get("provider") or None,
+            "street": source_meta.get("street") or None,
+            "district": source_meta.get("district") or None,
             "probe_http_status": camera.probe_http_status,
             "probe_error": (camera.probe_error or "")[:500],
             "last_checked_at": _isoformat(camera.last_checked_at),
@@ -640,6 +693,7 @@ class AdminRuntimeStore:
 
     def get_public_cameras(self) -> list[dict[str, Any]]:
         self.sync_camera_catalog()
+        source_index = self._camera_source_index()
         db = self._db()
         try:
             rows = (
@@ -650,18 +704,66 @@ class AdminRuntimeStore:
                 .order_by(AdminCameraCatalog.name.asc())
                 .all()
             )
-            return [self._camera_to_dict(row) for row in rows]
+            return [
+                self._camera_to_dict(row, source_index.get(row.camera_id))
+                for row in rows
+                if not bool((source_index.get(row.camera_id) or {}).get("is_secret") is True)
+            ]
+        finally:
+            db.close()
+
+    def get_secret_cameras(self) -> list[dict[str, Any]]:
+        self.sync_camera_catalog()
+        source_index = self._camera_source_index()
+        db = self._db()
+        try:
+            rows = (
+                db.query(AdminCameraCatalog)
+                .filter(AdminCameraCatalog.streamable.is_(True))
+                .filter(AdminCameraCatalog.hidden_by_admin.is_(False))
+                .filter(AdminCameraCatalog.hidden_due_to_offline.is_(False))
+                .order_by(AdminCameraCatalog.name.asc())
+                .all()
+            )
+            return [
+                self._camera_to_dict(row, source_index.get(row.camera_id))
+                for row in rows
+                if bool((source_index.get(row.camera_id) or {}).get("is_secret") is True)
+            ]
         finally:
             db.close()
 
     def get_admin_cameras(self) -> list[dict[str, Any]]:
         self.sync_camera_catalog()
+        source_index = self._camera_source_index()
         db = self._db()
         try:
             rows = db.query(AdminCameraCatalog).order_by(AdminCameraCatalog.name.asc()).all()
-            return [self._camera_to_dict(row) for row in rows]
+            return [self._camera_to_dict(row, source_index.get(row.camera_id)) for row in rows]
         finally:
             db.close()
+
+    def _probe_camera_stream(
+        self,
+        *,
+        camera_id: str,
+        url: str,
+        timeout_seconds: float,
+    ) -> tuple[str, bool, int | None, str]:
+        headers = {"User-Agent": CAMERA_PROBE_USER_AGENT}
+        try:
+            with httpx.Client(
+                follow_redirects=True,
+                timeout=timeout_seconds,
+                headers=headers,
+            ) as client:
+                response = client.get(url)
+            body_prefix = response.text[:2048].upper() if response.status_code == 200 else ""
+            looks_hls = "#EXTM3U" in body_prefix or ".M3U8" in url.upper()
+            is_streamable = response.status_code == 200 and looks_hls
+            return (camera_id, is_streamable, response.status_code, "")
+        except Exception as error:
+            return (camera_id, False, None, str(error)[:500])
 
     def refresh_camera_streamability(
         self,
@@ -680,17 +782,20 @@ class AdminRuntimeStore:
             db.close()
 
         checks: list[tuple[str, bool, int | None, str]] = []
-        headers = {"User-Agent": CAMERA_PROBE_USER_AGENT}
-        with httpx.Client(follow_redirects=True, timeout=timeout_seconds, headers=headers) as client:
-            for camera_id, url in snapshots:
-                try:
-                    response = client.get(url)
-                    body_prefix = response.text[:2048].upper() if response.status_code == 200 else ""
-                    looks_hls = "#EXTM3U" in body_prefix or ".M3U8" in url.upper()
-                    is_streamable = response.status_code == 200 and looks_hls
-                    checks.append((camera_id, is_streamable, response.status_code, ""))
-                except Exception as error:
-                    checks.append((camera_id, False, None, str(error)[:500]))
+        with ThreadPoolExecutor(
+            max_workers=min(CAMERA_PROBE_MAX_WORKERS, max(1, len(snapshots))),
+        ) as executor:
+            futures = [
+                executor.submit(
+                    self._probe_camera_stream,
+                    camera_id=camera_id,
+                    url=url,
+                    timeout_seconds=timeout_seconds,
+                )
+                for camera_id, url in snapshots
+            ]
+            for future in as_completed(futures):
+                checks.append(future.result())
 
         with self._lock:
             db = self._db()
@@ -940,6 +1045,7 @@ class AdminRuntimeStore:
                 )
             }
             cameras_total = db.query(func.count(AdminCameraCatalog.camera_id)).scalar() or 0
+            source_index = self._camera_source_index()
             cameras_streamable = (
                 db.query(func.count(AdminCameraCatalog.camera_id))
                 .filter(AdminCameraCatalog.streamable.is_(True))
@@ -962,6 +1068,20 @@ class AdminRuntimeStore:
                 .filter(AdminCameraCatalog.streamable.is_(False))
                 .scalar()
                 or 0
+            )
+            cameras_secret = sum(
+                1
+                for meta in source_index.values()
+                if bool(meta.get("is_secret") is True)
+            )
+            cameras_public = max(0, int(cameras_total) - int(cameras_secret))
+            cameras_secret_streamable = sum(
+                1
+                for row in db.query(AdminCameraCatalog).all()
+                if row.streamable
+                and not row.hidden_by_admin
+                and not row.hidden_due_to_offline
+                and bool((source_index.get(row.camera_id) or {}).get("is_secret") is True)
             )
 
             total_unique_users = db.query(func.count(AdminRuntimeDevice.device_id)).scalar() or 0
@@ -1083,7 +1203,10 @@ class AdminRuntimeStore:
                     for device in devices
                 ],
                 "cameras_total": int(cameras_total),
+                "cameras_public": int(cameras_public),
+                "cameras_secret": int(cameras_secret),
                 "cameras_streamable": int(cameras_streamable),
+                "cameras_secret_streamable": int(cameras_secret_streamable),
                 "cameras_hidden": int(cameras_hidden),
                 "cameras_offline": int(cameras_offline),
             }

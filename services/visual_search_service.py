@@ -388,7 +388,7 @@ async def run_visual_search(
         }
 
     # If reference image provided, describe it first
-    if reference_image_bytes and XAI_API_KEY:
+    if reference_image_bytes and AI_API_KEY:
         image_desc = await _describe_reference_image(reference_image_bytes)
         if image_desc:
             search_desc = f"{search_desc}. Визуальное описание: {image_desc}".strip(". ")

@@ -1,0 +1,9 @@
+[Unit]
+Description=Soobshio Runtime Health Check
+After=soobshio-stack.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/soobshio
+ExecStart=/opt/soobshio/scripts/maintenance/healthcheck_stack.sh /opt/soobshio/.env.production /opt/soobshio

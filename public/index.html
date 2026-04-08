@@ -1,84 +1,949 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Пульс города — Нижневартовск</title>
+  <meta name="theme-color" content="#020617">
+  <title>Пульс города | Ситуационный контур Нижневартовска</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700;800&family=IBM+Plex+Sans:wght@500;600;700&family=Manrope:wght@500;600;700;800&display=swap"
+    rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #020617;
+      --bg-raised: #08111f;
+      --surface: rgba(12, 22, 40, 0.9);
+      --surface-strong: rgba(17, 28, 49, 0.82);
+      --surface-soft: rgba(22, 38, 61, 0.72);
+      --text: #e6faff;
+      --text-secondary: #8eafc2;
+      --text-tertiary: #66849a;
+      --primary: #00e5ff;
+      --primary-deep: #0ea5c7;
+      --accent: #ffc857;
+      --success: #00e676;
+      --danger: #ff3d00;
+      --border: rgba(63, 216, 248, 0.16);
+      --border-strong: rgba(63, 216, 248, 0.28);
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+      --radius-xl: 30px;
+      --radius-lg: 22px;
+      --radius-md: 18px;
+      --container: 1200px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+      font-family: "Manrope", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(0, 229, 255, 0.18), transparent 28%),
+        radial-gradient(circle at 85% 12%, rgba(124, 77, 255, 0.14), transparent 24%),
+        radial-gradient(circle at 78% 88%, rgba(255, 200, 87, 0.1), transparent 20%),
+        linear-gradient(180deg, #06111f 0%, #020617 58%, #071120 100%);
       min-height: 100vh;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0)),
+        radial-gradient(circle at center, rgba(255, 255, 255, 0.035) 0, transparent 60%);
+      mix-blend-mode: screen;
+      opacity: 0.5;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .shell {
+      width: min(var(--container), calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(16px);
+      background: rgba(2, 6, 23, 0.52);
+      border-bottom: 1px solid rgba(63, 216, 248, 0.08);
+    }
+
+    .topbar-inner {
       display: flex;
-      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background:
+        linear-gradient(135deg, rgba(0, 229, 255, 0.92), rgba(14, 165, 199, 0.72));
+      color: #031019;
+      font: 800 18px/1 "Exo 2", sans-serif;
+      box-shadow: 0 16px 40px rgba(0, 229, 255, 0.18);
+    }
+
+    .brand-copy strong {
+      display: block;
+      font-family: "Exo 2", sans-serif;
+      font-size: 18px;
+      letter-spacing: -0.03em;
+    }
+
+    .brand-copy span {
+      display: block;
+      color: var(--text-secondary);
+      font: 600 11px/1.2 "IBM Plex Sans", sans-serif;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .topbar-nav {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .topbar-nav a {
+      padding: 10px 14px;
+      border: 1px solid rgba(63, 216, 248, 0.12);
+      border-radius: 999px;
+      color: var(--text-secondary);
+      background: rgba(17, 28, 49, 0.42);
+      transition: transform 0.2s ease, border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+    }
+
+    .topbar-nav a:hover {
+      color: var(--text);
+      border-color: rgba(63, 216, 248, 0.28);
+      background: rgba(17, 28, 49, 0.72);
+      transform: translateY(-1px);
+    }
+
+    /* Focus-visible styles for keyboard navigation */
+    a:focus-visible,
+    button:focus-visible,
+    .card:focus-visible,
+    .topbar-nav a:focus-visible,
+    .ops-item:focus-visible,
+    .ops-badge:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 3px;
+      border-radius: 4px;
+    }
+
+    .card:focus-visible {
+      outline-offset: 4px;
+      border-color: var(--primary);
+    }
+
+    .topbar-nav a:focus-visible {
+      outline-offset: 2px;
+    }
+
+    .ops-badge:focus-visible {
+      outline-offset: 2px;
+    }
+
+    .hero {
+      padding: 64px 0 36px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.9fr);
+      gap: 28px;
+      align-items: stretch;
+    }
+
+    .panel {
+      position: relative;
+      overflow: hidden;
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(17, 28, 49, 0.86), rgba(12, 22, 40, 0.82));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px) saturate(150%);
+    }
+
+    .hero-main {
+      padding: 34px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border: 1px solid rgba(255, 200, 87, 0.18);
+      border-radius: 999px;
+      color: var(--accent);
+      background: rgba(255, 200, 87, 0.08);
+      font: 600 11px/1.2 "IBM Plex Sans", sans-serif;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: currentColor;
+      box-shadow: 0 0 18px currentColor;
+    }
+
+    .hero-main h1 {
+      margin-top: 20px;
+      font-family: "Exo 2", sans-serif;
+      font-size: clamp(42px, 6vw, 78px);
+      line-height: 0.94;
+      letter-spacing: -0.05em;
+      max-width: 10ch;
+    }
+
+    .hero-main h1 span {
+      display: block;
+      color: var(--primary);
+      text-shadow: 0 0 34px rgba(0, 229, 255, 0.18);
+    }
+
+    .hero-copy {
+      max-width: 62ch;
+      margin-top: 18px;
+      color: var(--text-secondary);
+      font-size: 16px;
+      line-height: 1.68;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 28px;
+    }
+
+    .btn {
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      color: #fff;
+      gap: 10px;
+      min-height: 52px;
+      padding: 0 18px;
+      border-radius: 18px;
+      font-weight: 800;
+      transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease, background-color 0.22s ease;
     }
-    .logo {
-      font-size: 48px;
-      margin-bottom: 20px;
-    }
-    h1 {
-      font-size: 24px;
-      margin-bottom: 10px;
-      background: linear-gradient(90deg, #00d9ff, #00ff99);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    p { color: #888; margin-bottom: 30px; }
-    .links { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
-    a {
-      padding: 15px 30px;
-      background: rgba(0,217,255,0.1);
-      border: 1px solid rgba(0,217,255,0.3);
-      border-radius: 12px;
-      color: #00d9ff;
-      text-decoration: none;
-      font-weight: 600;
-      transition: all 0.3s;
-    }
-    a:hover {
-      background: rgba(0,217,255,0.2);
+
+    .btn:hover {
       transform: translateY(-2px);
     }
-    .status {
-      margin-top: 40px;
-      padding: 10px 20px;
-      background: rgba(0,255,153,0.1);
-      border: 1px solid rgba(0,255,153,0.3);
-      border-radius: 8px;
-      color: #00ff99;
-      font-size: 14px;
+
+    .btn-primary {
+      color: #031019;
+      background: linear-gradient(135deg, var(--primary), var(--primary-deep));
+      box-shadow: 0 18px 32px rgba(0, 229, 255, 0.18);
+    }
+
+    .btn-secondary {
+      color: var(--text);
+      background: rgba(17, 28, 49, 0.72);
+      border: 1px solid var(--border-strong);
+    }
+
+    .hero-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 26px;
+    }
+
+    .metric {
+      padding: 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(63, 216, 248, 0.12);
+      background: rgba(8, 17, 31, 0.58);
+    }
+
+    .metric strong {
+      display: block;
+      font-family: "Exo 2", sans-serif;
+      font-size: clamp(24px, 4vw, 34px);
+      line-height: 1;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 8px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .hero-side {
+      display: grid;
+      gap: 18px;
+      padding: 26px;
+    }
+
+    .status-card {
+      padding: 18px 18px 20px;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(63, 216, 248, 0.12);
+      background: rgba(8, 17, 31, 0.62);
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .status-row strong {
+      font-family: "IBM Plex Sans", sans-serif;
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .status-pill {
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(63, 216, 248, 0.18);
+      color: var(--text);
+      background: rgba(17, 28, 49, 0.74);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .status-value {
+      margin-top: 18px;
+      font-family: "Exo 2", sans-serif;
+      font-size: 34px;
+      letter-spacing: -0.04em;
+    }
+
+    .status-copy {
+      margin-top: 10px;
+      color: var(--text-secondary);
+      line-height: 1.55;
+      min-height: 48px;
+    }
+
+    .live-track {
+      margin-top: 18px;
+      height: 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .live-track::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      width: 58%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, rgba(0, 229, 255, 0.1), rgba(0, 229, 255, 0.82));
+      box-shadow: 0 0 22px rgba(0, 229, 255, 0.28);
+      animation: pulseTrack 2.8s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulseTrack {
+      from {
+        width: 42%;
+      }
+
+      to {
+        width: 78%;
+      }
+    }
+
+    .stack-list {
+      list-style: none;
+      display: grid;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .stack-list li {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-secondary);
+    }
+
+    .stack-list strong {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .section {
+      padding: 28px 0;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 18px;
+    }
+
+    .section-header h2 {
+      font-family: "Exo 2", sans-serif;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1;
+      letter-spacing: -0.04em;
+      max-width: 12ch;
+    }
+
+    .section-header p {
+      max-width: 54ch;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .grid-3,
+    .grid-2 {
+      display: grid;
+      gap: 18px;
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .card {
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(17, 28, 49, 0.72), rgba(8, 17, 31, 0.72));
+      box-shadow: var(--shadow);
+    }
+
+    .card-label {
+      color: var(--primary);
+      font: 600 11px/1.2 "IBM Plex Sans", sans-serif;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .card h3 {
+      margin-top: 14px;
+      font-family: "Exo 2", sans-serif;
+      font-size: 22px;
+      line-height: 1.08;
+      letter-spacing: -0.03em;
+    }
+
+    .card p {
+      margin-top: 12px;
+      color: var(--text-secondary);
+      line-height: 1.62;
+    }
+
+    .card-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 18px;
+      color: var(--accent);
+      font-weight: 800;
+    }
+
+    .card-link::after {
+      content: "\2192";
+      transition: transform 0.2s ease;
+    }
+
+    .card:hover .card-link::after {
+      transform: translateX(3px);
+    }
+
+    .ops-card {
+      display: grid;
+      gap: 16px;
+    }
+
+    .ops-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(8, 17, 31, 0.62);
+      border: 1px solid rgba(63, 216, 248, 0.1);
+    }
+
+    .ops-item strong {
+      display: block;
+      font-size: 15px;
+    }
+
+    .ops-item span {
+      display: block;
+      margin-top: 4px;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .ops-badge {
+      min-width: 88px;
+      text-align: center;
+      padding: 10px 12px;
+      border-radius: 999px;
+      font: 700 12px/1 "IBM Plex Sans", sans-serif;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .ops-badge.success {
+      color: var(--success);
+      border-color: rgba(0, 230, 118, 0.18);
+      background: rgba(0, 230, 118, 0.08);
+    }
+
+    .ops-badge.warn {
+      color: var(--accent);
+      border-color: rgba(255, 200, 87, 0.18);
+      background: rgba(255, 200, 87, 0.08);
+    }
+
+    .footer {
+      padding: 28px 0 48px;
+    }
+
+    .footer-panel {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 22px 24px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      background: rgba(8, 17, 31, 0.74);
+    }
+
+    .footer-panel p {
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* Scroll animations */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(32px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+
+    .fade-up.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Stagger children */
+    .grid-3 .fade-up:nth-child(1) {
+      transition-delay: 0s;
+    }
+
+    .grid-3 .fade-up:nth-child(2) {
+      transition-delay: 0.1s;
+    }
+
+    .grid-3 .fade-up:nth-child(3) {
+      transition-delay: 0.2s;
+    }
+
+    .grid-2 .fade-up:nth-child(1) {
+      transition-delay: 0s;
+    }
+
+    .grid-2 .fade-up:nth-child(2) {
+      transition-delay: 0.1s;
+    }
+
+    .ops-card .fade-up:nth-child(1) {
+      transition-delay: 0s;
+    }
+
+    .ops-card .fade-up:nth-child(2) {
+      transition-delay: 0.08s;
+    }
+
+    .ops-card .fade-up:nth-child(3) {
+      transition-delay: 0.16s;
+    }
+
+    @media (max-width: 1100px) {
+
+      .hero-grid,
+      .grid-3,
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-main h1 {
+        max-width: none;
+      }
+
+      .section-header {
+        align-items: start;
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .shell {
+        width: min(var(--container), calc(100% - 24px));
+      }
+
+      .topbar-inner,
+      .footer-panel {
+        flex-direction: column;
+        align-items: start;
+      }
+
+      .topbar-nav {
+        width: 100%;
+        justify-content: start;
+      }
+
+      .hero {
+        padding-top: 30px;
+      }
+
+      .hero-main,
+      .hero-side,
+      .card {
+        padding: 20px;
+      }
+
+      .hero-metrics {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
+
 <body>
-  <div class="logo">🌆.city</div>
-  <h1>Пульс города Нижневартовск</h1>
-  <p>Открытые данные и жалобы citizens</p>
-  
-  <div class="links">
-    <a href="map.html">🗺️ Карта жалоб</a>
-    <a href="info.html">📊 Инфографика</a>
-    <a href="test.html" style="background: rgba(255,170,0,0.1); border-color: rgba(255,170,0,0.3); color: #ffaa00;">🔍 Диагностика</a>
-  </div>
-  
-  <div class="status" id="connectionStatus">⏳ Проверка соединения...</div>
-  
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a class="brand" href="/">
+        <div class="brand-mark">PG</div>
+        <div class="brand-copy">
+          <strong>Пульс города</strong>
+          <span>City Control Surface</span>
+        </div>
+      </a>
+      <nav class="topbar-nav">
+        <a href="#routes">Маршруты</a>
+        <a href="#surfaces">Поверхности</a>
+        <a href="#ops">Операции</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-grid">
+        <div class="panel hero-main">
+          <div class="eyebrow">Муниципальный command center</div>
+          <h1>Городские сигналы <span>в одном контуре</span></h1>
+          <p class="hero-copy">
+            Мониторинг проблем, камеры и аналитика Нижневартовска. Публичные обращения, камеры, открытые данные
+            и ежедневные сводки собраны в одном продуктовом фасаде. Вместо набора разрозненных страниц здесь
+            выстраивается цельная операторская среда: обнаружить, проверить, интерпретировать и передать дальше.
+          </p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="map.html">Открыть карту инцидентов</a>
+            <a class="btn btn-secondary" href="city_dashboard.html">Перейти в городской дашборд</a>
+          </div>
+          <div class="hero-metrics">
+            <div class="metric">
+              <strong>Live</strong>
+              <span>Мониторинг и триаж</span>
+            </div>
+            <div class="metric">
+              <strong>AI</strong>
+              <span>Ассистент и анализ</span>
+            </div>
+            <div class="metric">
+              <strong>24/7</strong>
+              <span>Сигналы и сводки</span>
+            </div>
+          </div>
+        </div>
+
+        <aside class="panel hero-side">
+          <div class="status-card">
+            <div class="status-row">
+              <strong>Статус контура</strong>
+              <span class="status-pill" id="connectionStatus">Проверка</span>
+            </div>
+            <div class="status-value" id="statusTitle">Связываем сервисы</div>
+            <p class="status-copy" id="statusCopy">
+              Проверяем доступность backend API и определяем, в каком режиме сейчас работает фасад.
+            </p>
+            <div class="live-track"></div>
+          </div>
+
+          <div class="status-card">
+            <div class="status-row">
+              <strong>Операционный стек</strong>
+              <span class="status-pill">Soobshio</span>
+            </div>
+            <ul class="stack-list">
+              <li><strong>Map + Reports</strong><span>единая точка ситуационной картины</span></li>
+              <li><strong>AI Surfaces</strong><span>диспетчеризация, summary, triage</span></li>
+              <li><strong>Daily Ops</strong><span>дашборды, сводки, публичные данные</span></li>
+            </ul>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section fade-up" id="routes">
+      <div class="section-header">
+        <div>
+          <div class="eyebrow">Core Routes</div>
+          <h2>Ключевые маршруты продукта</h2>
+        </div>
+        <p>
+          Главные страницы собраны так, чтобы пользователь и оператор заходили в один продукт,
+          а не в набор технических страниц с разной стилистикой.
+        </p>
+      </div>
+      <div class="grid-3">
+        <a class="card fade-up" href="map.html">
+          <div class="card-label">Live Map</div>
+          <h3>Карта сигналов и жалоб</h3>
+          <p>Живая операторская поверхность: география обращений, плотность событий и быстрый вход в проверку ситуации.
+          </p>
+          <span class="card-link">Открыть карту</span>
+        </a>
+        <a class="card fade-up" href="city_dashboard.html">
+          <div class="card-label">Dashboard</div>
+          <h3>Городской обзор</h3>
+          <p>Сводная панель для чтения ситуации сверху: статус среды, тренды, отчёты и прикладные KPI.</p>
+          <span class="card-link">Открыть дашборд</span>
+        </a>
+        <a class="card fade-up" href="daily_report.html">
+          <div class="card-label">Digest</div>
+          <h3>Ежедневный контур</h3>
+          <p>Формат для руководителей и дежурных: короткая картина за день без перегрузки необработанными данными.</p>
+          <span class="card-link">Открыть сводку</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="section fade-up" id="surfaces">
+      <div class="section-header">
+        <div>
+          <div class="eyebrow">User Surfaces</div>
+          <h2>Что делает интерфейс цельным</h2>
+        </div>
+        <p>
+          Новый язык продукта строится не на «киберпанке ради эффекта», а на смеси civic-tech и операторской ясности:
+          плотная тёмная среда, читаемая типографика и ограниченные акценты только там, где нужен сигнал.
+        </p>
+      </div>
+      <div class="grid-2">
+        <div class="card fade-up">
+          <div class="card-label">Visual System</div>
+          <h3>Operator calm, not hacker noise</h3>
+          <p>Exo 2 задаёт сильную и собранную иерархию, Manrope удерживает читаемость на utility-экранах, IBM Plex Sans
+            маркирует системные подписи и статусы.</p>
+        </div>
+        <div class="card fade-up">
+          <div class="card-label">Color Logic</div>
+          <h3>Один сигнал, один смысл</h3>
+          <p>Циан отвечает за навигацию и живые данные, золото за режим внимания, зелёный за подтверждённый статус.
+            Остальное уходит в холодные глубокие поверхности без лишнего свечения.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section fade-up" id="ops">
+      <div class="section-header">
+        <div>
+          <div class="eyebrow">Operations</div>
+          <h2>Дополнительные operational surfaces</h2>
+        </div>
+        <p>
+          Здесь собраны страницы, которые работают как продолжение основного продукта, а не как отдельно выросшие
+          утилиты.
+        </p>
+      </div>
+      <div class="card ops-card">
+        <div class="ops-item fade-up">
+          <div>
+            <strong>Камеры и видеоконтур</strong>
+            <span>Просмотр доступных точек и состояния камер.</span>
+          </div>
+          <a class="ops-badge success" href="cameras.html">Открыть</a>
+        </div>
+        <div class="ops-item fade-up">
+          <div>
+            <strong>Политики и юридические страницы</strong>
+            <span>Публичные тексты должны визуально жить в той же системе доверия.</span>
+          </div>
+          <a class="ops-badge" href="privacy_policy.html">Privacy</a>
+        </div>
+        <div class="ops-item fade-up">
+          <div>
+            <strong>Пользовательское соглашение</strong>
+            <span>Отдельная точка для прозрачных правил использования платформы.</span>
+          </div>
+          <a class="ops-badge warn" href="user_agreement.html">Open</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="shell footer fade-up">
+    <div class="footer-panel">
+      <div>
+        <div class="eyebrow">Pulse Layer</div>
+        <p>Публичный вход теперь должен вести не в демо-заглушку, а в цельную систему городского наблюдения, отчётности
+          и AI-поддержки.</p>
+      </div>
+      <div class="footer-links">
+        <a class="btn btn-secondary" href="map.html">Карта</a>
+        <a class="btn btn-secondary" href="city_dashboard.html">Дашборд</a>
+        <a class="btn btn-secondary" href="daily_report.html">Сводка</a>
+      </div>
+    </div>
+  </footer>
+
   <script>
-    // Проверка соединения с Supabase API
-    fetch('https://xpainxohbdoruakcijyq.supabase.co/functions/v1/api/health')
-      .then(r => {
-        document.getElementById('connectionStatus').textContent = r.ok ? '✅ API Connected' : '⚠️ API Limited';
-        document.getElementById('connectionStatus').style.color = r.ok ? '#00ff99' : '#ffaa00';
-        document.getElementById('connectionStatus').style.borderColor = r.ok ? 'rgba(0,255,153,0.3)' : 'rgba(255,170,0,0.3)';
-      })
-      .catch(() => {
-        document.getElementById('connectionStatus').textContent = '⚠️ Режим демо-данных';
-        document.getElementById('connectionStatus').style.color = '#ffaa00';
+    // ── Scroll animations via Intersection Observer ──────────────────
+    (function initScrollAnimations() {
+      const observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, {
+        threshold: 0.1,
+        rootMargin: '0px 0px -40px 0px'
       });
+
+      document.querySelectorAll('.fade-up').forEach(function (el) {
+        observer.observe(el);
+      });
+    })();
+
+    // ── Connection status with retry ─────────────────────────────────
+    const statusEl = document.getElementById("connectionStatus");
+    const statusTitleEl = document.getElementById("statusTitle");
+    const statusCopyEl = document.getElementById("statusCopy");
+
+    let retryTimer = null;
+
+    function setStatus(mode) {
+      if (mode === "ok") {
+        statusEl.textContent = "Connected";
+        statusEl.style.color = "#00e676";
+        statusEl.style.borderColor = "rgba(0, 230, 118, 0.24)";
+        statusEl.style.background = "rgba(0, 230, 118, 0.08)";
+        statusTitleEl.textContent = "Контур активен";
+        statusCopyEl.textContent = "Backend API отвечает, поэтому можно работать как с live-данными, так и с продуктовым фасадом без режима деградации.";
+        // Stop retrying once connected
+        if (retryTimer) {
+          clearInterval(retryTimer);
+          retryTimer = null;
+        }
+        return;
+      }
+
+      statusEl.textContent = "Fallback";
+      statusEl.style.color = "#ffc857";
+      statusEl.style.borderColor = "rgba(255, 200, 87, 0.24)";
+      statusEl.style.background = "rgba(255, 200, 87, 0.08)";
+      statusTitleEl.textContent = "Работаем в safe mode";
+      statusCopyEl.textContent = "API сейчас недоступен, поэтому фасад переключён в демо-режим и показывает только статические и частично локальные поверхности.";
+
+      // Retry every 30 seconds
+      if (!retryTimer) {
+        retryTimer = setInterval(function () {
+          checkHealth();
+        }, 30000);
+      }
+    }
+
+    function checkHealth() {
+      fetch("/health", { cache: "no-store" })
+        .then(function (response) {
+          if (response.ok) {
+            setStatus("ok");
+          } else {
+            setStatus("fallback");
+          }
+        })
+        .catch(function () {
+          setStatus("fallback");
+        });
+    }
+
+    // Initial check
+    checkHealth();
   </script>
 </body>
+
 </html>

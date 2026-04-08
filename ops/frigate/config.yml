@@ -1,0 +1,222 @@
+# =====================================================================
+# Frigate NVR Configuration — City Pulse / Nizhnevartovsk
+# Оптимизирован для Timeweb VPS: 4 vCPU / 4 GB RAM / без GPU
+# =====================================================================
+# Документация: https://docs.frigate.video/configuration/
+# =====================================================================
+
+mqtt:
+  enabled: false  # Не нужен — мы используем HTTP Events API
+
+database:
+  path: /db/frigate.db
+
+logger:
+  default: warning
+  logs:
+    frigate.event: info
+    frigate.detector: info
+
+# ─── Детекторы ───────────────────────────────────────────────────────
+# CPU-only, OpenVINO для максимальной эффективности на x86_64
+detectors:
+  cpu_detector:
+    type: openvino
+    device: CPU
+    model:
+      path: /openvino-model/ssdlite_mobilenet_v2.xml
+      width: 300
+      height: 300
+
+model:
+  width: 300
+  height: 300
+  input_tensor: nhwc
+  input_pixel_format: bgr
+  labelmap_path: /labelmap.txt
+
+# ─── FFmpeg глобальные параметры ─────────────────────────────────────
+ffmpeg:
+  hwaccel_args: []  # Нет GPU — чистый CPU декодинг
+  input_args: preset-rtsp-restream
+  output_args:
+    detect: -threads 1 -f rawvideo -pix_fmt yuv420p
+    record: preset-record-generic-audio-copy
+
+# ─── Глобальные параметры объектов ───────────────────────────────────
+objects:
+  track:
+    - person
+    - car
+    - truck
+    - bus
+    - motorcycle
+    - dog
+    - cat
+  filters:
+    person:
+      min_area: 1500
+      max_area: 100000
+      threshold: 0.55
+    car:
+      min_area: 3000
+      threshold: 0.50
+    truck:
+      min_area: 5000
+      threshold: 0.50
+    bus:
+      min_area: 5000
+      threshold: 0.50
+    dog:
+      min_area: 800
+      threshold: 0.45
+    cat:
+      min_area: 500
+      threshold: 0.45
+
+# ─── Детекция: агрессивный сэмплинг (0.5 FPS для экономии CPU) ──────
+detect:
+  enabled: true
+  width: 640
+  height: 360
+  fps: 1         # 1 кадр/сек — достаточно для городского наблюдения
+  max_disappeared: 30
+
+# ─── Запись снапшотов событий ────────────────────────────────────────
+snapshots:
+  enabled: true
+  timestamp: true
+  bounding_box: true
+  crop: false
+  retain:
+    default: 3       # дней хранения
+    objects:
+      person: 5
+      dog: 7
+  quality: 85
+
+# ─── Запись видео (опционально, выключено для экономии диска) ────────
+record:
+  enabled: false
+  retain:
+    days: 1
+    mode: motion
+  events:
+    retain:
+      default: 3
+      mode: active_objects
+
+# ─── Motion Detection ───────────────────────────────────────────────
+motion:
+  threshold: 30
+  contour_area: 50
+  improve_contrast: true
+  lightning_threshold: 0.8
+
+# ─── Review (события для админ-панели) ──────────────────────────────
+review:
+  alerts:
+    labels:
+      - dog
+      - person    # Группы 8+
+    required_zones: []
+  detections:
+    labels:
+      - car
+      - truck
+      - bus
+
+# ─── Камеры Нижневартовска ──────────────────────────────────────────
+# Каждая камера конфигурируется через RTSP/HLS потоки из dantser.org
+# Frigate автоматически перекодирует HLS → raw frames для детекции
+cameras:
+  nv_60let_10:
+    ffmpeg:
+      inputs:
+        - path: "https://stream3.dantser.org/NV_60Let_10/tracks-v1/mono.ts.m3u8"
+          roles:
+            - detect
+    detect:
+      fps: 1
+      width: 640
+      height: 360
+
+  nv_chapaeva_lenina:
+    ffmpeg:
+      inputs:
+        - path: "https://stream3.dantser.org/NV_Chapaeva_Lenina/tracks-v1/mono.ts.m3u8"
+          roles:
+            - detect
+    detect:
+      fps: 1
+      width: 640
+      height: 360
+
+  nv_internatsionalnaya_13:
+    ffmpeg:
+      inputs:
+        - path: "https://stream3.dantser.org/NV_Internatsionalnaya_13/tracks-v1/mono.ts.m3u8"
+          roles:
+            - detect
+    detect:
+      fps: 1
+      width: 640
+      height: 360
+
+  nv_mira_32:
+    ffmpeg:
+      inputs:
+        - path: "https://stream3.dantser.org/NV_Mira_32/tracks-v1/mono.ts.m3u8"
+          roles:
+            - detect
+    detect:
+      fps: 1
+      width: 640
+      height: 360
+
+  nv_geroyev_samotlora_20:
+    ffmpeg:
+      inputs:
+        - path: "https://stream3.dantser.org/NV_Geroev_Samotlora_20/tracks-v1/mono.ts.m3u8"
+          roles:
+            - detect
+    detect:
+      fps: 1
+      width: 640
+      height: 360
+
+  nv_prospect_pobedy_5:
+    ffmpeg:
+      inputs:
+        - path: "https://stream3.dantser.org/NV_Prospect_Pobedy_5/tracks-v1/mono.ts.m3u8"
+          roles:
+            - detect
+    detect:
+      fps: 1
+      width: 640
+      height: 360
+
+  nv_hanty_mansiyskaya_19:
+    ffmpeg:
+      inputs:
+        - path: "https://stream3.dantser.org/NV_Hanty_Mansiyskaya_19/tracks-v1/mono.ts.m3u8"
+          roles:
+            - detect
+    detect:
+      fps: 1
+      width: 640
+      height: 360
+
+  nv_ploshchad_neftyannikov:
+    ffmpeg:
+      inputs:
+        - path: "https://stream3.dantser.org/NV_Ploshchad_Neftyannikov/tracks-v1/mono.ts.m3u8"
+          roles:
+            - detect
+    detect:
+      fps: 1
+      width: 640
+      height: 360
+
+# ─── Версия ─────────────────────────────────────────────────────────
+version: 0.14

@@ -20,7 +20,7 @@ if (tg) {
 // CONFIGURATION
 // ══════════════════════════════════════════════════════════
 const CONFIG = {
-  supabaseApi: 'https://xpainxohbdoruakcijyq.supabase.co/functions/v1/api',
+  apiBase: '/api',
   weatherApi: 'https://api.open-meteo.com/v1/forecast',
   coords: { lat: 60.9344, lon: 76.5531 },
   timeout: 10000
@@ -468,7 +468,7 @@ function icon(name, size = 20) {
 // ══════════════════════════════════════════════════════════
 async function loadData() {
   try {
-    const res = await fetch(`${CONFIG.supabaseApi}/infographic`, {
+    const res = await fetch(`${CONFIG.apiBase}/infographic`, {
       signal: AbortSignal.timeout(CONFIG.timeout)
     });
     if (res.ok) {
@@ -604,11 +604,14 @@ setInterval(loadWeather, 10 * 60 * 1000);
 
 async function loadComplaints() {
   try {
-    const res = await fetch(`${CONFIG.supabaseApi}/complaints`, {
+    const res = await fetch(`${CONFIG.apiBase}/reports?limit=500`, {
       signal: AbortSignal.timeout(5000)
     });
     if (res.ok) {
       const data = await res.json();
+      if (Array.isArray(data)) {
+        return data.filter(c => c?.category);
+      }
       if (data && typeof data === 'object') {
         return Object.values(data).filter(c => c?.category);
       }
@@ -4960,13 +4963,13 @@ function showUkDetails(ukId) {
       <div class="uk-info-row">
         ${icon('mdi:phone', 18)}
         <span class="label">Телефон:</span>
-        <a href="tel:${uk.phone.replace(/\D/g, '')}" class="value link">${esc(uk.phone)}</a>
+        <a href="tel:${uk.phone.replace(/[^0-9\+]/g, '')}" class="value link">${esc(uk.phone)}</a>
       </div>
       ${uk.email ? `
         <div class="uk-info-row">
           ${icon('mdi:email', 18)}
-          <span class="label">Email:</span>
-          <span class="value">${esc(uk.email)}</span>
+          <span class="label">Эл. почта:</span>
+          <a href="mailto:${esc(uk.email)}" class="value link" style="text-decoration: underline;">${esc(uk.email)}</a>
         </div>
       ` : ''}
       <div class="uk-info-row">
@@ -4977,9 +4980,9 @@ function showUkDetails(ukId) {
     </div>
     
     ${uk.email ? `
-      <button class="uk-contact-btn" onclick="closeUkModal(); openEmailModal('${esc(uk.email)}', '${esc(uk.short)}')">
+      <a href="mailto:${esc(uk.email)}" class="uk-contact-btn" style="display:flex; justify-content:center; align-items:center; gap:8px; text-decoration:none;">
         ${icon(ICONS.email, 18)} Написать обращение
-      </button>
+      </a>
     ` : ''}
   `;
 

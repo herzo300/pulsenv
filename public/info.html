@@ -132,7 +132,7 @@
       outline-offset: 2px;
     }
 
-    /* ═══ ANIMATED BACKGROUND - AURORA BOREALIS (ENHANCED) ═══ */
+    /* ═══ ANIMATED BACKGROUND — MULTI-LAYER DYNAMIC SYSTEM ═══ */
     #aurora-bg {
       position: fixed;
       inset: 0;
@@ -145,35 +145,220 @@
         radial-gradient(ellipse 60% 45% at 90% 15%, rgba(255, 107, 53, 0.15) 0%, transparent 45%);
     }
 
+    /* ── Mesh Gradient Layer (Morphing) ── */
+    .mesh-gradient {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.6;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(0, 240, 255, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(124, 58, 237, 0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(255, 107, 53, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 60%, rgba(34, 197, 94, 0.08) 0%, transparent 50%);
+      animation: mesh-morph 30s ease-in-out infinite;
+    }
+
+    @keyframes mesh-morph {
+
+      0%,
+      100% {
+        background:
+          radial-gradient(ellipse at 20% 50%, rgba(0, 240, 255, 0.15) 0%, transparent 50%),
+          radial-gradient(ellipse at 80% 20%, rgba(124, 58, 237, 0.12) 0%, transparent 50%),
+          radial-gradient(ellipse at 50% 80%, rgba(255, 107, 53, 0.1) 0%, transparent 50%),
+          radial-gradient(ellipse at 70% 60%, rgba(34, 197, 94, 0.08) 0%, transparent 50%);
+      }
+
+      25% {
+        background:
+          radial-gradient(ellipse at 60% 30%, rgba(0, 240, 255, 0.18) 0%, transparent 50%),
+          radial-gradient(ellipse at 20% 70%, rgba(124, 58, 237, 0.15) 0%, transparent 50%),
+          radial-gradient(ellipse at 80% 50%, rgba(255, 107, 53, 0.12) 0%, transparent 50%),
+          radial-gradient(ellipse at 40% 20%, rgba(34, 197, 94, 0.1) 0%, transparent 50%);
+      }
+
+      50% {
+        background:
+          radial-gradient(ellipse at 40% 70%, rgba(0, 240, 255, 0.12) 0%, transparent 50%),
+          radial-gradient(ellipse at 70% 40%, rgba(124, 58, 237, 0.1) 0%, transparent 50%),
+          radial-gradient(ellipse at 30% 20%, rgba(255, 107, 53, 0.15) 0%, transparent 50%),
+          radial-gradient(ellipse at 80% 80%, rgba(34, 197, 94, 0.12) 0%, transparent 50%);
+      }
+
+      75% {
+        background:
+          radial-gradient(ellipse at 80% 60%, rgba(0, 240, 255, 0.14) 0%, transparent 50%),
+          radial-gradient(ellipse at 40% 30%, rgba(124, 58, 237, 0.18) 0%, transparent 50%),
+          radial-gradient(ellipse at 60% 80%, rgba(255, 107, 53, 0.08) 0%, transparent 50%),
+          radial-gradient(ellipse at 20% 40%, rgba(34, 197, 94, 0.15) 0%, transparent 50%);
+      }
+    }
+
+    /* ── Floating Orbs ── */
+    .floating-orbs {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(60px);
+      opacity: 0.35;
+      will-change: transform;
+    }
+
+    .orb-1 {
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(0, 240, 255, 0.5), transparent 70%);
+      top: 10%;
+      left: -5%;
+      animation: orb-float-1 25s ease-in-out infinite;
+    }
+
+    .orb-2 {
+      width: 250px;
+      height: 250px;
+      background: radial-gradient(circle, rgba(124, 58, 237, 0.45), transparent 70%);
+      top: 60%;
+      right: -5%;
+      animation: orb-float-2 30s ease-in-out infinite;
+    }
+
+    .orb-3 {
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(circle, rgba(255, 107, 53, 0.4), transparent 70%);
+      bottom: 5%;
+      left: 30%;
+      animation: orb-float-3 22s ease-in-out infinite;
+    }
+
+    .orb-4 {
+      width: 180px;
+      height: 180px;
+      background: radial-gradient(circle, rgba(34, 197, 94, 0.35), transparent 70%);
+      top: 30%;
+      right: 20%;
+      animation: orb-float-4 28s ease-in-out infinite;
+    }
+
+    @keyframes orb-float-1 {
+
+      0%,
+      100% {
+        transform: translate(0, 0) scale(1);
+      }
+
+      25% {
+        transform: translate(30vw, 15vh) scale(1.1);
+      }
+
+      50% {
+        transform: translate(15vw, 35vh) scale(0.9);
+      }
+
+      75% {
+        transform: translate(40vw, 20vh) scale(1.05);
+      }
+    }
+
+    @keyframes orb-float-2 {
+
+      0%,
+      100% {
+        transform: translate(0, 0) scale(1);
+      }
+
+      25% {
+        transform: translate(-25vw, -20vh) scale(0.95);
+      }
+
+      50% {
+        transform: translate(-40vw, -10vh) scale(1.1);
+      }
+
+      75% {
+        transform: translate(-15vw, -30vh) scale(1);
+      }
+    }
+
+    @keyframes orb-float-3 {
+
+      0%,
+      100% {
+        transform: translate(0, 0) scale(1);
+      }
+
+      33% {
+        transform: translate(20vw, -25vh) scale(1.15);
+      }
+
+      66% {
+        transform: translate(-15vw, -15vh) scale(0.85);
+      }
+    }
+
+    @keyframes orb-float-4 {
+
+      0%,
+      100% {
+        transform: translate(0, 0) scale(1);
+      }
+
+      20% {
+        transform: translate(-20vw, 25vh) scale(1.1);
+      }
+
+      40% {
+        transform: translate(-35vw, 10vh) scale(0.9);
+      }
+
+      60% {
+        transform: translate(-10vw, 30vh) scale(1.05);
+      }
+
+      80% {
+        transform: translate(15vw, 15vh) scale(0.95);
+      }
+    }
+
+    /* ── Aurora Layers (Enhanced Speed & Glow) ── */
     .aurora-layer {
       position: absolute;
       width: 200%;
       height: 200%;
       background: radial-gradient(ellipse 80% 50% at 50% 0%,
-          rgba(0, 240, 255, 0.3) 0%,
-          rgba(0, 240, 255, 0.08) 30%,
+          rgba(0, 240, 255, 0.35) 0%,
+          rgba(0, 240, 255, 0.1) 30%,
           transparent 55%);
-      animation: aurora 12s ease-in-out infinite;
+      animation: aurora 10s ease-in-out infinite;
       filter: blur(40px);
     }
 
     .aurora-layer:nth-child(2) {
       background: radial-gradient(ellipse 70% 40% at 30% 10%,
-          rgba(124, 58, 237, 0.18) 0%,
-          rgba(124, 58, 237, 0.04) 40%,
+          rgba(124, 58, 237, 0.22) 0%,
+          rgba(124, 58, 237, 0.06) 40%,
           transparent 60%);
       animation-delay: -5s;
-      animation-duration: 20s;
+      animation-duration: 16s;
       filter: blur(60px);
     }
 
     .aurora-layer:nth-child(3) {
       background: radial-gradient(ellipse 60% 35% at 70% 5%,
-          rgba(255, 107, 53, 0.12) 0%,
-          rgba(34, 197, 94, 0.06) 30%,
+          rgba(255, 107, 53, 0.16) 0%,
+          rgba(34, 197, 94, 0.08) 30%,
           transparent 55%);
       animation-delay: -10s;
-      animation-duration: 25s;
+      animation-duration: 20s;
       filter: blur(50px);
     }
 
@@ -182,14 +367,41 @@
       0%,
       100% {
         transform: translate(-25%, -15%) rotate(-3deg) scale(1);
+        opacity: 0.7;
       }
 
       33% {
-        transform: translate(-20%, -10%) rotate(2deg) scale(1.05);
+        transform: translate(-20%, -10%) rotate(2deg) scale(1.08);
+        opacity: 1;
       }
 
       66% {
-        transform: translate(-30%, -12%) rotate(-2deg) scale(0.98);
+        transform: translate(-30%, -12%) rotate(-2deg) scale(0.95);
+        opacity: 0.85;
+      }
+    }
+
+    /* ── Scanline Subtle Effect ── */
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(0deg,
+          transparent,
+          transparent 2px,
+          rgba(0, 240, 255, 0.008) 2px,
+          rgba(0, 240, 255, 0.008) 4px);
+      animation: scanline-shift 8s linear infinite;
+    }
+
+    @keyframes scanline-shift {
+      0% {
+        transform: translateY(0);
+      }
+
+      100% {
+        transform: translateY(4px);
       }
     }
 
@@ -2255,6 +2467,275 @@
       text-decoration: underline;
     }
 
+    /* ── Parallax Background Layers ── */
+    .parallax-layer {
+      will-change: transform;
+      transition: transform 0.1s linear;
+    }
+
+    /* ═══ ANIMATED COUNTERS ═══ */
+    .counter {
+      display: inline-block;
+      transition: transform 0.3s ease;
+    }
+
+    .counter.counting {
+      animation: counter-tick 0.1s ease;
+    }
+
+    @keyframes counter-tick {
+      0% {
+        transform: translateY(-2px);
+      }
+
+      100% {
+        transform: translateY(0);
+      }
+    }
+
+    /* Counter sparkle */
+    .counter.done {
+      animation: counter-sparkle 0.6s ease;
+    }
+
+    @keyframes counter-sparkle {
+      0% {
+        text-shadow: 0 0 20px currentColor;
+      }
+
+      50% {
+        text-shadow: 0 0 40px currentColor, 0 0 60px currentColor;
+        filter: brightness(1.5);
+      }
+
+      100% {
+        text-shadow: 0 0 20px currentColor;
+        filter: brightness(1.2);
+      }
+    }
+
+    /* ═══ UNIQUE CARD GLOW EFFECTS BY SECTION ═══ */
+
+    /* Budget — Golden Glow */
+    .card[data-section="budget"] {
+      --card-accent: var(--accent-warning);
+    }
+
+    .card[data-section="budget"]:hover {
+      box-shadow:
+        0 8px 40px rgba(0, 0, 0, 0.15),
+        0 0 50px rgba(251, 191, 36, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      border-color: rgba(251, 191, 36, 0.35);
+    }
+
+    .card[data-section="budget"]::before {
+      background: linear-gradient(to bottom, #fbbf24, #f59e0b);
+      box-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+    }
+
+    .card[data-section="budget"] .card-icon {
+      background: rgba(251, 191, 36, 0.12);
+      color: #fbbf24;
+    }
+
+    .card[data-section="budget"] .big-number {
+      color: #fbbf24;
+      text-shadow: 0 0 20px rgba(251, 191, 36, 0.5), 0 0 40px rgba(251, 191, 36, 0.2);
+    }
+
+    /* Fuel — Fire Orange */
+    .card[data-section="fuel"] {
+      --card-accent: var(--accent-secondary);
+    }
+
+    .card[data-section="fuel"]:hover {
+      box-shadow:
+        0 8px 40px rgba(0, 0, 0, 0.15),
+        0 0 50px rgba(255, 107, 53, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 107, 53, 0.35);
+    }
+
+    .card[data-section="fuel"]::before {
+      background: linear-gradient(to bottom, #ff6b35, #ff4500);
+      box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+    }
+
+    .card[data-section="fuel"] .card-icon {
+      background: rgba(255, 107, 53, 0.12);
+      color: #ff6b35;
+    }
+
+    .card[data-section="fuel"] .big-number {
+      color: #ff6b35;
+      text-shadow: 0 0 20px rgba(255, 107, 53, 0.5), 0 0 40px rgba(255, 107, 53, 0.2);
+    }
+
+    /* Eco — Green Pulse */
+    .card[data-section="eco"] {
+      --card-accent: #14b8a6;
+    }
+
+    .card[data-section="eco"]:hover {
+      box-shadow:
+        0 8px 40px rgba(0, 0, 0, 0.15),
+        0 0 50px rgba(20, 184, 166, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      border-color: rgba(20, 184, 166, 0.35);
+    }
+
+    .card[data-section="eco"]::before {
+      background: linear-gradient(to bottom, #14b8a6, #10b981);
+      box-shadow: 0 0 20px rgba(20, 184, 166, 0.5);
+    }
+
+    .card[data-section="eco"] .card-icon {
+      background: rgba(20, 184, 166, 0.12);
+      color: #14b8a6;
+    }
+
+    .card[data-section="eco"] .big-number {
+      color: #14b8a6;
+      text-shadow: 0 0 20px rgba(20, 184, 166, 0.5), 0 0 40px rgba(20, 184, 166, 0.2);
+    }
+
+    /* Transport — Violet Flow */
+    .card[data-section="transport"] {
+      --card-accent: var(--accent-tertiary);
+    }
+
+    .card[data-section="transport"]:hover {
+      box-shadow:
+        0 8px 40px rgba(0, 0, 0, 0.15),
+        0 0 50px rgba(124, 58, 237, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      border-color: rgba(124, 58, 237, 0.35);
+    }
+
+    .card[data-section="transport"]::before {
+      background: linear-gradient(to bottom, #7c3aed, #6d28d9);
+      box-shadow: 0 0 20px rgba(124, 58, 237, 0.5);
+    }
+
+    .card[data-section="transport"] .card-icon {
+      background: rgba(124, 58, 237, 0.12);
+      color: #7c3aed;
+    }
+
+    .card[data-section="transport"] .big-number {
+      color: #7c3aed;
+      text-shadow: 0 0 20px rgba(124, 58, 237, 0.5), 0 0 40px rgba(124, 58, 237, 0.2);
+    }
+
+    /* Sport — Green Energy */
+    .card[data-section="sport"] {
+      --card-accent: var(--accent-success);
+    }
+
+    .card[data-section="sport"]:hover {
+      box-shadow:
+        0 8px 40px rgba(0, 0, 0, 0.15),
+        0 0 50px rgba(34, 197, 94, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      border-color: rgba(34, 197, 94, 0.35);
+    }
+
+    .card[data-section="sport"]::before {
+      background: linear-gradient(to bottom, #22c55e, #16a34a);
+      box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
+    }
+
+    .card[data-section="sport"] .card-icon {
+      background: rgba(34, 197, 94, 0.12);
+      color: #22c55e;
+    }
+
+    .card[data-section="sport"] .big-number {
+      color: #22c55e;
+      text-shadow: 0 0 20px rgba(34, 197, 94, 0.5), 0 0 40px rgba(34, 197, 94, 0.2);
+    }
+
+    /* City — Pink Neon */
+    .card[data-section="city"] {
+      --card-accent: #ec4899;
+    }
+
+    .card[data-section="city"]:hover {
+      box-shadow:
+        0 8px 40px rgba(0, 0, 0, 0.15),
+        0 0 50px rgba(236, 72, 153, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      border-color: rgba(236, 72, 153, 0.35);
+    }
+
+    .card[data-section="city"]::before {
+      background: linear-gradient(to bottom, #ec4899, #db2777);
+      box-shadow: 0 0 20px rgba(236, 72, 153, 0.5);
+    }
+
+    .card[data-section="city"] .card-icon {
+      background: rgba(236, 72, 153, 0.12);
+      color: #ec4899;
+    }
+
+    .card[data-section="city"] .big-number {
+      color: #ec4899;
+      text-shadow: 0 0 20px rgba(236, 72, 153, 0.5), 0 0 40px rgba(236, 72, 153, 0.2);
+    }
+
+    /* People — Rose */
+    .card[data-section="people"] {
+      --card-accent: #f472b6;
+    }
+
+    .card[data-section="people"]:hover {
+      box-shadow:
+        0 8px 40px rgba(0, 0, 0, 0.15),
+        0 0 50px rgba(244, 114, 182, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      border-color: rgba(244, 114, 182, 0.35);
+    }
+
+    .card[data-section="people"]::before {
+      background: linear-gradient(to bottom, #f472b6, #ec4899);
+      box-shadow: 0 0 20px rgba(244, 114, 182, 0.5);
+    }
+
+    .card[data-section="people"] .card-icon {
+      background: rgba(244, 114, 182, 0.12);
+      color: #f472b6;
+    }
+
+    .card[data-section="people"] .big-number {
+      color: #f472b6;
+      text-shadow: 0 0 20px rgba(244, 114, 182, 0.5), 0 0 40px rgba(244, 114, 182, 0.2);
+    }
+
+    /* Housing — Cyan */
+    .card[data-section="housing"] {
+      --card-accent: var(--accent-primary);
+    }
+
+    /* Education — Blue */
+    .card[data-section="edu"] {
+      --card-accent: #3b82f6;
+    }
+
+    .card[data-section="edu"]:hover {
+      border-color: rgba(59, 130, 246, 0.35);
+    }
+
+    .card[data-section="edu"]::before {
+      background: linear-gradient(to bottom, #3b82f6, #2563eb);
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+    }
+
+    .card[data-section="edu"] .card-icon {
+      background: rgba(59, 130, 246, 0.12);
+      color: #3b82f6;
+    }
+
     /* ═══ CHART ANIMATIONS ═══ */
     @keyframes drawLine {
       to {
@@ -3674,12 +4155,29 @@
   <!-- Interactive Particle Background -->
   <canvas id="interactiveCanvas" aria-hidden="true"></canvas>
 
+  <!-- ═══ MULTI-LAYER ANIMATED BACKGROUND ═══ -->
+  <!-- Mesh Gradient (Morphing) -->
+  <div class="mesh-gradient" aria-hidden="true"></div>
+
+  <!-- Floating Orbs -->
+  <div class="floating-orbs" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="orb orb-4"></div>
+  </div>
+
   <!-- Aurora Background -->
   <div id="aurora-bg" aria-hidden="true">
     <div class="aurora-layer"></div>
     <div class="aurora-layer"></div>
     <div class="aurora-layer"></div>
   </div>
+
+  <!-- Scanlines -->
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <!-- Grid Pattern -->
   <div class="grid-pattern" aria-hidden="true"></div>
 
   <!-- City Pulse Bar -->
@@ -3711,7 +4209,8 @@
         <circle cx="12" cy="10" r="3"></circle>
       </svg>
     </a>
-    <a href="#city-story-merged" class="pulse-info-btn" title="Открыть раздел «Город в динамике»" aria-label="Открыть раздел «Город в динамике»">
+    <a href="#city-story-merged" class="pulse-info-btn" title="Открыть раздел «Город в динамике»"
+      aria-label="Открыть раздел «Город в динамике»">
       ДИНАМИКА
     </a>
   </div>
@@ -3745,6 +4244,294 @@
     <div class="loader-spinner"></div>
     <span class="loader-text">Загрузка данных...</span>
   </div>
+
+  <script>
+    /* ═══════════════════════════════════════════════════════
+     ENHANCED VISUAL EFFECTS — Parallax, Counters, Particles
+     ═══════════════════════════════════════════════════════ */
+    (function () {
+      'use strict';
+
+      // ─── 1. PARALLAX BACKGROUND ON SCROLL ───
+      const parallaxLayers = {
+        mesh: document.querySelector('.mesh-gradient'),
+        orbs: document.querySelector('.floating-orbs'),
+        aurora: document.getElementById('aurora-bg'),
+        scanlines: document.querySelector('.scanlines'),
+        grid: document.querySelector('.grid-pattern'),
+      };
+
+      let ticking = false;
+
+      function updateParallax() {
+        const scrollY = window.scrollY;
+        if (parallaxLayers.mesh) parallaxLayers.mesh.style.transform = `translateY(${scrollY * 0.02}px)`;
+        if (parallaxLayers.orbs) parallaxLayers.orbs.style.transform = `translateY(${scrollY * 0.04}px)`;
+        if (parallaxLayers.aurora) parallaxLayers.aurora.style.transform = `translateY(${scrollY * 0.06}px)`;
+        if (parallaxLayers.scanlines) parallaxLayers.scanlines.style.transform = `translateY(${scrollY * 0.01}px)`;
+        if (parallaxLayers.grid) parallaxLayers.grid.style.transform = `translateY(${scrollY * 0.03}px)`;
+        ticking = false;
+      }
+
+      window.addEventListener('scroll', function () {
+        if (!ticking) {
+          requestAnimationFrame(updateParallax);
+          ticking = true;
+        }
+      }, { passive: true });
+
+      // ─── 2. ANIMATED COUNTERS ───
+      function animateCounter(el, target, duration = 1500, prefix = '', suffix = '') {
+        const start = 0;
+        const startTime = performance.now();
+        const isFloat = String(target).includes('.');
+
+        el.classList.add('counting');
+
+        function update(currentTime) {
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+
+          // Ease out cubic
+          const eased = 1 - Math.pow(1 - progress, 3);
+          const current = start + (target - start) * eased;
+
+          el.textContent = prefix + (isFloat ? current.toFixed(1) : Math.round(current).toLocaleString('ru-RU')) + suffix;
+
+          if (progress < 1) {
+            requestAnimationFrame(update);
+          } else {
+            el.textContent = prefix + (isFloat ? target.toFixed(1) : Math.round(target).toLocaleString('ru-RU')) + suffix;
+            el.classList.remove('counting');
+            el.classList.add('done');
+            setTimeout(() => el.classList.remove('done'), 600);
+          }
+        }
+
+        requestAnimationFrame(update);
+      }
+
+      // Observe elements with .counter class or data-counter attribute
+      const counterObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && !entry.target.dataset.animated) {
+            entry.target.dataset.animated = 'true';
+            const target = parseFloat(entry.target.dataset.counter || entry.target.textContent.replace(/[^\d.]/g, ''));
+            if (!isNaN(target) && target > 0) {
+              const prefix = (entry.target.dataset.prefix) || '';
+              const suffix = (entry.target.dataset.suffix) || '';
+              animateCounter(entry.target, target, parseInt(entry.target.dataset.duration) || 1500, prefix, suffix);
+            }
+          }
+        });
+      }, { threshold: 0.3 });
+
+      // Auto-detect big numbers and add counter behavior
+      function enhanceNumbers() {
+        document.querySelectorAll('.big-number, .stat-value, .glow-number, .number-badge').forEach(el => {
+          if (el.dataset.counter) return; // Already set
+          const text = el.textContent.trim();
+          const numeric = text.replace(/[^\d.]/g, '');
+          if (numeric && !isNaN(parseFloat(numeric)) && parseFloat(numeric) > 10) {
+            el.classList.add('counter');
+            el.dataset.counter = numeric;
+            el.dataset.prefix = text.replace(numeric, '').replace(/</g, '').replace(/>/g, '').trim().split(' ')[0] || '';
+            el.dataset.suffix = text.replace(numeric, '').replace(/</g, '').replace(/>/g, '').trim().split(' ')[1] || '';
+            el.textContent = el.dataset.prefix + '0';
+            counterObserver.observe(el);
+          }
+        });
+      }
+
+      // Run after content loads
+      setTimeout(enhanceNumbers, 1000);
+      new MutationObserver(() => setTimeout(enhanceNumbers, 500)).observe(document.getElementById('app') || document.body, {
+        childList: true,
+        subtree: true
+      });
+
+      // ─── 3. ENHANCED CANVAS PARTICLES ───
+      const canvas = document.getElementById('interactiveCanvas');
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let mouse = { x: -1000, y: -1000 };
+        let animationId;
+
+        function resize() {
+          canvas.width = window.innerWidth;
+          canvas.height = window.innerHeight;
+        }
+
+        resize();
+        window.addEventListener('resize', resize);
+
+        // Particle class
+        class Particle {
+          constructor() {
+            this.reset();
+          }
+
+          reset() {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.size = Math.random() * 2.5 + 0.5;
+            this.speedX = (Math.random() - 0.5) * 0.5;
+            this.speedY = (Math.random() - 0.5) * 0.5;
+            this.opacity = Math.random() * 0.5 + 0.2;
+            // Random accent color
+            const colors = [
+              [0, 240, 255],    // cyan
+              [124, 58, 237],   // violet
+              [255, 107, 53],   // orange
+              [34, 197, 94],    // green
+              [236, 72, 153],   // pink
+            ];
+            this.color = colors[Math.floor(Math.random() * colors.length)];
+          }
+
+          update() {
+            this.x += this.speedX;
+            this.y += this.speedY;
+
+            // Mouse interaction
+            const dx = mouse.x - this.x;
+            const dy = mouse.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 150) {
+              const force = (150 - dist) / 150;
+              this.x -= dx * force * 0.02;
+              this.y -= dy * force * 0.02;
+              this.opacity = Math.min(1, this.opacity + 0.05);
+            }
+
+            // Wrap around edges
+            if (this.x < 0) this.x = canvas.width;
+            if (this.x > canvas.width) this.x = 0;
+            if (this.y < 0) this.y = canvas.height;
+            if (this.y > canvas.height) this.y = 0;
+          }
+
+          draw() {
+            const [r, g, b] = this.color;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${this.opacity})`;
+            ctx.fill();
+
+            // Glow
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = `rgba(${r}, ${g}, ${b}, ${this.opacity * 0.5})`;
+          }
+        }
+
+        // Initialize particles
+        const particleCount = Math.min(120, Math.floor((canvas.width * canvas.height) / 15000));
+        for (let i = 0; i < particleCount; i++) {
+          particles.push(new Particle());
+        }
+
+        // Draw connections between close particles
+        function drawConnections() {
+          for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+              const dx = particles[i].x - particles[j].x;
+              const dy = particles[i].y - particles[j].y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+
+              if (dist < 100) {
+                const opacity = (1 - dist / 100) * 0.15;
+                const [r, g, b] = particles[i].color;
+                ctx.beginPath();
+                ctx.moveTo(particles[i].x, particles[i].y);
+                ctx.lineTo(particles[j].x, particles[j].y);
+                ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+              }
+            }
+          }
+        }
+
+        // Animation loop
+        function animate() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.shadowBlur = 0;
+
+          particles.forEach(p => {
+            p.update();
+            p.draw();
+          });
+
+          drawConnections();
+          animationId = requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // Mouse tracking
+        canvas.addEventListener('mousemove', (e) => {
+          mouse.x = e.clientX;
+          mouse.y = e.clientY;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+          mouse.x = -1000;
+          mouse.y = -1000;
+        });
+
+        // Click ripple explosion
+        canvas.addEventListener('click', (e) => {
+          const count = 15;
+          for (let i = 0; i < count; i++) {
+            const p = new Particle();
+            p.x = e.clientX;
+            p.y = e.clientY;
+            p.size = Math.random() * 3 + 1;
+            p.speedX = (Math.random() - 0.5) * 8;
+            p.speedY = (Math.random() - 0.5) * 8;
+            p.opacity = 1;
+            p.life = 60; // frames to live
+            particles.push(p);
+          }
+
+          // Remove dead particles after delay
+          setTimeout(() => {
+            particles = particles.slice(0, particleCount + 30);
+          }, 2000);
+        });
+      }
+
+      // ─── 4. MICRO-ANIMATIONS: Icon Bounce on Card Hover ───
+      const style = document.createElement('style');
+      style.textContent = `
+      @keyframes icon-bounce {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-4px) scale(1.15); }
+      }
+      @keyframes glow-pulse {
+        0%, 100% { box-shadow: 0 0 10px currentColor; }
+        50% { box-shadow: 0 0 25px currentColor, 0 0 40px currentColor; }
+      }
+      .card:hover .card-icon {
+        animation: icon-bounce 0.6s ease-in-out infinite;
+      }
+    `;
+      document.head.appendChild(style);
+
+      // ─── 5. SMOOTH TAB TRANSITIONS ───
+      document.addEventListener('click', (e) => {
+        const tab = e.target.closest('.tab');
+        if (tab) {
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          tab.style.transform = 'scale(0.95)';
+          setTimeout(() => { tab.style.transform = ''; }, 150);
+        }
+      });
+
+    })();
+  </script>
 
   <script src="info_script_v2.js"></script>
   <script src="info_story_merge.js"></script>

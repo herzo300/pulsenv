@@ -11,7 +11,7 @@ services/Backend/
 ├── main.py          # точка входа uvicorn
 └── routers/
     ├── reports.py       # GET/POST /api/reports
-    ├── core.py          # /, /health, /categories, /webhook/telegram, /complaints (mobile)
+    ├── core.py          # /, /health, /categories, /complaints (mobile)
     ├── complaints.py    # /complaints/list, /statistics, /create, /{id}/status
     ├── ai.py            # /ai/analyze, /ai/proxy/*
     ├── telegram_router.py  # /telegram/monitor/*

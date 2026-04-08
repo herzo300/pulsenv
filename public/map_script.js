@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
- * ПУЛЬС ГОРОДА - Карта жалоб Нижневартовска v2.1
+ * ПУЛЬС ГОРОДА - Карта проблем Нижневартовска v2.1
  * Полный список категорий + ЧП | Счётчики день/месяц/год | HDBSCAN-like clustering
  * ═══════════════════════════════════════════════════════════════════════════════
  */
@@ -15,10 +15,7 @@ const CONFIG = {
   minZoom: 11,
   maxZoom: 18,
 
-  supabase: {
-    url: 'https://xpainxohbdoruakcijyq.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwYWlueG9oYmRvcnVha2NpanlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3OTg2NjUsImV4cCI6MjA4NzM3NDY2NX0.hTBTRflUGR9LDXASS15u1IHBZOv9pMt_4CGXqevr0tc'
-  },
+  apiBase: '/api',
 
   tiles: {
     light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
@@ -84,7 +81,8 @@ const CATEGORIES = {
   'Трудовое право': { icon: '📄', color: '#64748b', priority: 4 },
 
   // По умолчанию
-  'Прочее': { icon: '📌', color: '#64748b', priority: 5 }
+  'Прочее': { icon: '📌', color: '#64748b', priority: 5 },
+  'AI Monitor': { icon: '🤖', color: '#8b5cf6', priority: 1 }
 };
 
 // Основные категории для фильтров (компактный набор)
@@ -118,7 +116,6 @@ const DAY_FILTERS = [
 
 const state = {
   map: null,
-  supabase: null,
   markerCluster: null,
   cameraLayer: null,
   eventLayer: null,
@@ -136,12 +133,13 @@ const state = {
     year: 0,
     total: 0
   },
-  is3DMode: false,
   cameraMarkers: [],
   eventMarkers: [],
   splashAudioEnabled: true,
   splashProgress: 10,
-  mapRefreshTimer: null
+  mapRefreshTimer: null,
+  isSecretUnlocked: localStorage.getItem('nv_secret_unlocked') === 'true',
+  secretAttempts: 0
 };
 
 const SPLASH_MESSAGES = [
@@ -186,35 +184,15 @@ const SPLASH_VARIANTS = [
 let splashController = null;
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SUPABASE CLIENT
+// BACKEND CLIENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function initSupabase() {
-  let supabaseLib = window.supabase;
+state.backend = { mode: 'timeweb', apiBase: CONFIG.apiBase };
 
-  if (!supabaseLib || !supabaseLib.createClient) {
-    setSplashStatus('Подключаем Supabase...', 24);
-    console.log('⏳ Loading Supabase...');
-    try {
-      await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js');
-      supabaseLib = window.supabase;
-    } catch (e) {
-      try {
-        await loadScript('https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js');
-        supabaseLib = window.supabase;
-      } catch (e2) {
-        setSplashStatus('Работаем в демо-режиме', 38);
-        console.error('❌ Supabase load failed');
-        return false;
-      }
-    }
-  }
-
-  if (!supabaseLib?.createClient) return false;
-
-  state.supabase = supabaseLib.createClient(CONFIG.supabase.url, CONFIG.supabase.anonKey);
-  setSplashStatus('Supabase подключен', 46);
-  console.log('✅ Supabase OK');
+async function initBackend() {
+  setSplashStatus('Подключаем backend...', 24);
+  setSplashStatus('Backend подключен', 46);
+  console.log('Backend runtime OK');
   return true;
 }
 
@@ -507,17 +485,10 @@ async function loadComments(complaintId) {
   const countEl = document.getElementById('sheet-comments-count');
   list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary)">Загрузка комментариев...</div>';
 
-  if (!state.supabase) return;
-
   try {
-    const { data: comments, error } = await state.supabase
-      .from('comments')
-      .select('*')
-      .eq('complaint_id', complaintId)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-
+    const response = await fetch(`${CONFIG.apiBase}/reports/${complaintId}/comments`);
+    if (!response.ok) throw new Error(`Comments request failed: ${response.status}`);
+    const comments = await response.json();
     countEl.textContent = comments.length;
 
     if (comments.length === 0) {
@@ -535,61 +506,44 @@ async function loadComments(complaintId) {
       </div>
     `).join('');
 
-  } catch (e) {
-    console.error('Error loading comments', e);
+  } catch (error) {
+    console.error('Error loading comments', error);
     list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--danger)">Ошибка загрузки</div>';
   }
 }
 
 window.handleAction = async function (id, action) {
-  if (!state.supabase) return;
-
   try {
-    const { data: currentData } = await state.supabase
-      .from('complaints')
-      .select('supporters, likes_count, dislikes_count')
-      .eq('id', id)
-      .single();
+    const response = await fetch(`${CONFIG.apiBase}/reports/${id}/actions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action })
+    });
+    if (!response.ok) throw new Error(`Action request failed: ${response.status}`);
 
-    if (!currentData) return;
-
-    let updates = {};
-    if (action === 'join') updates.supporters = (currentData.supporters || 0) + 1;
-    if (action === 'like') updates.likes_count = (currentData.likes_count || 0) + 1;
-    if (action === 'dislike') updates.dislikes_count = (currentData.dislikes_count || 0) + 1;
-
-    const { error } = await state.supabase
-      .from('complaints')
-      .update(updates)
-      .eq('id', id);
-
-    if (!error) {
-      // Update local state
-      const marker = state.markers.get(id);
-      if (marker && marker.complaintData) {
-        if (action === 'join') marker.complaintData.supporters = updates.supporters;
-        if (action === 'like') marker.complaintData.likes = updates.likes_count;
-        if (action === 'dislike') marker.complaintData.dislikes = updates.dislikes_count;
-      }
-
-      // Update bottom sheet if open
-      if (currentComplaintId === id) {
-        if (action === 'join') document.getElementById('sheet-count-join').textContent = updates.supporters;
-        if (action === 'like') document.getElementById('sheet-count-like').textContent = updates.likes_count;
-        if (action === 'dislike') document.getElementById('sheet-count-dislike').textContent = updates.dislikes_count;
-      }
-
-      // If joins >= 10, trigger collective email (via backend/supabase edge function)
-      if (action === 'join' && updates.supporters === 10) {
-        fetch('https://xpainxohbdoruakcijyq.supabase.co/functions/v1/api/collective-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ complaint_id: id })
-        }).catch(e => console.error('Error triggering email', e));
-      }
+    const updates = await response.json();
+    const marker = state.markers.get(id);
+    if (marker && marker.complaintData) {
+      marker.complaintData.supporters = updates.supporters;
+      marker.complaintData.likes = updates.likes_count;
+      marker.complaintData.dislikes = updates.dislikes_count;
     }
-  } catch (e) {
-    console.error('Action DB error', e);
+
+    if (currentComplaintId === id) {
+      document.getElementById('sheet-count-join').textContent = updates.supporters;
+      document.getElementById('sheet-count-like').textContent = updates.likes_count;
+      document.getElementById('sheet-count-dislike').textContent = updates.dislikes_count;
+    }
+
+    if (action === 'join' && updates.supporters === 10) {
+      fetch(`${CONFIG.apiBase}/collective-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ complaint_id: id })
+      }).catch(error => console.error('Error triggering email', error));
+    }
+  } catch (error) {
+    console.error('Action DB error', error);
   }
 
   if (action === 'good') {
@@ -729,7 +683,6 @@ function replaceMapData(items) {
   items.forEach(item => addMarker(item));
   calculateStats();
   updateUI();
-  sync3DData();
   applyFilters();
   return items;
 }
@@ -774,19 +727,14 @@ async function fetchBackendMapFeed() {
   return Array.isArray(payload.markers) ? payload.markers : [];
 }
 
-async function fetchSupabaseReportsFallback() {
-  if (!state.supabase) return [];
-
-  const { data, error } = await state.supabase
-    .from('reports')
-    .select('*')
-    .not('lat', 'is', null)
-    .not('lng', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(1000);
-
-  if (error) throw error;
-  return data.map(normalizeReportMarker).filter(Boolean);
+async function fetchReportsFallback() {
+  const response = await fetch(`${CONFIG.apiBase}/reports?limit=1000`);
+  if (!response.ok) throw new Error(`Reports request failed: ${response.status}`);
+  const data = await response.json();
+  return data
+    .filter(item => item && item.lat != null && item.lng != null)
+    .map(normalizeReportMarker)
+    .filter(Boolean);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -811,27 +759,43 @@ function injectMockEvents(markers) {
 }
 
 async function loadComplaints() {
-  console.log('📥 Loading...');
+  console.log('Loading complaints...');
   setSplashStatus('Загружаем обращения...', 82);
+
+  let aggregatedMarkers = [];
 
   try {
     const feedMarkers = await fetchBackendMapFeed();
     if (feedMarkers.length > 0) {
-      console.log(`✅ Loaded ${feedMarkers.length} map markers from backend feed`);
-      return replaceMapData(injectMockEvents(feedMarkers));
+      aggregatedMarkers = [...feedMarkers];
     }
   } catch (error) {
-    console.warn('Backend map feed unavailable, falling back to Supabase reports', error);
+    console.warn('Backend map feed unavailable, falling back to reports API', error);
   }
 
   try {
-    const fallbackMarkers = await fetchSupabaseReportsFallback();
+    const aiEventsResponse = await fetch('/map/ai_events.json');
+    if (aiEventsResponse.ok) {
+      const aiEvents = await aiEventsResponse.json();
+      aggregatedMarkers.push(...aiEvents);
+    }
+  } catch (error) {
+    console.warn('AI events feed unavailable', error);
+  }
+
+  if (aggregatedMarkers.length > 0) {
+    console.log(`Loaded ${aggregatedMarkers.length} markers from backend feeds`);
+    return replaceMapData(injectMockEvents(aggregatedMarkers));
+  }
+
+  try {
+    const fallbackMarkers = await fetchReportsFallback();
     if (fallbackMarkers.length > 0) {
-      console.log(`✅ Loaded ${fallbackMarkers.length} report markers from Supabase`);
+      console.log(`Loaded ${fallbackMarkers.length} report markers from backend API`);
       return replaceMapData(injectMockEvents(fallbackMarkers));
     }
   } catch (error) {
-    console.error('❌ Supabase reports fallback error:', error);
+    console.error('Reports API fallback error:', error);
   }
 
   return loadDemoComplaints();
@@ -854,7 +818,7 @@ function loadDemoComplaints() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// REALTIME SUBSCRIPTION
+// REFRESH LOOP
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function startDataRefreshLoop() {
@@ -865,25 +829,8 @@ function startDataRefreshLoop() {
 }
 
 function subscribeToRealtime() {
-  if (!state.supabase) return;
-
-  console.log('📡 Subscribing to realtime...');
-
-  state.realtimeSubscription = state.supabase
-    .channel('complaints-realtime')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'complaints' }, (payload) => {
-      console.log('🆕 New:', payload.new);
-      handleNewComplaint(payload.new);
-    })
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'complaints' }, (payload) => {
-      handleUpdatedComplaint(payload.new);
-    })
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'complaints' }, (payload) => {
-      handleDeletedComplaint(payload.old);
-    })
-    .subscribe((status) => {
-      console.log(`📡 Realtime: ${status}`);
-    });
+  console.log('Realtime disabled, using polling refresh loop');
+  state.realtimeSubscription = null;
 }
 
 function handleNewComplaint(complaint) {
@@ -891,7 +838,6 @@ function handleNewComplaint(complaint) {
   addMarker(complaint, true);
   calculateStats();
   updateUI();
-  sync3DData();
 }
 
 function handleUpdatedComplaint(complaint) {
@@ -908,7 +854,6 @@ function handleUpdatedComplaint(complaint) {
     }
   }
 
-  sync3DData();
 }
 
 function handleDeletedComplaint(complaint) {
@@ -920,7 +865,6 @@ function handleDeletedComplaint(complaint) {
   }
   calculateStats();
   updateUI();
-  sync3DData();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -984,6 +928,11 @@ function applyFilters() {
   state.complaints.forEach(complaint => {
     const marker = state.markers.get(complaint.id);
     if (marker && matchesFilters(complaint)) {
+      // Hide secret cameras if not unlocked
+      if (complaint.category === 'Камеры' && complaint.secret && !state.isSecretUnlocked) {
+        return;
+      }
+
       if (complaint.category === 'Мероприятие' || complaint.source_kind === 'event') {
         state.eventLayer.addLayer(marker);
       } else {
@@ -1182,7 +1131,7 @@ function initAddComplaintButton() {
 
   btn.addEventListener('click', () => {
     const center = state.map.getCenter();
-    alert(`Добавление жалобы:\n${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}`);
+    alert(`Добавление проблемы:\n${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}`);
   });
 }
 
@@ -1195,17 +1144,17 @@ async function init() {
   initSplashInteractions();
   initBottomSheet();
 
-  const supabaseOk = await initSupabase();
-  if (!supabaseOk) console.warn('⚠️ Demo mode');
+  const backendOk = await initBackend();
+  if (!backendOk) console.warn('⚠️ Demo mode');
 
   if (!initMap()) return;
 
   initFilters();
   initAddComplaintButton();
-  initToggle3D();
 
   await loadComplaints();
   initCameraLayer();
+  initSecretTrigger();
   startCameraAiMonitor();
   startDataRefreshLoop();
 
@@ -1222,11 +1171,8 @@ if (document.readyState === 'loading') {
 
 window.addEventListener('beforeunload', () => {
   if (state.mapRefreshTimer) clearInterval(state.mapRefreshTimer);
-  if (state.realtimeSubscription) {
-    state.supabase.removeChannel(state.realtimeSubscription);
-  }
+  state.realtimeSubscription = null;
 });
-
 
 const MapPulse = {
   bpm: 72,
@@ -1339,102 +1285,13 @@ const MapPulse = {
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
- * 3D LAYER LOGIC
- * ═══════════════════════════════════════════════════════════════════════════════
- */
-
-function initToggle3D() {
-  const btn = document.getElementById('toggle-3d-btn');
-  const map3d = document.getElementById('map-3d');
-  const iframe = document.getElementById('iframe-3d');
-  const mapLeaflet = document.getElementById('map');
-
-  if (!btn || !map3d) return;
-
-  btn.addEventListener('click', () => {
-    state.is3DMode = !state.is3DMode;
-
-    if (state.is3DMode) {
-      btn.innerHTML = '🌍';
-      btn.style.background = 'var(--primary)';
-      btn.style.color = 'white';
-      map3d.style.display = 'block';
-      mapLeaflet.style.opacity = '0';
-      mapLeaflet.style.pointerEvents = 'none';
-
-      if (!iframe.dataset.bound) {
-        iframe.addEventListener('load', () => {
-          sync3DData();
-        });
-        iframe.dataset.bound = 'true';
-      }
-
-      if (!iframe.src || iframe.src.endsWith('/')) {
-        iframe.src = 'cesium_view.html';
-      } else {
-        sync3DData();
-      }
-      showNotification('3D Режим активирован', 'info');
-    } else {
-      btn.innerHTML = '🏙️';
-      btn.style.background = 'white';
-      btn.style.color = 'var(--text)';
-      map3d.style.display = 'none';
-      mapLeaflet.style.opacity = '1';
-      mapLeaflet.style.pointerEvents = 'auto';
-      showNotification('Возврат к плоской карте', 'info');
-    }
-  });
-}
-
-function get3DFrameWindow() {
-  const iframe = document.getElementById('iframe-3d');
-  return iframe?.contentWindow || null;
-}
-
-function postTo3DFrame(message) {
-  const frameWindow = get3DFrameWindow();
-  if (!frameWindow) return false;
-  frameWindow.postMessage(message, '*');
-  return true;
-}
-
-function sync3DData() {
-  const complaintsPayload = state.complaints
-    .filter(item => item.lat != null && item.lng != null)
-    .map(item => ({
-      id: item.id,
-      lat: item.lat,
-      lng: item.lng,
-      title: item.summary || item.title || item.category || 'Объект',
-      type: item.category === 'Строительство' ? 'construction' : (item.category === 'Мероприятие' ? 'event' : 'complaint'),
-      color: CATEGORIES[item.category]?.color || '#00E5FF',
-      description: item.description || '',
-      developer: item.author_name || '',
-      deadline: item.deadline || '',
-      floors: item.floors || '',
-      height: item.height || 12
-    }));
-
-  const cameraPayload = CAMERAS.map(item => ({
-    lat: item.lat,
-    lng: item.lon,
-    n: item.name,
-    s: item.url
-  }));
-
-  postTo3DFrame({ type: 'citypulse:setCameras', payload: cameraPayload });
-  postTo3DFrame({ type: 'citypulse:setMarkers', payload: complaintsPayload });
-}
-
-/**
- * ═══════════════════════════════════════════════════════════════════════════════
  * CITY CAMERAS LAYER
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
 function initCameraLayer() {
-  fetch('cameras_nv.json')
+  const source = state.isSecretUnlocked ? 'cameras_nv_full.json' : 'cameras_nv.json';
+  fetch(source)
     .then(response => response.json())
     .then(cameras => {
       CAMERAS.length = 0;
@@ -1475,8 +1332,7 @@ function initCameraLayer() {
         state.cameraMarkers.push({ marker, id: cam.id, lat: cam.lat, lon: cam.lon, name: cam.name, url: cam.url });
       });
 
-      sync3DData();
-      applyFilters();
+          applyFilters();
     })
     .catch(error => console.error('Camera layer load error', error));
 }
@@ -1550,6 +1406,84 @@ function mapCameraWeatherCode(code, isDay) {
   }
 
   return { icon: '☁️', label: 'Нет данных', accent: '#FFC857' };
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * SECRET ACTIVATION (FOOL PROTECTION)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
+function initSecretTrigger() {
+  let buffer = '';
+  const SECRET_CODE = 'nv86';
+  const LOGO_CLICKS_REQUIRED = 3;
+  let logoClicks = 0;
+
+  document.addEventListener('keydown', (e) => {
+    buffer += e.key.toLowerCase();
+    if (buffer.length > 10) buffer = buffer.substring(1);
+    
+    if (buffer.includes(SECRET_CODE)) {
+      buffer = '';
+      if (!state.isSecretUnlocked) {
+        showNotification('Введите мастер-ключ в консоли или кликните логотип 3 раза', 'info');
+      }
+    }
+  });
+
+  const logo = document.querySelector('.logo-icon');
+  if (logo) {
+    logo.style.cursor = 'pointer';
+    let pressTimer;
+
+    // Mobile / Touch support (Long press 2s)
+    logo.addEventListener('touchstart', (e) => {
+      pressTimer = setTimeout(() => {
+        promptSecret();
+      }, 2000); // 2 seconds long press
+    });
+    
+    logo.addEventListener('touchend', () => {
+      clearTimeout(pressTimer);
+    });
+
+    logo.addEventListener('click', () => {
+      logoClicks++;
+      if (logoClicks >= LOGO_CLICKS_REQUIRED) {
+        logoClicks = 0;
+        promptSecret();
+      }
+    });
+
+    // Also support long press on desktop (mousedown)
+    logo.addEventListener('mousedown', () => {
+      pressTimer = setTimeout(() => {
+        promptSecret();
+      }, 2000);
+    });
+    logo.addEventListener('mouseup', () => {
+      clearTimeout(pressTimer);
+    });
+  }
+}
+
+function promptSecret() {
+  if (state.secretAttempts >= 5) {
+    showNotification('Доступ заблокирован (защита от дурака)', 'error');
+    return;
+  }
+
+  const pass = prompt('SERVICE ACCESS: Введите код активации');
+  if (pass === 'ALPHA86' || pass === '2026') {
+    state.isSecretUnlocked = true;
+    localStorage.setItem('nv_secret_unlocked', 'true');
+    showNotification('СЕКРЕТНЫЕ КАМЕРЫ АКТИВИРОВАНЫ', 'success');
+    initCameraLayer(); // Reload with full data
+  } else {
+    state.secretAttempts++;
+    showNotification(`Неверный код (${5 - state.secretAttempts} попыток осталоcь)`, 'error');
+  }
 }
 
 function ensureCameraHudWeather(force = false) {
@@ -1742,10 +1676,101 @@ function startCameraAiMonitor() {
 
       showNotification(`🤖 AI Монитор (${cam.name}): ${event}`, 'emergency');
 
-      // Auto-focus map to that camera if not in 3D mode
-      if (!state.is3DMode) {
-        state.map.setView([cam.lat, cam.lon], 16);
-      }
+      state.map.setView([cam.lat, cam.lon], 16);
     }
   }, 45000);
+}
+\n
+let activeFilters = {
+  problems: true,
+  events: true,
+  cameras: true
+};
+
+function initFilters() {
+  const catPanel = document.getElementById('category-filters');
+  if (catPanel) {
+    catPanel.addEventListener('click', (e) => {
+      const btn = e.target.closest('.filter-btn');
+      if (!btn) return;
+
+      const filterType = btn.dataset.filter;
+      activeFilters[filterType] = !activeFilters[filterType];
+      
+      if (activeFilters[filterType]) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+      
+      applyFilters();
+    });
+  }
+}
+
+function applyFilters() {
+  state.markerCluster.clearLayers();
+  
+  // Problems
+  if (activeFilters.problems) {
+    const problems = state.complaints.filter(c => c.category !== 'Мероприятие');
+    problems.forEach(c => {
+      // 100% address check
+      if (c.address && c.address !== 'Неизвестный адрес' && c.address.trim() !== '') {
+        const marker = createMarker(c);
+        if (marker) state.markerCluster.addLayer(marker);
+      }
+    });
+  }
+  
+  // Events
+  if (activeFilters.events) {
+    const events = state.complaints.filter(c => c.category === 'Мероприятие');
+    events.forEach(c => {
+      if (c.address && c.address !== 'Неизвестный адрес' && c.address.trim() !== '') {
+        const marker = createMarker(c);
+        if (marker) state.markerCluster.addLayer(marker);
+      }
+    });
+  }
+  
+  updateStats();
+}
+
+function applyFilters() {
+  state.markerCluster.clearLayers();
+  if (state.cameraLayer) state.cameraLayer.clearLayers();
+  
+  // Problems
+  if (activeFilters.problems) {
+    const problems = state.complaints.filter(c => c.category !== 'Мероприятие');
+    problems.forEach(c => {
+      // 100% address check
+      if (c.address && c.address !== 'Неизвестный адрес' && c.address.trim() !== '') {
+        const marker = createMarker(c);
+        if (marker) state.markerCluster.addLayer(marker);
+      }
+    });
+  }
+  
+  // Events
+  if (activeFilters.events) {
+    const events = state.complaints.filter(c => c.category === 'Мероприятие');
+    events.forEach(c => {
+      if (c.address && c.address !== 'Неизвестный адрес' && c.address.trim() !== '') {
+        const marker = createMarker(c);
+        if (marker) state.markerCluster.addLayer(marker);
+      }
+    });
+  }
+
+  // Cameras
+  if (activeFilters.cameras && state.cameraLayer && state.cameraMarkers) {
+    state.cameraMarkers.forEach(cm => {
+      if (cm.secret && !state.isSecretUnlocked) return;
+      cm.marker.addTo(state.cameraLayer);
+    });
+  }
+  
+  updateStats();
 }

@@ -8,13 +8,14 @@ import os
 import logging
 
 from fastapi import APIRouter, HTTPException
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from starlette.concurrency import run_in_threadpool
 
 from core.http_client import get_http_client
 from services.realesrgan_service import realesrgan_service
 from services.zai_service import (
     CATEGORIES,
-    _parse_json,
     analyze_complaint,
 )
 from services.zai_vision_service import analyze_image_with_glm4v
@@ -22,6 +23,7 @@ from services.zai_vision_service import analyze_image_with_glm4v
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+_ai_limiter = Limiter(key_func=get_remote_address)
 
 _DEFAULT_CATEGORY = "Прочее"
 
@@ -42,7 +44,7 @@ async def _analyze_image_payload(image_b64: str, text: str) -> Dict[str, Any]:
             tmp_path = tmp.name
 
         try:
-            # This service now handles Grok Vision AND EXIF GPS extraction
+            # This service now handles Z.AI Vision AND EXIF GPS extraction
             result = await analyze_image_with_glm4v(tmp_path, text or None)
             
             # Normalize for the response expected by the frontend
@@ -149,6 +151,7 @@ def _guess_simple_category(text: str) -> str:
 
 
 @router.post("/analyze")
+@_ai_limiter.limit("10/minute")
 async def analyze_text_for_complaint(request: dict):
     text = request.get("text", "")
     try:
@@ -158,6 +161,7 @@ async def analyze_text_for_complaint(request: dict):
 
 
 @router.post("/analyze_image")
+@_ai_limiter.limit("10/minute")
 async def analyze_image_for_complaint(request: dict):
     image_b64 = request.get("image", "")
     text = request.get("text", "")
@@ -211,6 +215,7 @@ async def upscale_image_for_complaint(request: dict):
 
 
 @router.post("/sanitize_report")
+@_ai_limiter.limit("10/minute")
 async def sanitize_report(request: dict):
     text = str(request.get("text") or "").strip()
     image_b64 = str(request.get("image") or "").strip()
@@ -346,6 +351,7 @@ async def ai_proxy_health():
 
 
 @router.post("/proxy/analyze")
+@_ai_limiter.limit("15/minute")
 async def ai_proxy_analyze(request: dict):
     try:
         from services.ai_proxy_service import get_ai_proxy

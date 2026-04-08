@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Итоги дня — City Pulse | Нижневартовск</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #030712;
+      --surface: #0a0f1e;
+      --border: rgba(59, 130, 246, 0.15);
+      --accent: #3b82f6;
+      --accent2: #8b5cf6;
+      --text: #f8fafc;
+      --muted: #64748b;
+      --gold: #f59e0b;
+      --radius: 16px;
+      --mood-calm: #10b981;
+      --mood-active: #3b82f6;
+      --mood-busy: #f59e0b;
+      --mood-alarm: #f97316;
+      --mood-critical: #ef4444;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background Glow */
+    .glow {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 400px;
+      background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.12), transparent 70%);
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .badge {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      padding: 6px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      display: inline-block;
+      margin-bottom: 12px;
+    }
+
+    .header h1 {
+      font-size: 36px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: linear-gradient(to right, #fff, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .date {
+      color: var(--muted);
+      font-size: 16px;
+      margin-top: 8px;
+    }
+
+    /* Fade-in animation */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeInUp 0.5s ease forwards;
+    }
+
+    .card:nth-child(1) {
+      animation-delay: 0.1s;
+    }
+
+    .card:nth-child(2) {
+      animation-delay: 0.25s;
+    }
+
+    .card:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    .card:nth-child(4) {
+      animation-delay: 0.55s;
+    }
+
+    .card:nth-child(5) {
+      animation-delay: 0.7s;
+    }
+
+    @keyframes fadeInUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-h {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      line-height: 1.2;
+    }
+
+    .summary-text {
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--text);
+      opacity: 0.9;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-val {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent2);
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .mood-meter {
+      position: absolute;
+      top: 32px;
+      right: 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .mood-emoji {
+      font-size: 48px;
+      filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.4));
+      animation: float 4s ease-in-out infinite;
+    }
+
+    @keyframes float {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-10px);
+      }
+    }
+
+    .ai-patrol {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-top: 24px;
+      background: rgba(21, 29, 51, 0.5);
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .patrol-icon {
+      font-size: 24px;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 18px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s;
+      text-decoration: none;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      margin-top: 12px;
+    }
+
+    /* Severity badges */
+    .severity-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .severity-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: rgba(21, 29, 51, 0.5);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .severity-rank {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--muted);
+      min-width: 24px;
+    }
+
+    .severity-text {
+      flex: 1;
+      font-size: 14px;
+    }
+
+    .severity-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    .severity-badge.high {
+      background: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .severity-badge.medium {
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .severity-badge.low {
+      background: rgba(16, 185, 129, 0.15);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    /* Timeline */
+    .timeline {
+      position: relative;
+      padding-left: 24px;
+      margin-top: 12px;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 6px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+
+    .timeline-item {
+      position: relative;
+      padding-bottom: 16px;
+    }
+
+    .timeline-item:last-child {
+      padding-bottom: 0;
+    }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -21px;
+      top: 4px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--bg);
+    }
+
+    .timeline-time {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .timeline-desc {
+      font-size: 13px;
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+
+    /* Forecast & Recommendations */
+    .forecast-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .forecast-card {
+      padding: 14px;
+      background: rgba(21, 29, 51, 0.5);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .forecast-card .label {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .forecast-card .value {
+      font-size: 15px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .rec-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .rec-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 10px 12px;
+      background: rgba(21, 29, 51, 0.5);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .rec-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .rec-text {
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    /* Error state */
+    .error-state {
+      text-align: center;
+      padding: 80px 0;
+      display: none;
+    }
+
+    .error-state .error-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+
+    .error-state h2 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .error-state p {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    /* No data illustration */
+    .no-data {
+      text-align: center;
+      padding: 60px 20px;
+      display: none;
+    }
+
+    .no-data-illustration {
+      font-size: 72px;
+      margin-bottom: 16px;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    .no-data h3 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .no-data p {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    @media(max-width:600px) {
+      .stats-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .card {
+        padding: 24px;
+      }
+
+      .forecast-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .container {
+        padding: 24px 16px;
+      }
+
+      .header h1 {
+        font-size: 28px;
+      }
+    }
+
+    /* Print styles */
+    @media print {
+      * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      body {
+        background: #fff;
+        color: #000;
+      }
+
+      .glow,
+      .btn,
+      .btn-outline {
+        display: none;
+      }
+
+      .container {
+        max-width: 100%;
+        padding: 0;
+        margin: 0;
+      }
+
+      .card {
+        background: #fff;
+        border: 1px solid #ccc;
+        box-shadow: none;
+        break-inside: avoid;
+        opacity: 1;
+        transform: none;
+        animation: none;
+        margin-bottom: 16px;
+        page-break-inside: avoid;
+      }
+
+      .header h1 {
+        background: none;
+        -webkit-text-fill-color: #000;
+        color: #000;
+      }
+
+      .header {
+        margin-bottom: 20px;
+      }
+
+      .badge {
+        border-color: #ccc;
+        color: #333;
+      }
+
+      .card-title,
+      .stat-val,
+      .section-h {
+        color: #000;
+      }
+
+      .stat-label,
+      .date,
+      .summary-text,
+      .timeline-desc,
+      .rec-text,
+      .forecast-card .value {
+        color: #333;
+      }
+
+      .severity-badge,
+      .forecast-card,
+      .severity-item,
+      .rec-item,
+      .ai-patrol,
+      .timeline-item {
+        border-color: #ccc;
+        background: #f9f9f9;
+      }
+
+      .mood-emoji {
+        filter: none;
+      }
+
+      .no-print {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="glow"></div>
+  <div class="container" id="main-content">
+    <div class="header">
+      <div class="badge">AI GENERATED REPORT</div>
+      <h1>Пульс Ночи — Нижневартовск</h1>
+      <p class="date" id="report-date"></p>
+    </div>
+
+    <!-- Mood + Summary Card -->
+    <div class="card" id="mood-card">
+      <div class="mood-meter">
+        <div class="mood-emoji" id="mood-icon"></div>
+        <div class="stat-label" id="mood-label" style="margin-top:8px"></div>
+      </div>
+      <div class="card-title">ИИ-ОТВЕТСТВЕННЫЙ ПО ГОРОДУ</div>
+      <div class="section-h">Ситуация на данный момент</div>
+      <div class="summary-text" id="ai-summary">
+        Система анализирует данные за последние 24 часа. Отчёт будет готов в 23:55 по местному времени.
+      </div>
+    </div>
+
+    <!-- Stats Card -->
+    <div class="card">
+      <div class="card-title">ГОРОДСКАЯ СТАТИСТИКА</div>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-val" id="stat-messages">0</div>
+          <div class="stat-label">Сообщений в чатах</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-alerts">0</div>
+          <div class="stat-label">ИИ-сработок камер</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-cams">122</div>
+          <div class="stat-label">Камер мониторинга</div>
+        </div>
+      </div>
+
+      <div class="ai-patrol">
+        <div class="patrol-icon"></div>
+        <div>
+          <div style="font-size:14px;font-weight:700" id="patrol-title">ИИ-патруль в Нижневартовске активен</div>
+          <div style="font-size:12px;color:var(--muted)" id="patrol-desc">Система «Глаза города» отсканировала 2,800
+            кадров за день.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Problems Card -->
+    <div class="card" id="problems-card" style="display:none">
+      <div class="card-title">ТОП-3 ПРОБЛЕМЫ ДНЯ</div>
+      <div class="severity-list" id="problems-list"></div>
+    </div>
+
+    <!-- Timeline Card -->
+    <div class="card" id="timeline-card" style="display:none">
+      <div class="card-title">ХРОНОЛОГИЯ СОБЫТИЙ</div>
+      <div class="timeline" id="timeline"></div>
+    </div>
+
+    <!-- Forecast & Recommendations Card -->
+    <div class="card" id="forecast-card" style="display:none">
+      <div class="card-title">ПРОГНОЗ НА ЗАВТРА</div>
+      <div class="forecast-grid" id="forecast-grid"></div>
+      <div class="card-title" style="margin-top:20px">РЕКОМЕНДАЦИИ ИИ</div>
+      <div class="rec-list" id="rec-list"></div>
+    </div>
+
+    <a href="/" class="btn">Вернуться на карту</a>
+    <a href="/cameras" class="btn btn-outline no-print">К камерам</a>
+  </div>
+
+  <!-- Error State -->
+  <div class="error-state" id="error-state">
+    <div class="error-icon"></div>
+    <h2>Отчёт ещё не готов</h2>
+    <p>Итоги дня формируются автоматически. Попробуйте зайти позже — обычно отчёт появляется к 23:55.</p>
+    <a href="/" style="color:var(--accent); display:inline-block; font-weight:600">На главную</a>
+  </div>
+
+  <!-- No Data Illustration -->
+  <div class="no-data" id="no-data">
+    <div class="no-data-illustration"></div>
+    <h3>Данных пока нет</h3>
+    <p>Первый отчёт появится после завершения суток мониторинга.</p>
+  </div>
+
+  <script>
+    // Mood configuration: 5 moods with emoji, colors, and labels
+    const MOODS = {
+      Calm: { emoji: '', label: 'ГОРОД СПИТ', color: 'var(--mood-calm)' },
+      Active: { emoji: '', label: 'ГОРОД АКТИВЕН', color: 'var(--mood-active)' },
+      Busy: { emoji: '', label: 'ВЫСОКАЯ НАГРУЗКА', color: 'var(--mood-busy)' },
+      Alarm: { emoji: '', label: 'ЕСТЬ СОБЫТИЯ', color: 'var(--mood-alarm)' },
+      Critical: { emoji: '', label: 'КРИТИЧЕСКАЯ СИТУАЦИЯ', color: 'var(--mood-critical)' }
+    };
+
+    // Animated counter
+    function animateCounter(el, target, duration = 1200) {
+      const start = 0;
+      const startTime = performance.now();
+      function update(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // Ease out cubic
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = Math.round(start + (target - start) * eased);
+        el.textContent = current.toLocaleString('ru-RU');
+        if (progress < 1) requestAnimationFrame(update);
+      }
+      requestAnimationFrame(update);
+    }
+
+    function setMood(moodName) {
+      const mood = MOODS[moodName] || MOODS.Calm;
+      document.getElementById('mood-icon').textContent = mood.emoji;
+      document.getElementById('mood-label').textContent = mood.label;
+      document.getElementById('mood-label').style.color = mood.color;
+    }
+
+    function renderProblems(problems) {
+      if (!problems || !problems.length) return;
+      const list = document.getElementById('problems-list');
+      list.innerHTML = problems.slice(0, 3).map((p, i) => {
+        const sevClass = p.severity === 'high' ? 'high' : p.severity === 'medium' ? 'medium' : 'low';
+        const sevLabel = p.severity === 'high' ? 'ВЫСОКАЯ' : p.severity === 'medium' ? 'СРЕДНЯЯ' : 'НИЗКАЯ';
+        return `
+      <div class="severity-item">
+        <div class="severity-rank">#${i + 1}</div>
+        <div class="severity-text">${p.text}</div>
+        <div class="severity-badge ${sevClass}">${sevLabel}</div>
+      </div>
+    `;
+      }).join('');
+      document.getElementById('problems-card').style.display = '';
+    }
+
+    function renderTimeline(events) {
+      if (!events || !events.length) return;
+      const el = document.getElementById('timeline');
+      el.innerHTML = events.map(e => `
+    <div class="timeline-item">
+      <div class="timeline-time">${e.time}</div>
+      <div class="timeline-desc">${e.desc}</div>
+    </div>
+  `).join('');
+      document.getElementById('timeline-card').style.display = '';
+    }
+
+    function renderForecast(forecast) {
+      if (!forecast) return;
+      const grid = document.getElementById('forecast-grid');
+      const items = [
+        { label: 'Активность', value: forecast.activity || '' },
+        { label: 'Риск-уровень', value: forecast.risk || '' },
+        { label: 'Ожидаемые события', value: forecast.events || '' },
+        { label: 'Погода влияет', value: forecast.weather || '' },
+      ].filter(x => x.value);
+      if (!items.length) return;
+      grid.innerHTML = items.map(x => `
+    <div class="forecast-card">
+      <div class="label">${x.label}</div>
+      <div class="value">${x.value}</div>
+    </div>
+  `).join('');
+
+      // Recommendations
+      if (forecast.recommendations && forecast.recommendations.length) {
+        const recList = document.getElementById('rec-list');
+        recList.innerHTML = forecast.recommendations.map(r => `
+      <div class="rec-item">
+        <div class="rec-icon"></div>
+        <div class="rec-text">${r}</div>
+      </div>
+    `).join('');
+      }
+      document.getElementById('forecast-card').style.display = '';
+    }
+
+    async function loadReport() {
+      try {
+        const r = await fetch('/map/daily_report.json?v=' + Date.now());
+        if (!r.ok) {
+          throw new Error('Report not found: ' + r.status);
+        }
+        const d = await r.json();
+
+        // Date
+        if (d.date) document.getElementById('report-date').textContent = d.date;
+
+        // Summary
+        if (d.ai_chat_summary) {
+          document.getElementById('ai-summary').textContent = d.ai_chat_summary;
+        }
+
+        // Stats with animated counters
+        const msgCount = d.stats && d.stats.messages_processed ? parseInt(d.stats.messages_processed) : 0;
+        const alertCount = d.stats && d.stats.ai_camera_alerts ? parseInt(d.stats.ai_camera_alerts) : 0;
+        animateCounter(document.getElementById('stat-messages'), msgCount);
+        animateCounter(document.getElementById('stat-alerts'), alertCount);
+
+        // Mood
+        const mood = d.stats && d.stats.city_mood ? d.stats.city_mood : 'Calm';
+        setMood(mood);
+
+        // AI Patrol
+        if (d.ai_patrol) {
+          document.getElementById('patrol-title').textContent = d.ai_patrol.title || document.getElementById('patrol-title').textContent;
+          document.getElementById('patrol-desc').textContent = d.ai_patrol.desc || document.getElementById('patrol-desc').textContent;
+        }
+
+        // Problems
+        if (d.problems) renderProblems(d.problems);
+
+        // Timeline
+        if (d.timeline) renderTimeline(d.timeline);
+
+        // Forecast
+        if (d.forecast) renderForecast(d.forecast);
+
+        // Also handle old-format mood
+        if (d.mood) setMood(d.mood);
+
+      } catch (e) {
+        console.warn('Failed to load daily report:', e.message);
+        // Show error state
+        document.getElementById('main-content').style.display = 'none';
+        document.getElementById('error-state').style.display = 'block';
+      }
+    }
+
+    loadReport();
+  </script>
+</body>
+
+</html>

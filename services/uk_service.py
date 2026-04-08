@@ -8,11 +8,17 @@ import json
 import os
 import re
 import logging
+from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-DATA_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "opendata_full.json")
+_ROOT_DIR = Path(__file__).resolve().parent.parent
+DATA_FILE_CANDIDATES = [
+    Path(os.getenv("UK_DATA_FILE", "")).expanduser() if os.getenv("UK_DATA_FILE") else None,
+    _ROOT_DIR / "data" / "uk_catalog.json",
+    _ROOT_DIR / "opendata_full.json",
+]
 
 # Кэш УК в памяти
 _uk_data: List[Dict[str, Any]] = []
@@ -24,11 +30,21 @@ def _load_uk_data() -> List[Dict[str, Any]]:
     if _uk_data:
         return _uk_data
     try:
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        _uk_data = data.get("listoumd", {}).get("rows", [])
-        logger.info(f"🏢 Загружено {len(_uk_data)} управляющих компаний")
-        return _uk_data
+        for candidate in DATA_FILE_CANDIDATES:
+            if candidate is None:
+                continue
+            file_path = Path(candidate)
+            if not file_path.exists():
+                continue
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            rows = data.get("listoumd", {}).get("rows", []) if isinstance(data, dict) else data
+            if isinstance(rows, list) and rows:
+                _uk_data = rows
+                logger.info("Loaded %d UK companies from %s", len(_uk_data), file_path)
+                return _uk_data
+        logger.warning("UK data catalog not found in configured locations")
+        return []
     except Exception as e:
         logger.error(f"UK data load error: {e}")
         return []
@@ -167,16 +183,17 @@ def _format_uk(uk: Dict[str, Any], street: str = None, building: str = None) -> 
 
 
 def get_all_uk_emails() -> List[Dict[str, str]]:
-    """Возвращает список всех УК с email"""
+    """Возвращает каталог всех УК, не только записей с email."""
     uk_list = _load_uk_data()
     result = []
     for uk in uk_list:
-        email = uk.get("EMAIL")
-        if email:
-            result.append({
-                "name": uk.get("TITLESM") or uk.get("TITLE", ""),
-                "email": email,
-                "phone": uk.get("TEL", ""),
-                "houses": uk.get("CNT", 0),
-            })
+        name = (uk.get("TITLESM") or uk.get("TITLE", "")).strip()
+        if not name:
+            continue
+        result.append({
+            "name": name,
+            "email": uk.get("EMAIL", ""),
+            "phone": uk.get("TEL", ""),
+            "houses": uk.get("CNT", 0),
+        })
     return result

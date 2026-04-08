@@ -41,6 +41,13 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     _loadApiKey();
   }
 
+  @override
+  void dispose() {
+    _textController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadApiKey() async {
     final prefs = await SharedPreferences.getInstance();
     final key = prefs.getString('gemini_api_key') ?? '';

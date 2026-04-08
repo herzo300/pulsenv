@@ -25,14 +25,17 @@ class _DailyDigestTickerState extends State<DailyDigestTicker>
 
   Future<void> _fetchDigest() async {
     try {
-      final response = await http.get(
-        Uri.parse('${MapConfig.backendApiBaseUrl}/api/daily-digest'),
-      );
+      final response = await http
+          .get(
+            Uri.parse('${MapConfig.backendApiBaseUrl}/api/daily-digest'),
+          )
+          .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         if (data['success'] == true) {
           setState(() {
-            _digestText = data['ai_summary'] ?? 'Новых сигналов за сегодня нет.';
+            _digestText =
+                data['ai_summary'] ?? 'Новых сигналов за сегодня нет.';
           });
         } else {
           setState(() {
@@ -71,7 +74,7 @@ class _DailyDigestTickerState extends State<DailyDigestTicker>
           const Icon(Icons.auto_awesome, color: Colors.yellowAccent, size: 18),
           const SizedBox(width: 12),
           Expanded(
-             // Для простой бегущей строки или прокрутки можно использовать SingleChildScrollView + marquee_widget
+            // Для простой бегущей строки или прокрутки можно использовать SingleChildScrollView + marquee_widget
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Text(

@@ -26,19 +26,11 @@ TARGET_CHANNEL: str = os.getenv("TARGET_CHANNEL", "@monitornv")
 FIREBASE_RTDB_URL: str = os.getenv("FIREBASE_RTDB_URL", "")
 FIREBASE_PROJECT_ID: str = os.getenv("FIREBASE_PROJECT_ID", "")
 
-# ===== Public API / Supabase / Workers =====
-_LOCAL_API: str = os.getenv("PUBLIC_API_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+# ===== Public API / Workers =====
+_LOCAL_API: str = os.getenv("PUBLIC_API_BASE_URL", "http://45.153.68.59").rstrip("/")
 PUBLIC_API_BASE_URL: str = _LOCAL_API
 
-USE_SUPABASE_PRIMARY: bool = os.getenv("USE_SUPABASE_PRIMARY", "false").lower() == "true"
-
-SUPABASE_URL: str = os.getenv("SUPABASE_URL", "").rstrip("/")
-SUPABASE_FUNCTIONS_URL: str = os.getenv(
-    "SUPABASE_FUNCTIONS_URL",
-    f"{SUPABASE_URL}/functions/v1/api" if SUPABASE_URL else "",
-).rstrip("/")
-
-WORKER_URL: str = SUPABASE_FUNCTIONS_URL or PUBLIC_API_BASE_URL
+WORKER_URL: str = PUBLIC_API_BASE_URL
 
 # ===== Database =====
 DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./soobshio.db")
@@ -54,7 +46,7 @@ ADMIN_TELEGRAM_IDS: list[int] = [
 VK_SERVICE_TOKEN: str = os.getenv("VK_SERVICE_TOKEN", "")
 
 # ===== MCP Fetch Server =====
-MCP_FETCH_SERVER_URL: str = os.getenv("MCP_FETCH_SERVER_URL", "http://localhost:3000")
+MCP_FETCH_SERVER_URL: str = os.getenv("MCP_FETCH_SERVER_URL", PUBLIC_API_BASE_URL)
 MCP_FETCH_ENABLED: bool = os.getenv("MCP_FETCH_ENABLED", "false").lower() == "true"
 MCP_FETCH_TIMEOUT: float = float(os.getenv("MCP_FETCH_TIMEOUT", "30.0"))
 

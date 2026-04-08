@@ -3,7 +3,7 @@
 Unified AI Proxy Service.
 
 Provides a single interface to AI providers via claude-code-proxy:
-- Zai GLM-4.7 (primary)
+- Zai GLM-5-Turbo (primary)
 - OpenAI GPT-4 (fallback 1)
 - Anthropic Claude (fallback 2)
 """
@@ -81,7 +81,7 @@ class AIProxyService:
                 "address": None,
                 "summary": text[:100],
                 "provider_used": "zai_direct",
-                "model_used": "glm-4.7-flash",
+                "model_used": "glm-5-turbo",
             }
 
     async def categorize(

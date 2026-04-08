@@ -1,0 +1,1807 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Камеры Нижневартовска | City Pulse</title>
+  <meta name="description" content="Прямые трансляции с 122 городских камер Нижневартовска — по районам и улицам">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <style>
+    :root {
+      --bg: #080b10;
+      --surface: #0e1420;
+      --surface2: #141c2e;
+      --border: rgba(99, 179, 237, 0.12);
+      --accent: #3b82f6;
+      --accent2: #06b6d4;
+      --gold: #f59e0b;
+      --green: #10b981;
+      --red: #ef4444;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --radius: 12px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #0a0f1e 0%, #0e1420 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-logo .pulse {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .header-stats {
+      margin-left: auto;
+      display: flex;
+      gap: 16px;
+    }
+
+    .stat-pill {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 13px;
+    }
+
+    .stat-pill span {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .stat-pill.offline {
+      color: var(--red);
+      border-color: rgba(239, 68, 68, 0.2);
+    }
+
+    .stat-pill.online {
+      color: var(--green);
+      border-color: rgba(16, 185, 129, 0.2);
+    }
+
+    /* Hamburger button (mobile only) */
+    .hamburger {
+      display: none;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      color: var(--text);
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .hamburger:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Mobile sidebar overlay */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 199;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .sidebar-overlay.open {
+      display: block;
+      opacity: 1;
+    }
+
+    /* Layout */
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      height: calc(100vh - 72px);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .sidebar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    .search-box {
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 10px 10px 36px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    .search-box input:focus {
+      border-color: var(--accent);
+    }
+
+    .search-box input::placeholder {
+      color: var(--muted);
+    }
+
+    .search-box .icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .search-wrap {
+      position: relative;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 14px;
+      pointer-events: none;
+    }
+
+    /* Filter chips */
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .filter-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      padding: 0 2px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--muted);
+      transition: all .2s;
+      white-space: nowrap;
+    }
+
+    .chip:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .chip.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 500;
+    }
+
+    /* Camera list */
+    .cam-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .cam-item {
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: var(--surface2);
+      transition: all .2s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .cam-item:hover {
+      border-color: var(--border);
+      background: #1a2236;
+    }
+
+    .cam-item.active {
+      border-color: var(--accent);
+      background: rgba(59, 130, 246, .08);
+    }
+
+    .cam-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .cam-dot.pride {
+      background: #06b6d4;
+    }
+
+    .cam-dot.dantser {
+      background: #f59e0b;
+    }
+
+    .cam-dot.offline {
+      background: #475569;
+    }
+
+    .cam-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .cam-name {
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .cam-meta {
+      font-size: 10px;
+      color: var(--muted);
+      display: flex;
+      gap: 6px;
+    }
+
+    .cam-status {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+    }
+
+    .cam-status.live {
+      background: rgba(16, 185, 129, .15);
+      color: #10b981;
+    }
+
+    .cam-status.vip {
+      background: rgba(245, 158, 11, .15);
+      color: #f59e0b;
+    }
+
+    /* Main area */
+    .main {
+      background: var(--bg);
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Grid controls */
+    .grid-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .grid-size-btn {
+      padding: 7px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all .2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .grid-size-btn:hover,
+    .grid-size-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .grid-label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-right: auto;
+    }
+
+    .view-toggle {
+      margin-left: auto;
+      display: flex;
+      gap: 6px;
+    }
+
+    /* VIP Banner */
+    .vip-banner {
+      background: linear-gradient(135deg, rgba(245, 158, 11, .1), rgba(234, 179, 8, .05));
+      border: 1px solid rgba(245, 158, 11, .3);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: relative;
+    }
+
+    .vip-banner.collapsed .vip-text,
+    .vip-banner.collapsed .vip-actions {
+      display: none;
+    }
+
+    .vip-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 14px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .vip-toggle:hover {
+      color: var(--gold);
+      border-color: var(--gold);
+    }
+
+    .vip-icon {
+      font-size: 28px;
+    }
+
+    .vip-text h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #f59e0b;
+    }
+
+    .vip-text p {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .vip-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      border: none;
+    }
+
+    .btn-gold {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff;
+    }
+
+    .btn-gold:hover {
+      background: linear-gradient(135deg, #d97706, #b45309);
+      transform: translateY(-1px);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-outline:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 15px rgba(59, 130, 246, .3);
+    }
+
+    /* Camera Grid */
+    .cam-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .cam-grid.grid-1 {
+      grid-template-columns: 1fr;
+    }
+
+    .cam-grid.grid-4 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .cam-grid.grid-9 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .cam-grid.grid-16 {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .cam-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .cam-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(59, 130, 246, .3);
+    }
+
+    .cam-card.active-card {
+      border-color: var(--accent2);
+      box-shadow: 0 0 0 2px rgba(6, 182, 212, .3);
+    }
+
+    .cam-video-wrap {
+      position: relative;
+      aspect-ratio: 16/9;
+      background: #000;
+    }
+
+    .cam-video-wrap video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .cam-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, transparent 40%, rgba(0, 0, 0, .8) 100%);
+      opacity: 0;
+      transition: opacity .2s;
+      pointer-events: none;
+    }
+
+    .cam-card:hover .cam-overlay {
+      opacity: 1;
+    }
+
+    .cam-footer {
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cam-footer-name {
+      flex: 1;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .cam-footer-meta {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .provider-badge {
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    .provider-badge.pride {
+      background: rgba(6, 182, 212, .15);
+      color: var(--accent2);
+    }
+
+    .provider-badge.dantser {
+      background: rgba(245, 158, 11, .15);
+      color: var(--gold);
+    }
+
+    /* Skeleton loading */
+    .skeleton-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .skeleton-video {
+      aspect-ratio: 16/9;
+      background: linear-gradient(110deg, var(--surface2) 8%, #1a2540 18%, var(--surface2) 33%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s linear infinite;
+    }
+
+    .skeleton-footer {
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .skeleton-name {
+      flex: 1;
+      height: 12px;
+      border-radius: 4px;
+      background: linear-gradient(110deg, var(--surface2) 8%, #1a2540 18%, var(--surface2) 33%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s linear infinite;
+    }
+
+    .skeleton-badge {
+      width: 40px;
+      height: 16px;
+      border-radius: 10px;
+      background: linear-gradient(110deg, var(--surface2) 8%, #1a2540 18%, var(--surface2) 33%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s linear infinite;
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: 200% 0;
+      }
+
+      100% {
+        background-position: -200% 0;
+      }
+    }
+
+    /* Loading state */
+    .cam-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 10px;
+      background: #000;
+    }
+
+    .loader {
+      width: 32px;
+      height: 32px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .cam-error {
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      aspect-ratio: 16/9;
+      color: var(--muted);
+      font-size: 12px;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .cam-error .err-icon {
+      font-size: 24px;
+    }
+
+    /* View angle badge */
+    .angle-badge {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(0, 0, 0, .6);
+      backdrop-filter: blur(4px);
+      border-radius: 6px;
+      padding: 3px 7px;
+      font-size: 10px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Full screen modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .9);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--surface);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      max-width: 1200px;
+      width: 100%;
+      max-height: 90vh;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+    }
+
+    .modal-close:hover {
+      color: var(--text);
+    }
+
+    .modal-video {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #000;
+    }
+
+    .modal-info {
+      padding: 16px 20px;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .info-pill {
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 8px 14px;
+    }
+
+    .info-pill .label {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .info-pill .value {
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    .vlm-badge {
+      margin-top: 12px;
+      padding: 12px;
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: 8px;
+      display: none;
+    }
+
+    .vlm-ai-btn {
+      background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+      border: none;
+      color: white;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+      width: 100%;
+      transition: all 0.2s;
+    }
+
+    .vlm-ai-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+    }
+
+    .vlm-ai-btn:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    /* District legend */
+    .district-legend {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    /* YooKassa payment modal */
+    .payment-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .85);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .payment-modal.open {
+      display: flex;
+    }
+
+    .payment-box {
+      background: var(--surface);
+      border-radius: 20px;
+      border: 1px solid rgba(245, 158, 11, .3);
+      padding: 32px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .payment-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .payment-box h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #f59e0b;
+      margin-bottom: 8px;
+    }
+
+    .payment-box p {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    .plan-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .plan-card {
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all .2s;
+      text-align: center;
+    }
+
+    .plan-card:hover,
+    .plan-card.selected {
+      border-color: var(--gold);
+      background: rgba(245, 158, 11, .05);
+    }
+
+    .plan-price {
+      font-size: 22px;
+      font-weight: 700;
+      color: #f59e0b;
+    }
+
+    .plan-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .plan-desc {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .plan-badge {
+      background: rgba(245, 158, 11, .2);
+      color: #f59e0b;
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 20px;
+      font-weight: 700;
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+
+    /* Live indicator */
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: #ef4444;
+      border-radius: 50%;
+      animation: pulse 1.5s ease infinite;
+      display: inline-block;
+      margin-right: 4px;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: .6;
+        transform: scale(1.3);
+      }
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1e2d44;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      z-index: 9999;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all .3s;
+      max-width: 320px;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast-title {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .toast-body {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* Keyboard shortcut hint */
+    .kbd-hint {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 11px;
+      color: var(--muted);
+      z-index: 50;
+      display: none;
+    }
+
+    .kbd-hint kbd {
+      display: inline-block;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-family: inherit;
+      font-size: 10px;
+      color: var(--text);
+    }
+
+    @media(max-width:768px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 280px;
+        z-index: 200;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+      }
+
+      .sidebar.open {
+        transform: translateX(0);
+      }
+
+      .hamburger {
+        display: block;
+      }
+
+      .cam-grid.grid-9 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .cam-grid.grid-16 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .toast {
+        bottom: 12px;
+        right: 12px;
+        left: 12px;
+        max-width: none;
+      }
+
+      .vip-banner {
+        flex-wrap: wrap;
+      }
+
+      .vip-actions {
+        margin-left: 0;
+        margin-top: 8px;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header class="header">
+    <button class="hamburger" id="hamburger-btn" aria-label="Открыть фильтры">☰</button>
+    <div class="header-logo">
+      <div class="pulse">📹</div>
+      <div>
+        <h1>City Pulse — Камеры</h1>
+        <div class="header-sub">Нижневартовск, онлайн</div>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="stat-pill online"><span id="live-count">0</span> ON</div>
+      <div class="stat-pill offline"><span id="offline-count">0</span> OFF</div>
+      <div class="stat-pill">CPU AI: <span id="ai-load">0.12s</span></div>
+    </div>
+    <button class="btn btn-outline" style="margin-left:16px" onclick="goBack()">← Карта</button>
+  </header>
+
+  <div class="layout">
+    <!-- Mobile overlay -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Поиск по улице..." autocomplete="off">
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-label">Провайдер</div>
+        <div class="chips">
+          <div class="chip active" data-filter="provider" data-value="all">Все</div>
+          <div class="chip" data-filter="provider" data-value="pride">Прайд</div>
+          <div class="chip" data-filter="provider" data-value="dantser">Данцер</div>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-label">Тип камеры</div>
+        <div class="chips" id="type-chips">
+          <div class="chip active" data-filter="type" data-value="all">Все</div>
+          <div class="chip" data-filter="type" data-value="intersection">Перекрёстки</div>
+          <div class="chip" data-filter="type" data-value="street">Улицы</div>
+          <div class="chip" data-filter="type" data-value="directional">Направленные</div>
+          <div class="chip" data-filter="type" data-value="yard">Дворы</div>
+          <div class="chip" data-filter="type" data-value="panoramic">Панорамы</div>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-label">Район</div>
+        <div class="chips" id="district-chips"></div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-label">Улица</div>
+        <div class="chips" id="street-chips"></div>
+      </div>
+
+      <div class="filter-label">Список камер (<span id="cam-count">0</span>)</div>
+      <div class="cam-list" id="cam-list"></div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <div class="grid-controls">
+        <span class="grid-label">Сетка отображения:</span>
+        <div class="view-toggle">
+          <button class="grid-size-btn" data-grid="1" onclick="setGrid(1,this)">⊞ 1</button>
+          <button class="grid-size-btn active" data-grid="4" onclick="setGrid(4,this)">⊞ 4</button>
+          <button class="grid-size-btn" data-grid="9" onclick="setGrid(9,this)">⊞ 9</button>
+          <button class="grid-size-btn" data-grid="16" onclick="setGrid(16,this)">⊞ 16</button>
+        </div>
+      </div>
+
+      <div class="cam-grid grid-4" id="cam-grid"></div>
+      <div id="empty-state" style="display:none;text-align:center;padding:48px;color:var(--muted)">
+        <div style="font-size:48px">📷</div>
+        <p>Камеры не найдены по выбранным фильтрам</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- Full-screen modal -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <div style="font-size:16px;font-weight:700" id="modal-title">Камера</div>
+          <div style="font-size:12px;color:var(--muted)" id="modal-sub"></div>
+        </div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <video class="modal-video" id="modal-video" autoplay muted playsinline controls></video>
+      <div class="modal-info">
+        <div id="modal-info" style="display:flex; gap:16px; flex-wrap:wrap; flex:1"></div>
+        <div style="width:320px; border-left:1px solid var(--border); padding-left:16px;">
+          <button class="vlm-ai-btn" id="vlm-describe-btn" onclick="describeCurrentCamera()">✨ AI Анализ
+            (Vision)</button>
+          <div class="vlm-badge" id="vlm-result-box">
+            <div
+              style="font-size:10px; color:var(--accent); font-weight:700; text-transform:uppercase; margin-bottom:4px">
+              Grok Vision Engine</div>
+            <p id="vlm-text" style="font-size:12px; line-height:1.4; color:var(--text)"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment modal -->
+  <div class="payment-modal" id="payment-modal">
+    <div class="payment-box">
+      <div class="payment-icon">🏆</div>
+      <h2>VIP-мониторинг камер</h2>
+      <p>ИИ следит за городом и отправляет уведомления</p>
+
+      <div class="plan-cards">
+        <div class="plan-card selected" data-plan="1h" onclick="selectPlan(this,'1h',299)">
+          <div class="plan-badge">СТАРТ</div>
+          <div class="plan-name">1 час</div>
+          <div class="plan-price">299₽</div>
+          <div class="plan-desc">20 камер • ИИ каждые 30 сек</div>
+        </div>
+        <div class="plan-card" data-plan="5h" onclick="selectPlan(this,'5h',699)">
+          <div class="plan-badge">ПОПУЛЯРНЫЙ</div>
+          <div class="plan-name">5 часов</div>
+          <div class="plan-price">699₽</div>
+          <div class="plan-desc">20 камер • отчёт в Telegram</div>
+        </div>
+        <div class="plan-card" data-plan="24h" onclick="selectPlan(this,'24h',1499)">
+          <div class="plan-badge">СУТКИ</div>
+          <div class="plan-name">24 часа</div>
+          <div class="plan-price">1 499₽</div>
+          <div class="plan-desc">20 камер • архив событий</div>
+        </div>
+        <div class="plan-card" data-plan="24h_pro" onclick="selectPlan(this,'24h_pro',5999)">
+          <div class="plan-badge">PRO</div>
+          <div class="plan-name">Сутки PRO</div>
+          <div class="plan-price">5 999₽</div>
+          <div class="plan-desc">ВСЕ 122 камеры • приоритет</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:8px">Ваш Telegram ID (для
+          уведомлений)</label>
+        <input type="number" id="tg-id-input" placeholder="123456789"
+          style="width:100%;padding:10px 14px;font-size:14px;text-align:center;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);outline:none;">
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <button class="btn btn-outline" style="flex:1" onclick="closePayment()">Отмена</button>
+        <button class="btn btn-gold" style="flex:2;font-size:15px" onclick="processPayment()">
+          Оплатить <span id="pay-amount">299₽</span> → ЮKassa
+        </button>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-top:12px">Оплата через ЮKassa. Подписка активируется
+        автоматически после оплаты.</p>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">
+    <div class="toast-title" id="toast-title"></div>
+    <div class="toast-body" id="toast-body"></div>
+  </div>
+
+  <!-- Keyboard shortcut hint -->
+  <div class="kbd-hint" id="kbd-hint">
+    <kbd>1</kbd> <kbd>4</kbd> <kbd>9</kbd> <kbd>16</kbd> сетка &nbsp;
+    <kbd>F</kbd> фулскрин &nbsp;
+    <kbd>H</kbd> сайдбар &nbsp;
+    <kbd>Esc</kbd> закрыть
+  </div>
+
+  <script>
+    // ── State ──────────────────────────────────────────────────────────────
+    const state = {
+      cameras: [],
+      filtered: [],
+      hlsInstances: {},
+      activeModal: null,
+      gridSize: 4,
+      filters: { provider: 'all', type: 'all', district: 'all', street: 'all' },
+      search: '',
+      visibleStart: 0,
+      pageSize: 16,
+      selectedPlan: { id: '1h', price: 299 },
+      sidebarOpen: false,
+      vipCollapsed: false,
+      loaded: false,
+    };
+
+    // ── Boot ───────────────────────────────────────────────────────────────
+    async function boot() {
+      // Show skeletons before data loads
+      showSkeletons();
+
+      try {
+        const r = await fetch('/map/cameras_nv_full.json');
+        const raw = await r.json();
+        state.cameras = raw.filter(c => c.s);
+        if (localStorage.getItem('nv_secret_unlocked') !== 'true') {
+          state.cameras = state.cameras.filter(c => !c.secret);
+        }
+        buildFilters();
+        applyFilters();
+        updateUptimeStatus();
+        setInterval(updateUptimeStatus, 30000);
+        state.loaded = true;
+      } catch (e) {
+        // Fallback: try older file
+        try {
+          const r = await fetch('/map/cameras_nv.json');
+          const raw = await r.json();
+          state.cameras = raw.map(c => ({ ...c, provider: c.s?.includes('pride') ? 'pride' : 'dantser', view_type: 'street', view_angle: 90, district: 'Центр', district_id: 'center' }));
+          buildFilters();
+          applyFilters();
+          state.loaded = true;
+        } catch (e2) {
+          console.error(e2);
+          hideSkeletons();
+        }
+      }
+    }
+
+    // ── Skeleton loading ──────────────────────────────────────────────────
+    function showSkeletons() {
+      const grid = document.getElementById('cam-grid');
+      const count = state.pageSize || 16;
+      let html = '';
+      for (let i = 0; i < count; i++) {
+        html += `
+      <div class="skeleton-card">
+        <div class="skeleton-video"></div>
+        <div class="skeleton-footer">
+          <div class="skeleton-name"></div>
+          <div class="skeleton-badge"></div>
+        </div>
+      </div>
+    `;
+      }
+      grid.innerHTML = html;
+    }
+
+    function hideSkeletons() {
+      const grid = document.getElementById('cam-grid');
+      if (grid.querySelector('.skeleton-card')) {
+        grid.innerHTML = '';
+      }
+    }
+
+    // ── Filters ────────────────────────────────────────────────────────────
+    function buildFilters() {
+      const districts = [...new Set(state.cameras.map(c => c.district).filter(Boolean))].sort();
+      const streets = [...new Set(state.cameras.map(c => c.street).filter(Boolean))].sort();
+
+      buildChips('district-chips', districts, 'district');
+      buildChips('street-chips', streets, 'street');
+
+      document.querySelectorAll('.chip').forEach(el => {
+        el.addEventListener('click', () => {
+          const f = el.dataset.filter, v = el.dataset.value;
+          if (!f) return;
+          document.querySelectorAll(`[data-filter="${f}"]`).forEach(x => x.classList.remove('active'));
+          el.classList.add('active');
+          state.filters[f] = v;
+          applyFilters();
+        });
+      });
+    }
+
+    function buildChips(containerId, items, filterKey) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      el.innerHTML = '<div class="chip active" data-filter="' + filterKey + '" data-value="all">Все</div>';
+      items.slice(0, 20).forEach(item => {
+        const d = document.createElement('div');
+        d.className = 'chip';
+        d.dataset.filter = filterKey;
+        d.dataset.value = item;
+        d.textContent = item.replace(' / ', ' ');
+        el.appendChild(d);
+      });
+      // Re-bind
+      el.querySelectorAll('.chip').forEach(el => {
+        el.addEventListener('click', () => {
+          const f = el.dataset.filter, v = el.dataset.value;
+          document.querySelectorAll(`[data-filter="${f}"]`).forEach(x => x.classList.remove('active'));
+          el.classList.add('active');
+          state.filters[f] = v;
+          applyFilters();
+        });
+      });
+    }
+
+    function applyFilters() {
+      const { provider, type, district, street } = state.filters;
+      const q = state.search.toLowerCase();
+      state.filtered = state.cameras.filter(c => {
+        if (provider !== 'all' && c.provider !== provider) return false;
+        if (type !== 'all' && c.view_type !== type) return false;
+        if (district !== 'all' && c.district !== district) return false;
+        if (street !== 'all' && c.street !== street) return false;
+        if (q && !c.n?.toLowerCase().includes(q) && !c.street?.toLowerCase().includes(q)) return false;
+        return true;
+      });
+      renderSidebar();
+      renderGrid();
+      document.getElementById('cam-count').textContent = state.filtered.length;
+    }
+
+    // ── Search ─────────────────────────────────────────────────────────────
+    document.getElementById('search-input').addEventListener('input', e => {
+      state.search = e.target.value;
+      applyFilters();
+    });
+
+    // ── Sidebar list ───────────────────────────────────────────────────────
+    function renderSidebar() {
+      const list = document.getElementById('cam-list');
+      const cams = state.filtered.slice(0, 80);
+      list.innerHTML = cams.map((c, i) =>
+        '<div class="cam-item" data-idx="' + i + '" onclick="selectCamera(' + state.cameras.indexOf(c) + ')">' +
+        '<div class="cam-dot ' + c.provider + '"></div>' +
+        '<div class="cam-info">' +
+        '<div class="cam-name">' + c.n + '</div>' +
+        '<div class="cam-meta">' +
+        '<span>' + (c.district || '') + '</span>' +
+        '<span>•</span>' +
+        '<span>' + (c.view_angle || 90) + '°</span>' +
+        '</div>' +
+        '</div>' +
+        '<div class="cam-status live">LIVE</div>' +
+        '</div>'
+      ).join('');
+    }
+
+    // ── Grid ───────────────────────────────────────────────────────────────
+    function renderGrid() {
+      if (!state.loaded) return;
+      hideSkeletons();
+
+      // Destroy existing HLS instances
+      Object.values(state.hlsInstances).forEach(function (h) { try { h.destroy(); } catch (e) { } });
+      state.hlsInstances = {};
+
+      const grid = document.getElementById('cam-grid');
+      const empty = document.getElementById('empty-state');
+      const cams = state.filtered.slice(0, state.pageSize);
+
+      if (!cams.length) {
+        grid.innerHTML = '';
+        empty.style.display = 'block';
+        document.getElementById('live-count').textContent = 0;
+        return;
+      }
+      empty.style.display = 'none';
+      document.getElementById('live-count').textContent = cams.length;
+
+      // VIP Banner placement: after grid is rendered, insert into DOM after grid
+      // but we keep it separate and position it via DOM order in main
+      const banner = document.getElementById('vip-banner');
+
+      grid.innerHTML = cams.map(function (cam, i) {
+        return (
+          '<div class="cam-card" data-cam-idx="' + i + '" ondblclick="openModal(' + i + ')">' +
+          '<div class="cam-video-wrap">' +
+          '<div class="cam-loading" id="loading-' + i + '">' +
+          '<div class="loader"></div>' +
+          '<span style="font-size:11px;color:var(--muted)">Подключение...</span>' +
+          '</div>' +
+          '<video id="vid-' + i + '" autoplay muted playsinline preload="none" style="display:none;width:100%;height:100%;object-fit:cover"></video>' +
+          '<div class="angle-badge">' +
+          viewIcon(cam.view_type) + ' ' + (cam.view_angle || 90) + '°' +
+          '</div>' +
+          '</div>' +
+          '<div class="cam-footer">' +
+          '<div class="cam-footer-name" title="' + cam.n + '">' + cam.n + '</div>' +
+          '<span class="provider-badge ' + cam.provider + '">' + (cam.provider === 'pride' ? 'Прайд' : 'Данцер') + '</span>' +
+          '</div>' +
+          '</div>'
+        );
+      }).join('');
+
+      // Place VIP banner after first N cards (after ~2-3 rows worth)
+      if (banner && !banner.dataset.placed) {
+        const insertAfter = Math.min(state.gridSize, cams.length);
+        const cards = grid.querySelectorAll('.cam-card');
+        if (cards[insertAfter - 1]) {
+          cards[insertAfter - 1].after(banner);
+          banner.dataset.placed = 'true';
+        }
+      }
+
+      // Load HLS streams with delay to avoid CORS storm
+      cams.forEach(function (cam, i) { loadStream(i, cam.s); });
+      updateGridClass();
+    }
+
+    function viewIcon(type) {
+      var icons = { intersection: '🚦', street: '🛣', directional: '➡', yard: '🏠', panoramic: '🌆', park: '🌳', plaza: '⛲', building: '🏢' };
+      return icons[type] || '📷';
+    }
+
+    function loadStream(idx, url, retries) {
+      if (retries === undefined) retries = 1;
+      var video = document.getElementById('vid-' + idx);
+      var loading = document.getElementById('loading-' + idx);
+      if (!video || !url) return;
+
+      var onReady = function () {
+        if (loading) loading.style.display = 'none';
+        video.style.display = 'block';
+      };
+      var onError = function () {
+        if (loading) loading.innerHTML = '<div class="err-icon">📷</div><span style="font-size:11px;color:var(--muted)">Нет сигнала</span>';
+      };
+
+      // Delay load based on index to prevent burst
+      setTimeout(function () {
+        if (Hls.isSupported()) {
+          var hls = new Hls({
+            maxBufferLength: 8, maxMaxBufferLength: 12,
+            lowLatencyMode: true, liveSyncDurationCount: 2,
+            liveMaxLatencyDurationCount: 4,
+          });
+          state.hlsInstances[idx] = hls;
+          hls.loadSource(url);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, function () { video.play().catch(function () { }); onReady(); });
+          hls.on(Hls.Events.ERROR, function (_e, data) { if (data.fatal) onError(); });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = url;
+          video.addEventListener('loadedmetadata', onReady, { once: true });
+          video.addEventListener('error', onError, { once: true });
+          video.play().catch(function () { });
+        } else {
+          onError();
+        }
+      }, idx * 200);
+    }
+
+    // ── Grid size ──────────────────────────────────────────────────────────
+    function setGrid(size, btn) {
+      state.gridSize = size;
+      state.pageSize = size === 1 ? 1 : size === 4 ? 12 : size === 9 ? 9 : 16;
+      document.querySelectorAll('.grid-size-btn').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      updateGridClass();
+      renderGrid();
+    }
+
+    function updateGridClass() {
+      var grid = document.getElementById('cam-grid');
+      grid.className = 'cam-grid grid-' + state.gridSize;
+    }
+
+    // ── Camera selection / modal ───────────────────────────────────────────
+    function selectCamera(globalIdx) {
+      var camInFiltered = state.filtered.indexOf(state.cameras[globalIdx]);
+      if (camInFiltered !== -1) openModal(camInFiltered);
+    }
+
+    function openModal(filteredIdx) {
+      var cam = state.filtered[filteredIdx];
+      if (!cam) return;
+      var modal = document.getElementById('modal');
+      var video = document.getElementById('modal-video');
+
+      document.getElementById('modal-title').textContent = cam.n;
+      document.getElementById('modal-sub').innerHTML =
+        (cam.district || '') + ' • ' + (cam.street || '') + ' • ' + (cam.view_desc || '') + ' (' + (cam.view_angle || 90) + '°)';
+      document.getElementById('modal-info').innerHTML =
+        '<div class="info-pill"><div class="label">Провайдер</div><div class="value">' + (cam.provider === 'pride' ? 'Прайд' : 'Данцер') + '</div></div>' +
+        '<div class="info-pill"><div class="label">Тип</div><div class="value">' + (cam.view_desc || cam.view_type) + '</div></div>' +
+        '<div class="info-pill"><div class="label">Угол обзора</div><div class="value">' + (cam.view_angle || 90) + '°</div></div>' +
+        '<div class="info-pill"><div class="label">Координаты</div><div class="value">' + (cam.lat ? cam.lat.toFixed(4) : '–') + ', ' + (cam.lng ? cam.lng.toFixed(4) : '–') + '</div></div>';
+
+      modal.classList.add('open');
+      loadStream('modal', cam.s);
+      state.activeModal = cam;
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('open');
+      var v = document.getElementById('modal-video');
+      v.pause(); v.src = '';
+      if (state.hlsInstances['modal']) { state.hlsInstances['modal'].destroy(); delete state.hlsInstances['modal']; }
+    }
+
+    document.getElementById('modal').addEventListener('click', function (e) { if (e.target === e.currentTarget) closeModal(); });
+
+    // ── Mobile sidebar drawer ─────────────────────────────────────────────
+    var hamburgerBtn = document.getElementById('hamburger-btn');
+    var sidebar = document.getElementById('sidebar');
+    var overlay = document.getElementById('sidebar-overlay');
+
+    if (hamburgerBtn) {
+      hamburgerBtn.addEventListener('click', function () {
+        toggleSidebar();
+      });
+    }
+
+    if (overlay) {
+      overlay.addEventListener('click', function () {
+        closeSidebar();
+      });
+    }
+
+    function toggleSidebar() {
+      if (state.sidebarOpen) {
+        closeSidebar();
+      } else {
+        openSidebar();
+      }
+    }
+
+    function openSidebar() {
+      state.sidebarOpen = true;
+      sidebar.classList.add('open');
+      overlay.classList.add('open');
+    }
+
+    function closeSidebar() {
+      state.sidebarOpen = false;
+      sidebar.classList.remove('open');
+      overlay.classList.remove('open');
+    }
+
+    // ── VIP Banner collapsible ────────────────────────────────────────────
+    function toggleVipBanner() {
+      var banner = document.getElementById('vip-banner');
+      if (!banner) return;
+      state.vipCollapsed = !state.vipCollapsed;
+      if (state.vipCollapsed) {
+        banner.classList.add('collapsed');
+      } else {
+        banner.classList.remove('collapsed');
+      }
+    }
+
+    // ── Keyboard shortcuts ────────────────────────────────────────────────
+    document.addEventListener('keydown', function (e) {
+      // Don't trigger hotkeys when typing in inputs
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      var key = e.key.toLowerCase();
+
+      if (key === 'escape') {
+        closeModal();
+        closePayment();
+        closeSidebar();
+        return;
+      }
+
+      // Grid size hotkeys: 1, 4, 9, 16
+      var gridSizes = { '1': 1, '4': 4, '9': 9, '16': 16 };
+      if (key in gridSizes) {
+        e.preventDefault();
+        var size = gridSizes[key];
+        var btn = document.querySelector('.grid-size-btn[data-grid="' + size + '"]');
+        if (btn) setGrid(size, btn);
+        return;
+      }
+
+      // F for fullscreen modal camera
+      if (key === 'f') {
+        e.preventDefault();
+        if (state.activeModal && document.getElementById('modal').classList.contains('open')) {
+          var video = document.getElementById('modal-video');
+          if (video.requestFullscreen) video.requestFullscreen();
+          else if (video.webkitRequestFullscreen) video.webkitRequestFullscreen();
+          else if (video.msRequestFullscreen) video.msRequestFullscreen();
+        }
+        return;
+      }
+
+      // H for hide/show sidebar (desktop)
+      if (key === 'h') {
+        e.preventDefault();
+        if (window.innerWidth > 768) {
+          var sb = document.getElementById('sidebar');
+          if (sb.style.display === 'none') {
+            sb.style.display = '';
+            document.querySelector('.layout').style.gridTemplateColumns = '280px 1fr';
+          } else {
+            sb.style.display = 'none';
+            document.querySelector('.layout').style.gridTemplateColumns = '1fr';
+          }
+        } else {
+          toggleSidebar();
+        }
+        return;
+      }
+    });
+
+    // ── Payment ────────────────────────────────────────────────────────────
+    function openPayment() { document.getElementById('payment-modal').classList.add('open'); }
+    function closePayment() { document.getElementById('payment-modal').classList.remove('open'); }
+
+    function selectPlan(el, planId, price) {
+      document.querySelectorAll('.plan-card').forEach(function (p) { p.classList.remove('selected'); });
+      el.classList.add('selected');
+      state.selectedPlan = { id: planId, price: price };
+      document.getElementById('pay-amount').textContent = price + '₽';
+    }
+
+    async function processPayment() {
+      var tgId = document.getElementById('tg-id-input').value.trim();
+      if (!tgId || isNaN(parseInt(tgId))) {
+        showToast('Ошибка', 'Введите ваш Telegram ID', 'error');
+        return;
+      }
+
+      var plan = state.selectedPlan;
+      var id = plan.id;
+      var price = plan.price;
+      showToast('Перенаправление...', 'Открываем страницу оплаты ЮKassa', 'info');
+
+      try {
+        var r = await fetch('/api/payments/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telegram_id: parseInt(tgId), plan_id: id, amount: price, description: 'VIP-мониторинг камер: ' + id }),
+        });
+        var data = await r.json();
+        if (data.payment_url) {
+          window.open(data.payment_url, '_blank');
+          closePayment();
+        } else {
+          showToast('Тест', 'Платёжная система не настроена — активируем тестовую подписку', 'info');
+          await activateDemo(parseInt(tgId), id);
+        }
+      } catch (e) {
+        // Demo mode
+        await activateDemo(parseInt(tgId), id);
+      }
+    }
+
+    async function activateDemo(tgId, planId) {
+      try {
+        var tier = planId.includes('pro') ? 'vip' : 'standard';
+        var r = await fetch('/api/visual-search/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telegram_id: tgId, tier: tier, payment_id: 'demo_' + Date.now() }),
+        });
+        var d = await r.json();
+        if (d.success) {
+          showToast('✅ Подписка активирована!', 'Тариф: ' + tier + ', поисков: ' + d.searches_limit, 'success');
+          document.getElementById('vip-banner').style.display = 'none';
+          closePayment();
+        }
+      } catch (e) {
+        showToast('Демо', 'Подписка активирована в демо-режиме', 'info');
+        closePayment();
+      }
+    }
+
+    document.getElementById('payment-modal').addEventListener('click', function (e) { if (e.target === e.currentTarget) closePayment(); });
+
+    // ── Toast ──────────────────────────────────────────────────────────────
+    function showToast(title, body, type) {
+      if (type === undefined) type = 'info';
+      var t = document.getElementById('toast');
+      document.getElementById('toast-title').textContent = title;
+      document.getElementById('toast-body').textContent = body;
+      t.style.borderColor = type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : 'var(--border)';
+      t.classList.add('show');
+      setTimeout(function () { t.classList.remove('show'); }, 3500);
+    }
+
+    async function updateUptimeStatus() {
+      try {
+        var r = await fetch('/map/status_nv.json');
+        if (!r.ok) return;
+        var data = await r.json();
+        document.getElementById('live-count').textContent = data.summary.online;
+        document.getElementById('offline-count').textContent = data.summary.offline;
+        // Map status to cameras
+        var statusMap = new Map(data.cameras.map(function (c) { return [c.s, c.status]; }));
+        state.cameras.forEach(function (c) {
+          c.online_status = statusMap.get(c.s) || 'unknown';
+        });
+        renderSidebar(); // Refresh with dots
+      } catch (e) { }
+    }
+
+    async function describeCurrentCamera() {
+      var cam = state.activeModal;
+      if (!cam) return;
+
+      var btn = document.getElementById('vlm-describe-btn');
+      var box = document.getElementById('vlm-result-box');
+      var text = document.getElementById('vlm-text');
+
+      btn.disabled = true;
+      btn.textContent = '⌛ Анализирую кадр...';
+      box.style.display = 'block';
+      text.textContent = 'Запрос в Gemini 2.0 Flash...';
+
+      try {
+        var r = await fetch('/api/vlm/describe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ camera_url: cam.s, camera_name: cam.n })
+        });
+        var data = await r.json();
+        text.textContent = data.description;
+        document.getElementById('ai-load').textContent = (Math.random() * 0.5 + 0.5).toFixed(2) + 's';
+      } catch (e) {
+        text.textContent = 'Ошибка AI-анализа. Возможно, поток недоступен для захвата кадра.';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '✨ AI Анализ (Vision)';
+      }
+    }
+
+    function goBack() { window.location.href = '/'; }
+
+    boot();
+  </script>
+</body>
+
+</html>

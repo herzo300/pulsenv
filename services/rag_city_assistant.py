@@ -149,7 +149,7 @@ async def ask_city_question(question: str) -> Dict:
 
     context = "\n".join(context_parts[:5])
 
-    # Try to answer with AI (Grok/GigaChat)
+    # Try to answer with Z.AI
     ai_answer = await _generate_answer(question, context)
 
     if ai_answer:

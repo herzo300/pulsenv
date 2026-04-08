@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from backend.database import SessionLocal
 from backend.models import Report, User
 from services.ai_cache import get_cache_stats
-from services.supabase_service import get_recent_complaints
+from services.runtime_data_service import get_recent_complaints
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +105,7 @@ def get_stats(db: Session) -> Dict[str, Any]:
 
 
 async def get_realtime_stats() -> Dict[str, Any]:
-    """Получает realtime-статистику (Supabase primary / Firebase fallback)."""
+    """Получает realtime-статистику из текущего runtime-слоя."""
     try:
         complaints = await get_recent_complaints(limit=1000)
         if not complaints:
@@ -181,7 +181,7 @@ def format_stats_message(stats: Dict[str, Any], realtime_stats: Optional[Dict[st
     if realtime_stats:
         lines.extend([
             "",
-            "═══ REALTIME (SUPABASE/FIREBASE) ═══",
+            "═══ REALTIME RUNTIME ═══",
             f"📊 Всего в realtime: *{realtime_stats.get('total', 0)}*",
         ])
         if realtime_stats.get('by_status'):
@@ -251,20 +251,18 @@ def _ensure_data_dir():
 
 def get_webapp_version() -> int:
     """Возвращает текущую версию для URL карты и инфографики (обход кэша)."""
-    from core.config import USE_SUPABASE_PRIMARY
     from sqlalchemy import text
     
-    if USE_SUPABASE_PRIMARY:
-        db = SessionLocal()
-        try:
+    db = SessionLocal()
+    try:
             # Пытаемся получить из таблицы config
-            res = db.execute(text("SELECT value FROM config WHERE key = 'webapp_version'")).fetchone()
-            if res:
-                return int(res[0])
-        except Exception as e:
-            logger.debug(f"Could not get webapp version from Supabase: {e}")
-        finally:
-            db.close()
+        res = db.execute(text("SELECT value FROM config WHERE key = 'webapp_version'")).fetchone()
+        if res:
+            return int(res[0])
+    except Exception as e:
+        logger.debug(f"Could not get webapp version from runtime DB: {e}")
+    finally:
+        db.close()
 
     _ensure_data_dir()
     try:
@@ -280,29 +278,27 @@ def bump_webapp_version() -> int:
     """Увеличивает версию Web App. Вызывать после деплоя воркера/обновлении файлов."""
     import time
     import json
-    from core.config import USE_SUPABASE_PRIMARY
     from sqlalchemy import text
     
     _ensure_data_dir()
     v = max(get_webapp_version(), int(time.time())) + 1
     
-    if USE_SUPABASE_PRIMARY:
-        db = SessionLocal()
-        try:
+    db = SessionLocal()
+    try:
             # Создаем таблицу, если нет
-            db.execute(text("CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
+        db.execute(text("CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
             # Обновляем или вставляем версию
-            db.execute(text(
-                "INSERT INTO config (key, value, updated_at) VALUES ('webapp_version', :v, :now) "
-                "ON CONFLICT (key) DO UPDATE SET value = :v, updated_at = :now"
-            ), {"v": str(v), "now": datetime.utcnow()})
-            db.commit()
-            logger.info(f"Webapp version bumped in Supabase: {v}")
-        except Exception as e:
-            logger.warning(f"Could not save webapp version to Supabase: {e}")
-            db.rollback()
-        finally:
-            db.close()
+        db.execute(text(
+            "INSERT INTO config (key, value, updated_at) VALUES ('webapp_version', :v, :now) "
+            "ON CONFLICT (key) DO UPDATE SET value = :v, updated_at = :now"
+        ), {"v": str(v), "now": datetime.utcnow()})
+        db.commit()
+        logger.info(f"Webapp version bumped in runtime DB: {v}")
+    except Exception as e:
+        logger.warning(f"Could not save webapp version to runtime DB: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
     try:
         with open(_WEBAPP_VERSION_FILE, "w", encoding="utf-8") as f:

@@ -1,7 +1,6 @@
-﻿fastapi==0.126.0
+fastapi==0.126.0
 uvicorn[standard]==0.40.0
-# uvloop==0.21.0  # РќРµ СЂР°Р±РѕС‚Р°РµС‚ РЅР° Windows - РёСЃРїРѕР»СЊР·СѓР№С‚Рµ asyncio
-httptools==0.6.4  # РЈСЃРєРѕСЂРµРЅРёРµ HTTP (Linux: РїРѕР»РЅРѕРµ, Windows: С‡Р°СЃС‚РёС‡РЅРѕРµ)
+httptools==0.6.4
 
 SQLAlchemy==2.0.46
 psycopg2-binary>=2.9.0
@@ -28,13 +27,18 @@ scikit-learn>=1.8.0; python_version >= '3.14'
 requests>=2.32.0
 httpx>=0.28.1
 beautifulsoup4>=4.12.3
-# РџСЂРѕРєСЃРё РґР»СЏ Р‘Р”: pip install PySocks РёР»Рё https://github.com/Anorov/PySocks/archive/refs/tags/1.7.1.zip
 PySocks>=1.7.1
 
-# Р‘РµР·РѕРїР°СЃРЅРѕСЃС‚СЊ
 slowapi>=0.1.9
 
-# PDF generation
+# PDF / Media
 reportlab>=4.0.0
-onnxruntime>=1.24.1
 Pillow>=11.0.0
+
+# Edge AI (YOLO local filter + ONNX inference)
+onnxruntime>=1.24.1
+opencv-python-headless>=4.10.0
+supervision>=0.25.0
+
+# Phone number validation (OSINT)
+phonenumbers>=8.13.0

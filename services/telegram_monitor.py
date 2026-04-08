@@ -128,7 +128,7 @@ class TelegramMonitor:
             # If it's a valid category, we treat it as a potential complaint
             if parsed.get("category") != "Прочее":
                  # Import here to avoid circular dependencies
-                 from services.supabase_service import push_complaint, upload_image
+                 from services.runtime_data_service import push_complaint, upload_image
                  
                  # Handle photos if present
                  photos = []
@@ -143,7 +143,7 @@ class TelegramMonitor:
                       if url:
                           photos.append(url)
                  
-                 # Push to Supabase
+                 # Save to the runtime storage layer
                  await push_complaint({
                      "title": parsed.get("summary", parsed.get("text", ""))[:150],
                      "description": parsed.get("text", ""),

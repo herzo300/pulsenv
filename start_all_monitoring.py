@@ -429,66 +429,6 @@ async def publish_to_telegram(client, category, report_id, summary, address, lat
         return False
 
 
-async def process_complaint(client, text, category, address, summary, provider, source, source_label, source_link, msg_id=None, channel=None, location_hints=None, exif_lat=None, exif_lon=None):
-    """Единая обработка: EXIF GPS / геопарсинг → SQLite → Telegram"""
-    # Приоритет: EXIF GPS → geoparse (AI адрес → парсер → ориентиры → hints)
-    lat, lon = None, None
-    if exif_lat and exif_lon:
-        lat, lon = exif_lat, exif_lon
-        # Обратное геокодирование если нет адреса
-        if not address:
-            try:
-                from services.geo_service import reverse_geocode
-                rev_addr = await reverse_geocode(exif_lat, exif_lon)
-                if rev_addr:
-                    address = rev_addr
-            except Exception:
-                pass
-    else:
-        geo = await geoparse(text, ai_address=address, location_hints=location_hints)
-        lat = geo.get("lat")
-        lon = geo.get("lng")
-        if geo.get("address"):
-            address = geo["address"]
-
-    # SQLite
-    report_id = await save_to_db(summary, text, lat, lon, address, category, source, msg_id, channel)
-
-    # Определяем точность геолокации
-    geo_accuracy = None
-    if lat and lon:
-        if exif_lat and exif_lon:
-            geo_accuracy = "high"  # EXIF GPS = 100% точность
-        elif address and len(address.split()) >= 3:  # Полный адрес с домом
-            geo_accuracy = "high"
-        else:
-            geo_accuracy = "medium"
-    
-    # Telegram @monitornv
-    timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
-    published = await publish_to_telegram(
-        client, category, report_id, summary, address, lat, lon,
-        source_label, source_link, timestamp, geo_accuracy=geo_accuracy
-    )
-
-    # Push-уведомления подписчикам по геозонам
-    if lat and lon and report_id:
-        try:
-            from services.push_notification_service import notify_subscribers
-            await notify_subscribers(
-                lat=lat, lng=lon,
-                category=category,
-                summary=summary,
-                address=address,
-                report_id=report_id,
-            )
-        except Exception as push_err:
-            logger.debug("Push notification error: %s", push_err)
-
-    stats['by_category'][category] = stats['by_category'].get(category, 0) + 1
-    return published
-
-
 async def save_to_db(summary, text, lat, lng, address, category, source, msg_id=None, channel=None):
     """Save complaint marker payload and merge repeated public complaints into one report."""
     db = None

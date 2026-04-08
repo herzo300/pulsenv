@@ -1,7 +1,7 @@
 # services/daily_digest_service.py
 """
 Общая логика ежедневной сводки: жалобы за день + анализ городской ситуации + советы.
-Используется скриптом daily_digest_telegram.py и ботом (платный раздел).
+Используется скриптом daily_digest_telegram.py и серверным контуром публикации.
 """
 
 from datetime import datetime, timezone
