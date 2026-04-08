@@ -33,8 +33,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Импорты сервисов
-from services.zai_service import analyze_complaint
-from services.geo_service import geoparse
+from services.zai_service import analyze_complaint, build_marker_summary, make_marker_summary
+from services.geo_service import geoparse, sanitize_address_candidate
 from services.zai_vision_service import analyze_image_with_glm4v
 from services.vk_monitor_service import (
     VK_GROUPS, poll_all_groups, VK_SERVICE_TOKEN,
@@ -142,6 +142,49 @@ def is_ad_or_spam(text: str) -> bool:
     return False
 
 
+def _find_duplicate_report(db, summary, address, lat, lon, category):
+    from datetime import datetime, timedelta
+    from backend.models import Report
+
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    signature = _normalize_text_signature(summary)
+    normalized_address = sanitize_address_candidate(address)
+
+    candidates = (
+        db.query(Report)
+        .filter(
+            Report.category == category,
+            Report.created_at >= week_ago,
+        )
+        .order_by(Report.created_at.desc())
+        .limit(80)
+        .all()
+    )
+
+    for report in candidates:
+        report_signature = _normalize_text_signature(report.title or report.description)
+        report_address = sanitize_address_candidate(report.address)
+
+        matches_coords = _same_coordinates(lat, lon, report.lat, report.lng)
+        matches_address = bool(
+            normalized_address and report_address and normalized_address == report_address
+        )
+        matches_signature = bool(
+            signature and report_signature and (
+                signature == report_signature
+                or signature in report_signature
+                or report_signature in signature
+            )
+        )
+
+        if matches_coords and (matches_address or matches_signature or not signature):
+            return report
+        if matches_address and matches_signature:
+            return report
+
+    return None
+
+
 def has_complaint_markers(text: str) -> bool:
     t = text.lower()
     return any(m in t for m in COMPLAINT_MARKERS)
@@ -169,6 +212,19 @@ stats = {
 
 # RealtimeGuard — инициализируется в main()
 guard: RealtimeGuard = None
+
+
+def _normalize_text_signature(text: str | None) -> str:
+    cleaned = make_marker_summary(text, max_len=120).lower()
+    cleaned = re.sub(r"[^a-zа-яё0-9\s]", " ", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
+def _same_coordinates(lat1, lng1, lat2, lng2) -> bool:
+    if None in (lat1, lng1, lat2, lng2):
+        return False
+    return abs(float(lat1) - float(lat2)) <= 0.0009 and abs(float(lng1) - float(lng2)) <= 0.0012
 
 
 def _check_duplicate(db, text, address, lat, lon, category):
@@ -322,13 +378,13 @@ async def _check_duplicate_post(client, summary, address, lat, lon, category):
 
 
 async def publish_to_telegram(client, category, report_id, summary, address, lat, lon, source_label, source_link, timestamp, geo_accuracy=None):
-    """Публикует жалобу в @monitornv с иконками соцсетей и ссылкой на маркер карты"""
+    """Публикует проблему в @monitornv с иконками соцсетей и ссылкой на маркер карты"""
     # Проверка дубликатов перед публикацией
     if await _check_duplicate_post(client, summary, address, lat, lon, category):
         logger.info(f"⏭️ Дубликат поста пропущен: {category} @ {address or f'{lat},{lon}'}")
         return False
     
-    summary = _truncate_summary(summary, 150)
+    summary = _truncate_summary(summary, 500)  # Increase limit for deep analysis
     emoji = EMOJI.get(category, "❔")
     tag = TAG.get(category, category.replace(" ", "_"))
     source_icon = _get_source_icon(source_label, source_link)
@@ -337,32 +393,32 @@ async def publish_to_telegram(client, category, report_id, summary, address, lat
     if report_id:
         lines[0] += f" #{report_id}"
     lines.append("")
-    lines.append(f"📝 {summary}")
-    if address:
-        lines.append(f"📍 {address}")
+    lines.append(f"<b>Описание:</b>\n{summary}")
     
-    # Ссылка на маркер карты (если адрес определен со 100% точностью или есть координаты)
-    map_marker_url = None
-    if lat and lon and (geo_accuracy == "high" or geo_accuracy is None):
-        # URL для открытия маркера на карте в веб-апп
-        from core.config import PUBLIC_API_BASE_URL
-        version = get_webapp_version()
-        map_marker_url = f"{PUBLIC_API_BASE_URL}/map?v={version}&marker={lat},{lon}"
+    # Публикуем адрес и карту ТОЛЬКО если уверены на 100% (geo_accuracy == "high")
+    if geo_accuracy == "high" and address:
+        lines.append("")
+        lines.append(f"📍 <b>Адрес:</b> {address}")
+        
+        if lat and lon:
+            lines.append(f"🗺️ {lat:.4f}, {lon:.4f}")
+            sv_url = f"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={lat},{lon}&heading=0&pitch=0&fov=90"
+            map_url = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+            
+            from core.config import PUBLIC_API_BASE_URL
+            version = get_webapp_version()
+            map_marker_url = f"{PUBLIC_API_BASE_URL}/map?v={version}&marker={lat},{lon}"
+            
+            map_links = f'👁 <a href="{sv_url}">Street View</a> | 📌 <a href="{map_url}">Google Maps</a>'
+            map_links += f' | 🗺️ <a href="{map_marker_url}">На карте</a>'
+            lines.append(map_links)
     
-    if lat and lon:
-        lines.append(f"🗺️ {lat:.4f}, {lon:.4f}")
-        sv_url = f"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={lat},{lon}&heading=0&pitch=0&fov=90"
-        map_url = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
-        map_links = f'👁 <a href="{sv_url}">Street View</a> | 📌 <a href="{map_url}">Google Maps</a>'
-        if map_marker_url:
-            map_links += f' | 🗺️ <a href="{map_marker_url}">Маркер на карте</a>'
-        lines.append(map_links)
     lines.append("")
-    # Источник с иконкой вместо текстовой ссылки
+    # Источник с иконкой
     lines.append(f"{source_icon} <a href=\"{source_link}\">{source_label}</a>")
     lines.append(f"🕐 {timestamp}")
     lines.append("")
-    lines.append(f"#{tag} #ПульсГорода #Нижневартовск")
+    lines.append(f"#ГородскаяПроблема #{tag} #Нижневартовск")
 
     post_text = "\n".join(lines)
     try:
@@ -374,7 +430,7 @@ async def publish_to_telegram(client, category, report_id, summary, address, lat
 
 
 async def process_complaint(client, text, category, address, summary, provider, source, source_label, source_link, msg_id=None, channel=None, location_hints=None, exif_lat=None, exif_lon=None):
-    """Единая обработка жалобы: EXIF GPS / геопарсинг → SQLite → Telegram"""
+    """Единая обработка: EXIF GPS / геопарсинг → SQLite → Telegram"""
     # Приоритет: EXIF GPS → geoparse (AI адрес → парсер → ориентиры → hints)
     lat, lon = None, None
     if exif_lat and exif_lon:
@@ -414,6 +470,254 @@ async def process_complaint(client, text, category, address, summary, provider, 
         client, category, report_id, summary, address, lat, lon,
         source_label, source_link, timestamp, geo_accuracy=geo_accuracy
     )
+
+    # Push-уведомления подписчикам по геозонам
+    if lat and lon and report_id:
+        try:
+            from services.push_notification_service import notify_subscribers
+            await notify_subscribers(
+                lat=lat, lng=lon,
+                category=category,
+                summary=summary,
+                address=address,
+                report_id=report_id,
+            )
+        except Exception as push_err:
+            logger.debug("Push notification error: %s", push_err)
+
+    stats['by_category'][category] = stats['by_category'].get(category, 0) + 1
+    return published
+
+
+async def save_to_db(summary, text, lat, lng, address, category, source, msg_id=None, channel=None):
+    """Save complaint marker payload and merge repeated public complaints into one report."""
+    db = None
+    try:
+        from backend.database import SessionLocal
+        from backend.models import Report
+
+        db = SessionLocal()
+        marker_summary = build_marker_summary(summary, text, max_len=120)
+        normalized_address = sanitize_address_candidate(address) or address
+        duplicate = _find_duplicate_report(
+            db,
+            marker_summary or text,
+            normalized_address,
+            lat,
+            lng,
+            category,
+        )
+        if duplicate:
+            changed = False
+            short_title = (marker_summary or summary or text or "")[:200]
+            short_description = (marker_summary or summary or text or "")[:400]
+            if short_title and duplicate.title != short_title:
+                duplicate.title = short_title
+                changed = True
+            if short_description and duplicate.description != short_description:
+                duplicate.description = short_description
+                changed = True
+            if normalized_address and duplicate.address != normalized_address:
+                duplicate.address = normalized_address
+                changed = True
+            if lat is not None and duplicate.lat is None:
+                duplicate.lat = lat
+                changed = True
+            if lng is not None and duplicate.lng is None:
+                duplicate.lng = lng
+                changed = True
+            if changed:
+                db.commit()
+            logger.info(
+                "Duplicate complaint merged into report %s for %s @ %s",
+                duplicate.id,
+                category,
+                normalized_address or f"{lat},{lng}",
+            )
+            return duplicate.id, False
+
+        report = Report(
+            title=(marker_summary or summary or text or "")[:200],
+            description=(marker_summary or summary or text or "")[:400],
+            lat=lat,
+            lng=lng,
+            address=normalized_address,
+            category=category,
+            status="open",
+            source=source,
+            telegram_message_id=str(msg_id) if msg_id else None,
+            telegram_channel=channel,
+        )
+        db.add(report)
+        db.commit()
+        return report.id, True
+    except Exception as e:
+        logger.error(f"DB error: {e}")
+        return None, False
+    finally:
+        if db is not None:
+            db.close()
+
+
+def _has_concrete_address(address: str | None) -> bool:
+    """Check if address contains a VALID street name + house number.
+
+    СТРОГИЕ ПРАВИЛА:
+    - Должен быть маркер улицы (ул., улица, пр., проспект и т.д.) ИЛИ известная улица Нижневартовска
+    - Должен быть номер дома (1-3 цифры, возможно с буквой)
+    - Адрес должен содержать минимум 2 слова (улица + номер считаются)
+    - Отклоняем адреса без маркера улицы, если это не известная улица города
+    """
+    if not address:
+        return False
+    import re
+
+    cleaned = address.strip().rstrip(",")
+    if not cleaned:
+        return False
+
+    # 1. Маркер улицы/проспекта/переулка и т.д.
+    has_street = bool(re.search(
+        r'(?:ул\.?|улица|пр\.?|проспект|пер\.?|переулок|б-р|бульвар|мкр\.?|микрорайон|наб\.?|набережная)',
+        cleaned, re.IGNORECASE
+    ))
+
+    # 2. Известные улицы Нижневартовска (без маркера тоже принимаем)
+    has_known_street = any(hint in cleaned.lower() for hint in (
+        'мира', 'ленина', 'пионерская', 'омская', 'чапаева', 'интернациональная',
+        'нефтяников', 'дружбы народов', 'северная', 'маршала жукова', 'спортивная',
+        'таежная', 'мусы джалиля', 'ханты-мансийская', '60 лет октября',
+        'индустриальная', 'рабочая', 'кузоваткина', 'авиаторов',
+    ))
+
+    # 3. Номер дома: 1-3 цифры, опционально с буквой (1а, 15б, 120)
+    has_house = bool(re.search(r'(?:^|[\s,])\d{1,3}[а-яА-Яa-zA-Z]?(?:[\s,/]|$)', cleaned))
+
+    # 4. Минимальная длина: адрес должен содержать хотя бы улицу + номер
+    words = [w for w in cleaned.split() if len(w) > 1]
+    has_min_length = len(words) >= 2
+
+    # СТРОГО: требуем И маркер улицы (или известную улицу), И номер дома, И минимальную длину
+    if not has_house:
+        return False
+    if not has_min_length:
+        return False
+    if not (has_street or has_known_street):
+        return False
+
+    # Отклоняем подозрительные адреса
+    lower = cleaned.lower()
+    suspicious_patterns = [
+        'где-то', 'где то', 'примерно', 'около', 'возле', 'рядом',
+        'недалеко от', 'напротив', 'за', 'у', 'рядом с',
+    ]
+    # Если адрес состоит ТОЛЬКО из подозрительных слов без конкретной улицы — отклоняем
+    if not has_street and not has_known_street:
+        return False
+
+    return True
+
+
+async def process_complaint(client, text, category, address, summary, provider, source, source_label, source_link, msg_id=None, channel=None, location_hints=None, exif_lat=None, exif_lon=None):
+    """Unified complaint pipeline with deduplicated marker creation."""
+    lat, lon = None, None
+    if exif_lat and exif_lon:
+        lat, lon = exif_lat, exif_lon
+        if not address:
+            try:
+                from services.geo_service import reverse_geocode
+
+                rev_addr = await reverse_geocode(exif_lat, exif_lon)
+                if rev_addr:
+                    address = rev_addr
+            except Exception:
+                pass
+    else:
+        geo = await geoparse(text, ai_address=address, location_hints=location_hints)
+        lat = geo.get("lat")
+        lon = geo.get("lng")
+        if geo.get("address"):
+            address = geo["address"]
+
+    marker_summary = build_marker_summary(summary, text, max_len=120)
+
+    # === ADDRESS GATE: без конкретного адреса (улица + дом) — не маркируем и не публикуем ===
+    if not _has_concrete_address(address):
+        logger.info(
+            "⏭️ Нет конкретного адреса — пропуск маркировки: %s | addr=%s | %s",
+            category, address, source_label,
+        )
+        stats['by_category'][category] = stats['by_category'].get(category, 0) + 1
+        return False
+
+    report_id, is_new_report = await save_to_db(
+        marker_summary,
+        text,
+        lat,
+        lon,
+        address,
+        category,
+        source,
+        msg_id,
+        channel,
+    )
+
+    geo_accuracy = None
+    if lat and lon:
+        if exif_lat and exif_lon and _has_concrete_address(address):
+            geo_accuracy = "high"
+        elif _has_concrete_address(address) and address and len(address.split()) >= 3:
+            geo_accuracy = "high"
+        else:
+            geo_accuracy = "medium"
+    elif _has_concrete_address(address):
+        # Координат нет, но адрес конкретный — всё равно high
+        geo_accuracy = "high"
+
+    timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
+    published = False
+
+    # ПУБЛИКАЦИЯ ТОЛЬКО С ВЫСОКОЙ ТОЧНОСТЬЮ АДРЕСА
+    if geo_accuracy != "high":
+        logger.info(
+            "⏭️ geo_accuracy=%s — публикация в канал пропущена: %s @ %s",
+            geo_accuracy, category, address or f"{lat},{lon}",
+        )
+    elif is_new_report:
+        published = await publish_to_telegram(
+            client,
+            category,
+            report_id,
+            marker_summary,
+            address,
+            lat,
+            lon,
+            source_label,
+            source_link,
+            timestamp,
+            geo_accuracy=geo_accuracy,
+        )
+    else:
+        logger.info(
+            "Repeated complaint skipped for public marker creation: %s @ %s",
+            category,
+            address or f"{lat},{lon}",
+        )
+
+    if is_new_report and lat and lon and report_id:
+        try:
+            from services.push_notification_service import notify_subscribers
+
+            await notify_subscribers(
+                lat=lat,
+                lng=lon,
+                category=category,
+                summary=marker_summary,
+                address=address,
+                report_id=report_id,
+            )
+        except Exception as push_err:
+            logger.debug("Push notification error: %s", push_err)
 
     stats['by_category'][category] = stats['by_category'].get(category, 0) + 1
     return published
@@ -531,7 +835,7 @@ async def handle_telegram_message(client, event):
         )
         if published:
             stats['tg_published'] += 1
-            logger.info(f"✅ TG [{provider}] {category} из @{channel_username}")
+            logger.info(f"✅ TG [{provider}] {category} из @{channel_username} (Городская проблема)")
 
         # RealtimeGuard: отмечаем как обработанное
         if guard:
@@ -587,6 +891,7 @@ async def main():
     logger.info("🛡️ RealtimeGuard: только новые сообщения + дедупликация")
 
     client = TelegramClient('monitoring_session', API_ID, API_HASH)
+    vk_task = None
 
     try:
         # Если сессия валидна — подключится без ввода кода
@@ -594,8 +899,11 @@ async def main():
         await client.connect()
         if not await client.is_user_authorized():
             logger.warning("⚠️ Сессия не авторизована! Запустите: py auth_telethon.py")
-            logger.info("   Пытаюсь авторизоваться автоматически...")
-            await client.start(phone=PHONE, password=PASSWORD_2FA if PASSWORD_2FA else None)
+            logger.error(
+                "❌ Headless-режим не может запросить код Telegram. "
+                "Нужен готовый monitoring_session.session на хосте."
+            )
+            await asyncio.Event().wait()
         logger.info("✅ Telegram подключён")
 
         me = await client.get_me()
@@ -637,8 +945,8 @@ async def main():
             logger.warning("   Получите токен: https://dev.vk.com → Мои приложения → Сервисный ключ")
             vk_task = None
 
-        # Data storage: SQLite + Supabase
-        logger.info("✅ Данные сохраняются в SQLite + Supabase")
+        # Data storage: SQLite + PostgreSQL runtime
+        logger.info("✅ Данные сохраняются в SQLite + PostgreSQL runtime")
 
         logger.info("\n" + "=" * 60)
         logger.info("🤖 Мониторинг запущен! Ожидание сообщений...")

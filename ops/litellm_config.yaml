@@ -1,0 +1,68 @@
+# ops/litellm_config.yaml — LiteLLM Proxy Configuration
+# Маршрутизация AI-запросов: локально (Ollama/Gemma 4) → fallback на облако
+# Документация: https://docs.litellm.ai/docs/proxy/configs
+
+model_list:
+  # ─── Локальные модели через Ollama (Gemma 4, бесплатно) ───
+
+  # ─── Локальные модели через Ollama (бесплатно) ───
+
+  # Qwen 2.5 3B (Text)
+  - model_name: "qwen-mini"
+    litellm_params:
+      model: "ollama/qwen2.5:3b"
+      api_base: "http://ollama:11434"
+      timeout: 20
+      stream: false
+
+  # Qwen 2.5 ViL 3B (Vision)
+  - model_name: "qwen-vision"
+    litellm_params:
+      model: "ollama/qwen2.5vl:3b"
+      api_base: "http://ollama:11434"
+      timeout: 60
+      stream: false
+
+  - model_name: "qwen-batch"
+    litellm_params:
+      model: "ollama/qwen2.5:3b"
+      api_base: "http://ollama:11434"
+      timeout: 420
+      stream: false
+
+  # ─── Cloud Fallback (платный, только для сложных VQA) ───
+  - model_name: "gemini-flash"
+    litellm_params:
+      model: "gemini/gemini-3-flash"
+      api_key: "os.environ/GOOGLE_API_KEY"
+      timeout: 30
+
+
+# ─── Router Settings (интеллектуальная маршрутизация) ───
+router_settings:
+  routing_strategy: "simple-shuffle"
+  num_retries: 0
+  timeout: 420
+  retry_after: 5
+  allowed_fails: 3
+  cooldown_time: 30
+
+# ─── General Settings ───
+general_settings:
+  master_key: "os.environ/LITELLM_MASTER_KEY"
+  database_url: null
+  otel_tracing: false
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false
+  num_retries: 0
+  request_timeout: 420
+  telemetry: false
+  cache: true
+  cache_params:
+    type: "redis"
+    host: "redis"
+    port: 6379
+    ttl: 3600
+

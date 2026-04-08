@@ -1,210 +1,47 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
-import 'package:latlong2/latlong.dart';
+import 'package:latlong2/latlong.dart' hide Path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../config/mcp_config.dart';
 import '../map/map_config.dart'
     show kMapCenterDefault, kOsmAttributionText, kOsmCopyrightUrl, MapConfig;
+import '../services/admin_dashboard_service.dart';
+import '../services/backend_api_service.dart';
 import '../services/mcp_service.dart';
+import '../services/notification_tap_payload_store.dart';
 import '../theme/pulse_colors.dart';
 import 'complaint_form_screen.dart';
 import 'infographic_screen.dart';
 import 'about_screen.dart';
-import '../widgets/city_pulse_wave.dart';
+import 'profile_screen.dart';
+import 'mesh_screen.dart';
 import '../services/sound_service.dart';
-import 'cesium_map_screen.dart';
-import 'mapbox_three_map_screen.dart';
 import 'settings_screen.dart';
 import '../services/notification_service.dart';
-import 'package:video_player/video_player.dart';
-import 'package:chewie/chewie.dart';
 import '../utils/offline_tiles_service.dart';
 
-/// Главный экран карты — отображает жалобы на карте Нижневартовска
-/// с реал-тайм обновлениями и фильтрацией по статусам/категориям.
-class _NeoGlassPanel extends StatelessWidget {
-  const _NeoGlassPanel({
-    required this.child,
-    this.borderRadius = const BorderRadius.all(Radius.circular(18)),
-    this.padding = const EdgeInsets.all(16),
-    this.fillColor = const Color(0xCC151C2F),
-    this.blurSigma = 20,
-    this.borderColors,
-    this.boxShadow,
-  });
+// Extracted map widgets
+import 'map/widgets/index.dart';
 
-  final Widget child;
-  final BorderRadius borderRadius;
-  final EdgeInsetsGeometry padding;
-  final Color fillColor;
-  final double blurSigma;
-  final List<Color>? borderColors;
-  final List<BoxShadow>? boxShadow;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = borderColors ??
-        [
-          const Color(0xFF00E5FF).withAlpha(200),
-          const Color(0x6600E5FF),
-          Colors.transparent,
-        ];
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: borderRadius,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: colors,
-        ),
-        boxShadow: boxShadow ??
-            [
-              BoxShadow(
-                color: Colors.black.withAlpha(90),
-                blurRadius: 24,
-                spreadRadius: 1,
-              ),
-            ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(1),
-        child: ClipRRect(
-          borderRadius: borderRadius,
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: fillColor,
-                borderRadius: borderRadius,
-              ),
-              child: Padding(
-                padding: padding,
-                child: child,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AnimatedMapMarker extends StatelessWidget {
-  const _AnimatedMapMarker({
-    required this.animation,
-    required this.color,
-    required this.icon,
-    required this.size,
-    required this.seed,
-    required this.isDayMode,
-  });
-
-  final Animation<double> animation;
-  final Color color;
-  final IconData icon;
-  final double size;
-  final double seed;
-  final bool isDayMode;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: animation,
-      builder: (context, _) {
-        final phase = (animation.value + seed) % 1.0;
-        final wave = (math.sin(phase * math.pi * 2) + 1) / 2;
-        final ringScale = 1 + wave * 0.38;
-        final glowOpacity = isDayMode ? 0.10 + wave * 0.08 : 0.24 + wave * 0.24;
-        final coreScale = 0.97 + wave * 0.06;
-
-        return SizedBox(
-          width: size,
-          height: size,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Transform.scale(
-                scale: ringScale,
-                child: Container(
-                  width: size * 0.88,
-                  height: size * 0.88,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: color.withAlpha((glowOpacity * 110).round()),
-                    border: Border.all(
-                      color: color.withAlpha(
-                        (glowOpacity * (isDayMode ? 120 : 180)).round(),
-                      ),
-                      width: 1.1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withAlpha(
-                          (glowOpacity * (isDayMode ? 140 : 190)).round(),
-                        ),
-                        blurRadius: isDayMode ? 9 : 20,
-                        spreadRadius: isDayMode ? 1 : 3,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Transform.scale(
-                scale: coreScale,
-                child: Container(
-                  width: size * 0.72,
-                  height: size * 0.72,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        color.withAlpha(isDayMode ? 226 : 255),
-                        color.withAlpha(isDayMode ? 144 : 210),
-                      ],
-                    ),
-                    border: Border.all(
-                      color: Colors.white.withAlpha(isDayMode ? 190 : 245),
-                      width: 1.4,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withAlpha(isDayMode ? 22 : 80),
-                        blurRadius: isDayMode ? 8 : 10,
-                        spreadRadius: isDayMode ? 0 : 1,
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    icon,
-                    color: isDayMode ? const Color(0xFF04243C) : Colors.white,
-                    size: size * 0.34,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
+/// Главный экран карты — отображает городские сигналы на карте Нижневартовска.
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  const MapScreen({
+    super.key,
+    this.initialNotificationPayload,
+  });
+
+  final Map<String, String?>? initialNotificationPayload;
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -213,23 +50,31 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // ─── Контроллеры и сервисы ───
   final MapController _mapController = MapController();
+  final BackendApiService _backendApi = BackendApiService.instance;
   final MCPService _mcpService = MCPService();
 
   // ─── Состояние ───
   List<Marker> _markers = [];
   bool _isLoading = true;
   bool _showCamerasLayer = false;
+  bool _showProblemMarkers = true;
+  bool _showEventMarkers = true;
+  bool _secretCamerasEnabled = false;
   List<Marker> _cameraMarkers = [];
+  bool _showUkLayer = false;
+  Map<String, dynamic>? _ukAtCenter;
   int _totalComplaints = 0;
   int _newComplaints = 0;
   int _resolvedComplaints = 0;
   Timer? _updateTimer;
+  Timer? _secretCameraTapResetTimer;
   String? _selectedCategory;
   int? _selectedDaysFilter;
   List<Map<String, dynamic>> _allComplaints = [];
   bool _isSatellite = false;
   final Map<String, int> _categoryCounts = {};
   final List<String> _markerCategories = [];
+  final List<Map<String, dynamic>> _markerItems = [];
   late final AnimationController _fabPulseController;
   late final AnimationController _markerPulseController;
   Timer? _mapMotionTimer;
@@ -240,14 +85,21 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   LatLng? _preZoomCenter;
   double? _preZoomLevel;
   Map<String, dynamic>? _focusedComplaint;
+  Map<String, String?>? _pendingNotificationPayload;
 
   // ─── Константы ───
   static const LatLng _center = kMapCenterDefault;
   static const Duration _updateInterval = Duration(seconds: 30);
   static const Duration _mapMotionCooldown = Duration(milliseconds: 750);
   static const Duration _markerPulseDuration = Duration(milliseconds: 3200);
+  static const Duration _secretCameraTapWindow = Duration(seconds: 7);
   static const Duration _nizhnevartovskOffset = Duration(hours: 5);
+  static const String _complaintsCachePrefKey = 'map_cached_markers_v2';
+  static const String _complaintsCacheTsPrefKey = 'map_cached_markers_ts_v2';
   static const String _visualModePrefKey = 'map_visual_mode_is_night';
+  static const String _secretCameraPrefKey = 'map_secret_cameras_enabled';
+  static const int _secretCameraTapTarget = 10;
+  int _secretCameraTapCount = 0;
 
   // ─── Цветовая палитра ───
   static const Color _colorDanger = PulseColors.negative;
@@ -256,12 +108,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   static const Color _colorPrimary = PulseColors.primary;
   static const Color _colorAccent = PulseColors.primarySoft;
   static const Color _colorSurface = PulseColors.background;
-  static const Color _colorBottomSheet = PulseColors.backgroundRaised;
 
   // ─── Категории ───
   static const List<(String, IconData, Color)> _categories = [
     ('Дороги', Icons.directions_car, _colorDanger),
-    ('Р–РљРҐ', Icons.home, _colorPrimary),
+    ('ЖКХ', Icons.home, _colorPrimary),
     ('Освещение', Icons.lightbulb, Color(0xFFf59e0b)),
     ('Транспорт', Icons.directions_bus, Color(0xFF3b82f6)),
     ('Экология', Icons.eco, _colorSuccess),
@@ -278,6 +129,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _pendingNotificationPayload = widget.initialNotificationPayload ??
+        NotificationTapPayloadStore.consumePendingPayload();
     _isNightMode = _isCurrentlyNightInNizhnevartovsk();
     _fabPulseController = AnimationController(
       vsync: this,
@@ -289,27 +142,76 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     )..repeat();
     MCPConfig.initializeMCPService();
     unawaited(_restoreVisualModePreference());
+    unawaited(_restoreSecretCameraPreference());
+    unawaited(_restoreCachedComplaints());
     _loadCameras();
     _loadComplaints();
     _startPeriodicUpdates();
+    unawaited(_locateUserOnMap());
+  }
+
+  Future<void> _locateUserOnMap() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return;
+      }
+      if (permission == LocationPermission.deniedForever) return;
+
+      Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium);
+
+      if (mounted) {
+        _mapController.move(
+          LatLng(position.latitude, position.longitude),
+          16.0,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error locating user: $e');
+    }
   }
 
   Future<void> _loadCameras() async {
     try {
-      final jsonStr = await rootBundle.loadString('assets/cameras_nv.json');
-      final data = jsonDecode(jsonStr) as List<dynamic>;
+      final response = await _backendApi.get(
+        '/api/cameras',
+        timeout: const Duration(seconds: 12),
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Camera feed failed: HTTP ${response.statusCode}');
+      }
+      final payload = jsonDecode(utf8.decode(response.bodyBytes));
+      final publicRows = payload is Map<String, dynamic>
+          ? (payload['cameras'] as List<dynamic>? ?? const <dynamic>[])
+          : const <dynamic>[];
+      final rows = <Map<String, dynamic>>[
+        for (final row in publicRows.whereType<Map>())
+          row.map((key, value) => MapEntry(key.toString(), value)),
+      ];
+      if (_secretCamerasEnabled && AdminDashboardService.instance.hasSession) {
+        rows.addAll(await AdminDashboardService.instance.fetchSecretCameras());
+      }
+      final dedupedRows = <String, Map<String, dynamic>>{};
+      for (final item in rows) {
+        final cameraId = item['camera_id']?.toString().trim();
+        final dedupeKey = (cameraId != null && cameraId.isNotEmpty)
+            ? cameraId
+            : '${item['name'] ?? item['n']}:${item['lat']}:${item['lng']}:${item['stream_url'] ?? item['s']}';
+        dedupedRows[dedupeKey] = item;
+      }
       final markers = <Marker>[];
-      for (final item in data) {
+      for (final item in dedupedRows.values) {
         final lat = item['lat'];
         final lng = item['lng'];
         final name = item['n'] ?? 'Камера';
         final url = item['s'];
-        final rawPeopleCount = item['peopleCount'] ?? item['people_count'];
-        final peopleCount =
-            rawPeopleCount is num ? rawPeopleCount.toInt() : null;
-        final detectorEnabled = item['detectorEnabled'] == true ||
-            item['detector_ready'] == true ||
-            peopleCount != null;
+        final serverName = item['name'] ?? name;
+        final serverUrl = (item['stream_url'] ?? url ?? '').toString();
+        final isSecret = item['is_secret'] == true;
 
         if (lat != null && lng != null) {
           final point =
@@ -321,20 +223,18 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             child: GestureDetector(
               onTap: () {
                 _emitSelectionHaptic();
-                _showLiveCamDialog(
-                  name,
-                  url,
-                  peopleCount: peopleCount,
-                  detectorEnabled: detectorEnabled,
-                );
+                _showLiveCamDialog(serverName.toString(), serverUrl);
               },
-              child: _AnimatedMapMarker(
+              child: AnimatedMapMarker(
                 animation: _markerPulseController,
-                color: _colorPrimary,
-                icon: Icons.videocam_rounded,
+                color: isSecret ? const Color(0xFFF59E0B) : _colorPrimary,
+                icon: isSecret
+                    ? Icons.lock_outline_rounded
+                    : Icons.videocam_rounded,
                 size: 52,
                 seed: ((point.latitude + point.longitude).abs() % 1),
                 isDayMode: !_isNightMode,
+                shell: isSecret ? MarkerShell.shield : MarkerShell.hexagon,
               ),
             ),
           ));
@@ -346,10 +246,171 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     }
   }
 
+  Future<void> _restoreSecretCameraPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getBool(_secretCameraPrefKey) ?? false;
+      if (!mounted) {
+        _secretCamerasEnabled = saved;
+        return;
+      }
+      setState(() => _secretCamerasEnabled = saved);
+      if (_showCamerasLayer) {
+        await _loadCameras();
+      }
+    } catch (error) {
+      debugPrint('Secret camera preference restore failed: $error');
+    }
+  }
+
+  Future<void> _persistSecretCameraPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_secretCameraPrefKey, _secretCamerasEnabled);
+    } catch (error) {
+      debugPrint('Secret camera preference save failed: $error');
+    }
+  }
+
+  Future<void> _handleSecretCameraTap() async {
+    _secretCameraTapResetTimer?.cancel();
+    _secretCameraTapCount += 1;
+
+    if (_secretCameraTapCount >= _secretCameraTapTarget) {
+      _secretCameraTapCount = 0;
+      final nextValue = !_secretCamerasEnabled;
+      if (mounted) {
+        setState(() => _secretCamerasEnabled = nextValue);
+      } else {
+        _secretCamerasEnabled = nextValue;
+      }
+      await _persistSecretCameraPreference();
+      if (_showCamerasLayer) {
+        await _loadCameras();
+      }
+      if (nextValue && !AdminDashboardService.instance.hasSession) {
+        await _ensureSecretCameraSession();
+      }
+      if (!mounted) return;
+      final message = nextValue
+          ? (AdminDashboardService.instance.hasSession
+              ? 'Секретные камеры включены'
+              : 'Секретный режим включен. Для скрытых камер нужна 2FA-сессия.')
+          : 'Секретные камеры выключены';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+      return;
+    }
+
+    _secretCameraTapResetTimer = Timer(_secretCameraTapWindow, () {
+      _secretCameraTapCount = 0;
+    });
+  }
+
+  Future<void> _toggleCameraLayer() async {
+    _emitSelectionHaptic();
+    final nextValue = !_showCamerasLayer;
+    if (mounted) {
+      setState(() => _showCamerasLayer = nextValue);
+    } else {
+      _showCamerasLayer = nextValue;
+    }
+    if (nextValue) {
+      await _loadCameras();
+    }
+  }
+
+  Future<void> _fetchUkForCenter() async {
+    if (!_showUkLayer) return;
+    try {
+      final center = _mapController.camera.center;
+      final response = await http
+          .get(Uri.parse(
+              '${MapConfig.backendApiBaseUrl}/api/uk/by_coords?lat=${center.latitude}&lng=${center.longitude}'))
+          .timeout(const Duration(seconds: 8));
+
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        final payload = json.decode(utf8.decode(response.bodyBytes));
+        setState(() => _ukAtCenter = payload);
+        HapticFeedback.lightImpact();
+      } else {
+        setState(() => _ukAtCenter = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('УК для этой точки не найдена')),
+        );
+      }
+    } catch (e) {
+      debugPrint('UK fetch error: $e');
+    }
+  }
+
+  Future<void> _toggleUkLayer() async {
+    _emitSelectionHaptic();
+    setState(() => _showUkLayer = !_showUkLayer);
+    if (_showUkLayer) {
+      await _fetchUkForCenter();
+    } else {
+      setState(() => _ukAtCenter = null);
+    }
+  }
+
+  Future<void> _ensureSecretCameraSession() async {
+    if (AdminDashboardService.instance.hasSession || !mounted) return;
+
+    final controller = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: _colorSurface,
+        title: const Text('2FA код', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.visiblePassword,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Введите код администратора',
+          ),
+          onSubmitted: (value) => Navigator.of(dialogContext).pop(value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: const Text('Подключить'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    final normalized = code?.trim();
+    if (normalized == null || normalized.isEmpty) return;
+
+    try {
+      await AdminDashboardService.instance.ensureSession(
+        twoFactorCode: normalized,
+      );
+      if (_showCamerasLayer) await _loadCameras();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось открыть скрытые камеры: $error')),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _updateTimer?.cancel();
     _mapMotionTimer?.cancel();
+    _secretCameraTapResetTimer?.cancel();
     _fabPulseController.dispose();
     _markerPulseController.dispose();
     _mcpService.disconnectAll();
@@ -416,9 +477,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     try {
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getBool(_visualModePrefKey);
-      if (saved == null || !mounted) {
-        return;
-      }
+      if (saved == null || !mounted) return;
       setState(() => _isNightMode = saved);
     } catch (error) {
       debugPrint('Visual mode preference restore failed: $error');
@@ -446,13 +505,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     });
   }
 
-  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+  // ═══════════════════════════════════════════════════════════
   // Загрузка данных
-  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+  // ═══════════════════════════════════════════════════════════
 
   void _startPeriodicUpdates() {
     _updateTimer = Timer.periodic(_updateInterval, (_) {
-      if (mounted) _loadComplaints();
+      if (!mounted) return;
+      _loadComplaints();
+      if (_showCamerasLayer) _loadCameras();
     });
   }
 
@@ -465,14 +526,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
       if (complaints.isNotEmpty) {
         final combined = [...complaints];
-
-        // Find if there are actually any *newly added* complaints since last load.
         final existingIds = _allComplaints.map((c) => c['id']).toSet();
         Map<String, dynamic>? freshComplaint;
 
         if (_allComplaints.isNotEmpty) {
           for (var c in complaints) {
-            if (!existingIds.contains(c['id'])) {
+            if (!_isEventItem(c) && !existingIds.contains(c['id'])) {
               freshComplaint = c;
               break;
             }
@@ -480,52 +539,61 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         }
 
         _allComplaints = combined;
+        unawaited(_cacheComplaints(combined));
         _processComplaints(_filterByDate(combined));
 
-        // Auto zoom if found fresh
         if (freshComplaint != null) {
           final activeComplaint = freshComplaint;
           if (!mounted) return;
           _zoomToComplaint(activeComplaint);
-          _showComplaintDetails(activeComplaint);
+          _showMapItemDetails(activeComplaint);
 
-          // Play category specific sound
           SoundService()
               .playCategorySound(activeComplaint['category'] ?? 'Прочее');
 
-          // Show in-app notification
           NotificationService().showNewComplaintNotification(
             context,
-            title: activeComplaint['title'] ?? 'Новая жалоба',
+            title: activeComplaint['title'] ?? 'Новая ситуация',
             category: activeComplaint['category'] ?? 'Прочее',
             color: _getCategoryColor(activeComplaint['category'] ?? 'Прочее'),
           );
 
-          // Show system push notification
           NotificationService().showPushNotification(
             id: activeComplaint['id'] is int
                 ? activeComplaint['id']
                 : math.Random().nextInt(1000000),
-            title: 'Новая жалоба: ${activeComplaint['category'] ?? 'Прочее'}',
-            body: activeComplaint['title'] ??
+            title: 'Новая ситуация: ${activeComplaint['category'] ?? 'Прочее'}',
+            body: activeComplaint['summary'] ??
+                activeComplaint['title'] ??
+                activeComplaint['description'] ??
                 'Нажмите, чтобы посмотреть подробности',
             category: activeComplaint['category'],
+            payload: {
+              'report_id': '${activeComplaint['id'] ?? ''}',
+              if (activeComplaint['lat'] != null)
+                'lat': '${activeComplaint['lat']}',
+              if (activeComplaint['latitude'] != null &&
+                  activeComplaint['lat'] == null)
+                'lat': '${activeComplaint['latitude']}',
+              if (activeComplaint['lng'] != null)
+                'lng': '${activeComplaint['lng']}',
+              if (activeComplaint['longitude'] != null &&
+                  activeComplaint['lng'] == null)
+                'lng': '${activeComplaint['longitude']}',
+            },
           );
 
-          // Auto return to overview in 10 secs
           Timer(const Duration(seconds: 10), () {
             if (mounted &&
                 _focusedComplaint != null &&
                 _focusedComplaint!['id'] == activeComplaint['id']) {
-              if (Navigator.canPop(context)) {
-                Navigator.pop(context); // close bottomsheet
-              }
+              if (Navigator.canPop(context)) Navigator.pop(context);
               _zoomBack();
             }
           });
         }
       } else {
-        debugPrint('Данные не получены, пустой список жалоб');
+        debugPrint('Данные не получены, пустой список сигналов');
         if (!mounted) return;
         setState(() {
           _allComplaints = [];
@@ -559,32 +627,31 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     }
 
     if (mounted) setState(() => _isLoading = false);
+    _applyPendingNotificationFocus();
   }
 
   final Duration _fetchTimeout = const Duration(seconds: 20);
   final int _fetchRetries = 2;
 
   Future<List<Map<String, dynamic>>> _fetchComplaints() async {
-    final apiUrl = '${MapConfig.reportsRestUrl}?select=*';
-    final supabaseKey = MapConfig.supabaseAnonKey;
+    final apiUrl = '${MapConfig.backendApiBaseUrl}/map/feed?limit=80';
 
     for (var attempt = 0; attempt < _fetchRetries; attempt++) {
       try {
-        final res = await http.get(
-          Uri.parse(apiUrl),
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': supabaseKey,
-            'Authorization': 'Bearer $supabaseKey',
-          },
-        ).timeout(_fetchTimeout);
+        final res = await http.get(Uri.parse(apiUrl), headers: {
+          'Content-Type': 'application/json',
+        }).timeout(_fetchTimeout);
 
         if (res.statusCode == 200) {
-          final List<dynamic> data = jsonDecode(res.body);
-          final complaints = data.cast<Map<String, dynamic>>();
+          final payload = jsonDecode(utf8.decode(res.bodyBytes));
+          final markers = payload is Map<String, dynamic>
+              ? (payload['markers'] as List<dynamic>? ?? const <dynamic>[])
+              : const <dynamic>[];
+          final complaints =
+              markers.whereType<Map>().map(_normalizeMapItem).toList();
 
           if (complaints.isNotEmpty) {
-            debugPrint('Получено жалоб из API: ${complaints.length}');
+            debugPrint('Получено сигналов из API: ${complaints.length}');
             return complaints;
           }
         }
@@ -593,17 +660,81 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       }
     }
 
-    return [];
+    final cached = await _readCachedComplaints();
+    if (cached.isNotEmpty) {
+      debugPrint('Using cached map feed: ${cached.length}');
+      return cached;
+    }
+
+    return _fallbackComplaints();
   }
 
-  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+  Future<void> _cacheComplaints(List<Map<String, dynamic>> items) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_complaintsCachePrefKey, jsonEncode(items));
+      await prefs.setInt(
+        _complaintsCacheTsPrefKey,
+        DateTime.now().millisecondsSinceEpoch,
+      );
+    } catch (error) {
+      debugPrint('Map cache write failed: $error');
+    }
+  }
+
+  Future<void> _restoreCachedComplaints() async {
+    final cached = await _readCachedComplaints();
+    if (!mounted || cached.isEmpty) return;
+    _allComplaints = cached;
+    _processComplaints(_filterByDate(cached));
+  }
+
+  Future<List<Map<String, dynamic>>> _readCachedComplaints() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_complaintsCachePrefKey);
+      if (raw == null || raw.isEmpty) return const <Map<String, dynamic>>[];
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const <Map<String, dynamic>>[];
+      return decoded
+          .whereType<Map>()
+          .map(
+            (item) => Map<String, dynamic>.from(
+              item.map((key, value) => MapEntry(key.toString(), value)),
+            ),
+          )
+          .toList();
+    } catch (error) {
+      debugPrint('Map cache restore failed: $error');
+      return const <Map<String, dynamic>>[];
+    }
+  }
+
+  List<Map<String, dynamic>> _fallbackComplaints() {
+    return <Map<String, dynamic>>[
+      <String, dynamic>{
+        'id': 'fallback-city-anchor',
+        'title': 'Городской контур',
+        'summary': 'Резервный маркер города',
+        'description':
+            'Сервер недоступен. Карта покажет городской центр и обновится, когда связь восстановится.',
+        'lat': _center.latitude,
+        'lng': _center.longitude,
+        'category': 'Прочее',
+        'status': 'open',
+        'source_kind': 'system',
+        'created_at': DateTime.now().toIso8601String(),
+      },
+    ];
+  }
+
+  // ═══════════════════════════════════════════════════════════
   // Обработка данных
-  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+  // ═══════════════════════════════════════════════════════════
 
   List<Map<String, dynamic>> _filterByDate(List<Map<String, dynamic>> data) {
     if (_selectedDaysFilter == null) return data;
 
-    // Специальный фильтр "Новые" (-1) - жалобы до 3 часов
     if (_selectedDaysFilter == -1) {
       final threeHoursAgo = DateTime.now().subtract(const Duration(hours: 3));
       return data.where((item) {
@@ -625,10 +756,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   DateTime? _parseDateTime(Map<String, dynamic> item) {
     final raw = item['created_at'] ?? item['createdAt'] ?? item['timestamp'];
     if (raw == null) return null;
-
-    if (raw is int) {
-      return DateTime.fromMillisecondsSinceEpoch(raw);
-    } else if (raw is String) {
+    if (raw is int) return DateTime.fromMillisecondsSinceEpoch(raw);
+    if (raw is String) {
       try {
         return DateTime.parse(raw);
       } catch (_) {}
@@ -636,11 +765,96 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     return null;
   }
 
+  Map<String, dynamic> _normalizeMapItem(Map item) {
+    final normalized = Map<String, dynamic>.from(
+      item.map((key, value) => MapEntry(key.toString(), value)),
+    );
+    normalized['title'] =
+        (normalized['title'] ?? normalized['summary'] ?? 'Без названия')
+            .toString()
+            .trim();
+    normalized['summary'] = normalized['summary'] ?? normalized['title'];
+    normalized['latitude'] = normalized['latitude'] ?? normalized['lat'];
+    normalized['longitude'] = normalized['longitude'] ?? normalized['lng'];
+    normalized['source_kind'] = normalized['source_kind'] ??
+        ((normalized['category'] == 'Мероприятие') ? 'event' : 'report');
+    normalized['status'] = normalized['status'] ?? 'open';
+    return normalized;
+  }
+
+  void _applyPendingNotificationFocus() {
+    final payload = _pendingNotificationPayload;
+    if (!NotificationTapPayloadStore.hasMarkerTarget(payload)) return;
+
+    final reportId = int.tryParse(payload?['report_id']?.trim() ?? '');
+    Map<String, dynamic>? matchedComplaint;
+
+    if (reportId != null) {
+      for (final item in _allComplaints) {
+        if ('${item['id']}' == '$reportId') {
+          matchedComplaint = item;
+          break;
+        }
+      }
+    }
+
+    matchedComplaint ??= _matchComplaintByCoordinates(payload);
+    if (matchedComplaint != null) {
+      _pendingNotificationPayload = null;
+      _zoomToComplaint(matchedComplaint);
+      return;
+    }
+
+    final lat = double.tryParse(payload?['lat']?.trim() ?? '');
+    final lng = double.tryParse(payload?['lng']?.trim() ?? '');
+    if (lat != null && lng != null) {
+      _pendingNotificationPayload = null;
+      _animateMapTo(LatLng(lat, lng), 17.0);
+    }
+  }
+
+  Map<String, dynamic>? _matchComplaintByCoordinates(
+    Map<String, String?>? payload,
+  ) {
+    final lat = double.tryParse(payload?['lat']?.trim() ?? '');
+    final lng = double.tryParse(payload?['lng']?.trim() ?? '');
+    if (lat == null || lng == null) return null;
+
+    const tolerance = 0.0002;
+    for (final item in _allComplaints) {
+      final itemLat = item['lat'] ?? item['latitude'];
+      final itemLng = item['lng'] ?? item['longitude'];
+      if (itemLat is! num || itemLng is! num) continue;
+      if ((itemLat.toDouble() - lat).abs() <= tolerance &&
+          (itemLng.toDouble() - lng).abs() <= tolerance) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  bool _isEventItem(Map<String, dynamic> item) {
+    final sourceKind = item['source_kind']?.toString().trim().toLowerCase();
+    final category = _normalizeCategoryLabel(
+      item['category']?.toString().trim() ?? '',
+    );
+    return sourceKind == 'event' || category == 'Мероприятие';
+  }
+
+  void _showMapItemDetails(Map<String, dynamic> item) {
+    if (_isEventItem(item)) {
+      _showEventDetails(item);
+      return;
+    }
+    _showComplaintDetails(item);
+  }
+
   void _processComplaints(List<dynamic> data) {
     if (data.length == 100 && data.isNotEmpty && data[0] == 'mock') {
       if (!mounted) return;
       setState(() {
         _markers = [];
+        _markerItems.clear();
         _markerCategories.clear();
         _totalComplaints = 0;
         _newComplaints = 0;
@@ -653,11 +867,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       return;
     }
 
-    int total = data.length;
+    int total = 0;
     int newCount = 0;
     int resolvedCount = 0;
     final markers = <Marker>[];
-
     final threeHoursAgo = DateTime.now().subtract(const Duration(hours: 3));
 
     for (final item in data) {
@@ -666,23 +879,28 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       if (lat == null || lng == null) continue;
 
       final status = (item['status'] ?? 'open') as String;
+      final isEvent = _isEventItem(item);
       final dt = _parseDateTime(item);
-
-      // Жалоба считается новой, если она создана менее 3 часов назад
       final isNew = dt != null && dt.isAfter(threeHoursAgo);
 
-      if (isNew) newCount++;
-      if (status == 'resolved') resolvedCount++;
+      if (!isEvent) {
+        total++;
+        if (isNew) newCount++;
+        if (status == 'resolved') resolvedCount++;
+      }
 
       try {
-        final category = (item['category'] ?? 'Прочее') as String;
+        final category = _normalizeCategoryLabel(
+          (item['category'] ?? 'Прочее') as String,
+        );
+        final normalizedItem = item is Map<String, dynamic>
+            ? item
+            : Map<String, dynamic>.from(item);
         markers.add(_buildMarker(
           point: LatLng((lat as num).toDouble(), (lng as num).toDouble()),
           status: status,
           category: category,
-          complaint: item is Map<String, dynamic>
-              ? item
-              : Map<String, dynamic>.from(item),
+          complaint: normalizedItem,
         ));
       } catch (e) {
         debugPrint('Ошибка обработки маркера: $e. Item: $item');
@@ -691,19 +909,29 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
     final counts = <String, int>{};
     for (final item in data) {
-      final cat = (item['category'] ?? 'Прочее') as String;
+      final cat = _normalizeCategoryLabel(
+        (item['category'] ?? 'Прочее') as String,
+      );
       counts[cat] = (counts[cat] ?? 0) + 1;
     }
 
     if (!mounted) return;
     setState(() {
       _markers = markers;
+      _markerItems.clear();
       _markerCategories.clear();
       for (final item in data) {
         final lat = item['lat'] ?? item['latitude'];
         final lng = item['lng'] ?? item['longitude'];
         if (lat != null && lng != null) {
-          _markerCategories.add((item['category'] ?? 'Прочее') as String);
+          _markerItems.add(
+            item is Map<String, dynamic>
+                ? item
+                : Map<String, dynamic>.from(item),
+          );
+          _markerCategories.add(
+            _normalizeCategoryLabel((item['category'] ?? 'Прочее') as String),
+          );
         }
       }
       _totalComplaints = total;
@@ -713,21 +941,40 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         ..clear()
         ..addAll(counts);
     });
+    _applyPendingNotificationFocus();
   }
 
-  List<Marker> get _filteredMarkers {
-    if (_selectedCategory == null) return _markers;
+  List<Marker> get _filteredProblemMarkers {
     return [
       for (var i = 0; i < _markers.length; i++)
         if (i < _markerCategories.length &&
-            _markerCategories[i] == _selectedCategory)
+            i < _markerItems.length &&
+            !_isEventItem(_markerItems[i]) &&
+            _showProblemMarkers &&
+            (_selectedCategory == null ||
+                _normalizeCategoryLabel(_markerCategories[i]) ==
+                    _normalizeCategoryLabel(_selectedCategory!)))
           _markers[i],
     ];
   }
 
-  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+  List<Marker> get _filteredEventMarkers {
+    return [
+      for (var i = 0; i < _markers.length; i++)
+        if (i < _markerCategories.length &&
+            i < _markerItems.length &&
+            _isEventItem(_markerItems[i]) &&
+            _showEventMarkers &&
+            (_selectedCategory == null ||
+                _normalizeCategoryLabel(_markerCategories[i]) ==
+                    _normalizeCategoryLabel(_selectedCategory!)))
+          _markers[i],
+    ];
+  }
+
+  // ═══════════════════════════════════════════════════════════
   // Анимация карты
-  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+  // ═══════════════════════════════════════════════════════════
 
   void _animateMapTo(LatLng center, double zoom) {
     const steps = 12;
@@ -766,36 +1013,29 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     return t * t * (3 - 2 * t);
   }
 
-  /// Зум на проблему с сохранением предыдущей позиции
   void _zoomToComplaint(Map<String, dynamic> complaint) {
     final lat = complaint['lat'] ?? complaint['latitude'];
     final lng = complaint['lng'] ?? complaint['longitude'];
     if (lat == null || lng == null) return;
 
-    // Сохраняем текущую позицию для возврата
     final camera = _mapController.camera;
     _preZoomCenter = camera.center;
     _preZoomLevel = camera.zoom;
 
-    setState(() {
-      _focusedComplaint = complaint;
-    });
+    setState(() => _focusedComplaint = complaint);
 
-    // Зум на проблему
     _animateMapTo(
       LatLng((lat as num).toDouble(), (lng as num).toDouble()),
       17.0,
     );
   }
 
-  /// Возврат к предыдущей позиции
   void _zoomBack() {
     if (_preZoomCenter != null && _preZoomLevel != null) {
       _animateMapTo(_preZoomCenter!, _preZoomLevel!);
     } else {
       _animateMapTo(_center, 13.0);
     }
-
     setState(() {
       _focusedComplaint = null;
       _preZoomCenter = null;
@@ -803,160 +1043,46 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     });
   }
 
-  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
-  // Выпадающее меню фильтрации
-  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
-
-  Widget _buildCategoryDropdown() {
-    final borderColor = _selectedCategory != null
-        ? _uiAccent.withAlpha(_isNightMode ? 180 : 130)
-        : _uiGlow.withAlpha(_isNightMode ? 120 : 80);
-
-    return _NeoGlassPanel(
-      borderRadius: BorderRadius.circular(16),
-      padding: EdgeInsets.zero,
-      fillColor: _uiPanelFill,
-      blurSigma: 24,
-      borderColors: [
-        borderColor,
-        borderColor.withAlpha(60),
-        Colors.transparent,
-      ],
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withAlpha(60),
-          blurRadius: 12,
-          spreadRadius: 1,
-        ),
-      ],
-      child: SizedBox(
-        height: 44,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String?>(
-              value: _selectedCategory,
-              isExpanded: true,
-              icon: Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: _selectedCategory != null ? _uiAccent : _uiTextSecondary,
-                size: 22,
-              ),
-              dropdownColor:
-                  _isNightMode ? _colorSurface : const Color(0xFFF7FCFF),
-              borderRadius: BorderRadius.circular(12),
-              hint: Row(
-                children: [
-                  Icon(Icons.filter_list_rounded,
-                      color: _uiTextSecondary, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Все категории',
-                    style: TextStyle(
-                      color: _uiTextPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-              items: [
-                DropdownMenuItem<String?>(
-                  value: null,
-                  child: Row(
-                    children: [
-                      Icon(Icons.clear_all_rounded,
-                          color: _uiTextSecondary, size: 18),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Все категории',
-                        style: TextStyle(
-                          color: _uiTextPrimary,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        '$_totalComplaints',
-                        style: TextStyle(
-                          color: _uiTextSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                ..._categories.map((cat) {
-                  final (name, icon, color) = cat;
-                  final count = _categoryCounts[name] ?? 0;
-                  return DropdownMenuItem<String?>(
-                    value: name,
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 26,
-                          height: 26,
-                          decoration: BoxDecoration(
-                            color: color.withAlpha(40),
-                            borderRadius: BorderRadius.circular(7),
-                          ),
-                          child: Icon(icon, color: color, size: 15),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            name,
-                            style: TextStyle(
-                              color: _uiTextPrimary,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: color.withAlpha(35),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '$count',
-                            style: TextStyle(
-                              color: color,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
-              onChanged: (value) {
-                _emitSelectionHaptic();
-                setState(() {
-                  _selectedCategory = value;
-                });
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
-  // UI маркеров и popup'ов
-  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+  // ═══════════════════════════════════════════════════════════
+  // Хелперы категорий
+  // ═══════════════════════════════════════════════════════════
 
   IconData _getCategoryIcon(String category) {
+    switch (_normalizeCategoryLabel(category)) {
+      case 'Дороги':
+        return Icons.add_road;
+      case 'Освещение':
+        return Icons.lightbulb;
+      case 'ЖКХ':
+        return Icons.home_repair_service;
+      case 'Транспорт':
+        return Icons.directions_bus;
+      case 'Экология':
+        return Icons.eco;
+      case 'Безопасность':
+        return Icons.security;
+      case 'Снег/Наледь':
+        return Icons.ac_unit;
+      case 'Медицина':
+      case 'Здравоохранение':
+        return Icons.local_hospital;
+      case 'Образование':
+        return Icons.school;
+      case 'Парковки':
+        return Icons.local_parking;
+      case 'Благоустройство':
+        return Icons.park;
+      case 'Строительство':
+        return Icons.architecture_rounded;
+      case 'Мероприятие':
+        return Icons.event_available_rounded;
+    }
     switch (category) {
       case 'Дороги':
         return Icons.add_road;
       case 'Освещение':
         return Icons.lightbulb;
-      case 'Р–РљРҐ':
+      case 'ЖКХ':
         return Icons.home_repair_service;
       case 'Транспорт':
         return Icons.directions_bus;
@@ -980,6 +1106,70 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       default:
         return Icons.help_outline;
     }
+  }
+
+  MarkerShell _getCategoryShell(String category) {
+    switch (_normalizeCategoryLabel(category)) {
+      case 'Дороги':
+        return MarkerShell.diamond;
+      case 'ЖКХ':
+        return MarkerShell.roundedSquare;
+      case 'Освещение':
+        return MarkerShell.hexagon;
+      case 'Транспорт':
+        return MarkerShell.shield;
+      case 'Экология':
+        return MarkerShell.circle;
+      case 'Безопасность':
+        return MarkerShell.shield;
+      case 'Снег/Наледь':
+        return MarkerShell.hexagon;
+      case 'Медицина':
+        return MarkerShell.roundedSquare;
+      case 'Образование':
+        return MarkerShell.roundedSquare;
+      case 'Парковки':
+        return MarkerShell.diamond;
+      case 'Благоустройство':
+        return MarkerShell.circle;
+      case 'Строительство':
+        return MarkerShell.hexagon;
+      case 'Мероприятие':
+        return MarkerShell.circle;
+      case 'Камеры':
+        return MarkerShell.hexagon;
+      default:
+        return MarkerShell.circle;
+    }
+  }
+
+  String _normalizeCategoryLabel(String category) {
+    final normalized = category.trim();
+    if (normalized.isEmpty) return 'Прочее';
+
+    const canonical = <String>{
+      'Дороги',
+      'ЖКХ',
+      'Освещение',
+      'Транспорт',
+      'Экология',
+      'Безопасность',
+      'Снег/Наледь',
+      'Медицина',
+      'Здравоохранение',
+      'Образование',
+      'Парковки',
+      'Благоустройство',
+      'Строительство',
+      'Мероприятие',
+      'Прочее',
+      'Камеры',
+    };
+
+    if (canonical.contains(normalized)) return normalized;
+
+    // Fallback: return as-is for unrecognized labels
+    return normalized;
   }
 
   Color _getCategoryColor(String category) {
@@ -1008,6 +1198,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         isCamera ? const Color(0xFF6366F1) : _getCategoryColor(category);
     final markerIcon =
         isCamera ? Icons.videocam_rounded : _getCategoryIcon(category);
+    final markerShell =
+        isCamera ? MarkerShell.hexagon : _getCategoryShell(category);
     final seed =
         (((complaint['id'] ?? category.hashCode) as Object).hashCode.abs() %
                 997) /
@@ -1022,19 +1214,23 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           _emitSelectionHaptic();
           _zoomToComplaint(complaint);
           if (category == 'Камеры') {
-            final streamUrl = MapConfig.cityCams[complaint['title']];
+            final streamUrl = (complaint['stream_url'] ??
+                    complaint['s'] ??
+                    MapConfig.cityCams[complaint['title']])
+                ?.toString();
             _showLiveCamDialog(complaint['title'] ?? 'Камера', streamUrl);
           } else {
-            _showComplaintDetails(complaint);
+            _showMapItemDetails(complaint);
           }
         },
-        child: _AnimatedMapMarker(
+        child: AnimatedMapMarker(
           animation: _markerPulseController,
           color: color,
           icon: markerIcon,
           size: isCamera ? 58 : 54,
           seed: seed,
           isDayMode: !_isNightMode,
+          shell: markerShell,
         ),
       ),
     );
@@ -1065,7 +1261,371 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // Bottom sheets и диалоги
+  // ═══════════════════════════════════════════════════════════
+
+  Future<void> _scheduleEventReminder(
+    BuildContext snackbarContext,
+    Map<String, dynamic> event,
+    Duration offset,
+  ) async {
+    final scheduledDate = _parseDateTime(event);
+    if (scheduledDate == null) {
+      ScaffoldMessenger.of(snackbarContext).showSnackBar(
+        const SnackBar(content: Text('Не удалось определить время события')),
+      );
+      return;
+    }
+
+    final reminderTime = scheduledDate.subtract(offset);
+    await NotificationService().scheduleReminder(
+      id: event['id']?.hashCode ?? 0,
+      title: 'Событие: ${event['title']}',
+      body: offset.inMinutes >= 60
+          ? 'Напоминание за ${offset.inHours} ч. до начала.'
+          : 'Напоминание за ${offset.inMinutes} мин. до начала.',
+      scheduledDate: reminderTime,
+    );
+    if (!mounted || !snackbarContext.mounted) return;
+    ScaffoldMessenger.of(snackbarContext).showSnackBar(
+      const SnackBar(content: Text('Напоминание установлено')),
+    );
+  }
+
+  void _showEventDetails(Map<String, dynamic> event) {
+    final categoryColor = _getCategoryColor('Мероприятие');
+    final scheduledDate = _parseDateTime(event);
+    final sourceLabel =
+        event['source_label']?.toString().trim() ?? 'Городская афиша';
+    final venue = event['venue']?.toString().trim();
+    final link = event['link']?.toString().trim();
+    final address = event['address']?.toString().trim();
+    final description = event['description']?.toString().trim();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.72,
+          ),
+          child: MapGlassPanel(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+            padding: EdgeInsets.zero,
+            fillColor: const Color(0xEA16110A),
+            blurSigma: 26,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(60),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                categoryColor.withAlpha(72),
+                                const Color(0xFF2B1804),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(22),
+                            border:
+                                Border.all(color: categoryColor.withAlpha(120)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withAlpha(36),
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: Icon(
+                                      Icons.event_available_rounded,
+                                      color: categoryColor,
+                                      size: 22,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'ГОРОДСКОЕ СОБЫТИЕ',
+                                          style: TextStyle(
+                                            color: categoryColor,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 1.6,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          event['title']?.toString() ??
+                                              'Событие',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w800,
+                                            height: 1.15,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Wrap(
+                                spacing: 10,
+                                runSpacing: 10,
+                                children: [
+                                  _buildEventChip(
+                                    Icons.schedule_rounded,
+                                    scheduledDate == null
+                                        ? 'Время уточняется'
+                                        : _formatDate(
+                                            scheduledDate.toIso8601String()),
+                                    categoryColor,
+                                  ),
+                                  _buildEventChip(
+                                    Icons.campaign_rounded,
+                                    sourceLabel,
+                                    categoryColor,
+                                  ),
+                                  if (venue != null && venue.isNotEmpty)
+                                    _buildEventChip(
+                                      Icons.place_rounded,
+                                      venue,
+                                      categoryColor,
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (address != null && address.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withAlpha(8),
+                              borderRadius: BorderRadius.circular(16),
+                              border:
+                                  Border.all(color: Colors.white.withAlpha(18)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.location_on_rounded,
+                                    color: categoryColor, size: 20),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    address,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        if (description != null && description.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withAlpha(6),
+                              borderRadius: BorderRadius.circular(16),
+                              border:
+                                  Border.all(color: Colors.white.withAlpha(12)),
+                            ),
+                            child: Text(
+                              description,
+                              style: TextStyle(
+                                color: Colors.white.withAlpha(220),
+                                fontSize: 14,
+                                height: 1.45,
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: PopupMenuButton<Duration>(
+                                color: _colorSurface,
+                                onSelected: (offset) => _scheduleEventReminder(
+                                  ctx,
+                                  event,
+                                  offset,
+                                ),
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(
+                                    value: Duration(minutes: 30),
+                                    child: Text('За 30 мин.',
+                                        style: TextStyle(color: Colors.white)),
+                                  ),
+                                  PopupMenuItem(
+                                    value: Duration(hours: 2),
+                                    child: Text('За 2 часа',
+                                        style: TextStyle(color: Colors.white)),
+                                  ),
+                                  PopupMenuItem(
+                                    value: Duration(days: 1),
+                                    child: Text('За день',
+                                        style: TextStyle(color: Colors.white)),
+                                  ),
+                                ],
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: categoryColor.withAlpha(32),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: categoryColor.withAlpha(110),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.notifications_active_rounded,
+                                          color: categoryColor, size: 18),
+                                      const SizedBox(width: 8),
+                                      const Text('Напомнить',
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (link != null && link.isNotEmpty) ...[
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    final uri = Uri.tryParse(link);
+                                    if (uri == null) return;
+                                    await launchUrl(
+                                      uri,
+                                      mode: LaunchMode.externalApplication,
+                                    );
+                                  },
+                                  icon: const Icon(Icons.open_in_new_rounded),
+                                  label: const Text('Источник'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white.withAlpha(18),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                      side: BorderSide(
+                                          color: Colors.white.withAlpha(20)),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton.icon(
+                            onPressed: () {
+                              Navigator.of(ctx).pop();
+                              _zoomBack();
+                            },
+                            icon: const Icon(Icons.map_rounded),
+                            label: const Text('Вернуться к карте'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: categoryColor,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ).whenComplete(() {
+      if (_focusedComplaint != null) _zoomBack();
+    });
+  }
+
+  Widget _buildEventChip(IconData icon, String label, Color accent) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withAlpha(26),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withAlpha(100)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: accent),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showComplaintDetails(Map<String, dynamic> complaint) {
+    if (_isEventItem(complaint)) {
+      _showEventDetails(complaint);
+      return;
+    }
     final status = (complaint['status'] ?? 'open') as String;
     final statusColor = _getStatusColor(status);
     final category = (complaint['category'] ?? 'Прочее') as String;
@@ -1073,600 +1633,34 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     final dateRaw = complaint['created_at'] ??
         complaint['createdAt'] ??
         complaint['timestamp'];
-    int likes = complaint['likes_count'] ?? 0;
-    bool isLiked = complaint['_ui_isLiked'] == true;
 
-    showModalBottomSheet(
-        context: context,
-        backgroundColor: Colors.transparent,
-        isScrollControlled: true,
-        builder: (ctx) {
-          return StatefulBuilder(
-            builder: (BuildContext contextInner, StateSetter setModalState) {
-              final lat = complaint['lat'] ?? complaint['latitude'];
-              final lng = complaint['lng'] ?? complaint['longitude'];
-              final hasCoords = lat != null && lng != null;
-
-              return Container(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(ctx).size.height * 0.65,
-                ),
-                child: _NeoGlassPanel(
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(28)),
-                  padding: EdgeInsets.zero,
-                  fillColor: _colorBottomSheet.withAlpha(185),
-                  blurSigma: 28,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Ручка
-                      Container(
-                        margin: const EdgeInsets.only(top: 12),
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withAlpha(60),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      Flexible(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Заголовок + категория
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(11),
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          categoryColor.withAlpha(60),
-                                          categoryColor.withAlpha(25),
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                    child: Icon(
-                                      _getCategoryIcon(category),
-                                      color: categoryColor,
-                                      size: 22,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          category.toUpperCase(),
-                                          style: TextStyle(
-                                            color: categoryColor,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w900,
-                                            letterSpacing: 1.5,
-                                          ),
-                                        ),
-                                        Text(
-                                          complaint['title'] as String? ??
-                                              'Проблема',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-
-                              if (category == 'Камеры') ...[
-                                Container(
-                                  height: 200,
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: Colors.black,
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: Colors.white12),
-                                  ),
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      const Icon(Icons.videocam_off_rounded,
-                                          color: Colors.white24, size: 48),
-                                      Positioned(
-                                        top: 12,
-                                        right: 12,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: Colors.red,
-                                            borderRadius:
-                                                BorderRadius.circular(4),
-                                          ),
-                                          child: const Text('LIVE',
-                                              style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold)),
-                                        ),
-                                      ),
-                                      const Center(
-                                        child: Text(
-                                          'ЗАГРУЗКА ПОТОКА...',
-                                          style: TextStyle(
-                                              color: Colors.white38,
-                                              fontSize: 10,
-                                              letterSpacing: 2),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                              ],
-
-                              // Статус + дата
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: statusColor.withAlpha(40),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                          color: statusColor.withAlpha(80),
-                                          width: 1),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          width: 8,
-                                          height: 8,
-                                          decoration: BoxDecoration(
-                                            color: statusColor,
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          _getStatusText(status),
-                                          style: TextStyle(
-                                            color: statusColor,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Icon(Icons.schedule_rounded,
-                                      color: Colors.white.withAlpha(120),
-                                      size: 15),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _formatDate(dateRaw),
-                                    style: TextStyle(
-                                      color: Colors.white.withAlpha(150),
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(height: 16),
-
-                              // Описание
-                              if (complaint['description'] != null) ...[
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withAlpha(8),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                        color: Colors.white.withAlpha(15),
-                                        width: 1),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Icon(Icons.description_outlined,
-                                              color:
-                                                  Colors.white.withAlpha(140),
-                                              size: 15),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            'Описание',
-                                            style: TextStyle(
-                                              color:
-                                                  Colors.white.withAlpha(140),
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Builder(builder: (ctx) {
-                                        final desc =
-                                            complaint['description'] as String;
-                                        if (desc.contains('Фото: http')) {
-                                          final parts = desc.split('Фото: ');
-                                          final textPart = parts[0].trim();
-                                          final urlPart = parts[1].trim();
-                                          return Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                textPart,
-                                                style: TextStyle(
-                                                  color: Colors.white
-                                                      .withAlpha(220),
-                                                  fontSize: 14,
-                                                  height: 1.4,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 12),
-                                              ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                child: Image.network(
-                                                  urlPart,
-                                                  width: double.infinity,
-                                                  height: 180,
-                                                  fit: BoxFit.cover,
-                                                  errorBuilder: (context, err,
-                                                          stack) =>
-                                                      const Text(
-                                                          'Ошибка загрузки фото',
-                                                          style: TextStyle(
-                                                              color: Colors.red,
-                                                              fontSize: 12)),
-                                                ),
-                                              ),
-                                            ],
-                                          );
-                                        } else {
-                                          return Text(
-                                            desc,
-                                            style: TextStyle(
-                                              color:
-                                                  Colors.white.withAlpha(220),
-                                              fontSize: 14,
-                                              height: 1.4,
-                                            ),
-                                          );
-                                        }
-                                      }),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-
-                              // Адрес
-                              if (complaint['address'] != null) ...[
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: _colorPrimary.withAlpha(15),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                        color: _colorPrimary.withAlpha(30),
-                                        width: 1),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.location_on_rounded,
-                                          color: _colorPrimary, size: 20),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          complaint['address'] as String,
-                                          style: TextStyle(
-                                            color: Colors.white.withAlpha(210),
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-
-                              // Координаты + Google Street View
-                              if (hasCoords)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.gps_fixed_rounded,
-                                          color: Colors.white.withAlpha(100),
-                                          size: 15),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        '${(lat as num).toStringAsFixed(5)}, ${(lng as num).toStringAsFixed(5)}',
-                                        style: TextStyle(
-                                          color: Colors.white.withAlpha(100),
-                                          fontSize: 11,
-                                          fontFamily: 'monospace',
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      Container(
-                                        height: 28,
-                                        decoration: BoxDecoration(
-                                          color: _colorPrimary.withAlpha(50),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          border: Border.all(
-                                              color:
-                                                  _colorPrimary.withAlpha(100)),
-                                        ),
-                                        child: IconButton(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 10),
-                                          constraints: const BoxConstraints(
-                                              minWidth: 40),
-                                          icon: const Icon(
-                                              Icons.streetview_rounded,
-                                              size: 16,
-                                              color: _colorAccent),
-                                          tooltip:
-                                              'Смотреть в Google Street View',
-                                          onPressed: () async {
-                                            final url =
-                                                'google.streetview:cbll=$lat,$lng';
-                                            final fallbackUrl =
-                                                'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=$lat,$lng';
-                                            try {
-                                              if (await canLaunchUrl(
-                                                  Uri.parse(url))) {
-                                                await launchUrl(Uri.parse(url));
-                                              } else {
-                                                await launchUrl(
-                                                    Uri.parse(fallbackUrl));
-                                              }
-                                            } catch (_) {
-                                              await launchUrl(
-                                                  Uri.parse(fallbackUrl));
-                                            }
-                                          },
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
-                              // Реакции и Напоминания
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  if (category == 'Мероприятие')
-                                    PopupMenuButton<Duration>(
-                                      color: _colorSurface,
-                                      onSelected: (Duration offset) {
-                                        final dateStr =
-                                            complaint['created_at'] ??
-                                                complaint['createdAt'] ??
-                                                complaint['timestamp'];
-                                        DateTime? scheduledDate;
-                                        if (dateStr is String) {
-                                          scheduledDate =
-                                              DateTime.tryParse(dateStr);
-                                        }
-                                        if (dateStr is int) {
-                                          scheduledDate = DateTime
-                                              .fromMillisecondsSinceEpoch(
-                                                  dateStr);
-                                        }
-
-                                        if (scheduledDate != null) {
-                                          final reminderTime =
-                                              scheduledDate.subtract(offset);
-                                          NotificationService()
-                                              .scheduleReminder(
-                                            id: complaint['id']?.hashCode ?? 0,
-                                            title:
-                                                'Событие: ${complaint['title']}',
-                                            body:
-                                                'Событие начнется через ${offset.inMinutes >= 60 ? '${offset.inHours} ч.' : '${offset.inMinutes} мин.'}!',
-                                            scheduledDate: reminderTime,
-                                          );
-                                          ScaffoldMessenger.of(contextInner)
-                                              .showSnackBar(
-                                            const SnackBar(
-                                                content: Text(
-                                                    'Напоминание установлено!')),
-                                          );
-                                        }
-                                      },
-                                      itemBuilder: (contextInner) => [
-                                        const PopupMenuItem(
-                                            value: Duration(minutes: 30),
-                                            child: Text('Р—Р° 30 РјРёРЅ',
-                                                style: TextStyle(
-                                                    color: Colors.white))),
-                                        const PopupMenuItem(
-                                            value: Duration(hours: 2),
-                                            child: Text('За 2 часа',
-                                                style: TextStyle(
-                                                    color: Colors.white))),
-                                        const PopupMenuItem(
-                                            value: Duration(days: 1),
-                                            child: Text('За день',
-                                                style: TextStyle(
-                                                    color: Colors.white))),
-                                      ],
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 8),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withAlpha(15),
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                                Icons
-                                                    .notifications_active_rounded,
-                                                color: categoryColor,
-                                                size: 18),
-                                            const SizedBox(width: 8),
-                                            Text('Напомнить',
-                                                style: TextStyle(
-                                                    color: Colors.white
-                                                        .withAlpha(200))),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  if (category != 'Мероприятие' &&
-                                      category != 'Камеры')
-                                    GestureDetector(
-                                      onTap: () async {
-                                        setModalState(() {
-                                          isLiked = !isLiked;
-                                          complaint['_ui_isLiked'] = isLiked;
-                                          likes += isLiked ? 1 : -1;
-                                          complaint['likes_count'] = likes;
-                                        });
-                                        // Отправка лайка в Supabase
-                                        try {
-                                          final id = complaint['id'];
-                                          if (id != null) {
-                                            await http.patch(
-                                              Uri.parse(
-                                                '${MapConfig.reportsRestUrl}?id=eq.$id',
-                                              ),
-                                              headers: {
-                                                'Content-Type':
-                                                    'application/json',
-                                                'apikey':
-                                                    MapConfig.supabaseAnonKey,
-                                                'Authorization':
-                                                    'Bearer ${MapConfig.supabaseAnonKey}',
-                                              },
-                                              body: jsonEncode(
-                                                  {'likes_count': likes}),
-                                            );
-                                          }
-                                        } catch (e) {
-                                          debugPrint(
-                                              'Error updating likes: $e');
-                                        }
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 8),
-                                        decoration: BoxDecoration(
-                                          color: isLiked
-                                              ? Colors.red.withAlpha(40)
-                                              : Colors.white.withAlpha(15),
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              isLiked
-                                                  ? Icons.favorite_rounded
-                                                  : Icons
-                                                      .favorite_border_rounded,
-                                              color: isLiked
-                                                  ? Colors.red
-                                                  : Colors.white.withAlpha(150),
-                                              size: 18,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'У меня такая же ($likes)',
-                                              style: TextStyle(
-                                                color: isLiked
-                                                    ? Colors.redAccent
-                                                    : Colors.white
-                                                        .withAlpha(200),
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-
-                              // Кнопка «Вернуться»
-                              const SizedBox(height: 4),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  onPressed: () {
-                                    Navigator.of(ctx).pop();
-                                    _zoomBack();
-                                  },
-                                  icon: const Icon(Icons.zoom_out_map_rounded,
-                                      size: 18),
-                                  label: const Text('Вернуться к обзору'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor:
-                                        _colorPrimary.withAlpha(40),
-                                    foregroundColor: _colorAccent,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      side: BorderSide(
-                                          color: _colorPrimary.withAlpha(80)),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 12),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        }).whenComplete(() {
-      // When bottom sheet is dismissed by swipe, also zoom back
-      if (_focusedComplaint != null) {
-        _zoomBack();
-      }
-    });
+    showComplaintBottomSheet(
+      context: context,
+      complaint: complaint,
+      categoryColor: categoryColor,
+      statusColor: statusColor,
+      statusText: _getStatusText(status),
+      categoryLabel: _normalizeCategoryLabel(category),
+      categoryIcon: _getCategoryIcon(category),
+      formattedDate: _formatDate(dateRaw),
+      onZoomBack: _zoomBack,
+      onScheduleReminder: () => _scheduleEventReminder(
+          context, complaint, const Duration(minutes: 30)),
+      isEvent: _isEventItem(complaint),
+      onComplaintUpdated: (updated) {
+        setState(() {
+          for (int i = 0; i < _allComplaints.length; i++) {
+            if (_allComplaints[i]['id'] == updated['id']) {
+              _allComplaints[i] = updated;
+              break;
+            }
+          }
+        });
+      },
+    );
   }
 
-  void _showLiveCamDialog(
-    String title,
-    String? url, {
-    int? peopleCount,
-    bool detectorEnabled = false,
-  }) {
+  void _showLiveCamDialog(String title, String? url) {
     if (url == null || url.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ссылка на трансляцию не найдена')),
@@ -1676,18 +1670,13 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
     showDialog(
       context: context,
-      builder: (ctx) => _LiveCamDialog(
-        title: title,
-        url: url,
-        peopleCount: peopleCount,
-        detectorEnabled: detectorEnabled,
-      ),
+      builder: (ctx) => VideoPlayerDialog(title: title, url: url),
     );
   }
 
-  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
-  // Информационная карточка на карте (overlay)
-  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+  // ═══════════════════════════════════════════════════════════
+  // Overlay карты
+  // ═══════════════════════════════════════════════════════════
 
   Widget _buildFocusedOverlay() {
     if (_focusedComplaint == null) return const SizedBox.shrink();
@@ -1704,7 +1693,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       right: 16,
       child: Material(
         color: Colors.transparent,
-        child: _NeoGlassPanel(
+        child: MapGlassPanel(
           borderRadius: BorderRadius.circular(18),
           padding: const EdgeInsets.all(14),
           fillColor: _uiPanelFillStrong,
@@ -1789,9 +1778,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     );
   }
 
-  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+  // ═══════════════════════════════════════════════════════════
   // Build
-  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+  // ═══════════════════════════════════════════════════════════
 
   @override
   Widget build(BuildContext context) {
@@ -1809,8 +1798,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               minZoom: MapConfig.minZoom,
               maxZoom: MapConfig.maxZoom,
               onPositionChanged: (_, hasGesture) {
-                if (hasGesture) {
-                  _registerMapMovement();
+                if (hasGesture) _registerMapMovement();
+                if (_showUkLayer && hasGesture) {
+                  _fetchUkForCenter();
                 }
               },
               interactionOptions: const InteractionOptions(
@@ -1828,7 +1818,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   alignment: Alignment.center,
                   padding: const EdgeInsets.all(50),
                   maxZoom: 15,
-                  markers: _filteredMarkers,
+                  markers: _filteredProblemMarkers,
                   builder: (context, markers) {
                     return Container(
                       decoration: BoxDecoration(
@@ -1863,8 +1853,40 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   },
                 ),
               ),
+              // Мероприятия отдельным слоем без кластеризации
+              if (_showEventMarkers && _filteredEventMarkers.isNotEmpty)
+                MarkerLayer(markers: _filteredEventMarkers),
               if (_showCamerasLayer) MarkerLayer(markers: _cameraMarkers),
-              // Масштабная линейка
+              if (_showUkLayer && _ukAtCenter != null)
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: _mapController.camera.center,
+                      width: 60,
+                      height: 60,
+                      child: GestureDetector(
+                        onTap: () => _showUkDetails({
+                          'uk_name': _ukAtCenter!['name'],
+                          'phone': _ukAtCenter!['phone'],
+                          'email': _ukAtCenter!['email'],
+                          'houses': _ukAtCenter!['houses_count'],
+                          'overall_score': '?',
+                          'resolved_complaints': 0,
+                          'address': _ukAtCenter!['address']
+                        }),
+                        child: AnimatedMapMarker(
+                          animation: _markerPulseController,
+                          color: PulseColors.primaryDeep,
+                          icon: Icons.business_rounded,
+                          size: 60,
+                          seed: 0.5,
+                          isDayMode: !_isNightMode,
+                          shell: MarkerShell.hexagon,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               Scalebar(
                 alignment: Alignment.bottomLeft,
                 textStyle: TextStyle(
@@ -1877,7 +1899,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     ? Colors.white.withAlpha(200)
                     : const Color(0xFF2563EB).withAlpha(180),
               ),
-              // Атрибуция OSM
               SimpleAttributionWidget(
                 source: Text(
                   kOsmAttributionText,
@@ -1907,7 +1928,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Индикатор загрузки
           if (_isLoading)
             Container(
               color: Colors.black.withAlpha(128),
@@ -1925,77 +1945,67 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildTopBar(),
+                MapTopBar(
+                  isNightMode: _isNightMode,
+                  totalComplaints: _totalComplaints,
+                  categoryCounts: _categoryCounts,
+                  uiTextPrimary: _uiTextPrimary,
+                  uiTextSecondary: _uiTextSecondary,
+                  uiPanelFill: _uiPanelFill,
+                  uiGlow: _uiGlow,
+                  uiAccent: _uiAccent,
+                  isUkLayerActive: _showUkLayer,
+                  onUkToggleLayer: _toggleUkLayer,
+                  onUkDialog: _showUkDialog,
+                  onMapMenuSheet: _showMapMenuSheet,
+                  onSecretCameraTap: () => unawaited(_handleSecretCameraTap()),
+                ),
                 const SizedBox(height: 10),
-                _buildFiltersIsland(),
+                const ClipRRect(
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                  child: DailyDigestTicker(),
+                ),
                 const SizedBox(height: 10),
-                _buildCategoryDropdown(),
+                MapFilterPanel(
+                  selectedDaysFilter: _selectedDaysFilter,
+                  uiTextPrimary: _uiTextPrimary,
+                  uiPanelFill: _uiPanelFill,
+                  uiGlow: _uiGlow,
+                  uiAccent: _uiAccent,
+                  isNightMode: _isNightMode,
+                  onDaysFilterChanged: (days) {
+                    _emitSelectionHaptic();
+                    setState(() => _selectedDaysFilter = days);
+                    if (_allComplaints.isNotEmpty) {
+                      _processComplaints(_filterByDate(_allComplaints));
+                    }
+                  },
+                ),
+                const SizedBox(height: 10),
+                MapCategoryDropdown(
+                  selectedCategory: _selectedCategory,
+                  totalComplaints: _totalComplaints,
+                  categoryCounts: _categoryCounts,
+                  uiTextPrimary: _uiTextPrimary,
+                  uiTextSecondary: _uiTextSecondary,
+                  uiPanelFill: _uiPanelFill,
+                  uiGlow: _uiGlow,
+                  uiAccent: _uiAccent,
+                  isNightMode: _isNightMode,
+                  onCategoryChanged: (value) {
+                    _emitSelectionHaptic();
+                    setState(() => _selectedCategory = value);
+                  },
+                ),
               ],
             ),
           ),
 
-          // Иконка статистики
-          Positioned(
-            top: paddingTop + 140,
-            right: 16,
-            child: Tooltip(
-              message: 'Статистика',
-              child: _buildControlButton(
-                icon: Icons.analytics_rounded,
-                onTap: _showStatsDialog,
-              ),
-            ),
-          ),
-
-          // Иконка списка УК
-          Positioned(
-            top: paddingTop + 200,
-            right: 16,
-            child: Tooltip(
-              message: 'Управляющие компании',
-              child: _buildControlButton(
-                icon: Icons.business_rounded,
-                onTap: _showUkDialog,
-              ),
-            ),
-          ),
-
-          // Иконка камер (вверху)
-          Positioned(
-            top: paddingTop + 260,
-            right: 16,
-            child: Tooltip(
-              message: 'Камеры города',
-              child: _buildControlButton(
-                icon: _showCamerasLayer ? Icons.videocam : Icons.videocam_off,
-                onTap: () =>
-                    setState(() => _showCamerasLayer = !_showCamerasLayer),
-              ),
-            ),
-          ),
-
-          // Иконка инфографики (вверху)
-          Positioned(
-            top: paddingTop + 320,
-            right: 16,
-            child: Tooltip(
-              message: 'Инфографика',
-              child: _buildControlButton(
-                icon: Icons.bar_chart_rounded,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const InfographicScreen()),
-                ),
-              ),
-            ),
-          ),
-
-          // Кнопки управления
           Positioned(
             bottom: 100,
             right: 16,
             child: Column(
               children: [
-                // Кнопка возврата (видима только при фокусе)
                 if (_focusedComplaint != null) ...[
                   _buildControlButton(
                     icon: Icons.zoom_out_map_rounded,
@@ -2003,219 +2013,269 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   ),
                   const SizedBox(height: 12),
                 ],
-                _buildControlButton(
-                  icon: _isSatellite ? Icons.layers_outlined : Icons.layers,
-                  onTap: () => setState(() => _isSatellite = !_isSatellite),
-                ),
-                const SizedBox(height: 12.0),
-                Tooltip(
-                  message: _isNightMode ? 'Дневной режим' : 'Ночной киберпанк',
-                  child: _buildControlButton(
-                    icon: _isNightMode
-                        ? Icons.wb_sunny_rounded
-                        : Icons.nightlight_round,
-                    onTap: _toggleVisualMode,
-                  ),
-                ),
-                const SizedBox(height: 12.0),
                 _buildPrimaryActionFab(),
-                const SizedBox(height: 12.0),
-                Tooltip(
-                  message: '3D Mode (Mapbox)',
-                  child: _buildControlButton(
-                    icon: Icons.view_in_ar_rounded,
-                    onTap: _openMapbox3DViewer,
-                  ),
-                ),
-
-                const SizedBox(height: 12.0),
-                Tooltip(
-                  message: 'Настройки',
-                  child: _buildControlButton(
-                    icon: Icons.settings_outlined,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
 
-          // Overlay с информацией о выбранной проблеме
           _buildFocusedOverlay(),
         ],
       ),
     );
   }
 
-  Widget _buildTopBar() {
-    return _NeoGlassPanel(
-      borderRadius: BorderRadius.circular(18),
-      padding: EdgeInsets.zero,
-      fillColor: _uiPanelFill,
-      blurSigma: 28,
-      borderColors: [
-        _uiGlow.withAlpha(_isNightMode ? 160 : 58),
-        _uiGlow.withAlpha(_isNightMode ? 60 : 12),
-        Colors.transparent,
-      ],
-      child: Stack(
-        children: [
-          Positioned(
-            bottom: -5,
-            left: 0,
-            right: 0,
-            child: Opacity(
-              opacity: _isNightMode ? 0.58 : 0.14,
-              child: CityPulseWave(
-                totalCount: _totalComplaints,
-                categoryCounts: _categoryCounts,
+  // ═══════════════════════════════════════════════════════════
+  // Меню карты
+  // ═══════════════════════════════════════════════════════════
+
+  void _showMapMenuSheet() {
+    _emitSelectionHaptic();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: MapGlassPanel(
+              borderRadius: BorderRadius.circular(24),
+              padding: const EdgeInsets.all(18),
+              fillColor: _uiPanelFillStrong,
+              blurSigma: 30,
+              borderColors: [
+                _uiGlow.withAlpha(_isNightMode ? 150 : 70),
+                _uiGlow.withAlpha(30),
+                Colors.transparent,
+              ],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Меню карты',
+                        style: TextStyle(
+                          color: _uiTextPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        icon:
+                            Icon(Icons.close_rounded, color: _uiTextSecondary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      _buildMenuToggleChip(
+                        label: 'Сигналы',
+                        icon: Icons.report_problem_outlined,
+                        active: _showProblemMarkers,
+                        onTap: () => setState(
+                          () => _showProblemMarkers = !_showProblemMarkers,
+                        ),
+                      ),
+                      _buildMenuToggleChip(
+                        label: 'Мероприятия',
+                        icon: Icons.event_available_rounded,
+                        active: _showEventMarkers,
+                        onTap: () => setState(
+                          () => _showEventMarkers = !_showEventMarkers,
+                        ),
+                      ),
+                      _buildMenuToggleChip(
+                        label: 'Камеры',
+                        icon: _showCamerasLayer
+                            ? Icons.videocam_rounded
+                            : Icons.videocam_off_rounded,
+                        active: _showCamerasLayer,
+                        onTap: () async {
+                          Navigator.of(ctx).pop();
+                          await _toggleCameraLayer();
+                        },
+                      ),
+                      _buildMenuToggleChip(
+                        label: _isSatellite ? 'Спутник' : 'Карта',
+                        icon: _isSatellite
+                            ? Icons.satellite_alt_rounded
+                            : Icons.map_outlined,
+                        active: _isSatellite,
+                        onTap: () => setState(
+                          () => _isSatellite = !_isSatellite,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildMenuActionTile(
+                    icon: Icons.analytics_rounded,
+                    label: 'Статистика',
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      _showStatsDialog();
+                    },
+                  ),
+                  _buildMenuActionTile(
+                    icon: Icons.business_rounded,
+                    label: 'Управляющие компании',
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      _showUkDialog();
+                    },
+                  ),
+                  _buildMenuActionTile(
+                    icon: Icons.bar_chart_rounded,
+                    label: 'Инфографика',
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const InfographicScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildMenuActionTile(
+                    icon: Icons.info_outline_rounded,
+                    label: 'О проекте',
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const AboutScreen()),
+                      );
+                    },
+                  ),
+                  _buildMenuActionTile(
+                    icon: Icons.person_outline_rounded,
+                    label: 'Профиль',
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ProfileScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildMenuActionTile(
+                    icon: Icons.hub_rounded,
+                    label: 'Mesh-сеть',
+                    subtitle: 'Автономная связь без интернета',
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MeshScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildMenuActionTile(
+                    icon: _isNightMode
+                        ? Icons.wb_sunny_rounded
+                        : Icons.nightlight_round,
+                    label: _isNightMode ? 'Дневной режим' : 'Ночной режим',
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      _toggleVisualMode();
+                    },
+                  ),
+                  _buildMenuActionTile(
+                    icon: Icons.settings_outlined,
+                    label: 'Настройки',
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const SettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  if (_secretCamerasEnabled)
+                    _buildMenuActionTile(
+                      icon: Icons.lock_open_rounded,
+                      label: 'Скрытые камеры',
+                      subtitle: AdminDashboardService.instance.hasSession
+                          ? '2FA-сессия активна'
+                          : 'Нужна 2FA-сессия',
+                      onTap: () async {
+                        Navigator.of(ctx).pop();
+                        await _ensureSecretCameraSession();
+                      },
+                    ),
+                ],
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'ПУЛЬС ГОРОДА · НИЖНЕВАРТОВСК',
-                        style: TextStyle(
-                          color: _uiTextPrimary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ),
-                    _buildQuickCamButton(),
-                    IconButton(
-                      icon: Icon(Icons.info_outline,
-                          color: _uiAccent, size: 22.0),
-                      splashRadius: 22,
-                      tooltip: 'О проекте',
-                      onPressed: () {
-                        _emitSelectionHaptic();
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const AboutScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.bar_chart, color: _uiAccent, size: 22.0),
-                      splashRadius: 22,
-                      tooltip: 'Инфографика',
-                      onPressed: () {
-                        _emitSelectionHaptic();
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const InfographicScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6.0),
-                Text(
-                  _isNightMode
-                      ? 'Ночной киберпанк · данные поверх карты'
-                      : 'Дневной режим · чистая карта и легкие островки',
-                  style: TextStyle(
-                    color: _uiTextSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildFiltersIsland() {
-    final filters = <Map<String, Object?>>[
-      {'days': null, 'label': '\u0412\u0441\u0435'},
-      {'days': -1, 'label': '\u041d\u043e\u0432\u044b\u0435'},
-      {'days': 1, 'label': '1 \u0434'},
-      {'days': 7, 'label': '7 \u0434'},
-      {'days': 30, 'label': '30 \u0434'},
-    ];
-
-    return _NeoGlassPanel(
-      borderRadius: BorderRadius.circular(16),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      fillColor: _uiPanelFill,
-      blurSigma: 24,
-      borderColors: [
-        _uiGlow.withAlpha(_isNightMode ? 120 : 48),
-        _uiGlow.withAlpha(_isNightMode ? 55 : 12),
-        Colors.transparent,
-      ],
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (final f in filters)
-            _buildDaysChip(
-              days: f['days'] as int?,
-              label: f['label'] as String,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickCamButton() {
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildDaysChip({required int? days, required String label}) {
-    final selected = _selectedDaysFilter == days;
-    return ChoiceChip(
-      label: Text(
-        label,
-        style: TextStyle(
-          color: selected
-              ? (_isNightMode ? Colors.black : Colors.white)
-              : _uiTextPrimary,
-          fontSize: 12,
-        ),
-      ),
-      selected: selected,
+  Widget _buildMenuToggleChip({
+    required String label,
+    required IconData icon,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return FilterChip(
+      selected: active,
+      onSelected: (_) => onTap(),
+      avatar: Icon(icon, size: 16, color: active ? Colors.black : _uiAccent),
+      label: Text(label),
       selectedColor: _uiAccent,
       backgroundColor: _isNightMode
           ? _colorSurface.withAlpha(185)
           : Colors.white.withAlpha(175),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(999),
-        side: BorderSide(
-          color: selected
-              ? _uiAccent
-              : (_isNightMode
-                  ? Colors.white.withAlpha(60)
-                  : const Color(0xFF7DD3FC).withAlpha(120)),
-          width: 1.0,
+      labelStyle: TextStyle(
+        color: active ? Colors.black : _uiTextPrimary,
+        fontWeight: FontWeight.w600,
+      ),
+      side: BorderSide(
+        color: active ? _uiAccent : _uiGlow.withAlpha(_isNightMode ? 80 : 40),
+      ),
+    );
+  }
+
+  Widget _buildMenuActionTile({
+    required IconData icon,
+    required String label,
+    String? subtitle,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: _uiPrimary.withAlpha(_isNightMode ? 40 : 25),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: _uiAccent, size: 20),
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: _uiTextPrimary,
+          fontWeight: FontWeight.w600,
         ),
       ),
-      onSelected: (_) {
-        _emitSelectionHaptic();
-        setState(() {
-          _selectedDaysFilter = days;
-        });
-        if (_allComplaints.isNotEmpty) {
-          _processComplaints(_filterByDate(_allComplaints));
-        }
-      },
+      subtitle: subtitle == null
+          ? null
+          : Text(subtitle, style: TextStyle(color: _uiTextSecondary)),
+      trailing: Icon(Icons.chevron_right_rounded, color: _uiTextSecondary),
+      onTap: onTap,
     );
   }
 
@@ -2246,7 +2306,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStatItem('Всего обращений', _totalComplaints, Colors.white),
+            _buildStatItem('Всего сигналов', _totalComplaints, Colors.white),
             _buildStatItem('Требуют внимания', _newComplaints, _colorDanger),
             _buildStatItem(
                 'Успешно решены', _resolvedComplaints, _colorSuccess),
@@ -2254,7 +2314,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             const Divider(color: Colors.white24),
             const SizedBox(height: 8),
             Text(
-              'Данные обновляются в режиме реального времени. Вы можете фильтровать жалобы по категориям и временным диапазонам через верхнюю панель.',
+              'Данные обновляются в режиме реального времени. Вы можете фильтровать сигналы по категориям и временным диапазонам через верхнюю панель.',
               style: TextStyle(
                 color: Colors.white.withAlpha(160),
                 fontSize: 12,
@@ -2280,22 +2340,18 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Text(
-            '$label:',
-            style: TextStyle(
-              color: Colors.white.withAlpha(179),
-              fontSize: 12,
-            ),
-          ),
+          Text('$label:',
+              style: TextStyle(
+                color: Colors.white.withAlpha(179),
+                fontSize: 12,
+              )),
           const SizedBox(width: 8.0),
-          Text(
-            value.toString(),
-            style: TextStyle(
-              color: color,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text(value.toString(),
+              style: TextStyle(
+                color: color,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              )),
         ],
       ),
     );
@@ -2308,42 +2364,44 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       builder: (ctx) => const Center(child: CircularProgressIndicator()),
     );
     try {
-      if (!MapConfig.hasSupabaseConfig) {
-        throw StateError('Supabase runtime config is not available');
-      }
-      final supabaseUrl =
-          '${MapConfig.supabaseRestBaseUrl}/infographic_data?data_type=eq.uk_list&select=data';
-      final supabaseKey = MapConfig.supabaseAnonKey;
+      final response = await http
+          .get(
+            Uri.parse(
+                '${MapConfig.backendApiBaseUrl}/api/uk/ratings?limit=100'),
+          )
+          .timeout(const Duration(seconds: 10));
 
-      final response = await http.get(
-        Uri.parse(supabaseUrl),
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': 'Bearer $supabaseKey',
-        },
-      ).timeout(const Duration(seconds: 10));
+      if (mounted && Navigator.canPop(context)) Navigator.pop(context);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка загрузки УК: ${response.statusCode}')),
+        );
+        return;
+      }
+
+      final payload = json.decode(utf8.decode(response.bodyBytes));
+      final ratings = payload is Map<String, dynamic>
+          ? (payload['ratings'] as List<dynamic>? ?? const <dynamic>[])
+              .whereType<Map>()
+              .map((row) => row.map(
+                    (key, value) => MapEntry(key.toString(), value),
+                  ))
+              .toList()
+          : const <Map<String, dynamic>>[];
 
       if (!mounted) return;
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context); // close progress
+      if (ratings.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Данные УК пока отсутствуют')),
+        );
+        return;
       }
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
-        if (data.isNotEmpty) {
-          final results = data[0]['data'] as List;
-          _showUkListOverlay(results);
-        } else {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('Данные УК пусты')));
-        }
-      } else {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Ошибка загрузки УК')));
-      }
+
+      _showUkListOverlay(ratings);
     } catch (e) {
-      if (mounted && Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
+      if (mounted && Navigator.canPop(context)) Navigator.pop(context);
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Ошибка сети: $e')));
     }
@@ -2353,149 +2411,161 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: _colorBottomSheet,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return FractionallySizedBox(
-          heightFactor: 0.8,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    const Icon(Icons.business, color: _colorAccent, size: 28),
-                    const SizedBox(width: 8),
-                    Text('Управляющие компании (${uks.length})',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: uks.length,
-                  itemBuilder: (ctx, i) {
-                    final uk = uks[i];
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: _colorPrimary.withAlpha(50),
-                        child: const Icon(Icons.apartment, color: _colorAccent),
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: MapGlassPanel(
+              borderRadius: BorderRadius.circular(24),
+              padding: const EdgeInsets.all(18),
+              fillColor: _uiPanelFillStrong,
+              blurSigma: 30,
+              borderColors: [
+                _uiGlow.withAlpha(_isNightMode ? 150 : 70),
+                _uiGlow.withAlpha(30),
+                Colors.transparent,
+              ],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.business_rounded, color: _colorAccent),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Управляющие компании (${uks.length})',
+                        style: TextStyle(
+                          color: _uiTextPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                      title: Text(
-                          uk['TITLESM'] ?? uk['TITLE'] ?? '\u0423\u041a',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold)),
-                      subtitle: Text(uk['ADR'] ?? 'Нет адреса',
-                          style: TextStyle(
-                              color: Colors.white.withAlpha(150), fontSize: 12),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                      trailing: const Icon(Icons.chevron_right,
-                          color: Colors.white54),
-                      onTap: () {
-                        showDialog(
-                          context: context,
-                          builder: (ctx2) => AlertDialog(
-                            backgroundColor: _colorSurface,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              side: BorderSide(
-                                  color: _colorPrimary.withAlpha(80),
-                                  width: 1.5),
-                            ),
-                            title: Text(uk['TITLE'] ?? '\u0423\u041a',
-                                style: const TextStyle(
-                                    color: Colors.white, fontSize: 16)),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                ListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  leading: const Icon(Icons.phone,
-                                      color: _colorAccent),
-                                  title: Text(uk['TEL'] ?? '-',
-                                      style:
-                                          const TextStyle(color: Colors.white)),
-                                ),
-                                ListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  leading: const Icon(Icons.email,
-                                      color: _colorAccent),
-                                  title: Text(uk['EMAIL'] ?? '-',
-                                      style:
-                                          const TextStyle(color: Colors.white)),
-                                ),
-                                ListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  leading: const Icon(Icons.home,
-                                      color: _colorAccent),
-                                  title: Text(uk['ADR'] ?? '-',
-                                      style:
-                                          const TextStyle(color: Colors.white)),
-                                ),
-                                ListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  leading: const Icon(Icons.apartment,
-                                      color: _colorAccent),
-                                  title: Text(
-                                      'В управлении домов: ${uk['CNT'] ?? '-'}',
-                                      style:
-                                          const TextStyle(color: Colors.white)),
-                                ),
-                                ListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  leading: const Icon(Icons.person,
-                                      color: _colorAccent),
-                                  title: Text(
-                                      'Руководитель: ${uk['FIO'] ?? '-'}',
-                                      style:
-                                          const TextStyle(color: Colors.white)),
-                                ),
-                              ],
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.pop(ctx2);
-                                  ScaffoldMessenger.of(context)
-                                      .showSnackBar(const SnackBar(
-                                    content: Text(
-                                        'Анонимное письмо отправлено в УК! (Тест)'),
-                                    backgroundColor: _colorSuccess,
-                                  ));
-                                },
-                                style: TextButton.styleFrom(
-                                    backgroundColor:
-                                        _colorAccent.withAlpha(30)),
-                                child: const Text('Отправить анонимную жалобу',
-                                    style: TextStyle(
-                                        color: _colorAccent,
-                                        fontWeight: FontWeight.bold)),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        icon:
+                            Icon(Icons.close_rounded, color: _uiTextSecondary),
+                      ),
+                    ],
+                  ),
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: uks.length,
+                      separatorBuilder: (_, __) => Divider(
+                        color: _uiGlow.withAlpha(30),
+                        height: 1,
+                      ),
+                      itemBuilder: (ctx, i) {
+                        final uk = Map<String, dynamic>.from(uks[i] as Map);
+                        final name = (uk['uk_name'] ?? 'УК').toString();
+                        final houses = (uk['houses'] ?? 0).toString();
+                        final phone = (uk['phone'] ?? '').toString().trim();
+                        final email = (uk['email'] ?? '').toString().trim();
+                        final grade = (uk['grade'] ?? '—').toString();
+
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: CircleAvatar(
+                            backgroundColor: _colorPrimary.withAlpha(50),
+                            child: Text(
+                              grade,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
                               ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx2),
-                                child: const Text('Закрыть',
-                                    style: TextStyle(color: Colors.white)),
-                              ),
-                            ],
+                            ),
                           ),
+                          title: Text(
+                            name,
+                            style: TextStyle(
+                              color: _uiTextPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Домов: $houses · ${phone.isNotEmpty ? phone : (email.isNotEmpty ? email : 'контакты уточняются')}',
+                            style: TextStyle(color: _uiTextSecondary),
+                          ),
+                          trailing: Icon(Icons.chevron_right_rounded,
+                              color: _uiTextSecondary),
+                          onTap: () => _showUkDetails(uk),
                         );
                       },
-                    );
-                  },
-                ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },
     );
+  }
+
+  void _showUkDetails(Map<String, dynamic> uk) {
+    final name = (uk['uk_name'] ?? 'УК').toString();
+    final phone = (uk['phone'] ?? '').toString().trim();
+    final email = (uk['email'] ?? '').toString().trim();
+    final houses = (uk['houses'] ?? 0).toString();
+    final score = (uk['overall_score'] ?? 0).toString();
+    final resolved = (uk['resolved_complaints'] ?? 0).toString();
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _colorSurface,
+        title: Text(name, style: const TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Рейтинг: $score',
+                style: const TextStyle(color: Colors.white)),
+            const SizedBox(height: 8),
+            Text('Решённых ситуаций: $resolved',
+                style: const TextStyle(color: Colors.white)),
+            const SizedBox(height: 8),
+            Text('Домов в управлении: $houses',
+                style: const TextStyle(color: Colors.white)),
+            const SizedBox(height: 8),
+            Text('Телефон: ${phone.isNotEmpty ? phone : 'не указан'}',
+                style: const TextStyle(color: Colors.white)),
+            const SizedBox(height: 8),
+            Text('Email: ${email.isNotEmpty ? email : 'не указан'}',
+                style: const TextStyle(color: Colors.white)),
+          ],
+        ),
+        actions: [
+          if (phone.isNotEmpty)
+            TextButton(
+              onPressed: () => _contactUk('tel:$phone'),
+              child: const Text('Позвонить'),
+            ),
+          if (email.isNotEmpty)
+            TextButton(
+              onPressed: () => _contactUk('mailto:$email'),
+              child: const Text('Написать'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Закрыть'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _contactUk(String uri) async {
+    final target = Uri.parse(uri);
+    if (!await launchUrl(target)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось открыть контакт')),
+      );
+    }
   }
 
   Future<void> _openComplaintComposer() async {
@@ -2507,9 +2577,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         ),
       ),
     );
-    if (result == true && mounted) {
-      _loadComplaints();
-    }
+    if (result == true && mounted) _loadComplaints();
   }
 
   Widget _buildFabPulseRing(double progress, double visibility) {
@@ -2555,7 +2623,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   Widget _buildPrimaryActionFab() {
     return Tooltip(
-      message: 'Сообщить о проблеме',
+      message: 'Сообщить о ситуации',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
@@ -2594,7 +2662,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         gradient: RadialGradient(
                           colors: [
                             _uiGlow.withAlpha(glowAlpha),
-                            Colors.transparent,
+                            Colors.transparent
                           ],
                         ),
                       ),
@@ -2655,7 +2723,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         _emitSelectionHaptic();
         onTap();
       },
-      child: _NeoGlassPanel(
+      child: MapGlassPanel(
         borderRadius: BorderRadius.circular(999),
         padding: const EdgeInsets.all(0),
         fillColor: _uiPanelFillStrong,
@@ -2685,723 +2753,4 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       ),
     );
   }
-
-  void _openMapbox3DViewer() {
-    final camera = _mapController.camera;
-    final focusCenter = LatLng(camera.center.latitude, camera.center.longitude);
-    final focusZoom = camera.zoom;
-    const mapboxToken =
-        String.fromEnvironment('MAPBOX_ACCESS_TOKEN', defaultValue: '');
-    final useMapbox = mapboxToken.trim().isNotEmpty;
-
-    Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        transitionDuration: const Duration(milliseconds: 900),
-        reverseTransitionDuration: const Duration(milliseconds: 420),
-        pageBuilder: (context, animation, secondaryAnimation) {
-          if (useMapbox) {
-            return MapboxThreeMapScreen(
-              complaints: _allComplaints,
-              initialCenter: focusCenter,
-              initialZoom: focusZoom,
-            );
-          }
-          return CesiumMapScreen(
-            complaints: _allComplaints,
-            initialCenter: focusCenter,
-            initialZoom: focusZoom,
-          );
-        },
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final fade = CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-            reverseCurve: Curves.easeInCubic,
-          );
-          final scale = Tween<double>(
-            begin: 0.955,
-            end: 1,
-          ).animate(
-            CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutQuart,
-              reverseCurve: Curves.easeInQuart,
-            ),
-          );
-
-          return AnimatedBuilder(
-            animation: animation,
-            builder: (context, _) {
-              final portalRadius = lerpDouble(0.18, 1.45, animation.value) ?? 1;
-              final portalOpacity = (1 - animation.value).clamp(0.0, 1.0);
-
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  FadeTransition(
-                    opacity: fade,
-                    child: Transform.scale(
-                      scale: scale.value,
-                      alignment: Alignment.center,
-                      child: child,
-                    ),
-                  ),
-                  IgnorePointer(
-                    child: Opacity(
-                      opacity: portalOpacity * 0.5,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: RadialGradient(
-                            center: Alignment.center,
-                            radius: portalRadius,
-                            colors: const [
-                              Color(0xAA00E5FF),
-                              Color(0x3300E5FF),
-                              Colors.transparent,
-                            ],
-                            stops: const [0, 0.38, 1],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _LiveCamDialog extends StatefulWidget {
-  final String title;
-  final String url;
-  final int? peopleCount;
-  final bool detectorEnabled;
-
-  const _LiveCamDialog({
-    required this.title,
-    required this.url,
-    this.peopleCount,
-    this.detectorEnabled = false,
-  });
-
-  @override
-  State<_LiveCamDialog> createState() => _LiveCamDialogState();
-}
-
-class _LiveCamDialogState extends State<_LiveCamDialog> {
-  static const double _nizhnevartovskLat = 60.9366;
-  static const double _nizhnevartovskLon = 76.5594;
-
-  VideoPlayerController? _videoPlayerController;
-  ChewieController? _chewieController;
-  Timer? _hudClockTimer;
-  Timer? _weatherRefreshTimer;
-  bool _hasError = false;
-  DateTime _cityTime = _currentNizhnevartovskTime();
-  _CameraHudWeather _weather = const _CameraHudWeather.loading();
-  int? _peopleCount;
-
-  @override
-  void initState() {
-    super.initState();
-    _peopleCount = widget.peopleCount;
-    _startHudTelemetry();
-    _initializePlayer();
-  }
-
-  static DateTime _currentNizhnevartovskTime() {
-    return DateTime.now().toUtc().add(const Duration(hours: 5));
-  }
-
-  void _startHudTelemetry() {
-    _hudClockTimer?.cancel();
-    _hudClockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() => _cityTime = _currentNizhnevartovskTime());
-    });
-
-    _refreshWeather();
-    _weatherRefreshTimer?.cancel();
-    _weatherRefreshTimer = Timer.periodic(
-      const Duration(minutes: 10),
-      (_) => _refreshWeather(),
-    );
-  }
-
-  Future<void> _refreshWeather() async {
-    final uri = Uri.https('api.open-meteo.com', '/v1/forecast', {
-      'latitude': _nizhnevartovskLat.toString(),
-      'longitude': _nizhnevartovskLon.toString(),
-      'current': 'temperature_2m,apparent_temperature,weather_code,is_day',
-      'timezone': 'auto',
-      'forecast_days': '1',
-    });
-
-    try {
-      final response = await http.get(uri).timeout(const Duration(seconds: 8));
-      if (response.statusCode != 200) {
-        throw Exception('Weather request failed: ${response.statusCode}');
-      }
-
-      final payload = jsonDecode(response.body) as Map<String, dynamic>;
-      final current = payload['current'] as Map<String, dynamic>?;
-      if (current == null) throw Exception('Weather payload missing current');
-
-      final code = (current['weather_code'] as num?)?.toInt() ?? -1;
-      final isDay = ((current['is_day'] as num?)?.toInt() ?? 1) == 1;
-      final temperature = (current['temperature_2m'] as num?)?.toDouble();
-      final apparent = (current['apparent_temperature'] as num?)?.toDouble();
-      if (!mounted) return;
-      setState(() {
-        _weather = _mapWeatherCode(
-          code: code,
-          isDay: isDay,
-          temperature: temperature,
-          apparentTemperature: apparent,
-        );
-      });
-    } catch (e) {
-      debugPrint('Live camera weather load error: $e');
-      if (!mounted) return;
-      setState(() {
-        _weather = const _CameraHudWeather.error();
-      });
-    }
-  }
-
-  _CameraHudWeather _mapWeatherCode({
-    required int code,
-    required bool isDay,
-    required double? temperature,
-    required double? apparentTemperature,
-  }) {
-    IconData icon =
-        isDay ? Icons.wb_sunny_rounded : Icons.nightlight_round_rounded;
-    String label = 'РЇСЃРЅРѕ';
-    Color accent = const Color(0xFF56E0FF);
-
-    if (code == 0) {
-      label = isDay ? 'Ясно' : 'Ясная ночь';
-      accent = const Color(0xFF7DE7FF);
-    } else if ([1, 2].contains(code)) {
-      icon = isDay ? Icons.wb_cloudy_rounded : Icons.cloud_queue_rounded;
-      label = 'Переменная облачность';
-      accent = const Color(0xFF8BE7FF);
-    } else if (code == 3) {
-      icon = Icons.cloud_rounded;
-      label = 'Пасмурно';
-      accent = const Color(0xFF86B7DA);
-    } else if ([45, 48].contains(code)) {
-      icon = Icons.blur_on_rounded;
-      label = 'Туман';
-      accent = const Color(0xFFB8D7EA);
-    } else if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) {
-      icon = Icons.water_drop_rounded;
-      label = 'Дождь';
-      accent = const Color(0xFF3DA8FF);
-    } else if (code >= 71 && code <= 77) {
-      icon = Icons.ac_unit_rounded;
-      label = 'Снег';
-      accent = const Color(0xFFC8F4FF);
-    } else if (code >= 95) {
-      icon = Icons.flash_on_rounded;
-      label = 'Гроза';
-      accent = const Color(0xFFFFC857);
-    }
-
-    final tempLabel = temperature == null
-        ? '--\u00B0'
-        : '${temperature.round().toString()}\u00B0';
-    final feelsLikeLabel = apparentTemperature == null
-        ? 'Ощущается --°'
-        : 'Ощущается ${apparentTemperature.round()}°';
-
-    return _CameraHudWeather(
-      icon: icon,
-      label: label,
-      temperatureLabel: tempLabel,
-      feelsLikeLabel: feelsLikeLabel,
-      accent: accent,
-    );
-  }
-
-  String _formatTime(DateTime value) {
-    final hh = value.hour.toString().padLeft(2, '0');
-    final mm = value.minute.toString().padLeft(2, '0');
-    final ss = value.second.toString().padLeft(2, '0');
-    return '$hh:$mm:$ss';
-  }
-
-  String _formatDate(DateTime value) {
-    final dd = value.day.toString().padLeft(2, '0');
-    final mm = value.month.toString().padLeft(2, '0');
-    return '$dd.$mm.${value.year}';
-  }
-
-  Future<void> _initializePlayer() async {
-    setState(() {
-      _hasError = false;
-      _chewieController = null;
-    });
-
-    try {
-      _videoPlayerController =
-          VideoPlayerController.networkUrl(Uri.parse(widget.url));
-      await _videoPlayerController!.initialize();
-      _chewieController = ChewieController(
-        videoPlayerController: _videoPlayerController!,
-        autoPlay: true,
-        looping: true,
-        isLive: true,
-        errorBuilder: (context, errorMessage) {
-          return Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline_rounded,
-                  color: Colors.white24, size: 40),
-              const SizedBox(height: 12),
-              Text(
-                errorMessage,
-                style: const TextStyle(color: Colors.white54),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          );
-        },
-        materialProgressColors: ChewieProgressColors(
-          playedColor: Colors.redAccent,
-          handleColor: Colors.redAccent,
-          bufferedColor: Colors.white24,
-          backgroundColor: Colors.white10,
-        ),
-      );
-      if (mounted) {
-        setState(() {});
-      }
-    } catch (e) {
-      debugPrint('Video initialized error: $e');
-      if (mounted) {
-        setState(() {
-          _hasError = true;
-        });
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _hudClockTimer?.cancel();
-    _weatherRefreshTimer?.cancel();
-    _videoPlayerController?.dispose();
-    _chewieController?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      insetPadding: const EdgeInsets.all(16),
-      child: _NeoGlassPanel(
-        borderRadius: BorderRadius.circular(24),
-        padding: EdgeInsets.zero,
-        fillColor: const Color(0xD9141A28),
-        blurSigma: 26,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withAlpha(40),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.videocam_rounded,
-                        color: Colors.red, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.title,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16),
-                        ),
-                        const Text(
-                          'Live stream',
-                          style: TextStyle(
-                              color: Colors.red,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.5),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon:
-                        const Icon(Icons.close_rounded, color: Colors.white60),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-            ),
-
-            // Player Area
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (_hasError)
-                      const Center(
-                        child: Text(
-                          'Stream unavailable',
-                          style: TextStyle(color: Colors.white54),
-                        ),
-                      )
-                    else if (_chewieController != null &&
-                        _chewieController!
-                            .videoPlayerController.value.isInitialized)
-                      Chewie(controller: _chewieController!)
-                    else
-                      const Center(
-                        child: CircularProgressIndicator(color: Colors.red),
-                      ),
-                    IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.black.withAlpha(100),
-                              Colors.transparent,
-                              Colors.black.withAlpha(130),
-                            ],
-                            stops: const [0, 0.45, 1],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 12,
-                      left: 12,
-                      right: 12,
-                      child: IgnorePointer(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  _buildHudChip(
-                                    icon: _weather.icon,
-                                    title:
-                                        '\u041f\u043e\u0433\u043e\u0434\u0430',
-                                    value: _weather.temperatureLabel,
-                                    subtitle: _weather.label,
-                                    accent: _weather.accent,
-                                  ),
-                                  _buildHudChip(
-                                    icon: Icons.schedule_rounded,
-                                    title: 'Нижневартовск',
-                                    value: _formatTime(_cityTime),
-                                    subtitle: _formatDate(_cityTime),
-                                    accent: const Color(0xFF9AF8FF),
-                                  ),
-                                  _buildHudChip(
-                                    icon: Icons.groups_rounded,
-                                    title: 'Люди в кадре',
-                                    value: _peopleCount?.toString() ?? '--',
-                                    subtitle: widget.detectorEnabled
-                                        ? 'AI counter online'
-                                        : 'Detector standby',
-                                    accent: widget.detectorEnabled
-                                        ? const Color(0xFF77FFCB)
-                                        : const Color(0xFFFFC857),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            _buildHudStatusPill(),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 12,
-                      right: 12,
-                      bottom: 12,
-                      child: IgnorePointer(
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _buildScanlineLabel(
-                                label: 'WX LINK',
-                                value: _weather.feelsLikeLabel,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildScanlineLabel(
-                                label: 'AI VISION',
-                                value: widget.detectorEnabled
-                                    ? 'People telemetry synced'
-                                    : 'Vision channel pending',
-                                alignEnd: true,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Footer info
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              child: Column(
-                children: [
-                  if (_hasError) ...[
-                    ElevatedButton.icon(
-                      onPressed: () => launchUrl(Uri.parse(widget.url),
-                          mode: LaunchMode.externalApplication),
-                      icon: const Icon(Icons.open_in_browser_rounded),
-                      label: const Text('Open in browser / VLC'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withAlpha(20),
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 45),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildStatCol('Bitrate', 'Live'),
-                      _buildStatCol('Format', 'HLS/m3u8'),
-                      _buildStatCol('Status', _hasError ? 'Offline' : 'Online'),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatCol(String label, String value) {
-    return Column(
-      children: [
-        Text(label,
-            style: const TextStyle(color: Colors.white30, fontSize: 10)),
-        const SizedBox(height: 4),
-        Text(value,
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
-  Widget _buildHudChip({
-    required IconData icon,
-    required String title,
-    required String value,
-    required String subtitle,
-    required Color accent,
-  }) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 108),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xA0171F31),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: accent.withAlpha(160)),
-        boxShadow: [
-          BoxShadow(
-            color: accent.withAlpha(34),
-            blurRadius: 18,
-            spreadRadius: 1,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: accent, size: 14),
-              const SizedBox(width: 6),
-              Text(
-                title.toUpperCase(),
-                style: TextStyle(
-                  color: accent.withAlpha(235),
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.1,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.2,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHudStatusPill() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      decoration: BoxDecoration(
-        color: const Color(0xB01B1020),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.redAccent.withAlpha(200)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.redAccent.withAlpha(45),
-            blurRadius: 18,
-            spreadRadius: 1,
-          ),
-        ],
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.fiber_manual_record_rounded,
-              color: Colors.redAccent, size: 12),
-          SizedBox(width: 6),
-          Text(
-            'LIVE HUD',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScanlineLabel({
-    required String label,
-    required String value,
-    bool alignEnd = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0x7F101722),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x5537DDFE)),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF7DE7FF),
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CameraHudWeather {
-  const _CameraHudWeather({
-    required this.icon,
-    required this.label,
-    required this.temperatureLabel,
-    required this.feelsLikeLabel,
-    required this.accent,
-  });
-
-  const _CameraHudWeather.loading()
-      : icon = Icons.sync_rounded,
-        label = 'Синхронизация',
-        temperatureLabel = '--В°',
-        feelsLikeLabel = 'Погодный канал...',
-        accent = const Color(0xFF9AF8FF);
-
-  const _CameraHudWeather.error()
-      : icon = Icons.cloud_off_rounded,
-        label = 'Нет данных',
-        temperatureLabel = '--В°',
-        feelsLikeLabel = 'Погода недоступна',
-        accent = const Color(0xFFFFC857);
-
-  final IconData icon;
-  final String label;
-  final String temperatureLabel;
-  final String feelsLikeLabel;
-  final Color accent;
 }

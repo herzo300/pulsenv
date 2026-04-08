@@ -547,7 +547,7 @@ class _CyberSplashScreenState extends State<CyberSplashScreen>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Карта и 3D-сцена готовы к входу.',
+                    'Карта и камеры готовы к входу.',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
                       color: Colors.white.withAlpha(164),

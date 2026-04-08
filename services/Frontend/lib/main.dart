@@ -1,22 +1,24 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'map/map_config.dart';
+import 'core/app_router.dart';
 import 'screens/security_lock_screen.dart';
-import 'screens/splash_screen.dart';
-import 'services/app_security_service.dart';
 import 'services/app_metrics_service.dart';
-import 'services/supabase_background_notifications_service.dart';
-import 'services/supabase_runtime_config_service.dart';
+import 'services/app_security_service.dart';
+import 'services/background_notifications_service.dart';
 import 'services/draft_box_service.dart';
-import 'utils/offline_tiles_service.dart';
+import 'services/notification_navigation_service.dart';
+import 'services/notification_service.dart';
+import 'services/runtime_config_service.dart';
 import 'theme/pulse_colors.dart';
+import 'theme/theme_provider.dart';
+import 'utils/offline_tiles_service.dart';
+import 'widgets/app_ui.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,29 +32,9 @@ Future<void> main() async {
     return;
   }
 
-  await SupabaseRuntimeConfigService.instance.bootstrap();
-  AppMetricsService.instance.start();
-  await OfflineTilesService.instance.initOfflineTiles();
-  await _initializeRealtimeStack();
-
-  AwesomeNotifications().initialize(
-    null,
-    [
-      NotificationChannel(
-        channelKey: 'basic_channel',
-        channelName: 'Basic Notifications',
-        channelDescription: 'Уведомления о новых событиях в городе',
-        defaultColor: PulseColors.primary,
-        ledColor: Colors.white,
-        importance: NotificationImportance.High,
-        channelShowBadge: true,
-        onlyAlertOnce: true,
-        playSound: true,
-        criticalAlerts: true,
-      ),
-    ],
-    debug: !kReleaseMode,
-  );
+  await RuntimeConfigService.instance.bootstrap();
+  await NotificationService().ensureInitialized();
+  await NotificationNavigationService.initialize();
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -63,7 +45,8 @@ Future<void> main() async {
 
   await SentryFlutter.init(
     (options) {
-      options.dsn = const String.fromEnvironment('SENTRY_DSN', defaultValue: '');
+      options.dsn =
+          const String.fromEnvironment('SENTRY_DSN', defaultValue: '');
       options.tracesSampleRate = kReleaseMode ? 0.05 : 1.0;
       options.attachStacktrace = true;
       options.sendDefaultPii = false;
@@ -72,9 +55,9 @@ Future<void> main() async {
     },
     appRunner: () {
       runApp(const SoobshioApp());
-      unawaited(SupabaseBackgroundNotificationsService.instance.initialize());
-      unawaited(SupabaseBackgroundNotificationsService.instance.primeLastSeenReportId());
-      unawaited(DraftBoxService.instance.syncOnline());
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_warmUpRuntimeServices());
+      });
     },
   );
 }
@@ -96,27 +79,39 @@ class SecurityBootstrapApp extends StatelessWidget {
   }
 }
 
-Future<void> _initializeRealtimeStack() async {
-  if (!MapConfig.hasSupabaseConfig) {
-    debugPrint('Supabase init skipped: runtime config is missing.');
-    return;
-  }
-  try {
-    await Supabase.initialize(
-      url: MapConfig.supabaseUrl,
-      anonKey: MapConfig.supabaseAnonKey,
-    );
-  } catch (error) {
-    debugPrint('Supabase init failed: $error');
-  }
+Future<void> _warmUpRuntimeServices() async {
+  AppMetricsService.instance.start();
+  unawaited(OfflineTilesService.instance.initOfflineTiles());
+  unawaited(BackgroundNotificationsService.instance.initialize());
+  unawaited(BackgroundNotificationsService.instance.primeLastSeenReportId());
+  unawaited(DraftBoxService.instance.syncOnline());
 }
 
-class SoobshioApp extends StatelessWidget {
+class SoobshioApp extends StatefulWidget {
   const SoobshioApp({super.key});
 
   @override
+  State<SoobshioApp> createState() => _SoobshioAppState();
+}
+
+class _SoobshioAppState extends State<SoobshioApp> {
+  @override
+  void initState() {
+    super.initState();
+    _initThemeAndRouter();
+  }
+
+  Future<void> _initThemeAndRouter() async {
+    await ThemeProvider.instance.initialize();
+    AppRouter.initialize();
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.fromSeed(
+    final baseTextTheme =
+        GoogleFonts.manropeTextTheme(ThemeData.dark().textTheme);
+    final darkColorScheme = ColorScheme.fromSeed(
       seedColor: PulseColors.primary,
       brightness: Brightness.dark,
     ).copyWith(
@@ -131,44 +126,237 @@ class SoobshioApp extends StatelessWidget {
       onSurface: PulseColors.textPrimary,
     );
 
-    return MaterialApp(
-      title: 'Пульс города',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: colorScheme,
-        useMaterial3: true,
-        scaffoldBackgroundColor: PulseColors.background,
-        canvasColor: PulseColors.background,
-        splashColor: PulseColors.primary.withOpacity(0.12),
-        highlightColor: PulseColors.primary.withOpacity(0.08),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: PulseColors.background,
-          foregroundColor: PulseColors.textPrimary,
-          elevation: 0,
-          systemOverlayStyle: SystemUiOverlayStyle.light,
-        ),
-        cardColor: PulseColors.surface,
-        dividerColor: PulseColors.primary.withOpacity(0.12),
-        snackBarTheme: SnackBarThemeData(
-          backgroundColor: PulseColors.backgroundRaised,
-          contentTextStyle: const TextStyle(color: PulseColors.textPrimary),
-          actionTextColor: PulseColors.primary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: PulseColors.primary.withOpacity(0.2)),
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: PulseColors.primary,
-          foregroundColor: PulseColors.background,
-        ),
-        textTheme: ThemeData.dark().textTheme.apply(
-              bodyColor: PulseColors.textPrimary,
-              displayColor: PulseColors.textPrimary,
-            ),
-      ),
-      home: const SplashScreen(),
+    final lightColorScheme = ColorScheme.fromSeed(
+      seedColor: PulseColors.primaryDeep,
+      brightness: Brightness.light,
+    ).copyWith(
+      primary: PulseColors.primaryDeep,
+      secondary: PulseColors.primary,
+      tertiary: PulseColors.success,
+      surface: PulseColors.lightSurfaceSoft,
+      error: PulseColors.negative,
+      onPrimary: PulseColors.lightBackground,
+      onSecondary: PulseColors.lightBackground,
+      onTertiary: PulseColors.lightBackground,
+      onSurface: PulseColors.lightTextPrimary,
     );
+
+    return AnimatedBuilder(
+      animation: ThemeProvider.instance,
+      builder: (ctx, _) => MaterialApp.router(
+        title: 'Пульс города',
+        debugShowCheckedModeBanner: false,
+        routerConfig: AppRouter.router,
+        themeMode: ThemeProvider.instance.themeMode,
+        theme: _buildLightTheme(lightColorScheme, baseTextTheme),
+        darkTheme: _buildDarkTheme(darkColorScheme, baseTextTheme),
+      ),
+    );
+  }
+
+  ThemeData _buildDarkTheme(ColorScheme colorScheme, TextTheme baseTextTheme) {
+    return ThemeData(
+      colorScheme: colorScheme,
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      fontFamily: GoogleFonts.manrope().fontFamily,
+      scaffoldBackgroundColor: PulseColors.background,
+      canvasColor: PulseColors.background,
+      splashColor: PulseColors.primary.withOpacity(0.12),
+      highlightColor: PulseColors.primary.withOpacity(0.08),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: PulseColors.background,
+        foregroundColor: PulseColors.textPrimary,
+        elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle.light,
+      ),
+      cardColor: PulseColors.surface,
+      dividerColor: PulseColors.primary.withOpacity(0.12),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: PulseColors.backgroundRaised,
+        contentTextStyle: const TextStyle(color: PulseColors.textPrimary),
+        actionTextColor: PulseColors.primary,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: PulseColors.primary.withOpacity(0.2)),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: PulseColors.primary,
+        foregroundColor: PulseColors.background,
+      ),
+      inputDecorationTheme: _inputTheme(PulseColors.surfaceGlass,
+          PulseColors.borderStrong, PulseColors.primary),
+      filledButtonTheme:
+          _filledButtonTheme(PulseColors.primary, PulseColors.background),
+      outlinedButtonTheme: _outlinedButtonTheme(
+          PulseColors.textPrimary, PulseColors.borderStrong),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+      ),
+      textTheme: _textTheme(baseTextTheme),
+    );
+  }
+
+  ThemeData _buildLightTheme(ColorScheme colorScheme, TextTheme baseTextTheme) {
+    return ThemeData(
+      colorScheme: colorScheme,
+      useMaterial3: true,
+      brightness: Brightness.light,
+      fontFamily: GoogleFonts.manrope().fontFamily,
+      scaffoldBackgroundColor: PulseColors.lightBackground,
+      canvasColor: PulseColors.lightBackground,
+      splashColor: PulseColors.primaryDeep.withOpacity(0.08),
+      highlightColor: PulseColors.primaryDeep.withOpacity(0.04),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: PulseColors.lightSurface,
+        foregroundColor: PulseColors.lightTextPrimary,
+        elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+      ),
+      cardColor: PulseColors.lightSurface,
+      dividerColor: PulseColors.lightBorderStrong,
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: PulseColors.lightSurfaceElevated,
+        contentTextStyle: const TextStyle(color: PulseColors.lightTextPrimary),
+        actionTextColor: PulseColors.primaryDeep,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: PulseColors.lightBorderStrong),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: PulseColors.primaryDeep,
+        foregroundColor: Colors.white,
+      ),
+      inputDecorationTheme: _inputTheme(PulseColors.lightSurfaceGlass,
+          PulseColors.lightBorderStrong, PulseColors.primaryDeep),
+      filledButtonTheme:
+          _filledButtonTheme(PulseColors.primaryDeep, Colors.white),
+      outlinedButtonTheme: _outlinedButtonTheme(
+          PulseColors.lightTextPrimary, PulseColors.lightBorderStrong),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+      ),
+      textTheme: _textTheme(baseTextTheme, light: true),
+    );
+  }
+
+  InputDecorationTheme _inputTheme(Color fill, Color border, Color focus) {
+    return InputDecorationTheme(
+      filled: true,
+      fillColor: fill,
+      labelStyle: GoogleFonts.manrope(
+        color: PulseColors.textSecondary,
+        fontWeight: FontWeight.w600,
+      ),
+      hintStyle: GoogleFonts.manrope(
+        color: PulseColors.textTertiary,
+        fontWeight: FontWeight.w500,
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadii.mdR),
+        borderSide: BorderSide(color: border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadii.mdR),
+        borderSide: BorderSide(color: border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadii.mdR),
+        borderSide: BorderSide(color: focus, width: 1.2),
+      ),
+    );
+  }
+
+  FilledButtonThemeData _filledButtonTheme(Color bg, Color fg) {
+    return FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: bg,
+        foregroundColor: fg,
+        textStyle: GoogleFonts.manrope(
+          fontWeight: FontWeight.w800,
+          fontSize: 15,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.mdR),
+        ),
+      ),
+    );
+  }
+
+  OutlinedButtonThemeData _outlinedButtonTheme(Color fg, Color border) {
+    return OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: fg,
+        side: BorderSide(color: border),
+        textStyle: GoogleFonts.manrope(
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.mdR),
+        ),
+      ),
+    );
+  }
+
+  TextTheme _textTheme(TextTheme base, {bool light = false}) {
+    final primaryColor =
+        light ? PulseColors.lightTextPrimary : PulseColors.textPrimary;
+    final secondaryColor =
+        light ? PulseColors.lightTextSecondary : PulseColors.textSecondary;
+    return base
+        .copyWith(
+          displayLarge: GoogleFonts.exo2(
+            color: primaryColor,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -1.2,
+          ),
+          displayMedium: GoogleFonts.exo2(
+            color: primaryColor,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.9,
+          ),
+          headlineMedium: GoogleFonts.exo2(
+            color: primaryColor,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+          ),
+          titleLarge: GoogleFonts.exo2(
+            color: primaryColor,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.35,
+          ),
+          bodyLarge: GoogleFonts.manrope(
+            color: primaryColor,
+            fontWeight: FontWeight.w500,
+            height: 1.5,
+          ),
+          bodyMedium: GoogleFonts.manrope(
+            color: primaryColor,
+            fontWeight: FontWeight.w500,
+            height: 1.48,
+          ),
+          bodySmall: GoogleFonts.manrope(
+            color: secondaryColor,
+            fontWeight: FontWeight.w500,
+            height: 1.42,
+          ),
+          labelLarge: GoogleFonts.ibmPlexSans(
+            color: primaryColor,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.2,
+          ),
+        )
+        .apply(
+          bodyColor: primaryColor,
+          displayColor: primaryColor,
+        );
   }
 }

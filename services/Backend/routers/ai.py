@@ -1,10 +1,11 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import tempfile
 from typing import Any, Dict
 
 import base64
 import os
+import logging
 
 from fastapi import APIRouter, HTTPException
 from starlette.concurrency import run_in_threadpool
@@ -13,13 +14,12 @@ from core.http_client import get_http_client
 from services.realesrgan_service import realesrgan_service
 from services.zai_service import (
     CATEGORIES,
-    XAI_API_KEY,
-    XAI_BASE,
-    _call_ai_api,
     _parse_json,
     analyze_complaint,
 )
 from services.zai_vision_service import analyze_image_with_glm4v
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -36,71 +36,28 @@ async def _analyze_image_payload(image_b64: str, text: str) -> Dict[str, Any]:
         return {"category": _DEFAULT_CATEGORY, "summary": "", "error": "Empty image"}
 
     try:
-        if XAI_API_KEY:
-            prompt = (
-                f"Проанализируй фото городской проблемы в Нижневартовске. {text}\n"
-                f"Категории: {', '.join(CATEGORIES)}\n\n"
-                "Определи:\n"
-                "1. category — категория проблемы из списка выше\n"
-                "2. summary — краткое описание проблемы по фото (до 150 символов)\n"
-                "3. severity — 1, 2 или 3\n\n"
-                'Верни только JSON: {"category":"...","summary":"...","severity":2}'
-            )
-            payload = {
-                "model": "grok-2-vision-latest",
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": (
-                                        f"data:image/jpeg;base64,{image_b64}"
-                                        if not image_b64.startswith("data:")
-                                        else image_b64
-                                    )
-                                },
-                            },
-                        ],
-                    }
-                ],
-                "max_tokens": 1024,
-            }
-            headers = {
-                "Authorization": f"Bearer {XAI_API_KEY}",
-                "Content-Type": "application/json",
-            }
-            content = await _call_ai_api(
-                f"{XAI_BASE}/chat/completions",
-                payload,
-                headers,
-                "Grok",
-            )
-            if content:
-                parsed = _parse_json(content)
-                if parsed:
-                    return parsed
-
-        # Fallback: use normalized local vision helper.
-        image_bytes = image_b64
+        # We use a temp file to pass to the vision service which expects a path (for EXIF extraction)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
-            tmp.write(_decode_image_b64(image_bytes))
+            tmp.write(_decode_image_b64(image_b64))
             tmp_path = tmp.name
 
         try:
+            # This service now handles Grok Vision AND EXIF GPS extraction
             result = await analyze_image_with_glm4v(tmp_path, text or None)
+            
+            # Normalize for the response expected by the frontend
             return {
                 "category": result.get("category", _DEFAULT_CATEGORY),
                 "summary": result.get("summary") or result.get("description") or "",
                 "description": result.get("description") or "",
                 "address": result.get("address"),
-                "severity": result.get("severity", 2),
+                "severity": _severity_to_int(result.get("severity", 2)),
                 "location_hints": result.get("location_hints"),
                 "exif_lat": result.get("exif_lat"),
                 "exif_lon": result.get("exif_lon"),
                 "provider": result.get("provider"),
+                "has_vehicle_violation": result.get("has_vehicle_violation", False),
+                "plates": result.get("plates"),
             }
         finally:
             try:
@@ -108,6 +65,7 @@ async def _analyze_image_payload(image_b64: str, text: str) -> Dict[str, Any]:
             except OSError:
                 pass
     except Exception as exc:
+        logger.error("Error in _analyze_image_payload: %s", exc)
         return {
             "category": _DEFAULT_CATEGORY,
             "summary": "Ошибка при анализе фото",
@@ -412,4 +370,3 @@ async def biometrics_available():
         return {"available": False, "error": "Not implemented yet"}
     except Exception as exc:
         return {"available": False, "error": str(exc)}
-

@@ -1,26 +1,22 @@
 import 'dart:async';
-import 'dart:convert';
+import 'dart:io' as io;
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
-import 'package:sensors_plus/sensors_plus.dart';
-import 'package:flutter/scheduler.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import '../map/map_config.dart';
+import '../theme/pulse_colors.dart';
 import 'map_screen.dart';
-import 'gravity_splash_screen.dart';
-import 'cyber_splash_screen.dart';
-import 'monitor_splash_screen.dart';
-import 'swamp_splash_screen.dart';
-import 'ai_core_splash_screen.dart';
-import '../services/sound_service.dart';
 
-enum SplashState { loading, ready, exploding }
-
-// Различные варианты дизайна для оригинальности
-enum SplashDesign { particles, aurora, network, gravity, cyber, monitor, swamp, aiCore }
+// TODO: Add package_info_plus to pubspec.yaml and replace hardcoded version:
+//   import 'package:package_info_plus/package_info_plus.dart';
+//   final info = await PackageInfo.fromPlatform();
+//   version = info.version;
+const _appVersion = '1.0.0';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -31,792 +27,889 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
-  SplashState _state = SplashState.loading;
-  late SplashDesign _design;
+  static const _transitionToReady = Duration(milliseconds: 2800);
+  static const _transitionToMap = Duration(milliseconds: 3800);
+  static const _pulseCycle = Duration(milliseconds: 1600);
+  static const _echoBeatDelay = Duration(milliseconds: 220);
 
-  // Controllers
-  late AnimationController _breathingController;
-  late AnimationController _waveController;
+  late final AnimationController _sceneController;
+  late final AnimationController _pulseController;
+  late final AnimationController _dropController;
+  late final List<_OilDrop> _drops;
+  late final AudioPlayer _leadPulsePlayer;
+  late final AudioPlayer _echoPulsePlayer;
+  late final AudioPlayer _readyChimePlayer;
 
-  // Sensors
-  StreamSubscription<AccelerometerEvent>? _accelSubscription;
-  double _tiltX = 0;
-  double _tiltY = 0;
+  Timer? _pulseRhythmTimer;
+  Timer? _echoBeatTimer;
+
+  bool _ready = false;
+  bool _navigated = false;
+  bool _soundEnabled = true;
+  bool _vibrationEnabled = true;
 
   @override
   void initState() {
     super.initState();
-    // Рандомный выбор сплэша при каждом запуске
-    final designs = SplashDesign.values;
-    _design = designs[math.Random().nextInt(designs.length)];
-
-    _setupAnimations();
-    _setupSensors();
-    _simulateLoading();
-
-    debugPrint('Выбран дизайн сплэша: ${_design.name}');
-    SoundService().playSplashDesign(_design.name);
-  }
-
-  Color get _themeColor {
-    switch (_design) {
-      case SplashDesign.particles:
-        return const Color(0xFF00D9FF); // Cyan
-      case SplashDesign.aurora:
-        return const Color(0xFF10B981); // Emerald
-      case SplashDesign.network:
-        return const Color(0xFF8B5CF6); // Purple
-      case SplashDesign.gravity:
-        return const Color(0xFF00E5FF); // Cyan
-      case SplashDesign.cyber:
-        return const Color(0xFF00E5FF); // Cyan
-      case SplashDesign.monitor:
-        return const Color(0xFF1DE9B6); // Teal green
-      case SplashDesign.swamp:
-        return const Color(0xFFAABB22); // Swamp green
-      case SplashDesign.aiCore:
-        return const Color(0xFF00E5FF); // Cyan
-    }
-  }
-
-  Widget _buildBackground() {
-    switch (_design) {
-      case SplashDesign.particles:
-        return ParticleField(tiltX: _tiltX, tiltY: _tiltY);
-      case SplashDesign.aurora:
-        return AuroraField(tiltX: _tiltX, tiltY: _tiltY);
-      case SplashDesign.network:
-        return NetworkField(
-            tiltX: _tiltX, tiltY: _tiltY, themeColor: _themeColor);
-      case SplashDesign.gravity:
-      case SplashDesign.cyber:
-      case SplashDesign.monitor:
-      case SplashDesign.swamp:
-      case SplashDesign.aiCore:
-        return const SizedBox.shrink();
-    }
-  }
-
-  int _eventCount = 0;
-
-  void _setupAnimations() {
-    _breathingController = AnimationController(
+    _sceneController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
-
-    _breathingController.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        if (_state == SplashState.ready) {
-          SoundService().playPulse();
-        }
-        _setDiverseRhythm();
-        _breathingController.forward(from: 0.0);
-      }
-    });
-    _breathingController.forward();
-
-    _waveController = AnimationController(
+      duration: const Duration(milliseconds: 4200),
+    )..repeat();
+    _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-
-    _waveController.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        _navigateToMap();
-      }
-    });
+      duration: const Duration(milliseconds: 1600),
+    )..repeat();
+    _dropController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 5200),
+    )..repeat();
+    _drops = _buildDrops();
+    _leadPulsePlayer = AudioPlayer();
+    _echoPulsePlayer = AudioPlayer();
+    _readyChimePlayer = AudioPlayer();
+    unawaited(_initializeFeedbackRhythm());
+    unawaited(_bootstrap());
   }
 
-  void _setDiverseRhythm() {
-    // Чем больше проблем на карте, тем быстрее бьется "пульс"
-    int baseMs = 1800;
-    if (_eventCount > 0) {
-      baseMs = math.max(600, 1800 - (_eventCount * 12)).toInt();
-    }
-    // Разнообразие "стука": добавляем 0..200мс рандом
-    int variation = math.Random().nextInt(200);
-
-    _breathingController.duration = Duration(milliseconds: baseMs + variation);
+  List<_OilDrop> _buildDrops() {
+    return const <_OilDrop>[
+      _OilDrop(xFactor: 0.12, delay: 0.02, scale: 0.72, speed: 0.88),
+      _OilDrop(xFactor: 0.22, delay: 0.31, scale: 0.56, speed: 1.00),
+      _OilDrop(xFactor: 0.36, delay: 0.12, scale: 0.68, speed: 0.78),
+      _OilDrop(xFactor: 0.47, delay: 0.48, scale: 0.84, speed: 1.06),
+      _OilDrop(xFactor: 0.59, delay: 0.22, scale: 0.52, speed: 0.82),
+      _OilDrop(xFactor: 0.71, delay: 0.61, scale: 0.74, speed: 1.08),
+      _OilDrop(xFactor: 0.84, delay: 0.17, scale: 0.60, speed: 0.92),
+      _OilDrop(xFactor: 0.92, delay: 0.54, scale: 0.78, speed: 0.86),
+    ];
   }
 
-  Future<void> _fetchMapEvents() async {
-    if (!MapConfig.hasSupabaseConfig) {
-      return;
-    }
-    final supabaseUrl = '${MapConfig.reportsRestUrl}?select=id';
-    final supabaseKey = MapConfig.supabaseAnonKey;
-
-    try {
-      final res = await http.get(Uri.parse(supabaseUrl), headers: {
-        'apikey': supabaseKey,
-        'Authorization': 'Bearer $supabaseKey'
-      }).timeout(const Duration(seconds: 4));
-
-      if (res.statusCode == 200) {
-        final List data = jsonDecode(res.body);
-        if (mounted) {
-          setState(() {
-            _eventCount = data.length;
-          });
-        }
-      }
-    } catch (_) {}
-  }
-
-  void _setupSensors() {
-    try {
-      _accelSubscription =
-          accelerometerEventStream().listen((AccelerometerEvent event) {
-        if (!mounted) return;
-        setState(() {
-          _tiltX = (_tiltX * 0.8) + (event.x * 0.2);
-          _tiltY = (_tiltY * 0.8) + (event.y * 0.2);
-        });
-      });
-    } catch (_) {
-      // Игнорируем
-    }
-  }
-
-  Future<void> _simulateLoading() async {
-    // Ждём анимацию + параллельно качаем кол-во жалоб
-    await Future.wait([
-      Future.delayed(const Duration(milliseconds: 2500)),
-      _fetchMapEvents(),
-    ]);
-
+  Future<void> _bootstrap() async {
+    await Future<void>.delayed(_transitionToReady);
     if (!mounted) return;
-    setState(() {
-      _state = SplashState.ready;
-    });
-  }
+    setState(() => _ready = true);
+    unawaited(_playReadyCue());
+    _performHaptic(HapticFeedback.heavyImpact);
 
-  void _handleCoreTap() {
-    if (_state != SplashState.ready) return;
-    HapticFeedback.heavyImpact();
-
-    setState(() {
-      _state = SplashState.exploding;
-    });
-    SoundService().stopSplash();
-    _waveController.forward();
-  }
-
-  void _navigateToMap() {
-    if (!mounted) return;
+    await Future<void>.delayed(_transitionToMap - _transitionToReady);
+    if (!mounted || _navigated) return;
+    _navigated = true;
+    unawaited(_stopFeedbackRhythm());
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const MapScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return child;
+        transitionDuration: const Duration(milliseconds: 550),
+        reverseTransitionDuration: const Duration(milliseconds: 280),
+        pageBuilder: (_, __, ___) => const MapScreen(),
+        transitionsBuilder: (_, animation, __, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+          return FadeTransition(
+            opacity: curved,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 1.025, end: 1.0).animate(curved),
+              child: child,
+            ),
+          );
         },
-        transitionDuration: Duration.zero,
       ),
     );
   }
 
+  Future<void> _initializeFeedbackRhythm() async {
+    await _configurePulsePlayers();
+    await _loadFeedbackPreferences();
+    if (!mounted) return;
+
+    _triggerPulseRhythm();
+    _pulseRhythmTimer = Timer.periodic(_pulseCycle, (_) {
+      _triggerPulseRhythm();
+    });
+  }
+
+  Future<void> _configurePulsePlayers() async {
+    await _leadPulsePlayer.setReleaseMode(ReleaseMode.stop);
+    await _echoPulsePlayer.setReleaseMode(ReleaseMode.stop);
+    await _readyChimePlayer.setReleaseMode(ReleaseMode.stop);
+    await _leadPulsePlayer.setVolume(0.34);
+    await _echoPulsePlayer.setVolume(0.72);
+    await _readyChimePlayer.setVolume(0.78);
+  }
+
+  Future<void> _loadFeedbackPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    _soundEnabled = prefs.getBool('sound_enabled') ?? true;
+    _vibrationEnabled = prefs.getBool('vibration_enabled') ?? true;
+  }
+
+  void _triggerPulseRhythm() {
+    if (!mounted || _navigated) return;
+
+    unawaited(_playPulseBeat(
+      player: _leadPulsePlayer,
+      asset: 'sounds/soft_pulse.wav',
+      volume: _ready ? 0.34 : 0.24,
+    ));
+    _performHaptic(HapticFeedback.selectionClick);
+
+    _echoBeatTimer?.cancel();
+    _echoBeatTimer = Timer(_echoBeatDelay, () {
+      if (!mounted || _navigated) return;
+      unawaited(_playPulseBeat(
+        player: _echoPulsePlayer,
+        asset: 'sounds/pulse.wav',
+        volume: _ready ? 0.74 : 0.52,
+      ));
+      _performHaptic(HapticFeedback.mediumImpact);
+    });
+  }
+
+  Future<void> _playPulseBeat({
+    required AudioPlayer player,
+    required String asset,
+    required double volume,
+  }) async {
+    if (!_soundEnabled) return;
+
+    // Check if the audio file exists in assets before attempting to play.
+    final assetPath = 'assets/$asset';
+    final assetFile = io.File(assetPath);
+    if (!assetFile.existsSync()) {
+      debugPrint(
+          '[SplashScreen] Audio asset not found: $assetPath, skipping playback');
+      return;
+    }
+
+    try {
+      await player.stop();
+      await player.setVolume(volume);
+      await player.play(AssetSource(asset));
+    } catch (e) {
+      debugPrint('[SplashScreen] Failed to play audio asset $asset: $e');
+    }
+  }
+
+  void _performHaptic(Future<void> Function() feedback) {
+    if (!_vibrationEnabled) return;
+    unawaited(feedback());
+  }
+
+  Future<void> _playReadyCue() async {
+    await _playPulseBeat(
+      player: _readyChimePlayer,
+      asset: 'sounds/soft_pop.wav',
+      volume: 0.82,
+    );
+  }
+
+  Future<void> _stopFeedbackRhythm() async {
+    _pulseRhythmTimer?.cancel();
+    _echoBeatTimer?.cancel();
+    _pulseRhythmTimer = null;
+    _echoBeatTimer = null;
+
+    try {
+      await _leadPulsePlayer.stop();
+      await _echoPulsePlayer.stop();
+      await _readyChimePlayer.stop();
+    } catch (_) {
+      // Stop best-effort only.
+    }
+  }
+
   @override
   void dispose() {
-    _breathingController.dispose();
-    _waveController.dispose();
-    _accelSubscription?.cancel();
+    unawaited(_stopFeedbackRhythm());
+    _sceneController.dispose();
+    _pulseController.dispose();
+    _dropController.dispose();
+    unawaited(_leadPulsePlayer.dispose());
+    unawaited(_echoPulsePlayer.dispose());
+    unawaited(_readyChimePlayer.dispose());
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Dedicated full-screen splash screens
-    if (_design == SplashDesign.gravity) {
-      return const GravitySplashScreen();
-    }
-    if (_design == SplashDesign.cyber) {
-      return const CyberSplashScreen();
-    }
-    if (_design == SplashDesign.monitor) {
-      return const MonitorSplashScreen();
-    }
-    if (_design == SplashDesign.swamp) {
-      return const SwampSplashScreen();
-    }
-    if (_design == SplashDesign.aiCore) {
-      return AiCoreSplashScreen(
-        onComplete: () {
-          _navigateToMap();
-        },
-      );
-    }
-
-    final baseColor = _themeColor;
+    final scene = CurvedAnimation(
+      parent: _sceneController,
+      curve: Curves.easeInOut,
+    );
+    final titleOpacity = CurvedAnimation(
+      parent: _sceneController,
+      curve: const Interval(0.08, 0.36, curve: Curves.easeOutCubic),
+    );
+    final subtitleOpacity = CurvedAnimation(
+      parent: _sceneController,
+      curve: const Interval(0.24, 0.56, curve: Curves.easeOutCubic),
+    );
+    final footerOpacity = CurvedAnimation(
+      parent: _sceneController,
+      curve: const Interval(0.42, 0.82, curve: Curves.easeOutCubic),
+    );
 
     return Scaffold(
-      backgroundColor: const Color(0xFF020617), // Тёмный фон
-      body: Stack(
-        children: [
-          // 1. Случайный фоновый слой
-          Positioned.fill(
-            child: _buildBackground(),
-          ),
-
-          // 2. Тексты UI
-          SafeArea(
-            child: Column(
-              children: [
-                const Spacer(flex: 2),
-                const SizedBox(height: 200), // Место под ядро
-                const Spacer(),
-                Text(
-                  'ПУЛЬС ГОРОДА',
-                  style: TextStyle(
-                    color: baseColor.withOpacity(0.8),
-                    fontSize: 14,
-                    letterSpacing: 8,
-                  ),
-                ),
-                const SizedBox(height: 8.0),
-                const Text(
-                  'ПУЛЬС ГОРОДА',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 6,
-                  ),
-                ),
-                const Spacer(flex: 2),
-
-                // Статус
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 60),
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 500),
-                    child: _state == SplashState.loading
-                        ? Text(
-                            'СКАНИРОВАНИЕ ИНФРАСТРУКТУРЫ...',
-                            key: const ValueKey('loading'),
-                            style: TextStyle(
-                              color: baseColor,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 4,
-                            ),
-                          )
-                        : _state == SplashState.ready
-                            ? const Text(
-                                'НАЖМИТЕ, ЧТОБЫ ЗАПУСТИТЬ ПУЛЬС',
-                                key: ValueKey('ready'),
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 2,
-                                ),
-                              )
-                            : const SizedBox(key: ValueKey('exploding')),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // 3. Интерактивное ядро по центру
-          Align(
-            alignment: Alignment.center,
-            child: Transform.translate(
-              offset: Offset(-_tiltX * 2, _tiltY * 2),
-              child: GestureDetector(
-                onTap: _handleCoreTap,
-                child: MouseRegion(
-                  cursor: _state == SplashState.ready
-                      ? SystemMouseCursors.click
-                      : SystemMouseCursors.basic,
-                  child: AnimatedBuilder(
-                    animation: _breathingController,
-                    builder: (context, child) {
-                      final val = _breathingController.value;
-                      // Двойной стук сердца (lub-dub)
-                      double heartbeat = 0.0;
-                      if (val < 0.2) {
-                        heartbeat = math.sin((val / 0.2) * math.pi);
-                      } else if (val >= 0.3 && val < 0.5) {
-                        heartbeat =
-                            math.sin(((val - 0.3) / 0.2) * math.pi) * 0.8;
-                      }
-
-                      final isReady = _state == SplashState.ready;
-                      final isExploding = _state == SplashState.exploding;
-
-                      final scale = isExploding
-                          ? 0.0
-                          : isReady
-                              ? 1.0 + (heartbeat * 0.2)
-                              : 0.8 + (math.sin(val * math.pi) * 0.08);
-
-                      final opacity = isExploding
-                          ? 0.0
-                          : isReady
-                              ? 1.0
-                              : 0.5;
-
-                      final coreColor =
-                          isReady ? baseColor : const Color(0xFF334155);
-
-                      return Transform.scale(
-                        scale: scale,
-                        child: Opacity(
-                          opacity: opacity,
-                          child: Container(
-                            width: 120,
-                            height: 120,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: coreColor.withOpacity(0.2),
-                              border: Border.all(
-                                color: coreColor.withOpacity(0.5),
-                                width: 2.0,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: coreColor
-                                      .withOpacity(isReady ? 0.8 : 0.2),
-                                  blurRadius:
-                                      isReady ? 40 + (heartbeat * 20) : 40,
-                                  spreadRadius:
-                                      isReady ? (10 + heartbeat * 20) : 0,
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Container(
-                                width: 60,
-                                height: 60,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: coreColor,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.white.withOpacity(0.8),
-                                      blurRadius: 20,
-                                    ),
-                                  ],
-                                ),
-                                child: isReady
-                                    ? const Icon(Icons.fingerprint,
-                                        color: Colors.white, size: 32.0)
-                                    : const SizedBox(),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+      backgroundColor: const Color(0xFF04070D),
+      body: AnimatedBuilder(
+        animation: Listenable.merge(
+          <Listenable>[_sceneController, _pulseController, _dropController],
+        ),
+        builder: (context, _) {
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _AuroraBackdropPainter(
+                    scenePhase: scene.value,
+                    pulsePhase: _pulseController.value,
                   ),
                 ),
               ),
-            ),
-          ),
-
-          // 4. Эффект расходящейся волны (переход на карту)
-          if (_state == SplashState.exploding)
-            AnimatedBuilder(
-              animation: _waveController,
-              builder: (context, child) {
-                final size = MediaQuery.of(context).size;
-                final maxRadius = math
-                    .sqrt(size.width * size.width + size.height * size.height);
-                final currentRadius = _waveController.value * maxRadius;
-
-                return Positioned(
-                  left: size.width / 2 - currentRadius,
-                  top: size.height / 2 - currentRadius,
-                  child: Container(
-                    width: currentRadius * 2,
-                    height: currentRadius * 2,
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _GridAndDropsPainter(
+                    dropPhase: _dropController.value,
+                    pulsePhase: _pulseController.value,
+                    drops: _drops,
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
                         colors: [
-                          baseColor,
-                          baseColor.withOpacity(0.8),
-                          const Color(0xFF020617).withOpacity(0.0),
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.12),
+                          Colors.black.withOpacity(0.40),
                         ],
-                        stops: const [0.5, 0.8, 1.0],
                       ),
                     ),
                   ),
-                );
-              },
-            ),
-        ],
+                ),
+              ),
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 18,
+                  ),
+                  child: Column(
+                    children: [
+                      const Spacer(flex: 2),
+                      FadeTransition(
+                        opacity: titleOpacity,
+                        child: _HeroBlock(
+                          pulsePhase: _pulseController.value,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      FadeTransition(
+                        opacity: subtitleOpacity,
+                        child: _CaptionBlock(ready: _ready),
+                      ),
+                      const Spacer(flex: 3),
+                      FadeTransition(
+                        opacity: footerOpacity,
+                        child: _LoadingBlock(
+                          ready: _ready,
+                          pulsePhase: _pulseController.value,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-// ==========================================
-// DESIGN 1: Particles (Существующий)
-// ==========================================
-class ParticleField extends StatefulWidget {
-  final double tiltX;
-  final double tiltY;
-
-  const ParticleField({super.key, required this.tiltX, required this.tiltY});
-
-  @override
-  State<ParticleField> createState() => _ParticleFieldState();
-}
-
-class _ParticleFieldState extends State<ParticleField>
-    with SingleTickerProviderStateMixin {
-  late List<Particle> particles;
-  late Ticker _ticker;
-  final math.Random random = math.Random();
-
-  @override
-  void initState() {
-    super.initState();
-    particles = List.generate(80, (index) => Particle.random(random));
-    _ticker = createTicker((elapsed) {
-      if (!mounted) return;
-      setState(() {
-        for (var p in particles) {
-          p.update(elapsed.inMilliseconds / 1000.0);
-        }
-      });
-    });
-    _ticker.start();
-  }
-
-  @override
-  void dispose() {
-    _ticker.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: ParticlesPainter(
-          particles: particles, tiltX: widget.tiltX, tiltY: widget.tiltY),
-    );
-  }
-}
-
-class Particle {
-  double x, y;
-  double baseSize;
-  double speed;
-  double phase;
-  Color color;
-
-  Particle({
-    required this.x,
-    required this.y,
-    required this.baseSize,
-    required this.speed,
-    required this.phase,
-    required this.color,
+class _HeroBlock extends StatelessWidget {
+  const _HeroBlock({
+    required this.pulsePhase,
   });
 
-  factory Particle.random(math.Random rnd) {
-    final colors = [
-      const Color(0xFF00D9FF),
-      const Color(0xFF2196F3),
-      const Color(0xFF334155),
-    ];
-    return Particle(
-      x: rnd.nextDouble(),
-      y: rnd.nextDouble(),
-      baseSize: rnd.nextDouble() * 3 + 1,
-      speed: rnd.nextDouble() * 0.05 + 0.01,
-      phase: rnd.nextDouble() * math.pi * 2,
-      color: colors[rnd.nextInt(colors.length)]
-          .withOpacity(rnd.nextDouble() * 0.5 + 0.1),
-    );
-  }
-
-  void update(double dt) {
-    y -= speed * dt * 0.1;
-    if (y < -0.1) y = 1.1;
-  }
-}
-
-class ParticlesPainter extends CustomPainter {
-  final List<Particle> particles;
-  final double tiltX;
-  final double tiltY;
-
-  ParticlesPainter(
-      {required this.particles, required this.tiltX, required this.tiltY});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..style = PaintingStyle.fill;
-    final time = DateTime.now().millisecondsSinceEpoch / 1000.0;
-
-    for (var p in particles) {
-      final alphaMult = (math.sin(time * p.speed * 10 + p.phase) + 1.0) / 2.0;
-      paint.color = p.color.withOpacity(p.color.opacity * alphaMult);
-
-      final parallaxFactor = p.baseSize * 5.0;
-      final px = p.x * size.width - (tiltX * parallaxFactor);
-      final py = p.y * size.height + (tiltY * parallaxFactor);
-
-      final drawX = px % size.width;
-      final drawY = py % size.height;
-
-      if (alphaMult > 0.8) {
-        final glowPaint = Paint()
-          ..color = paint.color.withOpacity(paint.color.opacity * 0.5)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
-        canvas.drawCircle(Offset(drawX, drawY), p.baseSize * 2, glowPaint);
-      }
-      canvas.drawCircle(Offset(drawX, drawY), p.baseSize, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant ParticlesPainter oldDelegate) => true;
-}
-
-// ==========================================
-// DESIGN 2: Aurora Waves (Северное сияние)
-// ==========================================
-class AuroraField extends StatefulWidget {
-  final double tiltX;
-  final double tiltY;
-
-  const AuroraField({super.key, required this.tiltX, required this.tiltY});
-
-  @override
-  State<AuroraField> createState() => _AuroraFieldState();
-}
-
-class _AuroraFieldState extends State<AuroraField>
-    with SingleTickerProviderStateMixin {
-  late Ticker _ticker;
-  double _time = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _ticker = createTicker((elapsed) {
-      if (!mounted) return;
-      setState(() {
-        _time = elapsed.inMilliseconds / 1000.0;
-      });
-    });
-    _ticker.start();
-  }
-
-  @override
-  void dispose() {
-    _ticker.dispose();
-    super.dispose();
-  }
+  final double pulsePhase;
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: AuroraSplashPainter(
-          time: _time, tiltX: widget.tiltX, tiltY: widget.tiltY),
+    final pulse = 0.92 + math.sin(pulsePhase * math.pi * 2) * 0.06;
+
+    return Column(
+      children: [
+        Transform.scale(
+          scale: pulse,
+          child: SizedBox(
+            width: 264,
+            height: 264,
+            child: CustomPaint(
+              painter: _CorePulsePainter(pulsePhase: pulsePhase),
+            ),
+          ),
+        ),
+        const SizedBox(height: 22),
+        Text(
+          'НИЖНЕВАРТОВСК',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.orbitron(
+            color: PulseColors.accentGold,
+            fontSize: 30,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 4.2,
+            shadows: const [
+              Shadow(color: Color(0x99FFB84D), blurRadius: 18),
+              Shadow(color: Color(0x66FF8A00), blurRadius: 36),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0x141F2D3D),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: const Color(0x44E0A83D)),
+          ),
+          child: Text(
+            'НЕФТЕГАЗОВАЯ СТОЛИЦА',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.ibmPlexSans(
+              color: Colors.white.withOpacity(0.86),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 2.8,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
-class AuroraSplashPainter extends CustomPainter {
-  final double time;
-  final double tiltX;
-  final double tiltY;
+class _CaptionBlock extends StatelessWidget {
+  const _CaptionBlock({
+    required this.ready,
+  });
 
-  AuroraSplashPainter(
-      {required this.time, required this.tiltX, required this.tiltY});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final colors = [
-      const Color(0xFF10B981), // Emerald
-      const Color(0xFF00D9FF), // Cyan
-      const Color(0xFF059669), // Darker Emerald
-    ];
-
-    for (int j = 0; j < colors.length; j++) {
-      final path = Path();
-      // Полупрозрачная широкая линия с размытием
-      final blurPaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 25.0
-        ..color = colors[j].withOpacity(0.3)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20.0);
-
-      // Яркая тонкая линия ядра сияния
-      final corePaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0
-        ..color = colors[j].withOpacity(0.8)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.0);
-
-      bool isFirst = true;
-
-      // Рисуем волну сияния
-      for (double i = -50; i <= size.width + 50; i += 20) {
-        final normX = i / size.width;
-        final y = size.height * 0.5 +
-            math.sin(normX * math.pi * 1.5 + time * (0.8 + j * 0.3)) * 120 +
-            math.cos(normX * math.pi * 2.5 - time * 0.6) * 60 +
-            tiltY * 20 * (j + 1) +
-            (j * 40 - 40); // Сдвиг слоев друг относительно друга
-
-        final drawX = i - tiltX * 20 * (j + 1);
-
-        if (isFirst) {
-          path.moveTo(drawX, y);
-          isFirst = false;
-        } else {
-          path.lineTo(drawX, y);
-        }
-      }
-
-      canvas.drawPath(path, blurPaint);
-      canvas.drawPath(path, corePaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant AuroraSplashPainter oldDelegate) => true;
-}
-
-// ==========================================
-// DESIGN 3: Network Data Grid (Матрица/Связи)
-// ==========================================
-class NetworkField extends StatefulWidget {
-  final double tiltX;
-  final double tiltY;
-  final Color themeColor;
-
-  const NetworkField(
-      {super.key,
-      required this.tiltX,
-      required this.tiltY,
-      required this.themeColor});
-
-  @override
-  State<NetworkField> createState() => _NetworkFieldState();
-}
-
-class NetworkNode {
-  double x, y;
-  double vx, vy;
-  NetworkNode(this.x, this.y, this.vx, this.vy);
-}
-
-class _NetworkFieldState extends State<NetworkField>
-    with SingleTickerProviderStateMixin {
-  late List<NetworkNode> nodes;
-  late Ticker _ticker;
-  Duration _lastElapsed = Duration.zero;
-  final math.Random random = math.Random();
-
-  @override
-  void initState() {
-    super.initState();
-    // Инициализуем ноды случайными позициями и скоростями
-    nodes = List.generate(
-        50,
-        (i) => NetworkNode(
-              random.nextDouble(),
-              random.nextDouble(),
-              (random.nextDouble() - 0.5) * 0.05,
-              (random.nextDouble() - 0.5) * 0.05,
-            ));
-
-    _ticker = createTicker((elapsed) {
-      if (!mounted) return;
-      final dt = (elapsed - _lastElapsed).inMilliseconds / 1000.0;
-      _lastElapsed = elapsed;
-
-      setState(() {
-        for (var n in nodes) {
-          n.x += n.vx * dt;
-          n.y += n.vy * dt;
-
-          if (n.x < -0.1) n.vx = n.vx.abs();
-          if (n.x > 1.1) n.vx = -n.vx.abs();
-          if (n.y < -0.1) n.vy = n.vy.abs();
-          if (n.y > 1.1) n.vy = -n.vy.abs();
-        }
-      });
-    });
-    _ticker.start();
-  }
-
-  @override
-  void dispose() {
-    _ticker.dispose();
-    super.dispose();
-  }
+  final bool ready;
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: NetworkPainter(
-        nodes: nodes,
-        tiltX: widget.tiltX,
-        tiltY: widget.tiltY,
-        themeColor: widget.themeColor,
+    return Column(
+      children: [
+        RichText(
+          textAlign: TextAlign.center,
+          text: TextSpan(
+            style: GoogleFonts.exo2(
+              color: Colors.white,
+              fontSize: 25,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.2,
+            ),
+            children: const [
+              TextSpan(text: 'ПУЛЬС ГОРОДА '),
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: Padding(
+                  padding: EdgeInsets.only(left: 4),
+                  child: Icon(
+                    Icons.favorite_rounded,
+                    size: 22,
+                    color: PulseColors.accentGold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'МОНИТОРИНГ ИНФРАСТРУКТУРЫ',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.ibmPlexSans(
+            color: const Color(0xFFB6C7D9),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 3.0,
+          ),
+        ),
+        const SizedBox(height: 16),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Text(
+            ready
+                ? 'Северный контур синхронизирован. Городская карта, сигналы и индустриальные потоки готовы к работе.'
+                : 'Запускаем северный индустриальный контур: aurora-слой, пульс города, карту событий и мониторинг жизненно важной инфраструктуры.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.manrope(
+              color: const Color(0xFFD8E4EE).withOpacity(0.84),
+              fontSize: 14,
+              height: 1.5,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LoadingBlock extends StatelessWidget {
+  const _LoadingBlock({
+    required this.ready,
+    required this.pulsePhase,
+  });
+
+  final bool ready;
+  final double pulsePhase;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = ready ? 1.0 : (0.16 + pulsePhase * 0.84).clamp(0.0, 0.98);
+
+    return Column(
+      children: [
+        Container(
+          width: 320,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: const Color(0x14111B28),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0x33FFB84D)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x22000000),
+                blurRadius: 18,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    ready ? 'СТАТУС СИСТЕМЫ' : 'ЗАГРУЗКА КОНТУРА',
+                    style: GoogleFonts.ibmPlexSans(
+                      color: const Color(0xFFE8EEF4),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 2.2,
+                    ),
+                  ),
+                  Text(
+                    ready ? '100%' : '${(progress * 100).round()}%',
+                    style: GoogleFonts.jetBrainsMono(
+                      color: PulseColors.accentGold,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 8,
+                  backgroundColor: const Color(0x22192A3D),
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    PulseColors.accentGold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 420),
+                child: Text(
+                  ready
+                      ? 'ГОТОВО К РАБОТЕ'
+                      : 'СИНХРОНИЗАЦИЯ СЕВЕРНОГО МОНИТОРИНГА',
+                  key: ValueKey<bool>(ready),
+                  style: GoogleFonts.exo2(
+                    color: ready
+                        ? const Color(0xFFFFD67A)
+                        : const Color(0xFFB5C7D7),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'v$_appVersion',
+                style: GoogleFonts.jetBrainsMono(
+                  color: const Color(0xFF7A8FA3).withOpacity(0.6),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 1.0,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CorePulsePainter extends CustomPainter {
+  const _CorePulsePainter({
+    required this.pulsePhase,
+  });
+
+  final double pulsePhase;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final pulse = 0.5 + 0.5 * math.sin(pulsePhase * math.pi * 2);
+
+    final outerGlow = Paint()
+      ..shader = ui.Gradient.radial(
+        center,
+        size.width * 0.42,
+        [
+          const Color(0x66FFB84D),
+          const Color(0x24C6861A),
+          Colors.transparent,
+        ],
+      )
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30);
+    canvas.drawCircle(center, size.width * 0.42, outerGlow);
+
+    for (var i = 0; i < 3; i++) {
+      final localPhase = ((pulsePhase + i * 0.18) % 1.0);
+      final radius = 64 + localPhase * 58;
+      final ringPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = i == 0 ? 2.6 : 1.6
+        ..color = const Color(0xAAFFB84D).withOpacity((1 - localPhase) * 0.42);
+      canvas.drawCircle(center, radius, ringPaint);
+    }
+
+    final framePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..color = const Color(0x66F4C36B);
+    canvas.drawCircle(center, 94, framePaint);
+    canvas.drawCircle(center, 116, framePaint);
+
+    final coreRect = Rect.fromCircle(center: center, radius: 60);
+    final coreFill = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFFFFD979),
+          Color(0xFFF0A020),
+          Color(0xFF8F5110),
+        ],
+      ).createShader(coreRect);
+    canvas.drawCircle(center, 58, coreFill);
+
+    final innerGlass = Paint()
+      ..shader = ui.Gradient.radial(
+        center.translate(-10, -12),
+        52,
+        [
+          Colors.white.withOpacity(0.58),
+          const Color(0x22FFE8B0),
+          Colors.transparent,
+        ],
+      );
+    canvas.drawCircle(center, 49, innerGlass);
+
+    final heartBeatPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0xFF20150A).withOpacity(0.84);
+    final path = Path()
+      ..moveTo(center.dx - 26, center.dy + 2)
+      ..lineTo(center.dx - 12, center.dy + 2)
+      ..lineTo(center.dx - 4, center.dy - 14)
+      ..lineTo(center.dx + 4, center.dy + 16)
+      ..lineTo(center.dx + 13, center.dy - 4)
+      ..lineTo(center.dx + 24, center.dy - 4);
+    canvas.drawPath(path, heartBeatPaint);
+
+    final iconPainter = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(Icons.location_city_rounded.codePoint),
+        style: TextStyle(
+          color: const Color(0xFF26180A),
+          fontSize: 22 + pulse * 2.4,
+          fontFamily: Icons.location_city_rounded.fontFamily,
+          package: Icons.location_city_rounded.fontPackage,
+        ),
       ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    iconPainter.paint(
+      canvas,
+      center - Offset(iconPainter.width / 2, iconPainter.height / 2 + 24),
     );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CorePulsePainter oldDelegate) {
+    return oldDelegate.pulsePhase != pulsePhase;
   }
 }
 
-class NetworkPainter extends CustomPainter {
-  final List<NetworkNode> nodes;
-  final double tiltX;
-  final double tiltY;
-  final Color themeColor;
+class _AuroraBackdropPainter extends CustomPainter {
+  const _AuroraBackdropPainter({
+    required this.scenePhase,
+    required this.pulsePhase,
+  });
 
-  NetworkPainter(
-      {required this.nodes,
-      required this.tiltX,
-      required this.tiltY,
-      required this.themeColor});
+  final double scenePhase;
+  final double pulsePhase;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final pointPaint = Paint()
-      ..color = themeColor
-      ..style = PaintingStyle.fill;
+    final bgRect = Offset.zero & size;
+    final bg = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Color(0xFF02050A),
+          Color(0xFF05111D),
+          Color(0xFF070C14),
+          Color(0xFF020306),
+        ],
+      ).createShader(bgRect);
+    canvas.drawRect(bgRect, bg);
 
-    final linePaint = Paint()..strokeWidth = 1.0;
+    final auroraPaint = Paint()
+      ..blendMode = BlendMode.screen
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 34);
 
-    // Учитываем параллакс при расчёте координат
-    final actualNodes = nodes.map((n) {
-      return Offset(
-          n.x * size.width - tiltX * 30, n.y * size.height + tiltY * 30);
-    }).toList();
-
-    for (int i = 0; i < actualNodes.length; i++) {
-      // Свечение ноды
-      final glowPaint = Paint()
-        ..color = themeColor.withOpacity(0.5)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
-      canvas.drawCircle(actualNodes[i], 4.0, glowPaint);
-
-      // Центр ноды
-      canvas.drawCircle(actualNodes[i], 2.0, pointPaint);
-
-      // Соединяем близкие ноды
-      for (int j = i + 1; j < actualNodes.length; j++) {
-        final dist = (actualNodes[i] - actualNodes[j]).distance;
-        if (dist < 100) {
-          linePaint.color = themeColor.withOpacity(0.6 * (1.0 - (dist / 100)));
-          canvas.drawLine(actualNodes[i], actualNodes[j], linePaint);
-        }
+    void drawWave({
+      required Color color,
+      required double topBase,
+      required double amplitude,
+      required double frequency,
+      required double speed,
+      required double thickness,
+    }) {
+      final path = Path()..moveTo(0, size.height * topBase);
+      for (double x = 0; x <= size.width + 24; x += 12) {
+        final wave = math.sin((x / size.width) * math.pi * frequency +
+            scenePhase * speed * math.pi * 2);
+        final pulse = math.cos(
+                (x / size.width) * math.pi * 1.5 + pulsePhase * math.pi * 2) *
+            8;
+        final y = size.height * topBase + wave * amplitude + pulse;
+        path.lineTo(x, y);
       }
+      final fill = Path.from(path)
+        ..lineTo(size.width, size.height * topBase + thickness)
+        ..lineTo(0, size.height * topBase + thickness)
+        ..close();
+      auroraPaint.color = color;
+      canvas.drawPath(fill, auroraPaint);
+    }
+
+    drawWave(
+      color: const Color(0x6636F7A7),
+      topBase: 0.16,
+      amplitude: 22,
+      frequency: 2.4,
+      speed: 0.32,
+      thickness: 82,
+    );
+    drawWave(
+      color: const Color(0x554ACDFF),
+      topBase: 0.20,
+      amplitude: 28,
+      frequency: 2.0,
+      speed: -0.28,
+      thickness: 100,
+    );
+    drawWave(
+      color: const Color(0x446D57FF),
+      topBase: 0.13,
+      amplitude: 18,
+      frequency: 3.1,
+      speed: 0.24,
+      thickness: 74,
+    );
+
+    final stars = Paint()..color = Colors.white.withOpacity(0.18);
+    for (var i = 0; i < 22; i++) {
+      final dx = (size.width / 22) * i + ((i % 3) * 7.0);
+      final dy =
+          40 + (i % 6) * 18.0 + math.sin(scenePhase * math.pi * 2 + i) * 4;
+      canvas.drawCircle(Offset(dx, dy), i.isEven ? 1.2 : 0.8, stars);
     }
   }
 
   @override
-  bool shouldRepaint(covariant NetworkPainter oldDelegate) => true;
+  bool shouldRepaint(covariant _AuroraBackdropPainter oldDelegate) {
+    return oldDelegate.scenePhase != scenePhase ||
+        oldDelegate.pulsePhase != pulsePhase;
+  }
+}
+
+class _GridAndDropsPainter extends CustomPainter {
+  const _GridAndDropsPainter({
+    required this.dropPhase,
+    required this.pulsePhase,
+    required this.drops,
+  });
+
+  final double dropPhase;
+  final double pulsePhase;
+  final List<_OilDrop> drops;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = const Color(0x35E0A83D)
+      ..strokeWidth = 1;
+    final pointPaint = Paint()..color = const Color(0x55FFCF70);
+
+    for (double x = 24; x < size.width; x += 34) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+    }
+    for (double y = 24; y < size.height; y += 34) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+    for (double x = 24; x < size.width; x += 68) {
+      for (double y = 24; y < size.height; y += 68) {
+        canvas.drawCircle(Offset(x, y), 1.8, pointPaint);
+      }
+    }
+
+    final cornerPaint = Paint()
+      ..color = const Color(0x99F1B95A)
+      ..strokeWidth = 2.2
+      ..style = PaintingStyle.stroke;
+    _drawCorner(canvas, const Offset(16, 16), 36, true, true, cornerPaint);
+    _drawCorner(
+      canvas,
+      Offset(size.width - 16, 16),
+      36,
+      false,
+      true,
+      cornerPaint,
+    );
+    _drawCorner(
+      canvas,
+      Offset(16, size.height - 16),
+      36,
+      true,
+      false,
+      cornerPaint,
+    );
+    _drawCorner(
+      canvas,
+      Offset(size.width - 16, size.height - 16),
+      36,
+      false,
+      false,
+      cornerPaint,
+    );
+
+    for (final drop in drops) {
+      final local = ((dropPhase * drop.speed) + drop.delay) % 1.0;
+      final y = -40 + local * (size.height + 80);
+      final x = size.width * drop.xFactor +
+          math.sin((local + pulsePhase) * math.pi * 2) * 8;
+      final scale = drop.scale;
+      final path = Path()
+        ..moveTo(x, y)
+        ..quadraticBezierTo(
+          x - 10 * scale,
+          y + 14 * scale,
+          x - 7 * scale,
+          y + 28 * scale,
+        )
+        ..arcToPoint(
+          Offset(x + 7 * scale, y + 28 * scale),
+          radius: Radius.circular(12 * scale),
+          clockwise: false,
+        )
+        ..quadraticBezierTo(
+          x + 10 * scale,
+          y + 14 * scale,
+          x,
+          y,
+        );
+
+      final dropFill = Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(x, y),
+          Offset(x, y + 28 * scale),
+          const [
+            Color(0xEE1A120D),
+            Color(0xEE0B0907),
+            Color(0xCC3C2614),
+          ],
+        );
+      canvas.drawPath(path, dropFill);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = const Color(0x44FFB84D),
+      );
+    }
+  }
+
+  void _drawCorner(
+    Canvas canvas,
+    Offset anchor,
+    double length,
+    bool left,
+    bool top,
+    Paint paint,
+  ) {
+    final horizontalEnd = Offset(
+      anchor.dx + (left ? length : -length),
+      anchor.dy,
+    );
+    final verticalEnd = Offset(
+      anchor.dx,
+      anchor.dy + (top ? length : -length),
+    );
+    canvas.drawLine(anchor, horizontalEnd, paint);
+    canvas.drawLine(anchor, verticalEnd, paint);
+    canvas.drawCircle(anchor, 3.6, Paint()..color = const Color(0xCCFFCF70));
+  }
+
+  @override
+  bool shouldRepaint(covariant _GridAndDropsPainter oldDelegate) {
+    return oldDelegate.dropPhase != dropPhase ||
+        oldDelegate.pulsePhase != pulsePhase;
+  }
+}
+
+class _OilDrop {
+  const _OilDrop({
+    required this.xFactor,
+    required this.delay,
+    required this.scale,
+    required this.speed,
+  });
+
+  final double xFactor;
+  final double delay;
+  final double scale;
+  final double speed;
 }

@@ -1,9 +1,9 @@
 import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'device_identity_service.dart';
+import '../map/map_config.dart';
 
 class BackendApiService {
   BackendApiService._();
@@ -17,24 +17,54 @@ class BackendApiService {
 
   String? _preferredBaseUrl;
 
+  bool _isAllowedReleaseUrl(String url) {
+    final normalized = url.trim();
+    if (normalized.isEmpty) {
+      return false;
+    }
+    final parsed = Uri.tryParse(normalized);
+    if (parsed == null || !parsed.hasAuthority) {
+      return false;
+    }
+    if (parsed.scheme == 'https') {
+      return true;
+    }
+    return normalized.startsWith('http://45.153.68.59');
+  }
+
   Iterable<String> get _candidateUrls sync* {
     final candidates = kReleaseMode
         ? <String>[
-            if (_releaseBaseUrl.trim().startsWith('https://'))
+            if (_isAllowedReleaseUrl(_releaseBaseUrl))
               _releaseBaseUrl.trim(),
+            if (_isAllowedReleaseUrl(MapConfig.backendBaseUrl))
+              MapConfig.backendBaseUrl.trim(),
+            if (_isAllowedReleaseUrl(MapConfig.defaultPublicBackendBaseUrl))
+              MapConfig.defaultPublicBackendBaseUrl,
           ]
         : _fallbackBaseUrls
             .split(',')
             .map((item) => item.trim())
             .where((item) => item.isNotEmpty)
-            .toList();
+            .followedBy(<String>[
+            if (MapConfig.backendBaseUrl.trim().isNotEmpty)
+              MapConfig.backendBaseUrl.trim(),
+          ]).toList();
+
+    final seen = <String>{};
+    final uniqueCandidates = <String>[];
+    for (final candidate in candidates) {
+      if (seen.add(candidate)) {
+        uniqueCandidates.add(candidate);
+      }
+    }
 
     if (_preferredBaseUrl != null &&
         _preferredBaseUrl!.isNotEmpty &&
-        candidates.contains(_preferredBaseUrl)) {
+        uniqueCandidates.contains(_preferredBaseUrl)) {
       yield _preferredBaseUrl!;
     }
-    for (final baseUrl in candidates) {
+    for (final baseUrl in uniqueCandidates) {
       if (baseUrl != _preferredBaseUrl) {
         yield baseUrl;
       }
@@ -72,6 +102,39 @@ class BackendApiService {
     );
   }
 
+  Future<http.Response> patchJson(
+    String path,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+    Duration timeout = const Duration(seconds: 20),
+  }) {
+    return _request(
+      'PATCH',
+      path,
+      headers: {
+        'Content-Type': 'application/json',
+        ...?headers,
+      },
+      body: jsonEncode(body),
+      timeout: timeout,
+    );
+  }
+
+  Future<http.Response> postBytes(
+    String path,
+    Uint8List body, {
+    Map<String, String>? headers,
+    Duration timeout = const Duration(seconds: 25),
+  }) {
+    return _request(
+      'POST',
+      path,
+      headers: headers,
+      body: body,
+      timeout: timeout,
+    );
+  }
+
   Future<http.Response> _request(
     String method,
     String path, {
@@ -95,7 +158,11 @@ class BackendApiService {
         final request = http.Request(method, Uri.parse('$baseUrl$path'));
         request.headers.addAll(mergedHeaders);
         if (body != null) {
-          request.body = '$body';
+          if (body is Uint8List) {
+            request.bodyBytes = body;
+          } else {
+            request.body = '$body';
+          }
         }
 
         final response = await http.Response.fromStream(

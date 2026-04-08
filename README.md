@@ -14,11 +14,6 @@ pip install -r requirements.txt
 
 ### Запуск
 
-**Telegram бот:**
-```bash
-python start_telegram_bot.py
-```
-
 **Мониторинг каналов:**
 ```bash
 python start_all_monitoring.py
@@ -43,7 +38,6 @@ Soobshio_project/
 │   ├── Frontend/       # Flutter мобильное приложение
 │   └── Backend/        # FastAPI API (вариант 2: роутеры, app, main)
 ├── backend/            # Модули API (БД, модели, complaint_service)
-├── supabase/           # Supabase migrations + Edge Functions
 ├── yandex-worker/      # Legacy Yandex Cloud Function
 ├── cloud-ru-worker/    # Legacy Cloud.ru FunctionGraph
 ├── scripts/            # Вспомогательные скрипты
@@ -57,10 +51,9 @@ Soobshio_project/
 
 ## 🔧 Основные компоненты
 
-- **Telegram Bot** - обработка жалоб пользователей
 - **Monitoring** - мониторинг Telegram каналов и VK групп
-- **AI Analysis** - анализ текста и изображений через OpenRouter
-- **Supabase** - основное realtime-хранилище и edge endpoints
+- **AI Analysis** - анализ текста и изображений через Z.AI + Ollama
+- **Timeweb Runtime** - backend, monitoring, storage and deployment contour
 - **Web Apps** - карта и инфографика (через FastAPI/public)
 - **Flutter App** - мобильное приложение
 

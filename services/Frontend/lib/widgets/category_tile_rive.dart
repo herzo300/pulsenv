@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Плитка категории для карты. Данные (count) приходят из Supabase/состояния.
+/// Плитка категории для карты. Данные (count) приходят из backend/runtime состояния.
 /// При riveAssetPath != null можно подключить Rive позже; сейчас только fallback.
 class CategoryTileRive extends StatelessWidget {
   const CategoryTileRive({

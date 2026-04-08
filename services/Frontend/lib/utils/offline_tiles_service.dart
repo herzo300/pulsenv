@@ -22,7 +22,7 @@ class OfflineTilesService {
       final dir = await getApplicationDocumentsDirectory();
       final file = File('${dir.path}/nizhnevartovsk.pmtiles');
       
-      // Имитируем проверку файла. В реальной жизни скачивается архив PMTiles (Mapbox / Protomaps)
+      // Проверяем локальный архив PMTiles и используем его как оффлайн-подложку.
       if (await file.exists()) {
         final archive = await PmTilesArchive.from(file.path);
         _offlineLayer = TileLayer(

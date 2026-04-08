@@ -1,58 +1,99 @@
 import 'dart:convert';
+
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Сервис локальных и пуш уведомлений на базе Awesome Notifications.
+import 'notification_catalog.dart';
+import 'notification_message_formatter.dart';
+
 class NotificationService {
   static final NotificationService _instance = NotificationService._();
-  NotificationService._() {
-    _initNotifications();
-  }
+  NotificationService._();
   factory NotificationService() => _instance;
 
-  Future<void> _initNotifications() async {
-    // Проверка разрешений при инициализации
-    AwesomeNotifications().isNotificationAllowed().then((isAllowed) {
-      if (!isAllowed) {
-        AwesomeNotifications().requestPermissionToSendNotifications();
-      }
-    });
+  bool _initialized = false;
+
+  Future<void> ensureInitialized() async {
+    if (_initialized) {
+      return;
+    }
+
+    await AwesomeNotifications().initialize(
+      null,
+      [
+        NotificationChannel(
+          channelKey: 'basic_channel',
+          channelName: 'Basic Notifications',
+          channelDescription: 'Уведомления о новых событиях в городе',
+          defaultColor: const Color(0xFF00E5FF),
+          ledColor: Colors.white,
+          importance: NotificationImportance.High,
+          channelShowBadge: true,
+          onlyAlertOnce: true,
+          playSound: true,
+          criticalAlerts: true,
+        ),
+      ],
+      debug: false,
+    );
+
+    final isAllowed = await AwesomeNotifications().isNotificationAllowed();
+    if (!isAllowed) {
+      await AwesomeNotifications().requestPermissionToSendNotifications();
+    }
+
+    _initialized = true;
   }
 
-  /// Показывает пуш-уведомление
   Future<void> showPushNotification({
     required int id,
     required String title,
     required String body,
     String? category,
+    Map<String, String?>? payload,
     String channelKey = 'basic_channel',
   }) async {
-    // Проверяем настройки пользователя
-    if (category != null && !await shouldNotify(category)) return;
+    await ensureInitialized();
+
+    final normalizedCategory = NotificationCatalog.normalize(category);
+    if (!await shouldNotify(normalizedCategory)) {
+      return;
+    }
+    final descriptor = NotificationCatalog.describe(normalizedCategory);
+    final compactBody = NotificationMessageFormatter.compact(
+      body,
+      fallback: title,
+    );
+    final notificationPayload = <String, String?>{
+      'category': normalizedCategory,
+    };
+    if (payload != null && payload.isNotEmpty) {
+      notificationPayload.addAll(payload);
+    }
 
     await AwesomeNotifications().createNotification(
       content: NotificationContent(
         id: id,
         channelKey: channelKey,
         title: title,
-        body: body,
+        body: compactBody,
         notificationLayout: NotificationLayout.Default,
         category: NotificationCategory.Message,
-        payload: {'category': category ?? 'General'},
+        payload: notificationPayload,
         backgroundColor: const Color(0xFF0F0F23),
-        color: const Color(0xFF00E5FF),
+        color: descriptor.color,
       ),
     );
   }
 
-  /// Устанавливает напоминание на определенное время
   Future<void> scheduleReminder({
     required int id,
     required String title,
     required String body,
     required DateTime scheduledDate,
   }) async {
+    await ensureInitialized();
     await AwesomeNotifications().createNotification(
       content: NotificationContent(
         id: id,
@@ -65,29 +106,42 @@ class NotificationService {
     );
   }
 
-  /// Проверяет, включены ли уведомления для данной категории
   Future<bool> shouldNotify(String category) async {
+    final normalizedCategory = NotificationCatalog.normalize(category);
     final prefs = await SharedPreferences.getInstance();
     final enabled = prefs.getBool('notifications_enabled') ?? true;
-    if (!enabled) return false;
+    if (!enabled) {
+      return false;
+    }
 
     final savedCategories = prefs.getString('notification_categories');
-    if (savedCategories == null) return true; // all enabled by default
+    if (savedCategories == null) {
+      return true;
+    }
 
     final Map<String, dynamic> categories = jsonDecode(savedCategories);
-    return categories[category] ?? true;
+    return categories[normalizedCategory] ?? categories[category] ?? true;
   }
 
-  /// Показывает in-app уведомление (SnackBar) о новой жалобе
   Future<void> showNewComplaintNotification(
     BuildContext context, {
     required String title,
     required String category,
     Color? color,
   }) async {
-    if (!await shouldNotify(category)) return;
+    final normalizedCategory = NotificationCatalog.normalize(category);
+    if (!await shouldNotify(normalizedCategory)) {
+      return;
+    }
+    final descriptor = NotificationCatalog.describe(normalizedCategory);
+    final compactTitle = NotificationMessageFormatter.compact(
+      title,
+      maxLength: 90,
+    );
 
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -114,7 +168,7 @@ class NotificationService {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Новая жалоба: $category',
+                    'Новый сигнал: $normalizedCategory',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -123,7 +177,7 @@ class NotificationService {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    title,
+                    compactTitle,
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.7),
                       fontSize: 11,
@@ -141,7 +195,7 @@ class NotificationService {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
-            color: (color ?? const Color(0xFF00E5FF)).withOpacity(0.3),
+            color: (color ?? descriptor.color).withOpacity(0.3),
           ),
         ),
         duration: const Duration(seconds: 4),

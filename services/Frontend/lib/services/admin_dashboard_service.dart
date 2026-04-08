@@ -72,6 +72,29 @@ class AdminDashboardService {
     return payload;
   }
 
+  Future<Map<String, dynamic>> fetchNotificationDiagnostics({
+    String? twoFactorCode,
+  }) async {
+    await ensureSession(twoFactorCode: twoFactorCode);
+    final response = await _backendApi.get(
+      '/api/admin/notification-diagnostics',
+      headers: _authHeaders,
+      timeout: const Duration(seconds: 10),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        _adminToken = null;
+      }
+      throw Exception(_parseError(response));
+    }
+
+    final payload = jsonDecode(response.body);
+    if (payload is! Map<String, dynamic>) {
+      throw Exception('Unexpected notification diagnostics payload');
+    }
+    return payload;
+  }
+
   Future<Map<String, dynamic>> updateDevicePolicy({
     required String deviceId,
     bool? mapAccess,
@@ -105,7 +128,8 @@ class AdminDashboardService {
     return payload;
   }
 
-  Future<List<Map<String, dynamic>>> fetchCameras({String? twoFactorCode}) async {
+  Future<List<Map<String, dynamic>>> fetchCameras(
+      {String? twoFactorCode}) async {
     await ensureSession(twoFactorCode: twoFactorCode);
     final response = await _backendApi.get(
       '/api/admin/cameras',
@@ -119,6 +143,34 @@ class AdminDashboardService {
     final payload = jsonDecode(response.body);
     if (payload is! Map<String, dynamic>) {
       throw Exception('Unexpected admin cameras payload');
+    }
+    final rows = payload['cameras'];
+    if (rows is! List) {
+      return const <Map<String, dynamic>>[];
+    }
+
+    return rows
+        .whereType<Map>()
+        .map((row) => row.map((key, value) => MapEntry(key.toString(), value)))
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> fetchSecretCameras({
+    String? twoFactorCode,
+  }) async {
+    await ensureSession(twoFactorCode: twoFactorCode);
+    final response = await _backendApi.get(
+      '/api/admin/cameras/secret',
+      headers: _authHeaders,
+      timeout: const Duration(seconds: 12),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_parseError(response));
+    }
+
+    final payload = jsonDecode(response.body);
+    if (payload is! Map<String, dynamic>) {
+      throw Exception('Unexpected secret cameras payload');
     }
     final rows = payload['cameras'];
     if (rows is! List) {
@@ -145,6 +197,75 @@ class AdminDashboardService {
     final payload = jsonDecode(response.body);
     if (payload is! Map<String, dynamic>) {
       throw Exception('Unexpected camera recheck payload');
+    }
+    return payload;
+  }
+
+  Future<Map<String, dynamic>> fetchWatchdogStatus({
+    String? twoFactorCode,
+  }) async {
+    await ensureSession(twoFactorCode: twoFactorCode);
+    final response = await _backendApi.get(
+      '/api/admin/watchdog/status',
+      headers: _authHeaders,
+      timeout: const Duration(seconds: 12),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_parseError(response));
+    }
+    final payload = jsonDecode(response.body);
+    if (payload is! Map<String, dynamic>) {
+      throw Exception('Unexpected watchdog status payload');
+    }
+    return payload;
+  }
+
+  Future<List<Map<String, dynamic>>> fetchWatchdogAlerts({
+    String? twoFactorCode,
+    int limit = 20,
+  }) async {
+    await ensureSession(twoFactorCode: twoFactorCode);
+    final response = await _backendApi.get(
+      '/api/admin/watchdog/alerts?limit=$limit',
+      headers: _authHeaders,
+      timeout: const Duration(seconds: 12),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_parseError(response));
+    }
+    final payload = jsonDecode(response.body);
+    if (payload is! Map<String, dynamic>) {
+      throw Exception('Unexpected watchdog alerts payload');
+    }
+    final rows = payload['alerts'];
+    if (rows is! List) {
+      return const <Map<String, dynamic>>[];
+    }
+    return rows
+        .whereType<Map>()
+        .map((row) => row.map((key, value) => MapEntry(key.toString(), value)))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> triggerWatchdogScan({
+    String? twoFactorCode,
+    int maxCameras = 5,
+  }) async {
+    await ensureSession(twoFactorCode: twoFactorCode);
+    final response = await _backendApi.postJson(
+      '/api/admin/watchdog/scan',
+      <String, dynamic>{
+        'max_cameras': maxCameras,
+      },
+      headers: _authHeaders,
+      timeout: const Duration(minutes: 3),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_parseError(response));
+    }
+    final payload = jsonDecode(response.body);
+    if (payload is! Map<String, dynamic>) {
+      throw Exception('Unexpected watchdog scan payload');
     }
     return payload;
   }

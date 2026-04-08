@@ -1,9 +1,11 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import 'admin_dashboard_screen.dart';
+import '../theme/pulse_colors.dart';
+import '../widgets/app_ui.dart';
+import 'developer_menu_screen.dart';
+import 'mesh_screen.dart';
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
@@ -12,32 +14,110 @@ class AboutScreen extends StatefulWidget {
   State<AboutScreen> createState() => _AboutScreenState();
 }
 
-class _AboutScreenState extends State<AboutScreen>
-    with SingleTickerProviderStateMixin {
+class _AboutScreenState extends State<AboutScreen> {
   static const Duration _adminTapWindow = Duration(seconds: 4);
   static const int _adminTapTarget = 10;
 
-  static const Color _bg = Color(0xFF030310);
-  static const Color _card = Color(0xFF0D0D22);
-  static const Color _accent = Color(0xFF00D9FF);
-
-  late AnimationController _pulseController;
   Timer? _adminTapResetTimer;
   int _adminTapCount = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
-    )..repeat();
-  }
+  static const List<_ModuleInfo> _modules = <_ModuleInfo>[
+    _ModuleInfo(
+      title: 'App Shell',
+      icon: Icons.dashboard_customize_rounded,
+      description:
+          'Точка входа Flutter-приложения, тема, bootstrap, runtime-конфиг и безопасный запуск.',
+      chips: <String>['main.dart', 'PulseColors', 'RuntimeConfigService'],
+    ),
+    _ModuleInfo(
+      title: 'Карта города',
+      icon: Icons.map_rounded,
+      description:
+          'Основной экран карты, категории сигналов, слой камер, фильтры, кеш последнего снимка и офлайн-резерв.',
+      chips: <String>['MapScreen', 'flutter_map', 'offline cache'],
+    ),
+    _ModuleInfo(
+      title: 'Жалобы и репозиторий',
+      icon: Icons.report_problem_rounded,
+      description:
+          'Загрузка маркеров, создание обращений, media upload, сводки и серверные категории.',
+      chips: <String>[
+        'ReportsRepository',
+        'ComplaintFormScreen',
+        'Backend API'
+      ],
+    ),
+    _ModuleInfo(
+      title: 'Уведомления',
+      icon: Icons.notifications_active_rounded,
+      description:
+          'Локальные push и in-app уведомления, фоновые проверки и отдельные настройки по категориям.',
+      chips: <String>[
+        'NotificationService',
+        'BackgroundNotificationsService',
+        'NotificationCatalog',
+      ],
+    ),
+    _ModuleInfo(
+      title: 'Mesh и офлайн',
+      icon: Icons.hub_rounded,
+      description:
+          'Очередь store-and-forward, подготовка к P2P обмену и инструменты волонтёра для работы без интернета.',
+      chips: <String>[
+        'OfflineMeshService',
+        'MeshNetworkService',
+        'MeshScreen'
+      ],
+    ),
+    _ModuleInfo(
+      title: 'Камеры и мониторинг',
+      icon: Icons.videocam_rounded,
+      description:
+          'Каталог городских камер, probe-проверка потоков, AI-watchdog, Frigate bridge и админ-видимость.',
+      chips: <String>[
+        'camera_probe',
+        'camera_watchdog_service',
+        'admin_metrics',
+      ],
+    ),
+    _ModuleInfo(
+      title: 'AI и поиск',
+      icon: Icons.auto_awesome_rounded,
+      description:
+          'AI-ассистент, object detection, visual search, EXIF и локальные/облачные vision-сервисы.',
+      chips: <String>[
+        'AiAssistantScreen',
+        'object_detection_service',
+        'visual_search',
+      ],
+    ),
+    _ModuleInfo(
+      title: 'Профиль',
+      icon: Icons.person_rounded,
+      description:
+          'Профиль пользователя, настройки уведомлений и персонализация.',
+      chips: <String>['ProfileScreen', 'SettingsScreen'],
+    ),
+    _ModuleInfo(
+      title: 'Админ и runtime',
+      icon: Icons.admin_panel_settings_rounded,
+      description:
+          'Heartbeat, доступы устройств, телеметрия, 2FA-сессия, скрытые камеры и диагностические панели.',
+      chips: <String>['AdminDashboard', 'RuntimeAccess', 'DeveloperMenu'],
+    ),
+  ];
+
+  static const List<String> _meshSteps = <String>[
+    'Откройте раздел «Оффлайн mesh» в меню карты до потери связи, чтобы приложение подготовило локальную очередь.',
+    'Создавайте обращения как обычно. При отсутствии интернета они сохраняются локально и не теряются.',
+    'Если рядом есть устройство с этим приложением, данные могут быть переданы дальше по цепочке после включения P2P-модуля.',
+    'Как только одно из устройств снова получает интернет, накопленные обращения синхронизируются с backend.',
+    'Для экономии батареи выключайте mesh-поиск, когда офлайн-режим больше не нужен.',
+  ];
 
   @override
   void dispose() {
     _adminTapResetTimer?.cancel();
-    _pulseController.dispose();
     super.dispose();
   }
 
@@ -47,18 +127,10 @@ class _AboutScreenState extends State<AboutScreen>
 
     if (_adminTapCount >= _adminTapTarget) {
       _adminTapCount = 0;
-      final twoFactorCode = await _promptTwoFactorCode();
-      if (!mounted || twoFactorCode == null || twoFactorCode.isEmpty) {
-        return;
-      }
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => AdminDashboardScreen(
-            initialTwoFactorCode: twoFactorCode,
-          ),
+          builder: (_) => const DeveloperMenuScreen(),
         ),
       );
       return;
@@ -69,479 +141,251 @@ class _AboutScreenState extends State<AboutScreen>
     });
   }
 
-  Future<String?> _promptTwoFactorCode() async {
-    final codeController = TextEditingController();
-    final code = await showDialog<String>(
-      context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF0B1324),
-          title: const Text(
-            '2FA код',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-          ),
-          content: TextField(
-            controller: codeController,
-            autofocus: true,
-            keyboardType: TextInputType.visiblePassword,
-            textInputAction: TextInputAction.done,
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
-              hintText: 'Введите код',
-              hintStyle: TextStyle(color: Colors.white38),
-            ),
-            onSubmitted: (value) => Navigator.of(dialogContext).pop(value.trim()),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Отмена'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(codeController.text.trim()),
-              child: const Text('Войти'),
-            ),
-          ],
-        );
-      },
-    );
-    codeController.dispose();
-    return code?.trim();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text(
-          'ПУЛЬС ГОРОДА',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            letterSpacing: 3,
-            fontSize: 14,
-            color: Colors.white70,
+      body: AppScreenBackground(
+        accent: PulseColors.primarySoft,
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.lg,
+              AppSpacing.lg,
+              AppSpacing.xxl,
+            ),
+            children: [
+              AppSectionHeader(
+                eyebrow: 'About',
+                title: 'О проекте',
+                subtitle:
+                    'Пульс города объединяет карту, сигналы жителей, камеры, уведомления и автономный офлайн-контур.',
+                trailing: IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: PulseColors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _buildSummary(),
+              const SizedBox(height: AppSpacing.lg),
+              _buildCameraCatalogCard(),
+              const SizedBox(height: AppSpacing.lg),
+              _buildModuleSection(),
+              const SizedBox(height: AppSpacing.lg),
+              _buildMeshSection(),
+              const SizedBox(height: AppSpacing.lg),
+              _buildQuickActions(),
+              const SizedBox(height: AppSpacing.lg),
+              _buildVersionTile(),
+            ],
           ),
         ),
       ),
-      body: Stack(
+    );
+  }
+
+  Widget _buildSummary() {
+    return AppPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildBackgroundParticles(),
-          SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Column(
+          Text('Что делает проект', style: AppTextStyles.section),
+          SizedBox(height: AppSpacing.sm),
+          Text(
+            'Проект представляет собой автономную систему мониторинга города. Приложение фиксирует сигналы и мероприятия на карте, использует AI для анализа обстановки с видеокамер, локально распознает образы на фото, автоматически определяет вашу управляющую компанию по геопозиции и поддерживает работу в условиях отсутствия связи через Mesh-сеть.',
+            style: AppTextStyles.body,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCameraCatalogCard() {
+    return AppPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Каталог камер', style: AppTextStyles.section),
+          SizedBox(height: AppSpacing.sm),
+          Text(
+            'В проекте сейчас найдено 216 исходных записей камер в полном каталоге. '
+            'После дедупликации по координатам и потоку остаётся 130 уникальных точек, '
+            'из них 94 помечены как служебные/скрытые. Мобильный публичный бандл содержит 117 публичных камер.',
+            style: AppTextStyles.body,
+          ),
+          SizedBox(height: AppSpacing.sm),
+          Text(
+            'Проверка работоспособности потоков выполняется отдельным probe-скриптом и backend-каталогом. '
+            'В приложении отображаются только штатные камеры, которые backend считает доступными.',
+            style: AppTextStyles.bodyMuted,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModuleSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Модули проекта', style: AppTextStyles.section),
+        const SizedBox(height: AppSpacing.sm),
+        for (final module in _modules) ...[
+          _ModuleCard(info: module),
+          const SizedBox(height: AppSpacing.sm),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildMeshSection() {
+    return AppPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Как пользоваться mesh без интернета',
+              style: AppTextStyles.section),
+          const SizedBox(height: AppSpacing.sm),
+          for (final step in _meshSteps) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 100),
-                _buildAnimatedPulseHeader(),
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildInteractiveMonitor(),
-                      const SizedBox(height: 32),
-                      _buildSectionTitle('МИССИЯ ПРОЕКТА'),
-                      _buildTextCard(
-                        '«Пульс города» объединяет жителей, городские сервисы и карту инцидентов в одном мобильном контуре. Приложение помогает быстро зафиксировать проблему, увидеть ситуацию в районе и сократить путь от сигнала до реакции.',
-                      ),
-                      const SizedBox(height: 32),
-                      _buildSectionTitle('КЛЮЧЕВЫЕ ВОЗМОЖНОСТИ'),
-                      _buildFeatureItem(
-                        Icons.radar_rounded,
-                        'Радар обращений',
-                        'Фиксация инцидентов, маршрутизация по категориям и единая точка сбора городских сигналов.',
-                      ),
-                      _buildFeatureItem(
-                        Icons.query_stats_rounded,
-                        'Аналитика в реальном времени',
-                        'Сводные данные, карта активности, визуальные сценарии и мониторинг пользовательского трафика.',
-                      ),
-                      _buildFeatureItem(
-                        Icons.view_in_ar_rounded,
-                        '3D-моделирование и камеры',
-                        'Пространственная навигация по городу, просмотр видеопотоков и быстрый переход к проблемной точке.',
-                      ),
-                      const SizedBox(height: 32),
-                      _buildSectionTitle('ТЕХНОЛОГИЧЕСКОЕ ЯДРО'),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: const [
-                          _AboutTag(label: 'Realtime Sync'),
-                          _AboutTag(label: '3D Tiles'),
-                          _AboutTag(label: 'Flutter Canvas'),
-                          _AboutTag(label: 'FastAPI Metrics'),
-                        ],
-                      ),
-                      const SizedBox(height: 32),
-                      _buildSectionTitle('ПРАВИЛА И КОНФИДЕНЦИАЛЬНОСТЬ'),
-                      _buildFeatureItem(
-                        Icons.privacy_tip_rounded,
-                        'Данные и согласие',
-                        'Используя приложение, вы соглашаетесь с тем, что часть данных обрабатывается на защищенных международных серверах (распределенная инфраструктура). Данные не передаются третьим лицам без вашего согласия.',
-                      ),
-                      _buildFeatureItem(
-                        Icons.admin_panel_settings_rounded,
-                        'Режим администратора',
-                        'Скрытый режим для авторизованных сотрудников позволяет управлять геопространственными данными, включая скрытые 3D-модели.',
-                      ),
-                      const SizedBox(height: 40),
-                      Center(
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () => unawaited(_handleAdminTap()),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                            child: Column(
-                              children: [
-                                _FooterBeacon(),
-                                SizedBox(height: 8),
-                                Text(
-                                  'ВЕРСИЯ 2.1.ADMIN READY\nНИЖНЕВАРТОВСК · ЦИФРОВОЙ КОНТУР',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: Colors.white24,
-                                    fontSize: 10,
-                                    letterSpacing: 1.5,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 40),
-                    ],
+                const Padding(
+                  padding: EdgeInsets.only(top: 5),
+                  child: Icon(
+                    Icons.fiber_manual_record_rounded,
+                    size: 12,
+                    color: PulseColors.primary,
                   ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(step, style: AppTextStyles.body),
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildAnimatedPulseHeader() {
-    return AnimatedBuilder(
-      animation: _pulseController,
-      builder: (context, child) {
-        return SizedBox(
-          height: 120,
-          width: double.infinity,
-          child: CustomPaint(
-            painter: _PulseHeaderPainter(progress: _pulseController.value),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildInteractiveMonitor() {
-    return Container(
-      width: double.infinity,
-      height: 180,
-      decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _accent.withAlpha(40)),
-        boxShadow: [
-          BoxShadow(
-            color: _accent.withAlpha(20),
-            blurRadius: 30,
-            spreadRadius: -10,
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: CustomPaint(painter: _MonitorGridPainter()),
-            ),
-            AnimatedBuilder(
-              animation: _pulseController,
-              builder: (context, _) {
-                return Positioned(
-                  top: (_pulseController.value * 180) % 180,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 2,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.transparent,
-                          _accent.withAlpha(150),
-                          Colors.transparent,
-                        ],
+  Widget _buildQuickActions() {
+    return AppPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Быстрые действия', style: AppTextStyles.section),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: AppSecondaryButton(
+                  label: 'Mesh-сеть',
+                  icon: Icons.hub_rounded,
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const MeshScreen(),
                       ),
-                    ),
-                  ),
-                );
-              },
-            ),
-            const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'ПУЛЬС ГОРОДА',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 8,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  _MonitorBadge(),
-                ],
+                    );
+                  },
+                ),
               ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVersionTile() {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => unawaited(_handleAdminTap()),
+      child: AppPanel(
+        backgroundColor: PulseColors.surfaceSoft.withOpacity(0.28),
+        child: Column(
+          children: [
+            Text('SOOBSHIO / CITY PULSE', style: AppTextStyles.cardTitle),
+            SizedBox(height: AppSpacing.xs),
+            Text(
+              'Версия 2.2 · карта · камеры · mesh · premium · admin runtime',
+              style: AppTextStyles.bodyMuted,
+              textAlign: TextAlign.center,
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 16),
-      child: Row(
-        children: [
-          Container(width: 20, height: 1, color: _accent.withAlpha(100)),
-          const SizedBox(width: 10),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white38,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+class _ModuleInfo {
+  const _ModuleInfo({
+    required this.title,
+    required this.icon,
+    required this.description,
+    required this.chips,
+  });
 
-  Widget _buildTextCard(String text) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withAlpha(10)),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: Colors.white.withAlpha(200),
-          fontSize: 14,
-          height: 1.6,
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
+  final String title;
+  final IconData icon;
+  final String description;
+  final List<String> chips;
+}
 
-  Widget _buildFeatureItem(
-    IconData icon,
-    String title,
-    String desc,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
-      child: Row(
+class _ModuleCard extends StatelessWidget {
+  const _ModuleCard({
+    required this.info,
+  });
+
+  final _ModuleInfo info;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppPanel(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: _accent.withAlpha(20),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: _accent.withAlpha(40),
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: PulseColors.primary.withOpacity(0.14),
+                  borderRadius: AppRadii.sm,
+                ),
+                child: Icon(info.icon, color: PulseColors.primary),
               ),
-            ),
-            child: Icon(icon, color: _accent, size: 24),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(info.title, style: AppTextStyles.cardTitle),
+              ),
+            ],
           ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                  ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(info.description, style: AppTextStyles.body),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              for (final chip in info.chips)
+                AppStatusBadge(
+                  label: chip,
+                  color: PulseColors.primarySoft,
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  desc,
-                  style: const TextStyle(
-                    color: Colors.white54,
-                    fontSize: 13,
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ),
+            ],
           ),
         ],
       ),
     );
   }
-
-  Widget _buildBackgroundParticles() {
-    return Positioned.fill(
-      child: Opacity(
-        opacity: 0.05,
-        child: Image.network(
-          'https://www.transparenttextures.com/patterns/carbon-fibre.png',
-          repeat: ImageRepeat.repeat,
-        ),
-      ),
-    );
-  }
 }
-
-class _AboutTag extends StatelessWidget {
-  const _AboutTag({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withAlpha(5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withAlpha(10)),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white54,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _FooterBeacon extends StatelessWidget {
-  const _FooterBeacon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 6,
-      height: 6,
-      decoration: const BoxDecoration(
-        color: Color(0xFF00D9FF),
-        shape: BoxShape.circle,
-      ),
-    );
-  }
-}
-
-class _MonitorBadge extends StatelessWidget {
-  const _MonitorBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF00D9FF).withAlpha(40),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Text(
-        'CITY SIGNAL ONLINE',
-        style: TextStyle(
-          color: Color(0xFF00D9FF),
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-}
-
-class _PulseHeaderPainter extends CustomPainter {
-  const _PulseHeaderPainter({required this.progress});
-
-  final double progress;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF00D9FF).withAlpha(180)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
-
-    final glow = Paint()
-      ..color = const Color(0xFF00D9FF).withAlpha(50)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 6
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
-
-    final path = Path();
-    final midY = size.height / 2;
-
-    for (double x = 0; x <= size.width; x += 3) {
-      final normX = x / size.width;
-      final phase = progress * 2 * math.pi - normX * 12;
-      var h = math.sin(phase) * 15;
-      h *= 1 + math.sin(progress * 4 * math.pi) * 0.5;
-
-      if (x == 0) {
-        path.moveTo(x, midY + h);
-      } else {
-        path.lineTo(x, midY + h);
-      }
-    }
-
-    canvas.drawPath(path, glow);
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _PulseHeaderPainter oldDelegate) {
-    return oldDelegate.progress != progress;
-  }
-}
-
-class _MonitorGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withAlpha(10)
-      ..strokeWidth = 0.5;
-
-    for (double i = 0; i <= size.width; i += 20) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-    }
-    for (double i = 0; i <= size.height; i += 20) {
-      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-

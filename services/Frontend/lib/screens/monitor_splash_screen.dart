@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../theme/pulse_colors.dart';
 import 'map_screen.dart';
 import '../services/sound_service.dart';
 
@@ -25,7 +26,7 @@ class _MonitorSplashScreenState extends State<MonitorSplashScreen>
 
   bool _ready = false;
   bool _exiting = false;
-  
+
   // Fake news ticker items
   final List<String> _news = [
     'НОВОСТИ: ЗАКРЫТА ЧАСТЬ ДОРОГ В ЦЕНТРЕ НА РЕМОНТ',
@@ -46,10 +47,9 @@ class _MonitorSplashScreenState extends State<MonitorSplashScreen>
       _eventDots.add(Offset(_rng.nextDouble(), _rng.nextDouble()));
     }
 
-    _scanController = AnimationController(
-       vsync: this, 
-       duration: const Duration(seconds: 4)
-    )..repeat();
+    _scanController =
+        AnimationController(vsync: this, duration: const Duration(seconds: 4))
+          ..repeat();
 
     _pulseController = AnimationController(
       vsync: this,
@@ -67,7 +67,8 @@ class _MonitorSplashScreenState extends State<MonitorSplashScreen>
     );
 
     _simulateLoading();
-    SoundService().playSplashDesign('cyber'); // Using cyber sound for high-tech feel
+    SoundService()
+        .playSplashDesign('cyber'); // Using cyber sound for high-tech feel
   }
 
   Future<void> _simulateLoading() async {
@@ -88,7 +89,8 @@ class _MonitorSplashScreenState extends State<MonitorSplashScreen>
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         PageRouteBuilder<void>(
-          pageBuilder: (context, animation, secondaryAnimation) => const MapScreen(),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const MapScreen(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -110,7 +112,7 @@ class _MonitorSplashScreenState extends State<MonitorSplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF02070D),
+      backgroundColor: PulseColors.background,
       body: AnimatedOpacity(
         duration: const Duration(milliseconds: 500),
         opacity: _exiting ? 0.0 : 1.0,
@@ -127,7 +129,7 @@ class _MonitorSplashScreenState extends State<MonitorSplashScreen>
                 willChange: true,
               ),
             ),
-            
+
             // Map scanning overlay
             AnimatedBuilder(
               animation: _scanController,
@@ -144,11 +146,11 @@ class _MonitorSplashScreenState extends State<MonitorSplashScreen>
               child: Column(
                 children: [
                   const SizedBox(height: 24),
-                  
-                  // Top Title
+
+                  // Top title
                   ShaderMask(
                     shaderCallback: (bounds) => const LinearGradient(
-                      colors: [Color(0xFF00E5FF), Color(0xFF1DE9B6)],
+                      colors: [PulseColors.primary, PulseColors.success],
                     ).createShader(bounds),
                     child: Text(
                       'ГОРОДСКОЙ МОНИТОР',
@@ -172,7 +174,7 @@ class _MonitorSplashScreenState extends State<MonitorSplashScreen>
                   ),
 
                   const Spacer(),
-                  
+
                   // Central interactive element
                   GestureDetector(
                     onTap: _onEnter,
@@ -189,22 +191,27 @@ class _MonitorSplashScreenState extends State<MonitorSplashScreen>
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: const Color(0xFF00E5FF).withOpacity(_ready ? 0.8 : 0.3),
+                                color: PulseColors.primary
+                                    .withOpacity(_ready ? 0.8 : 0.3),
                                 width: 2,
                               ),
-                              boxShadow: _ready ? [
-                                BoxShadow(
-                                  color: const Color(0xFF00E5FF).withOpacity(0.3 + pulse * 0.2),
-                                  blurRadius: 30,
-                                  spreadRadius: 8,
-                                )
-                              ] : [],
+                              boxShadow: _ready
+                                  ? [
+                                      BoxShadow(
+                                        color: PulseColors.primary
+                                            .withOpacity(0.3 + pulse * 0.2),
+                                        blurRadius: 30,
+                                        spreadRadius: 8,
+                                      )
+                                    ]
+                                  : [],
                             ),
                             child: Center(
                               child: Text(
                                 _ready ? 'ОТКРЫТЬ' : 'ЗАГРУЗКА',
                                 style: GoogleFonts.orbitron(
-                                  color: const Color(0xFF00E5FF).withOpacity(_ready ? 1.0 : 0.5),
+                                  color: PulseColors.primary
+                                      .withOpacity(_ready ? 1.0 : 0.5),
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 3,
@@ -221,19 +228,20 @@ class _MonitorSplashScreenState extends State<MonitorSplashScreen>
 
                   // Bottom mini-window info panel
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 20),
                     child: Container(
                       height: 100,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF001A2C).withOpacity(0.6),
+                        color: PulseColors.surface.withOpacity(0.6),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: const Color(0xFF00E5FF).withOpacity(0.4),
+                          color: PulseColors.primary.withOpacity(0.4),
                           width: 1.5,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF00E5FF).withOpacity(0.1),
+                            color: PulseColors.primary.withOpacity(0.1),
                             blurRadius: 10,
                             spreadRadius: 1,
                           ),
@@ -243,25 +251,28 @@ class _MonitorSplashScreenState extends State<MonitorSplashScreen>
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF00E5FF).withOpacity(0.15),
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                              color: PulseColors.primary.withOpacity(0.15),
+                              borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(14)),
                               border: Border(
                                 bottom: BorderSide(
-                                  color: const Color(0xFF00E5FF).withOpacity(0.4),
+                                  color: PulseColors.primary.withOpacity(0.4),
                                   width: 1,
                                 ),
                               ),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.satellite_alt_rounded, color: Color(0xFF00E5FF), size: 16),
+                                const Icon(Icons.satellite_alt_rounded,
+                                    color: PulseColors.primary, size: 16),
                                 const SizedBox(width: 8),
                                 Text(
                                   'СВОДКА СОБЫТИЙ',
                                   style: GoogleFonts.orbitron(
-                                    color: const Color(0xFF00E5FF),
+                                    color: PulseColors.primary,
                                     fontSize: 11,
                                     letterSpacing: 2,
                                     fontWeight: FontWeight.w700,
@@ -274,11 +285,13 @@ class _MonitorSplashScreenState extends State<MonitorSplashScreen>
                                     width: 8,
                                     height: 8,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFFF3D00).withOpacity(0.5 + _pulseController.value * 0.5),
+                                      color: PulseColors.negative.withOpacity(
+                                          0.5 + _pulseController.value * 0.5),
                                       shape: BoxShape.circle,
                                       boxShadow: [
                                         BoxShadow(
-                                          color: const Color(0xFFFF3D00).withOpacity(0.6),
+                                          color: PulseColors.negative
+                                              .withOpacity(0.6),
                                           blurRadius: 6,
                                         )
                                       ],
@@ -289,7 +302,7 @@ class _MonitorSplashScreenState extends State<MonitorSplashScreen>
                                 Text(
                                   'LIVE',
                                   style: GoogleFonts.inter(
-                                    color: const Color(0xFFFF3D00),
+                                    color: PulseColors.negative,
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -300,35 +313,35 @@ class _MonitorSplashScreenState extends State<MonitorSplashScreen>
                           Expanded(
                             child: ClipRect(
                               child: AnimatedBuilder(
-                                animation: _marqueeController,
-                                builder: (context, _) {
-                                  // Simplified running text
-                                  final fullText = _news.join('   •••   ');
-                                  return LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      final textStyle = GoogleFonts.inter(
-                                        color: Colors.white.withOpacity(0.9),
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                      );
-                                      // Calculate offset based on time
-                                      return Transform.translate(
-                                        offset: Offset(
-                                          constraints.maxWidth - (_marqueeController.value * 2000), 
-                                          16
-                                        ),
-                                        child: Text(
-                                          '$fullText   •••   $fullText',
-                                          style: textStyle,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.visible,
-                                          softWrap: false,
-                                        ),
-                                      );
-                                    },
-                                  );
-                                }
-                              ),
+                                  animation: _marqueeController,
+                                  builder: (context, _) {
+                                    // Simplified running text
+                                    final fullText = _news.join('   •••   ');
+                                    return LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final textStyle = GoogleFonts.inter(
+                                          color: Colors.white.withOpacity(0.9),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                        );
+                                        // Calculate offset based on time
+                                        return Transform.translate(
+                                          offset: Offset(
+                                              constraints.maxWidth -
+                                                  (_marqueeController.value *
+                                                      2000),
+                                              16),
+                                          child: Text(
+                                            '$fullText   •••   $fullText',
+                                            style: textStyle,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.visible,
+                                            softWrap: false,
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  }),
                             ),
                           ),
                         ],
@@ -361,7 +374,7 @@ class _MonitorGridPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // Draw map grid
     final gridPaint = Paint()
-      ..color = const Color(0xFF00E5FF).withOpacity(0.04)
+      ..color = PulseColors.primary.withOpacity(0.04)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
@@ -374,21 +387,21 @@ class _MonitorGridPainter extends CustomPainter {
 
     // Draw glowing event dots
     final dotPaint = Paint()
-      ..color = const Color(0xFF1DE9B6)
+      ..color = PulseColors.success
       ..style = PaintingStyle.fill;
-      
+
     final glowPaint = Paint()
-      ..color = const Color(0xFF1DE9B6).withOpacity(0.4)
+      ..color = PulseColors.success.withOpacity(0.4)
       ..style = PaintingStyle.fill
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
 
     for (int i = 0; i < dots.length; i++) {
       final dx = dots[i].dx * size.width;
       final dy = dots[i].dy * size.height;
-      
+
       // Make them pulse individually a bit
       final localPulse = (math.sin(pulseProgress * math.pi * 2 + i) + 1) / 2;
-      
+
       canvas.drawCircle(Offset(dx, dy), 2, dotPaint);
       if (localPulse > 0.3) {
         canvas.drawCircle(Offset(dx, dy), 4 + localPulse * 4, glowPaint);
@@ -408,31 +421,32 @@ class _RadarPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width * 0.5, size.height * 0.5);
-    final maxRadius = math.sqrt(size.width * size.width + size.height * size.height) / 2;
-    
+    final maxRadius =
+        math.sqrt(size.width * size.width + size.height * size.height) / 2;
+
     final radius = progress * maxRadius;
 
     final paint = Paint()
-      ..color = const Color(0xFF00E5FF).withOpacity(0.2)
+      ..color = PulseColors.primary.withOpacity(0.2)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
 
     canvas.drawCircle(center, radius, paint);
-    
+
     // Sweep gradient
     final sweepPaint = Paint()
       ..shader = ui.Gradient.sweep(
-        center, 
+        center,
         [
-          const Color(0xFF00E5FF).withOpacity(0.0),
-          const Color(0xFF00E5FF).withOpacity(0.15),
-          const Color(0xFF00E5FF).withOpacity(0.0),
+          PulseColors.primary.withOpacity(0.0),
+          PulseColors.primary.withOpacity(0.15),
+          PulseColors.primary.withOpacity(0.0),
         ],
         [0.0, 0.1, 0.2],
         TileMode.clamp,
         progress * math.pi * 2,
       );
-      
+
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), sweepPaint);
   }
 

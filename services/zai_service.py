@@ -1,6 +1,6 @@
 # services/zai_service.py
 """
-AI complaint analysis: Z.AI (primary) / OpenRouter (fallback) / keyword (last resort).
+AI complaint analysis: Z.AI (primary) / LiteLLM / Ollama / keyword (last resort).
 
 Provides text classification for city complaints with category, address,
 severity, and relevance detection.
@@ -10,12 +10,21 @@ import json
 import logging
 import os
 import re
+import ssl
+import time
 from typing import Any, Dict, List, Optional
 
 from core.http_client import get_http_client, get_proxy_url
 from services.ai_cache import get_cached_text, set_cached_text
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_api_key(value: str) -> str:
+    token = str(value or "").strip()
+    if token.lower().startswith("z.ai "):
+        token = token.split(" ", 1)[1].strip()
+    return token
 
 # Canonical list of complaint categories (single source of truth)
 CATEGORIES: list[str] = [
@@ -29,39 +38,62 @@ CATEGORIES: list[str] = [
 ]
 
 # --- AI provider configuration ---
-XAI_API_KEY: str = os.getenv("XAI_API_KEY", "").strip()
-XAI_BASE: str = os.getenv("XAI_BASE_URL", "https://api.x.ai/v1")
-XAI_TEXT_MODEL: str = os.getenv("XAI_TEXT_MODEL", "grok-2-latest")
+ZAI_API_KEY: str = _normalize_api_key(os.getenv("ZAI_API_KEY", ""))
+ZAI_BASE: str = os.getenv("ZAI_BASE_URL", "https://open.bigmodel.cn/api/paas/v4").strip().rstrip("/")
+ZAI_TEXT_MODEL: str = os.getenv("ZAI_TEXT_MODEL", "glm-5-turbo").strip() or "glm-5-turbo"
+ZAI_REQUEST_TIMEOUT: float = float(os.getenv("ZAI_REQUEST_TIMEOUT", "90"))
 
-# Log provider status at import
-if XAI_API_KEY:
-    logger.info("Grok initialized (model: %s)", XAI_TEXT_MODEL)
-else:
-    logger.warning("XAI_API_KEY not set — will fallback to keyword")
+if ZAI_API_KEY:
+    logger.info("ZAI configured (model: %s)", ZAI_TEXT_MODEL)
 
-AI_TEXT_PROVIDER: str = os.getenv("AI_TEXT_PROVIDER", "grok").strip().lower()
-if AI_TEXT_PROVIDER not in ("grok", "keyword"):
-    AI_TEXT_PROVIDER = "grok"
+LITELLM_URL: str = os.getenv("LITELLM_URL", "http://litellm:4000").strip().rstrip("/")
+LITELLM_TEXT_MODEL: str = os.getenv("LITELLM_TEXT_MODEL", "gemma4-text").strip() or "gemma4-text"
+LITELLM_MASTER_KEY: str = os.getenv("LITELLM_MASTER_KEY", "").strip()
+LITELLM_REQUEST_TIMEOUT: float = float(os.getenv("LITELLM_REQUEST_TIMEOUT", "180"))
+LITELLM_URLS: list[str] = []
+for candidate in (
+    LITELLM_URL,
+    "http://litellm:4000",
+    "http://127.0.0.1:4000",
+    "http://localhost:4000",
+):
+    normalized = str(candidate or "").strip().rstrip("/")
+    if normalized and normalized not in LITELLM_URLS:
+        LITELLM_URLS.append(normalized)
+
+OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://ollama:11434").strip().rstrip("/")
+OLLAMA_TEXT_MODEL: str = os.getenv("OLLAMA_TEXT_MODEL", "gemma4:4b").strip() or "gemma4:4b"
+OLLAMA_REQUEST_TIMEOUT: float = float(os.getenv("OLLAMA_REQUEST_TIMEOUT", "180"))
+OLLAMA_URLS: list[str] = []
+for candidate in (
+    OLLAMA_URL,
+    "http://ollama:11434",
+    "http://127.0.0.1:11434",
+    "http://localhost:11434",
+):
+    normalized = str(candidate or "").strip().rstrip("/")
+    if normalized and normalized not in OLLAMA_URLS:
+        OLLAMA_URLS.append(normalized)
+
+AI_TEXT_PROVIDER: str = os.getenv("AI_TEXT_PROVIDER", "litellm").strip().lower()
+if AI_TEXT_PROVIDER not in ("zai", "litellm", "ollama", "keyword"):
+    AI_TEXT_PROVIDER = "litellm"
 
 # --- System prompt and user prompt ---
 SYSTEM_PROMPT: str = (
-    "Ты — строгий фильтр и аналитик городских проблем Нижневартовска (ХМАО, Россия). "
-    "Твоя задача: определить, является ли сообщение РЕАЛЬНОЙ городской проблемой/жалобой, "
-    "и если да — извлечь категорию, кратко описать суть проблемы для базы данных и оценить её серьёзность.\n\n"
-    "ПРАВИЛА ФИЛЬТРАЦИИ (СТРОГО):\n"
-    "1. ОТКЛОНЯЙ (relevant=false): рекламу, продажи, вакансии, розыгрыши, гороскопы, "
-    "мемы, шутки, анекдоты, поздравления, опросы, голосования, новости без проблемы, "
-    "политику без городской проблемы, развлечения, афиши, погоду (без ЧП), "
-    "объявления о пропаже животных/вещей, просьбы о помощи не связанные с городом.\n"
-    "2. ПРИНИМАЙ (relevant=true): жалобы на ЖКХ, дороги, транспорт, освещение, мусор, "
-    "аварии, ЧП, пожары, затопления, поломки, опасные ситуации, проблемы благоустройства.\n"
-    "3. АДРЕС: извлеки точный адрес из текста (улица, дом). Если адреса нет — null.\n"
-    "4. Город ТОЛЬКО Нижневартовск. Если речь о другом городе — relevant=false.\n"
-    "5. СЕРЬЁЗНОСТЬ (severity): оцени жалобу по трёхбалльной шкале:\n"
-    "   1 — низкая (косметические, неопасные неудобства),\n"
-    "   2 — средняя (затяжные проблемы, но без прямой угрозы жизни),\n"
-    "   3 — высокая (ЧП, аварии, угрозы безопасности, риск для жизни и здоровья).\n"
-    "6. При severity=3 приоритет (priority) всегда 'высокий'.\n\n"
+    "Ты — глубокий аналитик городских проблем Нижневартовска. "
+    "Твоя задача: анализировать входящие сообщения и определять, являются ли они РЕАЛЬНОЙ городской проблемой.\n\n"
+    "ПРАВИЛА (СТРОГО):\n"
+    "1. ТЕРМИНОЛОГИЯ: Используй термин 'городская проблема' вместо 'жалоба'.\n"
+    "2. ОТКЛОНЯЙ (relevant=false): рекламу, продажи, вакансии, розыгрыши, мемы, "
+    "шутки, анекдоты, поздравления, опросы, новости без конкретной проблемы, "
+    "политику без городской проблемы, объявления о пропаже животных/вещей.\n"
+    "3. ПРИНИМАЙ (relevant=true): проблемы ЖКХ, дорог, транспорта, освещения, мусора, "
+    "аварии, ЧП, поломки, опасные ситуации, проблемы благоустройства.\n"
+    "4. АДРЕС: извлекай точный адрес (улица, дом). Если не уверен на 100% — пиши null.\n"
+    "5. СЕРЬЁЗНОСТЬ (severity): оценивай по шкале 1-3.\n"
+    "6. ГЛУБОКИЙ АНАЛИЗ: Не используй типовые фразы. Описывай ситуацию своими словами, "
+    "вникая в детали и последствия.\n\n"
     "Отвечай ТОЛЬКО валидным JSON без markdown."
 )
 
@@ -69,29 +101,175 @@ SYSTEM_PROMPT: str = (
 def _make_prompt(text: str) -> str:
     """Build the user prompt for AI analysis."""
     return (
-        f"Проанализируй сообщение из паблика Нижневартовска.\n\n"
-        f"Категории проблем: {', '.join(CATEGORIES)}\n\n"
+        f"Проанализируй сообщение о городской ситуации в Нижневартовске.\n\n"
+        f"Категории: {', '.join(CATEGORIES)}\n\n"
         f"Текст сообщения:\n\"\"\"\n{text[:1500]}\n\"\"\"\n\n"
         f"Определи:\n"
-        f"1. relevant — это реальная городская проблема/жалоба? (true/false)\n"
+        f"1. relevant — это реальная городская проблема? (true/false)\n"
         f"2. category — категория из списка (если relevant=true)\n"
-        f"3. address — точный адрес. Варианты формата:\n"
-        f"   - Дом: 'ул. Мира 62' или 'пр. Победы 12а'\n"
-        f"   - Перекрёсток: 'перекрёсток ул. Мира и ул. Ленина'\n"
-        f"   - Район: 'мкр. 10П д. 5'\n"
-        f"   Если адреса нет — null\n"
-        f"4. summary — КРАТКАЯ СВОДКА для базы данных/служебного канала. "
-        f"СТРОГО запрещено копировать текст поста! "
-        f"Сформулируй суть жалобы своими словами: что случилось, где, основные последствия. "
-        f"Максимум 1–2 коротких предложения, до 120 символов. Пиши сухим деловым стилем.\n"
-        f"5. severity — оценка серьёзности жалобы (целое число 1, 2 или 3).\n"
-        f"6. priority — текстовый приоритет: 'низкий', 'средний' или 'высокий'.\n"
-        f"7. location_hints — любые подсказки о месте (район, ориентир, ТЦ/школа/больница). "
-        f"Если нет — null\n\n"
+        f"3. address — точный адрес. Если не уверен на 100% — null.\n"
+        f"4. summary — ГЛУБОКОЕ ОПИСАНИЕ СВОИМИ СЛОВАМИ. Запрещено использовать клише "
+        f"вроде 'требуется проверка'. Опиши суть ситуации, её детали и возможные "
+        f"последствия так, чтобы это было интересно и понятно жителям в ТГ-канале. "
+        f"Максимум 3-4 содержательных предложения.\n"
+        f"5. severity — оценка серьёзности (1, 2 или 3).\n"
+        f"6. priority — 'низкий', 'средний' или 'высокий'.\n"
+        f"7. location_hints — ориентиры, если адрес неточный.\n\n"
         f'Верни JSON: {{"relevant":true/false,"category":"...","address":"...или null",'
-        f'"summary":"...","severity":1/2/3,"priority":"низкий/средний/высокий",'
-        f'"location_hints":"...или null"}}'
+        f'"summary":"...","severity":1/2/3,"priority":"...","location_hints":"..."}}'
     )
+
+
+def _make_ollama_prompt(text: str) -> str:
+    """Compact prompt for local Ollama models (Gemma 4 / qwen).
+
+    Gemma 4 supports native system prompts, but we keep a single-message
+    format for maximum compatibility across model sizes.
+    """
+    categories = ", ".join(CATEGORIES)
+    return (
+        "Определи, является ли это сообщением о городской проблеме в Нижневартовске. "
+        "Верни только JSON с полями relevant, category, address, summary, severity, priority, location_hints. "
+        f"category выбери строго из этого списка: {categories}. "
+        "Если есть пожар, дым, взрыв, открытое горение или явная угроза жизни, category должен быть ЧП. "
+        "address укажи только если он явно есть в тексте, иначе null. "
+        "summary сделай коротким нейтральным описанием до 12 слов без слов срочно, приоритет, требуется проверка. "
+        "severity только 1, 2 или 3. priority только низкий, средний или высокий. "
+        f"Сообщение: {text[:1200]}"
+    )
+
+
+_SUMMARY_NOISE_PATTERNS = (
+    r"(?i)\bсрочно\b",
+    r"(?i)\burgent\b",
+    r"(?i)\bприоритет(?:\s*[:\-]?\s*(?:низкий|средний|высокий))?\b",
+    r"(?i)\bприор\.\s*(?:низкий|средний|высокий)\b",
+    r"(?i)\bтребуется проверка\b",
+    r"(?i)\bтребует проверки\b",
+    r"(?i)\bнужна проверка\b",
+    r"(?i)\bнуждается в проверке\b",
+    r"(?i)^проблема\s*(?:\([^)]*\))?\s*:\s*",
+    r"(?i)^жалоба\s*(?:\([^)]*\))?\s*:\s*",
+)
+
+_SUMMARY_BANNED_VALUES = {
+    "и разбор ситуации",
+    "разбор ситуации",
+    "описание ситуации",
+    "городская проблема",
+    "проблема",
+    "сообщение",
+}
+
+_SUMMARY_ACTION_HINTS = (
+    "не ",
+    "нет ",
+    "горит",
+    "горени",
+    "проис",
+    "теч",
+    "затоп",
+    "застр",
+    "слом",
+    "повреж",
+    "авар",
+    "дым",
+    "пожар",
+    "яма",
+    "гряз",
+    "снег",
+    "налед",
+    "мусор",
+    "обруш",
+    "угроз",
+    "закрыт",
+    "заблок",
+    "невозмож",
+    "очист",
+)
+
+
+def make_marker_summary(text: str | None, *, max_len: int = 120) -> str:
+    """Build a short neutral description suitable for map markers."""
+    cleaned = str(text or "").replace("\n", " ").replace("\r", " ").strip()
+    for pattern in _SUMMARY_NOISE_PATTERNS:
+        cleaned = re.sub(pattern, " ", cleaned)
+    cleaned = re.sub(
+        r"^\d{1,2}\.\d{1,2}(?:\.\d{2,4})?\s*г?\.?(?:\s*в\s*\d{1,2}\s*час[^,.!?]*)?[,:;\-\s]*",
+        "",
+        cleaned,
+    )
+    cleaned = re.sub(
+        r"^(?:г\.\s*[А-Яа-яЁёA-Za-z\-\s]+,\s*)?(?:ул\.|улица|проспект|пр-т|пер\.|мкр\.|микрорайон|наб\.)[^.!?]{0,120}\.\s*",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(r"^[^\wа-яёА-ЯЁ]+", "", cleaned)
+    cleaned = re.sub(r"\b(г|ул|д|мкр|пер|наб)\.\s*", r"\1 ", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" .,:;!-")
+    if cleaned.lower() in _SUMMARY_BANNED_VALUES:
+        return ""
+    if cleaned:
+        sentences = [
+            sentence.strip(" .,:;!-")
+            for sentence in re.split(r"(?<=[.!?])\s+", cleaned)
+            if sentence.strip(" .,:;!-")
+        ]
+        picked = ""
+        for sentence in sentences:
+            lowered = sentence.lower()
+            if len(sentence) < 18:
+                continue
+            if lowered in _SUMMARY_BANNED_VALUES:
+                continue
+            if re.fullmatch(r"[\d\s.:/\-]+", sentence):
+                continue
+            if ("ул." in lowered or "д." in lowered or "подъезд" in lowered) and not any(
+                hint in lowered for hint in _SUMMARY_ACTION_HINTS
+            ):
+                continue
+            picked = sentence
+            break
+        cleaned = picked or (sentences[0] if sentences else cleaned)
+    if cleaned.lower() in _SUMMARY_BANNED_VALUES:
+        return ""
+    if len(cleaned) > max_len:
+        cleaned = cleaned[: max_len - 3].rstrip(" ,.;:-") + "..."
+    return cleaned
+
+
+def build_marker_summary(summary: str | None, text: str | None, *, max_len: int = 120) -> str:
+    """Pick a short, readable marker summary from AI output or raw post text."""
+    cleaned_summary = make_marker_summary(summary, max_len=max_len)
+    if cleaned_summary:
+        return cleaned_summary
+
+    fallback = ""
+    for raw_line in re.split(r"[\r\n]+", str(text or "")):
+        line = raw_line.strip()
+        if not line:
+            continue
+        if re.match(r"^\d{1,2}\.\d{1,2}(?:\.\d{2,4})?\b", line):
+            continue
+        candidate = make_marker_summary(line, max_len=max_len)
+        if not candidate:
+            continue
+        lowered = candidate.lower()
+        if len(candidate) < 18:
+            continue
+        if ("ул " in lowered or "ул." in lowered or "д " in lowered or "д." in lowered or "подъезд" in lowered) and not any(
+            hint in lowered for hint in _SUMMARY_ACTION_HINTS
+        ):
+            if not fallback:
+                fallback = candidate
+            continue
+        if any(hint in lowered for hint in _SUMMARY_ACTION_HINTS):
+            return candidate
+        if not fallback:
+            fallback = candidate
+
+    return fallback or make_marker_summary(text, max_len=max_len)
 
 
 def _parse_json(text: str) -> Optional[Dict[str, Any]]:
@@ -118,6 +296,7 @@ async def _call_ai_api(
     payload: dict,
     headers: dict,
     label: str,
+    timeout: float = 60.0,
 ) -> Optional[str]:
     """
     Call an AI chat/completions endpoint with proxy fallback.
@@ -132,7 +311,7 @@ async def _call_ai_api(
             continue
         try:
             px = proxy_url if use_proxy else None
-            async with get_http_client(timeout=60.0, proxy=px) as client:
+            async with get_http_client(timeout=timeout, proxy=px) as client:
                 r = await client.post(api_url, json=payload, headers=headers)
 
             if r.status_code != 200:
@@ -150,43 +329,140 @@ async def _call_ai_api(
     return None
 
 
-async def _grok_analyze(text: str) -> Optional[Dict[str, Any]]:
-    """Analyze via Grok (xAI) with caching."""
-    if not XAI_API_KEY:
+async def _zai_analyze(text: str) -> Optional[Dict[str, Any]]:
+    """Analyze via ZAI GLM-5 Turbo using the official OpenAI-compatible endpoint."""
+    if not ZAI_API_KEY:
         return None
 
-    cached = get_cached_text(text, XAI_TEXT_MODEL)
+    cache_key = f"zai:{ZAI_TEXT_MODEL}"
+    cached = get_cached_text(text, cache_key)
     if cached:
         return cached
 
     payload = {
-        "model": XAI_TEXT_MODEL,
+        "model": ZAI_TEXT_MODEL,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": _make_prompt(text)},
         ],
         "temperature": 0.1,
+        "max_tokens": 400,
+        "stream": False,
+        "response_format": {"type": "json_object"},
     }
     headers = {
-        "Authorization": f"Bearer {XAI_API_KEY}",
+        "Authorization": f"Bearer {ZAI_API_KEY}",
         "Content-Type": "application/json",
     }
 
     content = await _call_ai_api(
-        f"{XAI_BASE}/chat/completions", payload, headers, "Grok"
+        f"{ZAI_BASE}/chat/completions",
+        payload,
+        headers,
+        "ZAI",
+        timeout=ZAI_REQUEST_TIMEOUT,
     )
     if not content:
-        logger.error("Grok: all attempts failed")
+        logger.warning("ZAI: all attempts failed")
         return None
 
     result = _parse_json(content)
     if result:
-        logger.info("Grok (%s): category=%s", XAI_TEXT_MODEL, result.get("category"))
-        set_cached_text(text, result, XAI_TEXT_MODEL)
+        logger.info("ZAI (%s): category=%s", ZAI_TEXT_MODEL, result.get("category"))
+        set_cached_text(text, result, cache_key)
     return result
 
 
+async def _litellm_analyze(text: str) -> Optional[Dict[str, Any]]:
+    """Analyze via local LiteLLM/Ollama proxy with caching."""
+    cached = get_cached_text(text, f"litellm:{LITELLM_TEXT_MODEL}")
+    if cached:
+        return cached
 
+    use_compact_prompt = LITELLM_TEXT_MODEL in {"qwen-mini", "qwen-batch"} or LITELLM_TEXT_MODEL.startswith("qwen") or LITELLM_TEXT_MODEL.startswith("gemma")
+    messages = (
+        [{"role": "user", "content": _make_ollama_prompt(text)}]
+        if use_compact_prompt
+        else [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": _make_prompt(text)},
+        ]
+    )
+    payload = {
+        "model": LITELLM_TEXT_MODEL,
+        "messages": messages,
+        "temperature": 0.1,
+        "stream": False,
+        "max_tokens": 220,
+    }
+    headers = {
+        "Content-Type": "application/json",
+    }
+    if LITELLM_MASTER_KEY:
+        headers["Authorization"] = f"Bearer {LITELLM_MASTER_KEY}"
+
+    for base_url in LITELLM_URLS:
+        content = await _call_ai_api(
+            f"{base_url}/chat/completions",
+            payload,
+            headers,
+            f"LiteLLM({base_url})",
+            timeout=LITELLM_REQUEST_TIMEOUT,
+        )
+        if not content:
+            continue
+
+        result = _parse_json(content)
+        if result:
+            logger.info("LiteLLM (%s): category=%s", LITELLM_TEXT_MODEL, result.get("category"))
+            set_cached_text(text, result, f"litellm:{LITELLM_TEXT_MODEL}")
+            return result
+
+    return None
+
+
+async def _ollama_analyze(text: str) -> Optional[Dict[str, Any]]:
+    """Analyze directly via Ollama to avoid proxy-specific failures on low-spec hosts."""
+    cache_key = f"ollama:{OLLAMA_TEXT_MODEL}"
+    cached = get_cached_text(text, cache_key)
+    if cached:
+        return cached
+
+    payload = {
+        "model": OLLAMA_TEXT_MODEL,
+        "prompt": _make_ollama_prompt(text),
+        "stream": False,
+        "format": "json",
+        "options": {
+            "temperature": 0,
+            "num_predict": 180,
+        },
+    }
+
+    for base_url in OLLAMA_URLS:
+        try:
+            async with get_http_client(timeout=OLLAMA_REQUEST_TIMEOUT, proxy=False) as client:
+                r = await client.post(f"{base_url}/api/generate", json=payload)
+
+            if r.status_code != 200:
+                logger.warning("Ollama(%s) HTTP %d: %s", base_url, r.status_code, r.text[:200])
+                continue
+
+            data = r.json()
+            content = str(data.get("response") or "").strip()
+            if not content:
+                continue
+
+            result = _parse_json(content)
+            if result:
+                result = _blend_with_keyword_hint(text, result)
+                logger.info("Ollama (%s): category=%s", OLLAMA_TEXT_MODEL, result.get("category"))
+                set_cached_text(text, result, cache_key)
+                return result
+        except Exception as e:
+            logger.debug("Ollama(%s) error: %s", base_url, e)
+
+    return None
 
 
 # --- Keyword rules for severity assignment ---
@@ -263,6 +539,91 @@ def _keyword_analyze(text: str) -> Dict[str, Any]:
     }
 
 
+def _strong_keyword_hint(text: str) -> Dict[str, Any]:
+    """UTF-8-safe fallback hints for the most common city complaint classes."""
+    source = (text or "").lower()
+
+    hint_map = [
+        ("ЧП", ("пожар", "горит", "горение", "дым", "взрыв", "задымление"), 3, "высокий"),
+        ("Дороги", ("яма", "выбоина", "асфальт", "дорог", "по встречке"), 2, "средний"),
+        ("Освещение", ("освещение", "фонарь", "темно", "не горит свет", "лампа"), 2, "средний"),
+        ("Бытовой мусор", ("мусор", "контейнер", "свалка", "отход"), 2, "средний"),
+        ("Лифты и подъезды", ("лифт", "подъезд", "домофон"), 2, "средний"),
+        ("Водоснабжение и канализация", ("течь", "затоп", "канализац", "труба", "прорыв"), 3, "высокий"),
+        ("Снег/Наледь", ("снег", "наледь", "гололед", "сугроб"), 2, "средний"),
+    ]
+
+    category = "Прочее"
+    severity = 1
+    priority = "низкий"
+    for cat, keywords, sev, prio in hint_map:
+        if any(keyword in source for keyword in keywords):
+            category = cat
+            severity = sev
+            priority = prio
+            break
+
+    address = None
+    patterns = [
+        r"(?:ул(?:ица)?\.?\s+)([А-Яа-яЁёA-Za-z0-9\\-\\s]+?)\\s*,?\\s*(\\d+[А-Яа-яЁёA-Za-z]?)",
+        r"(?:на\\s+улице\\s+)([А-Яа-яЁёA-Za-z0-9\\-\\s]+?)\\s+(\\d+[А-Яа-яЁёA-Za-z]?)",
+        r"(?:на\\s+проспекте\\s+)([А-Яа-яЁёA-Za-z0-9\\-\\s]+?)\\s+(\\d+[А-Яа-яЁёA-Za-z]?)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text or "", re.IGNORECASE)
+        if match:
+            address = f"ул. {match.group(1).strip()} {match.group(2).strip()}, Нижневартовск"
+            break
+
+    return {
+        "category": category,
+        "address": address,
+        "summary": build_marker_summary(None, text, max_len=120),
+        "relevant": category != "Прочее",
+        "location_hints": None,
+        "severity": severity,
+        "priority": priority,
+        "method": "keyword_utf8",
+    }
+
+
+def _blend_with_keyword_hint(text: str, result: Dict[str, Any]) -> Dict[str, Any]:
+    """Repair weak local-model output using deterministic city-domain hints."""
+    merged = dict(result or {})
+    hint = _strong_keyword_hint(text)
+
+    raw_category = str(merged.get("category") or "").strip()
+    if raw_category not in CATEGORIES or (
+        raw_category in {"ЖКХ", "Прочее"} and hint.get("category") not in {"ЖКХ", "Прочее"}
+    ):
+        merged["category"] = hint.get("category")
+
+    if not merged.get("relevant") and hint.get("relevant"):
+        merged["relevant"] = True
+
+    if not merged.get("address") and hint.get("address"):
+        merged["address"] = hint.get("address")
+
+    summary = build_marker_summary(merged.get("summary"), text, max_len=120)
+    if not summary or summary.lower() in _SUMMARY_BANNED_VALUES:
+        summary = build_marker_summary(hint.get("summary"), text, max_len=120)
+    if summary:
+        merged["summary"] = summary
+
+    try:
+        merged["severity"] = max(int(merged.get("severity") or 1), int(hint.get("severity") or 1))
+    except Exception:
+        merged["severity"] = hint.get("severity") or 1
+
+    if str(merged.get("priority") or "").strip().lower() not in {"низкий", "средний", "высокий"}:
+        merged["priority"] = hint.get("priority")
+
+    if merged.get("location_hints") in (None, "", "null") and hint.get("location_hints"):
+        merged["location_hints"] = hint.get("location_hints")
+
+    return merged
+
+
 # --- Public API ---
 
 
@@ -275,7 +636,7 @@ def set_ai_provider(provider: str) -> bool:
     """Switch active provider at runtime (no restart required)."""
     global AI_TEXT_PROVIDER
     p = (provider or "").strip().lower()
-    if p not in ("grok", "keyword"):
+    if p not in ("zai", "litellm", "ollama", "keyword"):
         return False
     AI_TEXT_PROVIDER = p
     logger.info("AI text provider switched to: %s", AI_TEXT_PROVIDER)
@@ -286,8 +647,15 @@ def get_ai_provider_status() -> Dict[str, Any]:
     """Provider status for admin panel."""
     return {
         "active": AI_TEXT_PROVIDER,
-        "xai_configured": bool(XAI_API_KEY),
-        "xai_model": XAI_TEXT_MODEL,
+        "zai_configured": bool(ZAI_API_KEY),
+        "zai_model": ZAI_TEXT_MODEL,
+        "zai_base": ZAI_BASE,
+        "litellm_configured": bool(LITELLM_URLS),
+        "litellm_model": LITELLM_TEXT_MODEL,
+        "litellm_url": LITELLM_URLS[0] if LITELLM_URLS else None,
+        "ollama_configured": bool(OLLAMA_URLS),
+        "ollama_model": OLLAMA_TEXT_MODEL,
+        "ollama_url": OLLAMA_URLS[0] if OLLAMA_URLS else None,
     }
 
 
@@ -299,16 +667,30 @@ async def analyze_complaint(text: str) -> Dict[str, Any]:
     location_hints, provider.
     """
     order: List[str]
-    if AI_TEXT_PROVIDER == "grok":
-        order = ["grok", "keyword"]
+    if AI_TEXT_PROVIDER == "zai":
+        order = ["zai", "litellm", "ollama", "keyword"]
+    elif AI_TEXT_PROVIDER == "ollama":
+        order = ["ollama", "keyword"]
+    elif AI_TEXT_PROVIDER == "litellm":
+        order = ["litellm", "keyword"]
     else:
         order = ["keyword"]
 
     for provider in order:
-        if provider == "grok":
-            result = await _grok_analyze(text)
+        if provider == "zai":
+            result = await _zai_analyze(text)
             if result:
-                result["provider"] = f"grok:{XAI_TEXT_MODEL}"
+                result["provider"] = f"zai:{ZAI_TEXT_MODEL}"
+                return _normalize_result(result)
+        elif provider == "litellm":
+            result = await _litellm_analyze(text)
+            if result:
+                result["provider"] = f"litellm:{LITELLM_TEXT_MODEL}"
+                return _normalize_result(result)
+        elif provider == "ollama":
+            result = await _ollama_analyze(text)
+            if result:
+                result["provider"] = f"ollama:{OLLAMA_TEXT_MODEL}"
                 return _normalize_result(result)
         elif provider == "keyword":
             break
@@ -316,7 +698,7 @@ async def analyze_complaint(text: str) -> Dict[str, Any]:
     logger.warning("AI providers unavailable, using keyword analysis")
     result = _keyword_analyze(text)
     result["provider"] = "keyword"
-    return result
+    return _normalize_result(result)
 
 
 def _normalize_result(result: Dict[str, Any]) -> Dict[str, Any]:
@@ -339,6 +721,10 @@ def _normalize_result(result: Dict[str, Any]) -> Dict[str, Any]:
         if addr.lower() in ("null", "нет", "-", "не указан", "не указано", ""):
             addr = None
         result["address"] = addr
+
+    summary = make_marker_summary(result.get("summary"))
+    if summary:
+        result["summary"] = summary
 
     # Clean location_hints
     if result.get("location_hints") in (None, "null", "нет", "-", ""):

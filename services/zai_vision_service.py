@@ -1,6 +1,6 @@
 # services/zai_vision_service.py
 """
-Image analysis: OpenRouter Vision (Qwen VL Plus) with text fallback.
+Image analysis: Z.AI (GLM-4V) Vision with EXIF extraction and text fallback.
 """
 
 import base64
@@ -15,34 +15,15 @@ from services.zai_service import CATEGORIES  # Single source of truth
 
 logger = logging.getLogger(__name__)
 
-XAI_API_KEY: str = os.getenv("XAI_API_KEY", "").strip()
-XAI_BASE: str = os.getenv("XAI_BASE_URL", "https://api.x.ai/v1")
-XAI_VISION_MODEL: str = os.getenv("XAI_VISION_MODEL", "grok-2-vision-latest")
+# Config from .env — Z.AI (GLM-4V)
+ZAI_API_KEY: str = os.getenv("ZAI_API_KEY", "").strip()
+ZAI_BASE: str = os.getenv("ZAI_BASE_URL", "https://open.bigmodel.cn/api/paas/v4").strip().rstrip("/") or "https://open.bigmodel.cn/api/paas/v4"
+ZAI_VISION_MODEL: str = os.getenv("ZAI_VISION_MODEL", "glm-4v-plus").strip() or "glm-4v-plus"
 
-if XAI_API_KEY:
-    logger.info("Grok vision initialized (model: %s)", XAI_VISION_MODEL)
+if ZAI_API_KEY:
+    logger.info("🤖 Z.AI vision initialized (model: %s)", ZAI_VISION_MODEL)
 else:
-    logger.warning("Grok vision key not set — image analysis will use text fallback")
-
-VISION_PROMPT: str = (
-    "Проанализируй фото городской проблемы в Нижневартовске.\n"
-    f"Категории: {', '.join(CATEGORIES)}\n\n"
-    "ОСОБОЕ ВНИМАНИЕ:\n"
-    "- Если на фото автомобиль, припаркованный на тротуаре, газоне, детской площадке, "
-    "пешеходном переходе, во дворе с блокировкой прохода/проезда — это категория 'Парковки', "
-    "серьёзность 'высокая'. Опиши нарушение: где стоит, что блокирует.\n"
-    "- Если видны номера авто — укажи в поле plates.\n\n"
-    "Определи:\n"
-    "1. category — категория проблемы\n"
-    "2. description — описание (что видно на фото)\n"
-    "3. address — адрес, если видно вывески/номера домов (или null)\n"
-    "4. severity — серьёзность (низкая/средняя/высокая)\n"
-    "5. has_vehicle_violation — true если авто мешает проходу/проезду\n"
-    "6. plates — гос. номер авто если виден (или null)\n"
-    "7. location_hints — ориентиры: названия магазинов, школ, остановок (или null)\n\n"
-    'Верни ТОЛЬКО JSON: {"category":"...","description":"...","address":"...или null",'
-    '"severity":"...","has_vehicle_violation":true/false,"plates":"...или null","location_hints":"...или null"}'
-)
+    logger.warning("⚠️ ZAI_API_KEY not set — image analysis will use text fallback")
 
 # Media type mapping
 _MEDIA_TYPES: dict[str, str] = {
@@ -50,6 +31,27 @@ _MEDIA_TYPES: dict[str, str] = {
     ".png": "image/png", ".gif": "image/gif",
     ".webp": "image/webp", ".bmp": "image/bmp",
 }
+
+VISION_PROMPT: str = (
+    "Ты — глубокий аналитик городских проблем Нижневартовска. Проанализируй фото.\n"
+    f"Категории: {', '.join(CATEGORIES)}\n\n"
+    "ОСОБОЕ ВНИМАНИЕ:\n"
+    "- Используй термин 'городская проблема' вместо 'жалоба'.\n"
+    "- Если на фото автомобиль, припаркованный на тротуаре, газоне, детской площадке — это 'Парковки'.\n"
+    "- ГЛУБОКИЙ АНАЛИЗ: Не используй типовые фразы. Опиши ситуацию своими словами, "
+    "вникая в детали (марка авто, тип мусора, глубина ямы) и последствия.\n"
+    "- АДРЕС: Указывай адрес только если уверен на 100% (видны вывески, номера домов).\n\n"
+    "Определи:\n"
+    "1. category — категория строго из списка\n"
+    "2. description — ГЛУБОКОЕ описание ситуации своими словами (3-4 предложения)\n"
+    "3. address — точный адрес (только если уверен на 100%, иначе null)\n"
+    "4. severity — серьёзность (низкая/средняя/высокая)\n"
+    "5. has_vehicle_violation — true если авто мешает\n"
+    "6. plates — гос. номер авто если виден\n"
+    "7. location_hints — ориентиры\n\n"
+    'Верни ТОЛЬКО JSON: {"category":"...","description":"...","address":"...","severity":"...",'
+    '"has_vehicle_violation":true/false,"plates":"...","location_hints":"..."}'
+)
 
 
 def _parse_json(text: str) -> Optional[Dict[str, Any]]:
@@ -61,7 +63,8 @@ def _parse_json(text: str) -> Optional[Dict[str, Any]]:
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        m = re.search(r"\{[^{}]*\}", text, re.DOTALL)
+        # Try to find JSON block { ... }
+        m = re.search(r"\{.*\}", text, re.DOTALL)
         if m:
             try:
                 return json.loads(m.group())
@@ -75,11 +78,66 @@ def _get_media_type(path: str) -> str:
     return _MEDIA_TYPES.get(ext, "image/jpeg")
 
 
-def _normalize_vision_result(result: Dict[str, Any]) -> Dict[str, Any]:
-    """Normalize vision AI result: coerce types, fill defaults."""
+def _verify_report_content(ai_data: Dict[str, Any], user_caption: str) -> Dict[str, Any]:
+    """
+    Cross-references AI vision findings with user-provided caption 
+    to calculate a verification score (0.0 - 1.0).
+    """
+    score = 0.5  # Base score
+    user_caption_lc = user_caption.lower()
+    ai_desc_lc = ai_data.get("description", "").lower()
+    ai_cat = ai_data.get("category", "Прочее").lower()
+
+    # 1. Category match
+    # Simple check if any keywords from user caption match category or AI description
+    keywords = {
+        "машина": ["парковки", "авто", "машин"],
+        "авто": ["парковки", "авто", "транспорт"],
+        "мусор": ["экология", "свалка", "грязь", "мусор"],
+        "яма": ["дороги", "яма", "асфальт"],
+        "дорог": ["дороги", "асфальт"],
+        "снег": ["снег", "наледь", "сугроб"],
+        "лед": ["снег", "наледь", "гололед"],
+    }
+
+    match_found = False
+    for k, synonyms in keywords.items():
+        if k in user_caption_lc:
+            if ai_cat in synonyms or any(s in ai_desc_lc for s in synonyms):
+                score += 0.3
+                match_found = True
+                break
+
+    # 2. Detail check (e.g., plates mentioned by user and found by AI)
+    if ai_data.get("plates") and any(char.isdigit() for char in user_caption_lc):
+        score += 0.2
+
+    # 3. Severity consistency (optional nuance)
+    # If user uses caps or strong words but AI sees minor issue, reduce score? 
+    # (Skip for now to avoid false negatives)
+
+    if not match_found and len(user_caption) > 10:
+        score -= 0.2
+
+    score = max(0.0, min(1.0, score))
+    
+    return {
+        "verification_score": round(score, 2),
+        "is_verified": score >= 0.7,
+        "verification_status": "verified" if score >= 0.7 else "pending_review" if score >= 0.4 else "low_confidence"
+    }
+
+
+def _normalize_vision_result(result: Dict[str, Any], user_caption: str = "") -> Dict[str, Any]:
+    """Normalize vision AI result: coerce types, fill defaults, verify."""
     result.setdefault("has_vehicle_violation", False)
     result.setdefault("plates", None)
     result.setdefault("location_hints", None)
+
+    # Coerce category to defined list
+    cat = result.get("category", "Прочее")
+    if cat not in CATEGORIES:
+        result["category"] = "Прочее"
 
     # Coerce has_vehicle_violation to bool
     v = result["has_vehicle_violation"]
@@ -88,28 +146,31 @@ def _normalize_vision_result(result: Dict[str, Any]) -> Dict[str, Any]:
     elif v is None:
         result["has_vehicle_violation"] = False
 
-    # Clean plates
-    p = result.get("plates")
-    if p and isinstance(p, str) and p.lower() in ("null", "нет", "-", "не видно", ""):
-        result["plates"] = None
+    # Clean plates/hints
+    for key in ("plates", "location_hints"):
+        val = result.get(key)
+        if val and isinstance(val, str) and val.lower() in ("null", "нет", "-", "не видно", ""):
+            result[key] = None
 
-    # Clean location_hints
-    lh = result.get("location_hints")
-    if lh and isinstance(lh, str) and lh.lower() in ("null", "нет", "-", ""):
-        result["location_hints"] = None
+    # Apply verification if caption exists
+    if user_caption:
+        verif = _verify_report_content(result, user_caption)
+        result.update(verif)
+    else:
+        result.update({"verification_score": 0.5, "is_verified": False, "verification_status": "no_caption"})
 
     return result
 
 
-async def _grok_vision(
+async def _zai_vision(
     image_b64: str, media_type: str, caption: str = ""
 ) -> Optional[Dict[str, Any]]:
-    """Vision analysis via Grok (xAI)."""
-    if not XAI_API_KEY:
+    """Vision analysis via Z.AI (GLM-4V)."""
+    if not ZAI_API_KEY:
         return None
 
     payload = {
-        "model": XAI_VISION_MODEL,
+        "model": ZAI_VISION_MODEL,
         "messages": [
             {
                 "role": "user",
@@ -126,22 +187,22 @@ async def _grok_vision(
         ],
         "temperature": 0.1
     }
-    
+
     headers = {
-        "Authorization": f"Bearer {XAI_API_KEY}",
+        "Authorization": f"Bearer {ZAI_API_KEY}",
         "Content-Type": "application/json",
     }
-    
+
     proxy_url = None
     from core.http_client import get_proxy_url
     try:
         proxy_url = get_proxy_url()
     except Exception:
         pass
-        
+
     try:
         async with get_http_client(timeout=60.0, proxy=proxy_url) as client:
-            r = await client.post(f"{XAI_BASE}/chat/completions", json=payload, headers=headers)
+            r = await client.post(f"{ZAI_BASE}/chat/completions", json=payload, headers=headers)
             if r.status_code == 200:
                 data = r.json()
                 msg = data.get("choices", [{}])[0].get("message", {})
@@ -149,18 +210,18 @@ async def _grok_vision(
                 if content:
                     result = _parse_json(content)
                     if result:
-                        return _normalize_vision_result(result)
+                        return _normalize_vision_result(result, caption)
             else:
-                logger.error("Grok Vision HTTP %d: %s", r.status_code, r.text[:200])
+                logger.error("Z.AI Vision HTTP %d: %s", r.status_code, r.text[:200])
     except Exception as e:
-        logger.error("Grok Vision error: %s", e)
+        logger.error("Z.AI Vision error: %s", e)
     return None
 
 
 async def analyze_image_with_glm4v(
     image_path: str, caption: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Analyze image: EXIF GPS + Grok Vision → text fallback."""
+    """Analyze image: EXIF GPS + Z.AI Vision → text fallback."""
     # Extract GPS from EXIF
     exif_coords = None
     try:
@@ -178,18 +239,20 @@ async def analyze_image_with_glm4v(
         logger.error("Image read error: %s", e)
         result: Dict[str, Any] = {
             "category": "Прочее",
-            "description": str(e),
+            "description": f"Ошибка чтения файла: {e}",
             "address": None,
             "severity": "средняя",
+            "verification_score": 0.0,
+            "is_verified": False
         }
         if exif_coords:
             result["exif_lat"], result["exif_lon"] = exif_coords
         return result
 
-    # 1. Grok Vision
-    result = await _grok_vision(image_b64, media_type, caption or "")
+    # 1. Z.AI Vision
+    result = await _zai_vision(image_b64, media_type, caption or "")
     if result:
-        result["provider"] = f"grok:{XAI_VISION_MODEL}"
+        result["provider"] = f"zai:{ZAI_VISION_MODEL}"
         if exif_coords:
             result["exif_lat"], result["exif_lon"] = exif_coords
         return result
@@ -206,6 +269,8 @@ async def analyze_image_with_glm4v(
             "severity": "средняя",
             "provider": r.get("provider", "text_fallback"),
         }
+        # Add basic verification for text-only
+        result.update({"verification_score": 0.5, "is_verified": False, "verification_status": "text_only"})
         if exif_coords:
             result["exif_lat"], result["exif_lon"] = exif_coords
         return result
@@ -213,7 +278,7 @@ async def analyze_image_with_glm4v(
     # 3. Default
     result = {
         "category": "Прочее",
-        "description": "Фото (AI недоступен)",
+        "description": "Фото (AI анализ не удался)",
         "address": None,
         "severity": "средняя",
     }
@@ -242,7 +307,7 @@ async def analyze_image_url(
         logger.error("Image URL error: %s", e)
         return {
             "category": "Прочее",
-            "description": str(e),
+            "description": f"Ошибка URL: {e}",
             "address": None,
             "severity": "средняя",
         }
