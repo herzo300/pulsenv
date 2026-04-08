@@ -31,7 +31,8 @@ REMOTE_DIR = "/root/citypulse_api"
 TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
 BACKUP_DIR = f"{REMOTE_DIR}/backup_{TIMESTAMP}"
 
-# Files to deploy
+# Cleanup command
+CLEANUP_CMD = "docker system prune -f --filter 'until=168h' && docker image prune -f"
 FILES_TO_UPLOAD = []
 
 # All public/ HTML files
@@ -106,6 +107,7 @@ try:
     print("\nПересборка и рестарт контейнеров...")
 
     commands = [
+        f"cd {REMOTE_DIR} && {CLEANUP_CMD} 2>&1",
         f"cd {REMOTE_DIR} && docker compose up -d --build backend 2>&1 | tail -5",
         f"cd {REMOTE_DIR} && docker compose restart nginx 2>&1 | tail -3",
         f"cd {REMOTE_DIR} && docker ps --format 'table {{.Names}}\t{{.Status}}' 2>&1",
