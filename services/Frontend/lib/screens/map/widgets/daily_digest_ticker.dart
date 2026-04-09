@@ -27,7 +27,7 @@ class _DailyDigestTickerState extends State<DailyDigestTicker>
     try {
       final response = await http
           .get(
-            Uri.parse('${MapConfig.backendApiBaseUrl}/api/daily-digest'),
+            Uri.parse('${MapConfig.backendApiBaseUrl}/daily-digest'),
           )
           .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {

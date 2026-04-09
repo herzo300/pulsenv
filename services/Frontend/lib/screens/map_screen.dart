@@ -327,7 +327,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       final center = _mapController.camera.center;
       final response = await http
           .get(Uri.parse(
-              '${MapConfig.backendApiBaseUrl}/api/uk/by_coords?lat=${center.latitude}&lng=${center.longitude}'))
+              '${MapConfig.backendApiBaseUrl}/uk/by_coords?lat=${center.latitude}&lng=${center.longitude}'))
           .timeout(const Duration(seconds: 8));
 
       if (!mounted) return;
@@ -2366,8 +2366,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     try {
       final response = await http
           .get(
-            Uri.parse(
-                '${MapConfig.backendApiBaseUrl}/api/uk/ratings?limit=100'),
+            Uri.parse('${MapConfig.backendApiBaseUrl}/uk/ratings?limit=100'),
           )
           .timeout(const Duration(seconds: 10));
 
