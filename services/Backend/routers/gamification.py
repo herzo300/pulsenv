@@ -4,15 +4,15 @@ Gamification system — XP, levels, achievements, streaks, quests, leaderboard.
 """
 import logging
 import random
-import re
+import secrets
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
-from backend.models import Base, Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, JSON
 
 logger = logging.getLogger(__name__)
 
@@ -210,9 +210,6 @@ def award_xp(telegram_id: int, amount: int, reason: str = "", db: Session = Depe
 
 def _check_achievements(db, telegram_id: int, xp: int, reason: str = ""):
     """Check and award achievements."""
-    from backend.models import Report
-    from sqlalchemy import text, func
-
     try:
         unlocked = db.execute(
             text("SELECT achievement_id FROM user_achievements WHERE telegram_id = :tid"),
@@ -222,10 +219,16 @@ def _check_achievements(db, telegram_id: int, xp: int, reason: str = ""):
     except:
         unlocked_ids = set()
 
-    total_complaints = db.query(Report).filter(Report.source == f"user:{telegram_id}").count()
-    resolved_count = db.query(Report).filter(
-        Report.source == f"user:{telegram_id}", Report.status == "resolved"
-    ).count()
+    # Count complaints for this user
+    total_complaints = db.execute(
+        text("SELECT COUNT(*) FROM reports WHERE source = :src"),
+        {"src": f"user:{telegram_id}"}
+    ).scalar() or 0
+
+    resolved_count = db.execute(
+        text("SELECT COUNT(*) FROM reports WHERE source = :src AND status = 'resolved'"),
+        {"src": f"user:{telegram_id}"}
+    ).scalar() or 0
 
     checks = {
         "first_complaint": total_complaints >= 1,
@@ -244,7 +247,6 @@ def _check_achievements(db, telegram_id: int, xp: int, reason: str = ""):
                     ),
                     {"tid": telegram_id, "aid": ach_id, "now": datetime.utcnow()}
                 )
-                # Award XP
                 db.execute(
                     text("UPDATE user_gamification SET xp = xp + :xp WHERE telegram_id = :tid"),
                     {"xp": ach["xp"], "tid": telegram_id}

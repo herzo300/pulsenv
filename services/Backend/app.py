@@ -46,11 +46,11 @@ async def lifespan(app: FastAPI):
         with engine.connect() as conn:
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS user_gamification (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     telegram_id INTEGER UNIQUE NOT NULL,
                     xp INTEGER DEFAULT 0,
                     streak INTEGER DEFAULT 0,
-                    last_active DATETIME,
+                    last_active TIMESTAMP,
                     district TEXT,
                     invite_code TEXT UNIQUE,
                     invited_by INTEGER
@@ -58,44 +58,44 @@ async def lifespan(app: FastAPI):
             """))
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS user_achievements (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     telegram_id INTEGER NOT NULL,
                     achievement_id TEXT NOT NULL,
-                    unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(telegram_id, achievement_id)
                 )
             """))
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS user_quests (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     telegram_id INTEGER NOT NULL,
                     quest_type TEXT NOT NULL,
                     progress INTEGER DEFAULT 0,
                     target INTEGER DEFAULT 0,
                     reward_xp INTEGER DEFAULT 0,
-                    completed BOOLEAN DEFAULT 0,
-                    week_start DATETIME,
+                    completed BOOLEAN DEFAULT FALSE,
+                    week_start TIMESTAMP,
                     UNIQUE(telegram_id, quest_type)
                 )
             """))
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS city_memes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     image_url TEXT,
                     caption TEXT,
                     category TEXT,
                     meme_type TEXT,
                     likes INTEGER DEFAULT 0,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """))
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS user_reactions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     telegram_id INTEGER NOT NULL,
                     report_id INTEGER NOT NULL,
                     reaction_type TEXT NOT NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(telegram_id, report_id, reaction_type)
                 )
             """))

@@ -11,7 +11,8 @@
       "Bash(findstr *)",
       "Bash(flutter *)",
       "Bash(curl.exe *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ]
   },
   "$version": 3
