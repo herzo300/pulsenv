@@ -249,7 +249,7 @@ async def reverse_geocode_from_backend(lat: float, lon: float):
 
 @router.post("/complaints")
 @_complaint_limiter.limit("5/minute")
-def create_complaint_from_mobile(report: dict, db: Session = Depends(get_db)):
+def create_complaint_from_mobile(report: dict, request: Request, db: Session = Depends(get_db)):
     """Create a complaint from the Flutter mobile app."""
     try:
         db_report = Report(

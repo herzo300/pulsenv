@@ -7,7 +7,7 @@ import base64
 import os
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from starlette.concurrency import run_in_threadpool
@@ -152,8 +152,9 @@ def _guess_simple_category(text: str) -> str:
 
 @router.post("/analyze")
 @_ai_limiter.limit("10/minute")
-async def analyze_text_for_complaint(request: dict):
-    text = request.get("text", "")
+async def analyze_text_for_complaint(request: Request):
+    body = await request.json()
+    text = body.get("text", "")
     try:
         return await analyze_complaint(text)
     except Exception as exc:
@@ -162,9 +163,10 @@ async def analyze_text_for_complaint(request: dict):
 
 @router.post("/analyze_image")
 @_ai_limiter.limit("10/minute")
-async def analyze_image_for_complaint(request: dict):
-    image_b64 = request.get("image", "")
-    text = request.get("text", "")
+async def analyze_image_for_complaint(request: Request):
+    body = await request.json()
+    image_b64 = body.get("image", "")
+    text = body.get("text", "")
     return await _analyze_image_payload(image_b64, text)
 
 
@@ -216,12 +218,13 @@ async def upscale_image_for_complaint(request: dict):
 
 @router.post("/sanitize_report")
 @_ai_limiter.limit("10/minute")
-async def sanitize_report(request: dict):
-    text = str(request.get("text") or "").strip()
-    image_b64 = str(request.get("image") or "").strip()
-    lat = request.get("lat")
-    lng = request.get("lng")
-    address = str(request.get("address") or "").strip() or None
+async def sanitize_report(request: Request):
+    body = await request.json()
+    text = str(body.get("text") or "").strip()
+    image_b64 = str(body.get("image") or "").strip()
+    lat = body.get("lat")
+    lng = body.get("lng")
+    address = str(body.get("address") or "").strip() or None
 
     text_result: Dict[str, Any] = {}
     image_result: Dict[str, Any] = {}
@@ -352,20 +355,21 @@ async def ai_proxy_health():
 
 @router.post("/proxy/analyze")
 @_ai_limiter.limit("15/minute")
-async def ai_proxy_analyze(request: dict):
+async def ai_proxy_analyze(request: Request):
+    body = await request.json()
     try:
         from services.ai_proxy_service import get_ai_proxy
 
         proxy = await get_ai_proxy()
-        text = request.get("text", "")
-        provider = request.get("provider", "zai")
-        model = request.get("model", "haiku")
+        text = body.get("text", "")
+        provider = body.get("provider", "zai")
+        model = body.get("model", "haiku")
         return await proxy.analyze_complaint(text, provider=provider, model=model)
     except Exception as exc:
         return {
             "category": _DEFAULT_CATEGORY,
             "address": None,
-            "summary": (request.get("text") or "")[:100],
+            "summary": (body.get("text") or "")[:100],
             "error": str(exc),
         }
 
