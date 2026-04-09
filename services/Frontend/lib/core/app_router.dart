@@ -11,6 +11,8 @@ import '../screens/admin_dashboard_screen.dart';
 import '../screens/mesh_screen.dart';
 import '../screens/about_screen.dart';
 import '../screens/security_lock_screen.dart';
+import '../screens/gamification_screen.dart';
+import '../screens/meme_screen.dart';
 import '../services/notification_navigation_service.dart';
 import 'page_transitions.dart';
 
@@ -29,6 +31,8 @@ final class AppRouter {
   static const String meshNetwork = '/mesh-network';
   static const String about = '/about';
   static const String securityLock = '/security-lock';
+  static const String gamification = '/gamification';
+  static const String memes = '/memes';
 
   // ── Query param keys ──────────────────────────────────────────────
   static const String paramDraftId = 'draft';
@@ -136,6 +140,22 @@ final class AppRouter {
             );
           },
         ),
+        GoRoute(
+          path: gamification,
+          name: 'gamification',
+          pageBuilder: (context, state) => AppPageTransitions.slideUp(
+            key: state.pageKey,
+            child: const GamificationScreen(),
+          ),
+        ),
+        GoRoute(
+          path: memes,
+          name: 'memes',
+          pageBuilder: (context, state) => AppPageTransitions.slideUp(
+            key: state.pageKey,
+            child: const MemeScreen(),
+          ),
+        ),
       ],
     );
   }
@@ -203,6 +223,14 @@ final class AppRouter {
   static void goToSecurityLock(
       {BuildContext? context, String referenceCode = ''}) {
     context?.goNamed('security-lock', queryParameters: {'ref': referenceCode});
+  }
+
+  static void goToGamification({BuildContext? context}) {
+    context?.goNamed('gamification');
+  }
+
+  static void goToMemes({BuildContext? context}) {
+    context?.goNamed('memes');
   }
 
   static Future<bool> goBack({BuildContext? context}) async {

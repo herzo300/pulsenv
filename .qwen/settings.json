@@ -10,7 +10,8 @@
       "Bash(tasklist *)",
       "Bash(findstr *)",
       "Bash(flutter *)",
-      "Bash(curl.exe *)"
+      "Bash(curl.exe *)",
+      "Bash(git add *)"
     ]
   },
   "$version": 3

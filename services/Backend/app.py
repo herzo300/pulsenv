@@ -21,7 +21,7 @@ from services.Backend.admin_metrics import extract_client_ip, metrics_store
 from services.Backend.security import parse_cors_origins
 from services.Backend.routers import admin_metrics, agent, ai, complaints, core, reports
 from services.Backend.routers import map_data
-from services.Backend.routers import uk_ratings, watchdog, visual_search, vlm, profile, daily_digest
+from services.Backend.routers import uk_ratings, watchdog, visual_search, vlm, profile, daily_digest, gamification
 from services.Backend.routers.telegram_router import router as telegram_router
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,67 @@ async def lifespan(app: FastAPI):
         from backend.database import Base, engine
 
         Base.metadata.create_all(bind=engine)
-        logger.info("Database tables verified.")
+
+        # Create gamification tables
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS user_gamification (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    telegram_id INTEGER UNIQUE NOT NULL,
+                    xp INTEGER DEFAULT 0,
+                    streak INTEGER DEFAULT 0,
+                    last_active DATETIME,
+                    district TEXT,
+                    invite_code TEXT UNIQUE,
+                    invited_by INTEGER
+                )
+            """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS user_achievements (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    telegram_id INTEGER NOT NULL,
+                    achievement_id TEXT NOT NULL,
+                    unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(telegram_id, achievement_id)
+                )
+            """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS user_quests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    telegram_id INTEGER NOT NULL,
+                    quest_type TEXT NOT NULL,
+                    progress INTEGER DEFAULT 0,
+                    target INTEGER DEFAULT 0,
+                    reward_xp INTEGER DEFAULT 0,
+                    completed BOOLEAN DEFAULT 0,
+                    week_start DATETIME,
+                    UNIQUE(telegram_id, quest_type)
+                )
+            """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS city_memes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    image_url TEXT,
+                    caption TEXT,
+                    category TEXT,
+                    meme_type TEXT,
+                    likes INTEGER DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS user_reactions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    telegram_id INTEGER NOT NULL,
+                    report_id INTEGER NOT NULL,
+                    reaction_type TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(telegram_id, report_id, reaction_type)
+                )
+            """))
+            conn.commit()
+        logger.info("Gamification tables verified.")
     except Exception as e:
         logger.warning("Could not initialize DB tables: %s", e)
 
@@ -48,7 +108,6 @@ async def lifespan(app: FastAPI):
 
     # --- Shutdown ---
     logger.info("СообщиО API shutting down...")
-    # Close any active Telegram monitor
     monitor = getattr(app.state, "telegram_monitor", None)
     if monitor:
         try:
@@ -110,6 +169,7 @@ app.include_router(visual_search.router)
 app.include_router(vlm.router)
 app.include_router(profile.router)
 app.include_router(daily_digest.router)
+app.include_router(gamification.router)
 
 
 
