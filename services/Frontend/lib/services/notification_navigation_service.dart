@@ -3,8 +3,9 @@ import 'dart:ui';
 
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
-import '../screens/map_screen.dart';
+import '../core/app_router.dart';
 import 'notification_tap_payload_store.dart';
 
 class NotificationNavigationService {
@@ -80,17 +81,24 @@ class NotificationNavigationService {
       return;
     }
 
-    final navigator = navigatorKey.currentState;
-    if (navigator == null) {
+    final context = navigatorKey.currentContext;
+    if (context == null) {
       NotificationTapPayloadStore.setPendingPayload(payload);
       return;
     }
 
-    navigator.pushAndRemoveUntil(
-      MaterialPageRoute<void>(
-        builder: (_) => MapScreen(initialNotificationPayload: payload),
-      ),
-      (route) => false,
-    );
+    final encoded = payload?.entries
+        .where((e) => (e.value ?? '').isNotEmpty)
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value!)}')
+        .join('&');
+
+    if (encoded != null && encoded.isNotEmpty) {
+      context.goNamed(
+        'map',
+        queryParameters: {AppRouter.paramPayload: encoded},
+      );
+    } else {
+      context.goNamed('map');
+    }
   }
 }

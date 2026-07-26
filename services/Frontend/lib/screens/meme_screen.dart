@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
+import 'package:lottie/lottie.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../map/map_config.dart';
 import '../theme/pulse_colors.dart';
@@ -45,6 +47,85 @@ class _MemeScreenState extends State<MemeScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
+  void _showLottieRewardOverlay() {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.85),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F172A).withOpacity(0.95),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: PulseColors.accentGold, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: PulseColors.accentGold.withOpacity(0.3),
+                blurRadius: 20,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 180,
+                child: Lottie.network(
+                  'https://assets10.lottiefiles.com/packages/lf20_lk8omw77.json',
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Lottie.asset('assets/animations/pulse.json', height: 120);
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Мем создан!',
+                style: AppTextStyles.title.copyWith(fontSize: 22, color: Colors.white),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_circle_outline_rounded, color: PulseColors.accentGold, size: 24),
+                  const SizedBox(width: 6),
+                  Text(
+                    '+25 XP',
+                    style: TextStyle(
+                      color: PulseColors.accentGold,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Вы заработали баллы в рейтинг района!',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: PulseColors.accentGold,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Отлично!', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _generateMeme() async {
     if (widget.telegramId == 0) return;
     setState(() => _loading = true);
@@ -59,15 +140,8 @@ class _MemeScreenState extends State<MemeScreen> {
       ).timeout(const Duration(seconds: 15));
       if (resp.statusCode == 200) {
         _currentMeme = json.decode(utf8.decode(resp.bodyBytes));
-        // Show confetti / celebration
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('😂 Мем создан! +25 XP'),
-              backgroundColor: PulseColors.accentGold,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          _showLottieRewardOverlay();
         }
         _loadMemes();
       }
@@ -84,7 +158,103 @@ class _MemeScreenState extends State<MemeScreen> {
 
   void _shareMeme(Map<String, dynamic> meme) {
     final text = meme['share_text'] ?? meme['caption'] ?? '';
-    Share.share(text);
+    final imageUrl = meme['image_url'] ?? '';
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A).withOpacity(0.95),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: PulseColors.accentGold.withOpacity(0.3), width: 1.5),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Поделиться в соцсетях',
+              style: AppTextStyles.title.copyWith(fontSize: 18, color: Colors.white),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _shareOption(
+                  icon: Icons.telegram_rounded,
+                  label: 'Telegram',
+                  color: const Color(0xFF229ED9),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final url = 'https://t.me/share/url?url=${Uri.encodeComponent(imageUrl)}&text=${Uri.encodeComponent(text)}';
+                    if (await canLaunchUrl(Uri.parse(url))) {
+                      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                    }
+                  },
+                ),
+                _shareOption(
+                  icon: Icons.alternate_email_rounded,
+                  label: 'ВКонтакте',
+                  color: const Color(0xFF4C75A3),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final shareText = '$text\n$imageUrl';
+                    final url = 'https://vk.com/share.php?title=${Uri.encodeComponent(shareText)}';
+                    if (await canLaunchUrl(Uri.parse(url))) {
+                      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                    }
+                  },
+                ),
+                _shareOption(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  label: 'WhatsApp',
+                  color: const Color(0xFF25D366),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final url = 'https://api.whatsapp.com/send?text=${Uri.encodeComponent('$text\n$imageUrl')}';
+                    if (await canLaunchUrl(Uri.parse(url))) {
+                      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _shareOption({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              shape: BoxShape.circle,
+              border: Border.all(color: color, width: 1.5),
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

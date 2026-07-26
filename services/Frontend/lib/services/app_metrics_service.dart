@@ -57,20 +57,49 @@ class AppMetricsService with WidgetsBindingObserver {
     }
     _heartbeatInFlight = true;
     try {
-      await _backendApi.postJson(
-        '/api/runtime/heartbeat',
-        {
-          'platform': _platformName,
-          'app_version': _appVersion,
-          'screen': screen,
-        },
-        timeout: const Duration(seconds: 5),
-      );
+      await _postMetricScreen(screen, timeout: const Duration(seconds: 5));
     } catch (_) {
       // Metrics must not block the app runtime.
     } finally {
       _heartbeatInFlight = false;
     }
+  }
+
+  Future<void> trackEvent(
+    String name, {
+    Map<String, Object?> properties = const {},
+  }) async {
+    final safeName = name.trim().replaceAll(RegExp(r'\s+'), '_');
+    if (safeName.isEmpty) return;
+    final encodedProps = properties.isEmpty
+        ? ''
+        : base64Url.encode(utf8.encode(jsonEncode(properties)));
+    final suffix = encodedProps.isEmpty
+        ? ''
+        : ':${encodedProps.substring(0, encodedProps.length.clamp(0, 28))}';
+    try {
+      await _postMetricScreen(
+        'event:$safeName$suffix',
+        timeout: const Duration(seconds: 4),
+      );
+    } catch (_) {
+      // Product events are best-effort and should never block conversion paths.
+    }
+  }
+
+  Future<void> _postMetricScreen(
+    String screen, {
+    required Duration timeout,
+  }) {
+    return _backendApi.postJson(
+      '/api/runtime/heartbeat',
+      {
+        'platform': _platformName,
+        'app_version': _appVersion,
+        'screen': screen,
+      },
+      timeout: timeout,
+    );
   }
 
   Future<Map<String, dynamic>> fetchMetrics() async {

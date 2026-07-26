@@ -1,18 +1,19 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/pulse_colors.dart';
+import 'app_ui.dart';
 
 /// -------------------------------------------------------------
 /// 1. AI RADAR EFFECT (Для наложения на карту)
 /// -------------------------------------------------------------
 class PulseRadarRadar extends StatefulWidget {
   final double radius;
-  final Color color;
+  final Color? color;
 
-  const PulseRadarRadar({
+  PulseRadarRadar({
     super.key,
     this.radius = 150.0,
-    this.color = PulseColors.primary,
+    this.color,
   });
 
   @override
@@ -37,158 +38,69 @@ class _PulseRadarRadarState extends State<PulseRadarRadar> with SingleTickerProv
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            // Пульсирующие круги
-            ...List.generate(3, (index) {
-              double progress = (_controller.value + (index / 3)) % 1.0;
-              return Container(
-                width: widget.radius * 2 * progress,
-                height: widget.radius * 2 * progress,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: widget.color.withOpacity(1.0 - progress),
-                    width: 2.0,
-                  ),
-                ),
-              );
-            }),
-            // Вращающийся луч сканера
-            Transform.rotate(
-              angle: _controller.value * 2 * math.pi,
-              child: Container(
-                width: widget.radius * 2,
-                height: widget.radius * 2,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: SweepGradient(
-                    center: Alignment.center,
-                    startAngle: 0.0,
-                    endAngle: math.pi / 4,
-                    colors: [
-                      widget.color.withOpacity(0.5),
-                      Colors.transparent,
-                    ],
-                    stops: const [0.0, 1.0],
-                  ),
-                ),
-              ),
-            ),
-            // Центр радара
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: widget.color,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(color: widget.color, blurRadius: 10, spreadRadius: 2),
-                ],
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-/// -------------------------------------------------------------
-/// 2. WATCHDOG TRANSACTION CARD (Список покупок)
-/// -------------------------------------------------------------
-class WatchdogStatusCard extends StatelessWidget {
-  final String title;
-  final DateTime expiryDate;
-  final int cameraCount;
-  final bool isActive;
-
-  const WatchdogStatusCard({
-    super.key,
-    required this.title,
-    required this.expiryDate,
-    required this.cameraCount,
-    required this.isActive,
-  });
+  Color get _activeColor => widget.color ?? PulseColors.primary;
 
   @override
   Widget build(BuildContext context) {
-    final timeLeft = expiryDate.difference(DateTime.now());
-    final hoursLeft = timeLeft.inHours;
-    final minsLeft = timeLeft.inMinutes % 60;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: PulseColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isActive ? PulseColors.primary.withOpacity(0.3) : Colors.transparent,
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Stack(
+            alignment: Alignment.center,
             children: [
-              Row(
-                children: [
-                  Icon(
-                    isActive ? Icons.security : Icons.history,
-                    color: isActive ? PulseColors.primary : PulseColors.textSecondary,
+              // Пульсирующие круги
+              ...List.generate(3, (index) {
+                double progress = (_controller.value + (index / 3)) % 1.0;
+                return Container(
+                  width: widget.radius * 2 * progress,
+                  height: widget.radius * 2 * progress,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: _activeColor.withOpacity(1.0 - progress),
+                      width: 2.0,
+                    ),
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    title,
-                    style: const TextStyle(color: PulseColors.textPrimary, fontWeight: FontWeight.bold),
+                );
+              }),
+              // Вращающийся луч сканера
+              Transform.rotate(
+                angle: _controller.value * 2 * math.pi,
+                child: Container(
+                  width: widget.radius * 2,
+                  height: widget.radius * 2,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: SweepGradient(
+                      center: Alignment.center,
+                      startAngle: 0.0,
+                      endAngle: math.pi / 4,
+                      colors: [
+                        _activeColor.withOpacity(0.5),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 1.0],
+                    ),
                   ),
-                ],
+                ),
               ),
+              // Центр радара
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                width: 8,
+                height: 8,
                 decoration: BoxDecoration(
-                  color: isActive ? PulseColors.success.withOpacity(0.1) : PulseColors.surfaceSoft,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  isActive ? 'АКТИВНО' : 'ЗАВЕРШЕНО',
-                  style: TextStyle(
-                    color: isActive ? PulseColors.success : PulseColors.textSecondary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  color: _activeColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(color: _activeColor, blurRadius: 10, spreadRadius: 2),
+                  ],
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildStat("Камер", "$cameraCount"),
-              _buildStat("Осталось", isActive ? "$hoursLeftч $minsLeftм" : "0ч"),
-              _buildStat("Тариф", title.contains("3ч") ? "250₽" : (title.contains("24ч") ? "500₽" : "1499₽")),
-            ],
-          ),
-        ],
+          );
+        },
       ),
-    );
-  }
-
-  Widget _buildStat(String label, String value) {
-    return Column(
-      children: [
-        Text(label, style: const TextStyle(color: PulseColors.textSecondary, fontSize: 11)),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(color: PulseColors.textPrimary, fontWeight: FontWeight.bold)),
-      ],
     );
   }
 }
@@ -216,23 +128,19 @@ class VlmAnalysisOverlay extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const PulseRadarRadar(radius: 80, color: PulseColors.primary),
+            PulseRadarRadar(radius: 80, color: PulseColors.primary),
             const SizedBox(height: 40),
             Text(
               statusText,
-              style: const TextStyle(
-                color: PulseColors.primary,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
+              style: AppTextStyles.overline.copyWith(color: PulseColors.primary),
             ),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               "ОПРЕДЕЛЕНИЕ КАТЕГОРИИ И ОПИСАНИЕ ОБЪЕКТА",
-              style: TextStyle(color: PulseColors.textSecondary, fontSize: 10),
+              style: AppTextStyles.overline.copyWith(letterSpacing: 0),
             ),
             const SizedBox(height: 30),
-            const SizedBox(
+            SizedBox(
               width: 200,
               child: LinearProgressIndicator(
                 backgroundColor: PulseColors.surfaceSoft,
@@ -241,6 +149,226 @@ class VlmAnalysisOverlay extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// -------------------------------------------------------------
+/// 4. ANIMATED MAP MARKER (WOW-эффект для событий на карте города)
+/// -------------------------------------------------------------
+class AnimatedPulseMarker extends StatefulWidget {
+  final Color color;
+  final double size;
+  final IconData icon;
+
+  const AnimatedPulseMarker({
+    super.key,
+    this.color = PulseColors.negative,
+    this.size = 40.0,
+    this.icon = Icons.local_fire_department_rounded,
+  });
+
+  @override
+  State<AnimatedPulseMarker> createState() => _AnimatedPulseMarkerState();
+}
+
+class _AnimatedPulseMarkerState extends State<AnimatedPulseMarker> with TickerProviderStateMixin {
+  late AnimationController _controller;
+  late AnimationController _scaleController;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+
+    _scaleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+      value: 1.0,
+    );
+    _scaleAnimation = CurvedAnimation(
+      parent: _scaleController,
+      curve: Curves.elasticOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scaleController.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails details) {
+    _scaleController.animateTo(0.78, duration: const Duration(milliseconds: 80));
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    _scaleController.forward();
+  }
+
+  void _onTapCancel() {
+    _scaleController.forward();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      behavior: HitTestBehavior.opaque,
+      child: RepaintBoundary(
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Внешнее "дыхание" (свечение)
+                  Container(
+                    width: widget.size * (1.2 + 0.3 * _controller.value),
+                    height: widget.size * (1.2 + 0.3 * _controller.value),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: widget.color.withOpacity(0.2 - 0.1 * _controller.value),
+                    ),
+                  ),
+                  // Ядро маркера
+                  Container(
+                    width: widget.size,
+                    height: widget.size,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: PulseColors.surfaceElevated,
+                      border: Border.all(color: widget.color, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: widget.color.withOpacity(0.5 * _controller.value),
+                          blurRadius: 10,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      widget.icon,
+                      color: widget.color,
+                      size: widget.size * 0.6,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// -------------------------------------------------------------
+/// 5. CYBERPUNK GLITCH EFFECT (Для текстовых блоков)
+/// -------------------------------------------------------------
+class GlitchEffect extends StatefulWidget {
+  final Widget child;
+  final bool active;
+
+  const GlitchEffect({super.key, required this.child, this.active = true});
+
+  @override
+  State<GlitchEffect> createState() => _GlitchEffectState();
+}
+
+class _GlitchEffectState extends State<GlitchEffect> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final math.Random _random = math.Random();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    if (widget.active) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant GlitchEffect oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active && !_controller.isAnimating) {
+      _controller.repeat();
+    } else if (!widget.active && _controller.isAnimating) {
+      _controller.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.active) return widget.child;
+
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          // Trigger glitch frame randomly (e.g. 15% of frames)
+          final isGlitching = _random.nextDouble() < 0.15;
+          if (!isGlitching) return widget.child;
+
+          final offsetX = (_random.nextDouble() - 0.5) * 6.0;
+          final offsetY = (_random.nextDouble() - 0.5) * 2.0;
+
+          return Stack(
+            children: [
+              // Red tint shift
+              Positioned.fill(
+                child: Transform.translate(
+                  offset: Offset(-offsetX, -offsetY),
+                  child: ColorFiltered(
+                    colorFilter: ColorFilter.mode(
+                      Colors.red.withOpacity(0.35),
+                      BlendMode.srcATop,
+                    ),
+                    child: widget.child,
+                  ),
+                ),
+              ),
+              // Blue tint shift
+              Positioned.fill(
+                child: Transform.translate(
+                  offset: Offset(offsetX * 1.5, offsetY * 1.5),
+                  child: ColorFiltered(
+                    colorFilter: ColorFilter.mode(
+                      Colors.blue.withOpacity(0.35),
+                      BlendMode.srcATop,
+                    ),
+                    child: widget.child,
+                  ),
+                ),
+              ),
+              // Original child shifted
+              Transform.translate(
+                offset: Offset(offsetX, offsetY),
+                child: widget.child,
+              ),
+            ],
+          );
+        },
       ),
     );
   }

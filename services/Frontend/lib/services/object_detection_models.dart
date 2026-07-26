@@ -1,3 +1,8 @@
+// lib/services/object_detection_models.dart
+//
+// DTO для обнаружения объектов.
+// Существует как backward-compatible API для complaint_form_screen.
+// Реальная ML-детекция теперь в ml_kit_object_detection_service.dart.
 import 'dart:typed_data';
 
 class DetectedSearchObject {

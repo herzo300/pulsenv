@@ -43,7 +43,8 @@ class RuntimeConfigService {
     if (parsed.scheme == 'https') {
       return true;
     }
-    return normalized.startsWith('http://45.153.68.59');
+    final fallback = MapConfig.defaultPublicBackendBaseUrl.trim();
+    return fallback.isNotEmpty && normalized.startsWith(fallback);
   }
 
   Future<void> bootstrap() async {

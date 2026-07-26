@@ -74,6 +74,23 @@ CREATE TABLE drafts (
     return database.delete('drafts', where: 'id = ?', whereArgs: [id]);
   }
 
+  Future<int> pendingCount() async {
+    final drafts = await getPendingDrafts();
+    return drafts.length;
+  }
+
+  Future<Map<String, dynamic>?> getDraftById(int id) async {
+    final database = await db;
+    final rows = await database.query(
+      'drafts',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return rows.first;
+  }
+
   Future<void> syncOnline() async {
     final drafts = await getPendingDrafts();
     if (drafts.isEmpty) return;

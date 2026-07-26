@@ -3,6 +3,9 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../theme/pulse_colors.dart';
+import 'app_ui.dart';
+
 enum AiScanStage {
   scanning,
   classification,
@@ -85,21 +88,23 @@ class AiScanPreview extends StatefulWidget {
   const AiScanPreview({
     super.key,
     required this.imageProvider,
+    this.originalImageProvider,
     required this.progress,
     this.height = 170,
     this.borderRadius = const BorderRadius.all(Radius.circular(16)),
     this.onRemove,
-    this.activeColor = const Color(0xFF00E5FF),
-    this.idleBorderColor = const Color(0x332196F3),
+    this.activeColor,
+    this.idleBorderColor,
   });
 
   final ImageProvider imageProvider;
+  final ImageProvider? originalImageProvider;
   final AiScanProgress progress;
   final double height;
   final BorderRadius borderRadius;
   final VoidCallback? onRemove;
-  final Color activeColor;
-  final Color idleBorderColor;
+  final Color? activeColor;
+  final Color? idleBorderColor;
 
   @override
   State<AiScanPreview> createState() => _AiScanPreviewState();
@@ -107,6 +112,9 @@ class AiScanPreview extends StatefulWidget {
 
 class _AiScanPreviewState extends State<AiScanPreview>
     with SingleTickerProviderStateMixin {
+  Color get activeColor => widget.activeColor ?? PulseColors.primary;
+  Color get idleBorderColor => widget.idleBorderColor ?? PulseColors.borderStrong;
+
   late final AnimationController _hudController;
 
   @override
@@ -135,29 +143,49 @@ class _AiScanPreviewState extends State<AiScanPreview>
         width: double.infinity,
         child: Stack(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: widget.borderRadius,
-                border: Border.all(
-                  color: isActive
-                      ? widget.activeColor.withAlpha(145)
-                      : widget.idleBorderColor,
-                ),
-                image: DecorationImage(
-                  image: widget.imageProvider,
-                  fit: BoxFit.cover,
-                ),
-                boxShadow: isActive
-                    ? [
-                        BoxShadow(
-                          color: widget.activeColor.withAlpha(40),
-                          blurRadius: 24,
-                          spreadRadius: 1,
+            widget.originalImageProvider != null
+                ? Positioned.fill(
+                    child: ClipRRect(
+                      borderRadius: widget.borderRadius,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: isActive
+                                ? activeColor.withAlpha(145)
+                                : idleBorderColor,
+                          ),
                         ),
-                      ]
-                    : null,
-              ),
-            ),
+                        child: SplitImageSlider(
+                          original: widget.originalImageProvider!,
+                          enhanced: widget.imageProvider,
+                          height: widget.height,
+                        ),
+                      ),
+                    ),
+                  )
+                : Container(
+                    decoration: BoxDecoration(
+                      borderRadius: widget.borderRadius,
+                      border: Border.all(
+                        color: isActive
+                            ? activeColor.withAlpha(145)
+                            : idleBorderColor,
+                      ),
+                      image: DecorationImage(
+                        image: widget.imageProvider,
+                        fit: BoxFit.cover,
+                      ),
+                      boxShadow: isActive
+                          ? [
+                              BoxShadow(
+                                color: activeColor.withAlpha(40),
+                                blurRadius: 24,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : null,
+                    ),
+                  ),
             Positioned.fill(
               child: IgnorePointer(
                 child: DecoratedBox(
@@ -200,9 +228,9 @@ class _AiScanPreviewState extends State<AiScanPreview>
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                   colors: [
-                                    const Color(0x2400E5FF),
+                                    PulseColors.primary.withAlpha(36),
                                     Colors.transparent,
-                                    const Color(0x1800E5FF),
+                                    PulseColors.primary.withAlpha(24),
                                   ],
                                 ),
                               ),
@@ -212,7 +240,7 @@ class _AiScanPreviewState extends State<AiScanPreview>
                             child: CustomPaint(
                               painter: _AiScanHudPainter(
                                 phase: phase,
-                                color: widget.activeColor,
+                                color: activeColor,
                               ),
                             ),
                           ),
@@ -262,14 +290,14 @@ class _AiScanPreviewState extends State<AiScanPreview>
               gradient: LinearGradient(
                 colors: [
                   Colors.transparent,
-                  widget.activeColor.withAlpha((beamOpacity * 255).round()),
+                  activeColor.withAlpha((beamOpacity * 255).round()),
                   Colors.transparent,
                 ],
               ),
               boxShadow: [
                 BoxShadow(
                   color:
-                      widget.activeColor.withAlpha((beamOpacity * 170).round()),
+                      activeColor.withAlpha((beamOpacity * 170).round()),
                   blurRadius: 16,
                   spreadRadius: 2,
                 ),
@@ -283,8 +311,8 @@ class _AiScanPreviewState extends State<AiScanPreview>
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  widget.activeColor.withAlpha(70),
-                  const Color(0x0000E5FF),
+                  activeColor.withAlpha(70),
+                  Colors.transparent,
                 ],
               ),
             ),
@@ -303,7 +331,7 @@ class _AiScanPreviewState extends State<AiScanPreview>
         decoration: BoxDecoration(
           color: Colors.black.withAlpha(118),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: widget.activeColor.withAlpha(72)),
+          border: Border.all(color: activeColor.withAlpha(72)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -312,11 +340,11 @@ class _AiScanPreviewState extends State<AiScanPreview>
               width: 7,
               height: 7,
               decoration: BoxDecoration(
-                color: widget.activeColor,
+                color: activeColor,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: widget.activeColor.withAlpha(160),
+                    color: activeColor.withAlpha(160),
                     blurRadius: 8,
                     spreadRadius: 1,
                   ),
@@ -326,11 +354,9 @@ class _AiScanPreviewState extends State<AiScanPreview>
             const SizedBox(width: 8),
             Text(
               'PULSE.AI VISION',
-              style: TextStyle(
+              style: AppTextStyles.overline.copyWith(
                 color: Colors.white.withAlpha(232),
-                fontSize: 11,
                 fontWeight: FontWeight.w800,
-                letterSpacing: 1.1,
               ),
             ),
           ],
@@ -348,27 +374,23 @@ class _AiScanPreviewState extends State<AiScanPreview>
         decoration: BoxDecoration(
           color: Colors.black.withAlpha(126),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: widget.activeColor.withAlpha(82)),
+          border: Border.all(color: activeColor.withAlpha(82)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
               '${widget.progress.percent}%',
-              style: TextStyle(
+              style: AppTextStyles.metric.copyWith(
                 color: Colors.white.withAlpha(242),
                 fontSize: 18,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.5,
               ),
             ),
             Text(
               'SYSTEM LOCK',
-              style: TextStyle(
-                color: widget.activeColor.withAlpha(210),
+              style: AppTextStyles.overline.copyWith(
+                color: activeColor.withAlpha(210),
                 fontSize: 8,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.2,
               ),
             ),
           ],
@@ -393,10 +415,10 @@ class _AiScanPreviewState extends State<AiScanPreview>
         decoration: BoxDecoration(
           color: Colors.black.withAlpha(132),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: widget.activeColor.withAlpha(74)),
+          border: Border.all(color: activeColor.withAlpha(74)),
           boxShadow: [
             BoxShadow(
-              color: widget.activeColor.withAlpha(28),
+              color: activeColor.withAlpha(28),
               blurRadius: 18,
               spreadRadius: 1,
             ),
@@ -414,18 +436,16 @@ class _AiScanPreviewState extends State<AiScanPreview>
                     children: [
                       Text(
                         widget.progress.resolvedTitle,
-                        style: const TextStyle(
+                        style: AppTextStyles.cardTitle.copyWith(
                           color: Colors.white,
                           fontSize: 13,
-                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         widget.progress.resolvedSubtitle,
-                        style: TextStyle(
+                        style: AppTextStyles.bodyMuted.copyWith(
                           color: Colors.white.withAlpha(170),
-                          fontSize: 11,
                           height: 1.35,
                         ),
                       ),
@@ -435,11 +455,9 @@ class _AiScanPreviewState extends State<AiScanPreview>
                 const SizedBox(width: 12),
                 Text(
                   '${widget.progress.percent} / 100',
-                  style: TextStyle(
-                    color: widget.activeColor.withAlpha(228),
-                    fontSize: 11,
+                  style: AppTextStyles.overline.copyWith(
+                    color: activeColor.withAlpha(228),
                     fontWeight: FontWeight.w800,
-                    letterSpacing: 0.6,
                   ),
                 ),
               ],
@@ -451,7 +469,7 @@ class _AiScanPreviewState extends State<AiScanPreview>
                 minHeight: 5,
                 value: widget.progress.clampedValue,
                 backgroundColor: Colors.white.withAlpha(20),
-                valueColor: AlwaysStoppedAnimation<Color>(widget.activeColor),
+                valueColor: AlwaysStoppedAnimation<Color>(activeColor),
               ),
             ),
             const SizedBox(height: 10),
@@ -466,7 +484,7 @@ class _AiScanPreviewState extends State<AiScanPreview>
                           widget.progress.stage != AiScanStage.complete,
                       isComplete: widget.progress.stageIndex > i ||
                           widget.progress.stage == AiScanStage.complete,
-                      color: widget.activeColor,
+                      color: activeColor,
                     ),
                   ),
                 ],
@@ -537,7 +555,7 @@ class _StageChip extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
+              style: AppTextStyles.bodyMuted.copyWith(
                 color: isComplete || isActive
                     ? Colors.white.withAlpha(228)
                     : Colors.white60,
@@ -688,4 +706,114 @@ class _AiScanHudPainter extends CustomPainter {
   bool shouldRepaint(covariant _AiScanHudPainter oldDelegate) {
     return oldDelegate.phase != phase || oldDelegate.color != color;
   }
+}
+
+/// Dynamic before/after comparison split slider.
+class SplitImageSlider extends StatefulWidget {
+  final ImageProvider original;
+  final ImageProvider enhanced;
+  final double height;
+
+  const SplitImageSlider({
+    super.key,
+    required this.original,
+    required this.enhanced,
+    this.height = 200,
+  });
+
+  @override
+  State<SplitImageSlider> createState() => _SplitImageSliderState();
+}
+
+class _SplitImageSliderState extends State<SplitImageSlider> {
+  double _sliderX = 0.5;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: widget.height,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          return GestureDetector(
+            onHorizontalDragUpdate: (details) {
+              setState(() {
+                _sliderX = (details.localPosition.dx / width).clamp(0.0, 1.0);
+              });
+            },
+            child: Stack(
+              children: [
+                // Original image (left side)
+                Positioned.fill(
+                  child: Image(
+                    image: widget.original,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                // Enhanced image (right side clipped)
+                Positioned.fill(
+                  child: ClipRect(
+                    clipper: _SliderClipper(_sliderX),
+                    child: Image(
+                      image: widget.enhanced,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                // Split border line
+                Positioned(
+                  left: width * _sliderX - 1.5,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 3,
+                    color: PulseColors.primary,
+                  ),
+                ),
+                // Interactive split thumb
+                Positioned(
+                  left: width * _sliderX - 16,
+                  top: widget.height / 2 - 16,
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: PulseColors.primary,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.35),
+                          blurRadius: 5,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.compare_arrows_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SliderClipper extends CustomClipper<Rect> {
+  final double xFactor;
+
+  _SliderClipper(this.xFactor);
+
+  @override
+  Rect getClip(Size size) {
+    return Rect.fromLTRB(size.width * xFactor, 0, size.width, size.height);
+  }
+
+  @override
+  bool shouldReclip(covariant _SliderClipper oldClipper) => oldClipper.xFactor != xFactor;
 }

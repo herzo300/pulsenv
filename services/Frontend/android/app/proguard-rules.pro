@@ -40,6 +40,10 @@
 -dontwarn com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions$Builder
 -dontwarn com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
 
+# Keep geolocator / fused location on release builds
+-keep class com.baseflow.geolocator.** { *; }
+-dontwarn com.baseflow.geolocator.**
+
 # Reduce useful metadata for reverse engineering.
 -adaptclassstrings
 -repackageclasses

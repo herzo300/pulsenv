@@ -12,6 +12,10 @@ class CachedTileProvider extends TileProvider {
     url = url.replaceAll('{y}', coordinates.y.toString());
     url = url.replaceAll('{z}', coordinates.z.toString());
     
-    return CachedNetworkImageProvider(url);
+    const userAgent = 'ru.pulsgoroda.app';
+    return CachedNetworkImageProvider(
+      url,
+      headers: {'User-Agent': userAgent},
+    );
   }
 }

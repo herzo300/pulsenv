@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# WebP-conversion backups (scripts/optimize_png_to_webp.py)
+# .png.bak сохраняются локально для отката; коммитить их не нужно.
+*.png.bak

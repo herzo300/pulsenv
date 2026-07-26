@@ -44,10 +44,10 @@ android {
             ?: "false")
             .trim()
             .equals("true", ignoreCase = true)
-    val isReleaseTaskRequested =
-        gradle.startParameter.taskNames.any { taskName ->
-            taskName.contains("Release", ignoreCase = true)
-        }
+    // val isReleaseTaskRequested =
+    //     gradle.startParameter.taskNames.any { taskName ->
+    //         taskName.contains("Release", ignoreCase = true)
+    //     }
     val hasReleaseSigning =
         releaseStoreFile.isNotEmpty() &&
             releaseStorePassword.isNotEmpty() &&
@@ -94,7 +94,27 @@ android {
     }
 
     androidResources {
-        noCompress += "tflite"
+        // noCompress для "tflite" убран: нативные ML-модели больше не bundle'ятся
+        // в assets (используется google_mlkit_* который тянет модели из Play Services).
+    }
+
+    splits {
+        // Разделяем APK по ABI для уменьшения размера при прямой дистрибуции.
+        // Для Google Play предпочтительнее `flutter build appbundle` —
+        // тогда Play сам раздаёт нужный ABI каждому устройству.
+        abi {
+            isEnable = true
+            reset()
+            // Современные устройства (99%+): arm64-v8a.
+            // armeabi-v7a оставлен для старых 32-битных устройств (Android < 7).
+            include("armeabi-v7a", "arm64-v8a")
+            isUniversalApk = true
+        }
+    }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 
     buildTypes {

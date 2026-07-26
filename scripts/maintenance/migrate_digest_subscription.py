@@ -11,20 +11,29 @@ sys.path.insert(0, str(ROOT))
 os.chdir(ROOT)
 
 from sqlalchemy import text
-from backend.database import engine
+
+from services.data_layer.database import engine
+
 
 def main():
     with engine.connect() as conn:
         try:
-            conn.execute(text("ALTER TABLE users ADD COLUMN digest_subscription_until DATETIME"))
+            conn.execute(
+                text("ALTER TABLE users ADD COLUMN digest_subscription_until DATETIME")
+            )
             conn.commit()
             print("[OK] Колонка users.digest_subscription_until добавлена.")
         except Exception as e:
             msg = str(e).lower()
-            if "duplicate column" in msg or "already exists" in msg or "duplicate column name" in msg:
+            if (
+                "duplicate column" in msg
+                or "already exists" in msg
+                or "duplicate column name" in msg
+            ):
                 print("[OK] Колонка users.digest_subscription_until уже есть.")
             else:
                 raise
+
 
 if __name__ == "__main__":
     main()

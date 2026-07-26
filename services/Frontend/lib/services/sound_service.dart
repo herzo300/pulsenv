@@ -1,7 +1,13 @@
+import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
 
+import 'backend_api_service.dart';
+
+import '../map/map_config.dart';
 import 'notification_catalog.dart';
 
 class SoundService {
@@ -10,12 +16,18 @@ class SoundService {
   factory SoundService() => _instance;
 
   SoundService._internal();
+  Stream<void> get onTtsComplete => _ttsPlayer.onPlayerComplete;
+  bool get isSpeakingTts => _ttsPlayer.state == PlayerState.playing;
+
 
   final AudioPlayer _player = AudioPlayer();
   final AudioPlayer _splashPlayer = AudioPlayer();
   final AudioPlayer _pulsePlayer = AudioPlayer();
+  final AudioPlayer _ttsPlayer = AudioPlayer();
 
   bool _isMuted = false;
+  bool _stopRequested = false;
+  int _speakSession = 0;
 
   void setMute(bool mute) {
     _isMuted = mute;
@@ -23,18 +35,53 @@ class SoundService {
 
   Future<bool> _canPlay() async {
     if (_isMuted) return false;
+    
+    // Prevent playing sounds when the app is in the background
+    try {
+      final state = WidgetsBinding.instance.lifecycleState;
+      if (state != null && state != AppLifecycleState.resumed) {
+        return false;
+      }
+    } catch (_) {}
+
     final prefs = await SharedPreferences.getInstance();
+    final vol = prefs.getDouble('sound_volume_level') ?? 0.8;
+    await _player.setVolume(vol);
+    await _splashPlayer.setVolume(vol);
+    await _pulsePlayer.setVolume(vol);
+    await _ttsPlayer.setVolume(vol);
+
     return prefs.getBool('sound_enabled') ?? true;
   }
 
+
+
   Future<void> playSplash() async {
-    // Silenced as per user request
-    return;
+    final prefs = await SharedPreferences.getInstance();
+    if (!(prefs.getBool('splash_sounds_enabled') ?? true)) return;
+    if (!await _canPlay()) return;
+    try {
+      await _splashPlayer.play(AssetSource('audio/splash_gravity.mp3'));
+    } catch (error) {
+      debugPrint('Play splash failed: $error');
+    }
   }
 
   Future<void> playSplashDesign(String designName) async {
-    // Silenced as per user request
-    return;
+    final prefs = await SharedPreferences.getInstance();
+    if (!(prefs.getBool('splash_sounds_enabled') ?? true)) return;
+    if (!await _canPlay()) return;
+    try {
+      final nameLower = designName.toLowerCase();
+      if (nameLower.contains('oil')) {
+        await _splashPlayer.play(AssetSource('audio/splash_oil.mp3'));
+      } else {
+        // gravity / pulse / vipCyber (radar/aurora) — все используют общий gravity-звук
+        await _splashPlayer.play(AssetSource('audio/splash_gravity.mp3'));
+      }
+    } catch (error) {
+      debugPrint('Play splash design ($designName) failed: $error');
+    }
   }
 
   Future<void> stopSplash() async {
@@ -50,37 +97,457 @@ class SoundService {
     }
   }
 
+  Future<void> playCameraMove() async {
+    // Silenced navigation sounds
+  }
+
+  Future<void> playDigestClick() async {
+    // Silenced navigation sounds
+  }
+
+  Future<void> playAssistantClick() async {
+    // Silenced navigation sounds
+  }
+
+  Future<void> playLostFound() async {
+    // Silenced navigation sounds
+  }
+
+  Future<void> playAiCamera() async {
+    // Silenced navigation sounds
+  }
+
   Future<void> playPulse() async {
-    // Silenced as per user request
-    return;
+    // Silenced navigation sounds
   }
 
   Future<void> playNewComplaint() async {
     if (!await _canPlay()) return;
     try {
-      await _player.play(AssetSource('sounds/new_item.wav'));
+      await _player.play(AssetSource('audio/menu_notification.mp3'));
     } catch (error) {
       debugPrint('New complaint sound failed: $error');
+    }
+  }
+
+  Future<void> playAiNotification() async {
+    if (!await _canPlay()) return;
+    try {
+      await _player.play(AssetSource('sounds/soft_pulse.mp3'));
+    } catch (error) {
+      debugPrint('Play AI notification failed: $error');
+    }
+  }
+
+  Future<void> playMessageSent() async {
+    if (!await _canPlay()) return;
+    try {
+      await _player.play(AssetSource('audio/ui_confirm_soft.mp3'));
+    } catch (error) {
+      debugPrint('Play message sent sound failed: $error');
+    }
+  }
+
+  Future<void> playChatMessageReceived() async {
+    if (!await _canPlay()) return;
+    try {
+      await _player.play(AssetSource('audio/ui_notification_soft.mp3'));
+    } catch (error) {
+      debugPrint('Play message received sound failed: $error');
     }
   }
 
   Future<void> playSelection() async {
     if (!await _canPlay()) return;
     try {
-      await _player.play(AssetSource('sounds/new_item.wav'));
+      await _player.play(AssetSource('audio/ui_click_soft.mp3'));
     } catch (error) {
-      debugPrint('Selection sound failed: $error');
+      debugPrint('Play selection sound failed: $error');
+    }
+  }
+
+  Future<void> playToggle() async {
+    if (!await _canPlay()) return;
+    try {
+      await _player.play(AssetSource('audio/ui_toggle_soft.mp3'));
+    } catch (error) {
+      debugPrint('Play toggle sound failed: $error');
+    }
+  }
+
+  Future<void> playEmergencyAlert() async {
+    if (!await _canPlay()) return;
+    try {
+      await _player.play(AssetSource('audio/ui_alert_soft.mp3'));
+    } catch (error) {
+      debugPrint('Emergency alert sound failed: $error');
     }
   }
 
   Future<void> playCategorySound(String category) async {
     if (!await _canPlay()) return;
-    final filename = NotificationCatalog.describe(category).soundAsset;
-
     try {
-      await _player.play(AssetSource('sounds/$filename'));
+      final normalizedCategory = NotificationCatalog.normalize(category);
+      final descriptor = NotificationCatalog.describe(normalizedCategory);
+      final assetName = descriptor.soundAsset;
+
+      await _player.play(AssetSource('audio/$assetName'));
     } catch (error) {
       debugPrint('Category sound failed for $category: $error');
+    }
+  }
+
+  Future<void> playComplaintSubmit() async {
+    if (!await _canPlay()) return;
+    try {
+      await _player.play(AssetSource('audio/ui_confirm_soft.mp3'));
+    } catch (error) {
+      debugPrint('Complaint submit sound failed: $error');
+    }
+  }
+
+  Future<void> playComplaintResolved() async {
+    if (!await _canPlay()) return;
+    try {
+      await _player.play(AssetSource('audio/ui_confirm_soft.mp3'));
+    } catch (error) {
+      debugPrint('Complaint resolved sound failed: $error');
+    }
+  }
+
+  Future<void> playPushNotification() async {
+    if (!await _canPlay()) return;
+    try {
+      await _player.play(AssetSource('audio/ui_notification_soft.mp3'));
+    } catch (error) {
+      debugPrint('Push notification sound failed: $error');
+    }
+  }
+
+  Future<void> playEventReminder() async {
+    if (!await _canPlay()) return;
+    try {
+      await _player.play(AssetSource('audio/menu_notification.mp3'));
+    } catch (error) {
+      debugPrint('Event reminder sound failed: $error');
+    }
+  }
+
+  Future<void> speak(
+    String text, {
+    bool forcePremium = false,
+    bool isEvent = false,
+    bool isEmergency = false,
+    String? category,
+  }) async {
+    if (!await _canPlay() || text.trim().isEmpty) return;
+
+    // Detect category for Soprano / ElevenLabs voice synthesis
+    final textLower = text.toLowerCase();
+    final catLower = (category ?? '').toLowerCase();
+    bool isLostFound = catLower.contains('вещ') || catLower.contains('находк') || catLower.contains('потер') || catLower.contains('бюро') || textLower.contains('бюро находок');
+
+    if (isEmergency ||
+        catLower.contains('чп') ||
+        catLower.contains('чрезвычайн') ||
+        catLower.contains('авари') ||
+        catLower.contains('безопасн') ||
+        catLower.contains('спасат') ||
+        textLower.contains('чп') ||
+        textLower.contains('чрезвычайная ситуация') ||
+        textLower.contains('штормовое предупреждение')) {
+      isEmergency = true;
+    }
+
+    if (isEvent ||
+        catLower.contains('мероприяти') ||
+        catLower.contains('событи') ||
+        textLower.contains('мероприятие') ||
+        textLower.contains('фестиваль')) {
+      isEvent = true;
+    }
+
+
+    // Отсекаем всё до "описание сцены:" включительно для анализа камер
+    final lowerText = text.toLowerCase();
+    final sceneIndex = lowerText.indexOf('описание сцены:');
+    if (sceneIndex != -1) {
+      text = text.substring(sceneIndex + 'описание сцены:'.length);
+    } else {
+      final sceneIndex2 = lowerText.indexOf('описание сцены');
+      if (sceneIndex2 != -1) {
+        text = text.substring(sceneIndex2 + 'описание сцены'.length);
+      }
+    }
+
+    // 1. Сбрасываем предыдущую сессию и останавливаем любое текущее воспроизведение
+    _stopRequested = false;
+    final int mySession = ++_speakSession;
+    try {
+      if (_ttsPlayer.state == PlayerState.playing) {
+        await _ttsPlayer.stop();
+      }
+    } catch (_) {}
+
+    // 2. Extract actual description if it is a formatted DB report containing "Описание:"
+    final descriptionMatch = RegExp(
+      r'Описание:\s*(.*?)(?:\.\s*(?:Источник|Дата создания|Категория|Статус|Адрес|Управляющая компания|УК)|$)',
+      caseSensitive: false,
+      dotAll: true,
+    ).firstMatch(text);
+    if (descriptionMatch != null) {
+      text = descriptionMatch.group(1)!;
+    }
+
+    // 3. Remove "Статус: ...", "УК: ...", "Категория: ..." and similar labels
+    text = text.replaceAll(
+      RegExp(r'(?:статус|категория|управляющая компания\s*\(ук\)|ук\s*\(управляющая компания\)|управляющая компания|ук):\s*[^.\n;]+(?:[.\n;]|$)?',
+        caseSensitive: false),
+      '',
+    );
+
+    // 3b. Convert timestamps like "01:23" or "12:45:30" into spoken Russian time format
+    text = text.replaceAllMapped(
+      RegExp(r'\b(\d{1,2}):(\d{2})(?::(\d{2}))?\b'),
+      (m) {
+        final h = int.tryParse(m.group(1)!) ?? 0;
+        final min = int.tryParse(m.group(2)!) ?? 0;
+        final sec = m.group(3) != null ? int.tryParse(m.group(3)!) : null;
+        final parts = <String>[];
+        if (h > 0) {
+          final hMod = h % 10;
+          final hWord = (hMod == 1 && h != 11) ? 'час' : (hMod >= 2 && hMod <= 4 && (h < 12 || h > 14)) ? 'часа' : 'часов';
+          parts.add('$h $hWord');
+        }
+        if (min > 0) {
+          final mMod = min % 10;
+          final mWord = (mMod == 1 && min != 11) ? 'минута' : (mMod >= 2 && mMod <= 4 && (min < 12 || min > 14)) ? 'минуты' : 'минут';
+          parts.add('$min $mWord');
+        }
+        if (sec != null && sec > 0) {
+          final sMod = sec % 10;
+          final sWord = (sMod == 1 && sec != 11) ? 'секунда' : (sMod >= 2 && sMod <= 4 && (sec < 12 || sec > 14)) ? 'секунды' : 'секунд';
+          parts.add('$sec $sWord');
+        }
+        return parts.isNotEmpty ? parts.join(' ') : '0 минут';
+      },
+    );
+
+    // 4. Remove square brackets entirely to prevent TTS from reading them
+    text = text.replaceAll('[', '').replaceAll(']', '').trim();
+
+    // 5. Remove asterisks, hashes, underscores, tildes and other markdown noise
+    text = text
+        .replaceAll('*', '')
+        .replaceAll('#', '')
+        .replaceAll('_', ' ')
+        .replaceAll('~', '')
+        .replaceAll('`', '')
+        .replaceAll('|', ' ')
+        .replaceAll('>', '')
+        .replaceAll('<', '')
+        .replaceAll('\\', '');
+
+    // 6. Replace common punctuation/symbols with spoken equivalents
+    text = text
+        .replaceAll('—', ', ')
+        .replaceAll('–', ', ')
+        .replaceAll('…', '.')
+        .replaceAll(' / ', ' или ')
+        .replaceAll('/', ' ')
+        .replaceAll('&', ' и ');
+
+    // 7. Clip the text to the last punctuation mark (period, exclamation, question mark, semicolon)
+    final lastPunct = text.lastIndexOf(RegExp(r'[.!?;]'));
+    if (lastPunct != -1) {
+      text = text.substring(0, lastPunct + 1);
+    }
+
+    // 8. Collapse extra whitespace
+    text = text.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
+
+    final cleanText = text.trim();
+    if (cleanText.isEmpty) return;
+
+    // --- Разбиваем длинный текст на чанки ≤ 180 символов по границам предложений ---
+    final chunks = _splitIntoChunks(cleanText, 180);
+
+    try {
+      bool usedGoogleSuccessfully = false;
+
+      for (int i = 0; i < chunks.length; i++) {
+        // Проверяем — пользователь нажал СТОП или начата новая сессия
+        if (_stopRequested || mySession != _speakSession) return;
+
+        final chunk = chunks[i].trim();
+        if (chunk.isEmpty) continue;
+
+        bool chunkPlayed = false;
+
+        // Если категория Находки / ЧП / Мероприятия — задействуем ElevenLabs (женский голос) или Soprano TTS
+        if (isLostFound || isEmergency || isEvent || forcePremium) {
+          try {
+            final endpoint = isLostFound
+                ? '/api/reports/lost-found/tts'
+                : (isEmergency
+                    ? '/api/reports/emergency-tts'
+                    : (isEvent ? '/api/reports/event-tts' : '/api/reports/soprano-tts'));
+            final path = '$endpoint?text=${Uri.encodeComponent(chunk)}';
+            final response = await BackendApiService.instance
+                .get(path, timeout: const Duration(seconds: 20));
+
+            if (_stopRequested || mySession != _speakSession) return;
+
+            if (response.statusCode == 200 && response.bodyBytes.length > 512) {
+              final tempDir = await getTemporaryDirectory();
+              final fileExt = isLostFound ? 'mp3' : ((isEmergency || isEvent) ? 'wav' : 'mp3');
+              final tempFile = File(
+                  '${tempDir.path}/tts_eleven_${DateTime.now().millisecondsSinceEpoch}_$i.$fileExt');
+              await tempFile.writeAsBytes(response.bodyBytes);
+              await _ttsPlayer.play(DeviceFileSource(tempFile.path));
+              await Future.any([
+                _ttsPlayer.onPlayerComplete.first,
+                Future.doWhile(() async {
+                  await Future<void>.delayed(const Duration(milliseconds: 80));
+                  return !_stopRequested && mySession == _speakSession;
+                }),
+              ]).timeout(const Duration(seconds: 30));
+
+              if (_stopRequested || mySession != _speakSession) return;
+              chunkPlayed = true;
+            } else {
+              debugPrint('ElevenLabs/Soprano TTS chunk $i: status=${response.statusCode}');
+            }
+          } catch (e) {
+            debugPrint('ElevenLabs/Soprano TTS chunk $i failed: $e');
+          }
+        }
+
+
+        // Если это НЕ принудительный режим мероприятия, то пробуем сначала Google
+        if (!chunkPlayed && !forcePremium && !isEvent) {
+          final googleUrl =
+              'https://translate.google.com/translate_tts?ie=UTF-8&tl=ru&client=tw-ob&q=${Uri.encodeComponent(chunk)}';
+
+          try {
+            final response = await http
+                .get(Uri.parse(googleUrl))
+                .timeout(const Duration(seconds: 6));
+
+            if (_stopRequested || mySession != _speakSession) return;
+
+            if (response.statusCode == 200 && response.bodyBytes.length > 512) {
+              final tempDir = await getTemporaryDirectory();
+              final tempFile = File(
+                  '${tempDir.path}/tts_${DateTime.now().millisecondsSinceEpoch}_$i.mp3');
+              await tempFile.writeAsBytes(response.bodyBytes);
+              await _ttsPlayer.play(DeviceFileSource(tempFile.path));
+              await Future.any([
+                _ttsPlayer.onPlayerComplete.first,
+                Future.doWhile(() async {
+                  await Future<void>.delayed(const Duration(milliseconds: 80));
+                  return !_stopRequested && mySession == _speakSession;
+                }),
+              ]).timeout(const Duration(seconds: 30));
+
+              if (_stopRequested || mySession != _speakSession) return;
+              chunkPlayed = true;
+              usedGoogleSuccessfully = true;
+            } else {
+              debugPrint(
+                  'Google TTS chunk $i: status=${response.statusCode} bytes=${response.bodyBytes.length}');
+            }
+          } catch (e) {
+            debugPrint('Google TTS chunk $i failed: $e');
+          }
+        }
+
+        if (_stopRequested || mySession != _speakSession) return;
+
+        // Fallback на backend только если Google совсем не работает
+        if (!chunkPlayed && !usedGoogleSuccessfully) {
+          try {
+            final endpoint = isEvent ? '/api/reports/event-tts' : '/api/reports/tts';
+            final path = '$endpoint?text=${Uri.encodeComponent(chunk)}';
+            final response = await BackendApiService.instance
+                .get(path, timeout: const Duration(seconds: 20));
+
+            if (_stopRequested || mySession != _speakSession) return;
+
+            if (response.statusCode == 200 && response.bodyBytes.length > 512) {
+              final tempDir = await getTemporaryDirectory();
+              final fileExt = isEvent ? 'wav' : 'mp3';
+              final tempFile = File(
+                  '${tempDir.path}/tts_back_${DateTime.now().millisecondsSinceEpoch}_$i.$fileExt');
+              await tempFile.writeAsBytes(response.bodyBytes);
+              await _ttsPlayer.play(DeviceFileSource(tempFile.path));
+              await Future.any([
+                _ttsPlayer.onPlayerComplete.first,
+                Future.doWhile(() async {
+                  await Future<void>.delayed(const Duration(milliseconds: 80));
+                  return !_stopRequested && mySession == _speakSession;
+                }),
+              ]).timeout(const Duration(seconds: 30));
+
+              if (_stopRequested || mySession != _speakSession) return;
+            } else {
+              debugPrint('Backend TTS chunk $i: status=${response.statusCode}');
+            }
+          } catch (e) {
+            debugPrint('Backend TTS chunk $i failed: $e');
+          }
+        }
+      }
+    } catch (error) {
+      debugPrint('TTS speak failed: $error');
+    }
+  }
+
+  /// Разбивает текст на чанки не длиннее [maxLen] по границам предложений/слов.
+  List<String> _splitIntoChunks(String text, int maxLen) {
+    if (text.length <= maxLen) return [text];
+
+    final chunks = <String>[];
+    // Пробуем разбить по . ! ? ; — сохраняем разделитель в конце чанка
+    final sentenceRe = RegExp(r'[^.!?;]+[.!?;]?');
+    final sentences = sentenceRe.allMatches(text).map((m) => m.group(0)!).toList();
+
+    final buf = StringBuffer();
+    for (final sentence in sentences) {
+      if (buf.length + sentence.length > maxLen && buf.isNotEmpty) {
+        chunks.add(buf.toString().trim());
+        buf.clear();
+      }
+      // Если одно предложение само по себе > maxLen — режем по словам
+      if (sentence.length > maxLen) {
+        final words = sentence.split(' ');
+        for (final word in words) {
+          if (buf.length + word.length + 1 > maxLen && buf.isNotEmpty) {
+            chunks.add(buf.toString().trim());
+            buf.clear();
+          }
+          if (buf.isNotEmpty) buf.write(' ');
+          buf.write(word);
+        }
+      } else {
+        buf.write(sentence);
+      }
+    }
+    if (buf.isNotEmpty) chunks.add(buf.toString().trim());
+    return chunks.where((c) => c.isNotEmpty).toList();
+  }
+
+
+  Future<void> stopSpeak() async {
+    // Флаг прерывает цикл чанков в speak() немедленно
+    _stopRequested = true;
+    _speakSession++; // инвалидируем любую активную сессию
+    try {
+      if (_ttsPlayer.state == PlayerState.playing) {
+        await _ttsPlayer.stop();
+      }
+    } catch (error) {
+      debugPrint('Stop TTS failed: $error');
     }
   }
 
@@ -88,5 +555,6 @@ class SoundService {
     _player.dispose();
     _splashPlayer.dispose();
     _pulsePlayer.dispose();
+    _ttsPlayer.dispose();
   }
 }

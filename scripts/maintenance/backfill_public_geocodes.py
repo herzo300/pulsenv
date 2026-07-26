@@ -2,15 +2,15 @@ import argparse
 import asyncio
 import logging
 import sys
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from backend.database import SessionLocal
-from backend.models import Report
+from services.data_layer.database import SessionLocal
+from services.data_layer.models import Report
 from services.geo_service import geoparse, sanitize_address_candidate
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -33,7 +33,9 @@ def _load_candidates(limit: int) -> list[Report]:
             .limit(limit * 3)
             .all()
         )
-        return [report for report in reports if _is_public_source(report.source or "")][:limit]
+        return [report for report in reports if _is_public_source(report.source or "")][
+            :limit
+        ]
     finally:
         db.close()
 
@@ -58,9 +60,7 @@ async def _process_reports(reports: Iterable[Report]) -> tuple[int, int]:
     updated = 0
     for report in reports:
         checked += 1
-        text = "\n".join(
-            part for part in [report.title, report.description] if part
-        )
+        text = "\n".join(part for part in [report.title, report.description] if part)
         geo = await geoparse(
             text=text,
             ai_address=sanitize_address_candidate(report.address),
@@ -69,7 +69,12 @@ async def _process_reports(reports: Iterable[Report]) -> tuple[int, int]:
         lat = geo.get("lat")
         lng = geo.get("lng")
         if lat is None or lng is None:
-            logger.info("skip report=%s source=%s address=%s", report.id, report.source, report.address)
+            logger.info(
+                "skip report=%s source=%s address=%s",
+                report.id,
+                report.source,
+                report.address,
+            )
             continue
         await asyncio.to_thread(
             _persist_geo,
@@ -90,8 +95,12 @@ async def _process_reports(reports: Iterable[Report]) -> tuple[int, int]:
 
 
 async def main() -> None:
-    parser = argparse.ArgumentParser(description="Backfill coordinates for public reports.")
-    parser.add_argument("--limit", type=int, default=200, help="Maximum reports to process")
+    parser = argparse.ArgumentParser(
+        description="Backfill coordinates for public reports."
+    )
+    parser.add_argument(
+        "--limit", type=int, default=200, help="Maximum reports to process"
+    )
     args = parser.parse_args()
 
     reports = _load_candidates(args.limit)

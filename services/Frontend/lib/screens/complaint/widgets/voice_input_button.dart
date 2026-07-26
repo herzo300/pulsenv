@@ -14,17 +14,21 @@ class VoiceInputButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      color: isListening ? Colors.redAccent : Colors.white70,
-      icon: aiProcessing
-          ? const SizedBox(
-              width: 16.0,
-              height: 16.0,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : Icon(isListening ? Icons.mic : Icons.mic_none),
-      tooltip: 'Диктовать голосом',
-      onPressed: aiProcessing ? null : onToggle,
+    return Semantics(
+      button: true,
+      label: isListening ? 'Остановить диктовку' : 'Диктовать голосом',
+      child: IconButton(
+        color: isListening ? Colors.redAccent : Colors.white70,
+        icon: aiProcessing
+            ? const SizedBox(
+                width: 16.0,
+                height: 16.0,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(isListening ? Icons.mic : Icons.mic_none),
+        tooltip: 'Диктовать голосом',
+        onPressed: aiProcessing ? null : onToggle,
+      ),
     );
   }
 }

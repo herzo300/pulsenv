@@ -16,14 +16,14 @@ Usage:
     await sync_city_data()
 """
 
+import asyncio
+import json
+import logging
 import os
 import re
-import json
-import asyncio
-import logging
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 try:
     import httpx
@@ -32,12 +32,14 @@ except ImportError:
 
 try:
     from bs4 import BeautifulSoup
+
     HAS_BS4 = True
 except ImportError:
     HAS_BS4 = False
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass
@@ -68,40 +70,40 @@ USER_AGENT = "PulsGoroda/2.0 MaxunSync"
 # OpenData dataset identifiers (same prefix as opendata_updater.py)
 DS_PREFIX = "8603032896"
 DATASETS = {
-    "topnameboys":     f"{DS_PREFIX}-topnameboys",
-    "topnamegirls":    f"{DS_PREFIX}-topnamegirls",
-    "averagesalary":   f"{DS_PREFIX}-averagesalary",
-    "busroute":        f"{DS_PREFIX}-busroute",
-    "uchou":           f"{DS_PREFIX}-uchou",
-    "uchdou":          f"{DS_PREFIX}-uchdou",
+    "topnameboys": f"{DS_PREFIX}-topnameboys",
+    "topnamegirls": f"{DS_PREFIX}-topnamegirls",
+    "averagesalary": f"{DS_PREFIX}-averagesalary",
+    "busroute": f"{DS_PREFIX}-busroute",
+    "uchou": f"{DS_PREFIX}-uchou",
+    "uchdou": f"{DS_PREFIX}-uchdou",
     "wastecollection": f"{DS_PREFIX}-wastecollection",
-    "demography":      f"{DS_PREFIX}-demography",
-    "buildlist":       f"{DS_PREFIX}-buildlist",
-    "budgetinfo":      f"{DS_PREFIX}-budgetinfo",
+    "demography": f"{DS_PREFIX}-demography",
+    "buildlist": f"{DS_PREFIX}-buildlist",
+    "budgetinfo": f"{DS_PREFIX}-budgetinfo",
 }
 
 # Maxun robot IDs (backward compat)
 MAXUN_ROBOTS = {
-    "budget":     "rob_a1b2c3d4",
+    "budget": "rob_a1b2c3d4",
     "demography": "rob_e5f6g7h8",
-    "famous":     "rob_i9j0k1l2",
-    "infra":      "rob_m3n4o5p6",
+    "famous": "rob_i9j0k1l2",
+    "infra": "rob_m3n4o5p6",
 }
 
 # ---------------------------------------------------------------------------
 # Verified fallback data (Rosstat, official city reports, public sources)
 # ---------------------------------------------------------------------------
 
-FALLBACK_BUDGET_YEARS  = [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+FALLBACK_BUDGET_YEARS = [2019, 2020, 2021, 2022, 2023, 2024, 2025]
 FALLBACK_BUDGET_VALUES = [16.2, 17.5, 20.3, 21.1, 28.0, 31.0, 29.5]
 
-FALLBACK_SALARY_YEARS  = [2019, 2020, 2021, 2022, 2023, 2024]
+FALLBACK_SALARY_YEARS = [2019, 2020, 2021, 2022, 2023, 2024]
 FALLBACK_SALARY_VALUES = [78.0, 82.0, 90.0, 97.6, 108.1, 124.4]
 
-FALLBACK_POP_YEARS  = [2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+FALLBACK_POP_YEARS = [2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
 FALLBACK_POPULATION = [276503, 277668, 278327, 283256, 283525, 282900, 284000, 293130]
-FALLBACK_BIRTHS     = [3400, 3210, 2980, 3186, 3191, 3050, 3105]
-FALLBACK_DEATHS     = [1900, 1800, 2250, 2537, 2094, 1900, 1780]
+FALLBACK_BIRTHS = [3400, 3210, 2980, 3186, 3191, 3050, 3105]
+FALLBACK_DEATHS = [1900, 1800, 2250, 2537, 2094, 1900, 1780]
 
 FALLBACK_NAMES_BOYS = [
     {"name": "Артём", "count": 530},
@@ -120,10 +122,22 @@ FALLBACK_NAMES_GIRLS = [
 ]
 
 FALLBACK_FAMOUS = [
-    {"name": "Альберт Батыргазиев", "role": "Олимпийский чемпион по боксу (Токио 2020)", "image": "🥊"},
-    {"name": "Максим Храмцов", "role": "Олимпийский чемпион по тхэквондо (Токио 2020)", "image": "🥋"},
+    {
+        "name": "Альберт Батыргазиев",
+        "role": "Олимпийский чемпион по боксу (Токио 2020)",
+        "image": "🥊",
+    },
+    {
+        "name": "Максим Храмцов",
+        "role": "Олимпийский чемпион по тхэквондо (Токио 2020)",
+        "image": "🥋",
+    },
     {"name": "Ксения Сухинова", "role": "Мисс Мира 2008", "image": "👑"},
-    {"name": "Сергей Рыжиков", "role": "Космонавт, 2 полёта на МКС (2010, 2016)", "image": "🚀"},
+    {
+        "name": "Сергей Рыжиков",
+        "role": "Космонавт, 2 полёта на МКС (2010, 2016)",
+        "image": "🚀",
+    },
     {"name": "Андрей Маковеев", "role": "Биатлонист, чемпион мира", "image": "🎿"},
 ]
 
@@ -166,7 +180,9 @@ async def _opendata_fetch_pages(
                 timeout=REQUEST_TIMEOUT,
             )
             if resp.status_code != 200:
-                logger.warning("OpenData %s page %d: HTTP %d", dataset_id, page, resp.status_code)
+                logger.warning(
+                    "OpenData %s page %d: HTTP %d", dataset_id, page, resp.status_code
+                )
                 break
             payload = resp.json().get("RESULT", {})
             rows = payload.get("ROWS", [])
@@ -187,8 +203,7 @@ async def fetch_opendata(client: httpx.AsyncClient) -> dict[str, list[dict]]:
     """Fetch all relevant datasets from OpenData portal in parallel."""
     logger.info("Fetching datasets from OpenData API...")
     tasks = {
-        key: _opendata_fetch_pages(client, ds_id)
-        for key, ds_id in DATASETS.items()
+        key: _opendata_fetch_pages(client, ds_id) for key, ds_id in DATASETS.items()
     }
     results: dict[str, list[dict]] = {}
     gathered = await asyncio.gather(*tasks.values(), return_exceptions=True)
@@ -230,10 +245,7 @@ async def fetch_maxun_data(client: httpx.AsyncClient) -> dict[str, list[dict]]:
         logger.info("MAXUN_API_KEY not set, skipping Maxun robots")
         return {}
     logger.info("Fetching data from Maxun robots...")
-    tasks = {
-        key: fetch_maxun_robot(client, rid)
-        for key, rid in MAXUN_ROBOTS.items()
-    }
+    tasks = {key: fetch_maxun_robot(client, rid) for key, rid in MAXUN_ROBOTS.items()}
     results: dict[str, list[dict]] = {}
     gathered = await asyncio.gather(*tasks.values(), return_exceptions=True)
     for key, result in zip(tasks.keys(), gathered):
@@ -271,7 +283,9 @@ async def scrape_city_website(client: httpx.AsyncClient) -> dict[str, Any]:
             soup = BeautifulSoup(resp.text, "html.parser")
             text = soup.get_text(" ", strip=True)
             # Try to extract budget figures from page text
-            budget_matches = re.findall(r"(\d{1,3}[.,]\d)\s*(?:млрд|миллиард)", text, re.IGNORECASE)
+            budget_matches = re.findall(
+                r"(\d{1,3}[.,]\d)\s*(?:млрд|миллиард)", text, re.IGNORECASE
+            )
             if budget_matches:
                 scraped["budget_latest"] = float(budget_matches[-1].replace(",", "."))
                 logger.info("  Scraped budget value: %s", scraped["budget_latest"])
@@ -295,11 +309,14 @@ async def scrape_city_website(client: httpx.AsyncClient) -> dict[str, Any]:
                     headlines.append(title)
             if headlines:
                 scraped["news_headlines"] = headlines[:5]
-                logger.info("  Scraped %d news headlines", len(scraped["news_headlines"]))
+                logger.info(
+                    "  Scraped %d news headlines", len(scraped["news_headlines"])
+                )
     except Exception as exc:
         logger.debug("News page scrape failed: %s", exc)
 
     return scraped
+
 
 # ---------------------------------------------------------------------------
 # Real-time data fetchers (weather, air quality, oil, river)
@@ -308,11 +325,13 @@ async def scrape_city_website(client: httpx.AsyncClient) -> dict[str, Any]:
 
 async def fetch_weather(client: httpx.AsyncClient) -> dict:
     """Fetch current weather from Open-Meteo (free, no key)."""
-    url = ("https://api.open-meteo.com/v1/forecast"
-           "?latitude=60.94&longitude=76.57"
-           "&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code"
-           "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum"
-           "&timezone=Asia/Yekaterinburg&forecast_days=7")
+    url = (
+        "https://api.open-meteo.com/v1/forecast"
+        "?latitude=60.94&longitude=76.57"
+        "&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code"
+        "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum"
+        "&timezone=Asia/Yekaterinburg&forecast_days=7"
+    )
     try:
         r = await client.get(url, timeout=15.0)
         if r.status_code == 200:
@@ -329,11 +348,17 @@ async def fetch_weather(client: httpx.AsyncClient) -> dict:
                 "forecast_min": daily.get("temperature_2m_min", []),
                 "precipitation": daily.get("precipitation_sum", []),
                 "source": "Open-Meteo",
-                "updated": datetime.now(timezone.utc).isoformat()
+                "updated": datetime.now(timezone.utc).isoformat(),
             }
     except Exception as e:
         logger.warning(f"Weather fetch failed: {e}")
-    return {"temperature": -15, "humidity": 75, "wind_speed": 4.2, "weather_code": 3, "source": "fallback"}
+    return {
+        "temperature": -15,
+        "humidity": 75,
+        "wind_speed": 4.2,
+        "weather_code": 3,
+        "source": "fallback",
+    }
 
 
 async def fetch_air_quality(client: httpx.AsyncClient) -> dict:
@@ -358,7 +383,7 @@ async def fetch_air_quality(client: httpx.AsyncClient) -> dict:
                     "o3": iaqi.get("o3", {}).get("v"),
                     "station": d.get("city", {}).get("name"),
                     "source": "WAQI/aqicn.org",
-                    "updated": datetime.now(timezone.utc).isoformat()
+                    "updated": datetime.now(timezone.utc).isoformat(),
                 }
     except Exception as e:
         logger.warning(f"AQI fetch failed: {e}")
@@ -375,20 +400,20 @@ def get_oil_production_data() -> dict:
             "cumulative_billion_tonnes": 2.8,
             "current_annual_mln_tonnes": 22,
             "decline_rate_pct": 1.0,
-            "triz_share_growing": True
+            "triz_share_growing": True,
         },
         "hmao": {
             "share_of_russia_pct": 40,
             "annual_mln_tonnes_2024": 205,
             "annual_mln_tonnes_2023": 210,
-            "russia_total_2024_mln_tonnes": 516
+            "russia_total_2024_mln_tonnes": 516,
         },
         "history": {
             "years": [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024],
             "hmao_production": [236, 234, 232, 230, 228, 215, 220, 218, 210, 205],
-            "samotlor_production": [28, 27, 26, 25, 24, 22, 23, 23, 22, 22]
+            "samotlor_production": [28, 27, 26, 25, 24, 22, 23, 23, 22, 22],
         },
-        "source": "Росстат, Роснефть, РИА Рейтинг"
+        "source": "Росстат, Роснефть, РИА Рейтинг",
     }
 
 
@@ -401,7 +426,7 @@ def get_river_data() -> dict:
         "river": "Обь",
         "typical_flood_months": ["Апрель", "Май", "Июнь"],
         "critical_level_cm": 980,
-        "source": "allrivers.info / Администрация города"
+        "source": "allrivers.info / Администрация города",
     }
 
 
@@ -424,7 +449,12 @@ def _parse_names(rows: list[dict], fallback: list[dict]) -> list[dict]:
         # Skip entries with multiple names joined by commas
         if "," in str(name):
             continue
-        count_raw = row.get("CNT") or row.get("count") or row.get("VALUE") or row.get("QUANTITY", 0)
+        count_raw = (
+            row.get("CNT")
+            or row.get("count")
+            or row.get("VALUE")
+            or row.get("QUANTITY", 0)
+        )
         try:
             count = int(float(str(count_raw)))
         except (ValueError, TypeError):
@@ -456,7 +486,9 @@ def _parse_salary(rows: list[dict]) -> tuple[list[int], list[float]]:
         val_raw = row.get("SALARY") or row.get("VALUE") or row.get("AVG", 0)
         try:
             year = int(str(year_raw)[:4])
-            val = float(str(val_raw).replace(" ", "").replace(",", ".").replace("&nbsp;", ""))
+            val = float(
+                str(val_raw).replace(" ", "").replace(",", ".").replace("&nbsp;", "")
+            )
         except (ValueError, TypeError):
             continue
         if 2010 <= year <= 2030 and 0 < val < 10000:
@@ -511,11 +543,15 @@ def _count_institutions(rows: list[dict]) -> int:
 # ---------------------------------------------------------------------------
 
 
-def _generate_economy_analysis(budget_values: list[float], salary_values: list[float]) -> str:
+def _generate_economy_analysis(
+    budget_values: list[float], salary_values: list[float]
+) -> str:
     """Generate analytical text for economy section."""
     latest_budget = budget_values[-1] if budget_values else 0
     prev_budget = budget_values[-2] if len(budget_values) >= 2 else 0
-    budget_change = ((latest_budget - prev_budget) / prev_budget * 100) if prev_budget else 0
+    budget_change = (
+        ((latest_budget - prev_budget) / prev_budget * 100) if prev_budget else 0
+    )
     latest_salary = salary_values[-1] if salary_values else 0
     parts = []
     parts.append(
@@ -533,7 +569,9 @@ def _generate_economy_analysis(budget_values: list[float], salary_values: list[f
     return " ".join(parts)
 
 
-def _generate_demographics_analysis(pop: list[int], births: list[int], deaths: list[int]) -> str:
+def _generate_demographics_analysis(
+    pop: list[int], births: list[int], deaths: list[int]
+) -> str:
     """Generate analytical text for demographics section."""
     latest_pop = pop[-1] if pop else 0
     growth = pop[-1] - pop[0] if len(pop) >= 2 else 0
@@ -541,7 +579,9 @@ def _generate_demographics_analysis(pop: list[int], births: list[int], deaths: l
     latest_deaths = deaths[-1] if deaths else 0
     natural = latest_births - latest_deaths
     parts = []
-    parts.append(f"Население Нижневартовска составляет {latest_pop:,} чел. (прирост {growth:+,} за весь период).")
+    parts.append(
+        f"Население Нижневартовска составляет {latest_pop:,} чел. (прирост {growth:+,} за весь период)."
+    )
     if natural > 0:
         parts.append(f"Естественный прирост положительный: +{natural} чел.")
     else:
@@ -558,13 +598,21 @@ def _generate_famous_analysis() -> str:
     )
 
 
-def _generate_infrastructure_analysis(buses: list[int], routes: int, schools: int, kg: int) -> str:
+def _generate_infrastructure_analysis(
+    buses: list[int], routes: int, schools: int, kg: int
+) -> str:
     """Generate analytical text for infrastructure section."""
     total_buses = buses[-1] if buses else 0
     parts = []
-    parts.append(f"За 2023–2025 годы закуплено {total_buses} новых автобусов на газомоторном топливе.")
-    parts.append(f"В городе {routes} городских маршрутов, {schools} школ и {kg} детских садов.")
-    parts.append("Модернизация транспорта — один из ключевых приоритетов городской программы.")
+    parts.append(
+        f"За 2023–2025 годы закуплено {total_buses} новых автобусов на газомоторном топливе."
+    )
+    parts.append(
+        f"В городе {routes} городских маршрутов, {schools} школ и {kg} детских садов."
+    )
+    parts.append(
+        "Модернизация транспорта — один из ключевых приоритетов городской программы."
+    )
     return " ".join(parts)
 
 
@@ -582,14 +630,17 @@ def _generate_construction_analysis(years: list[int], sqm: list[int]) -> str:
 def _generate_summary(datasets_count: int, news: list[str] | None = None) -> str:
     """Generate the main summary text."""
     parts = []
-    parts.append(f"Аналитика основана на {datasets_count} датасетах открытых данных портала Нижневартовска, ")
+    parts.append(
+        f"Аналитика основана на {datasets_count} датасетах открытых данных портала Нижневартовска, "
+    )
     parts.append("данных Росстата и официальных отчётов администрации. ")
     parts.append("Население города превысило 293 тыс. человек, ")
-    parts.append("бюджет вырос почти вдвое за 5 лет, а транспортный парк обновлён на 241 автобус.")
+    parts.append(
+        "бюджет вырос почти вдвое за 5 лет, а транспортный парк обновлён на 241 автобус."
+    )
     if news:
         parts.append(" Последние новости: " + "; ".join(news[:3]) + ".")
     return "".join(parts)
-
 
 
 # ---------------------------------------------------------------------------
@@ -699,7 +750,9 @@ def aggregate_dashboard_data(
         },
         "construction": {
             "title": "Строительство и Ввод Жилья",
-            "analysis": _generate_construction_analysis(construction_years, sqm_completed),
+            "analysis": _generate_construction_analysis(
+                construction_years, sqm_completed
+            ),
             "years": construction_years,
             "sqm_completed": sqm_completed,
         },
@@ -718,15 +771,17 @@ def save_output(data: dict) -> Path:
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-    logger.info("Output saved to %s (%d bytes)", OUTPUT_PATH, OUTPUT_PATH.stat().st_size)
+    logger.info(
+        "Output saved to %s (%d bytes)", OUTPUT_PATH, OUTPUT_PATH.stat().st_size
+    )
     return OUTPUT_PATH
 
 
-def load_cached_output() -> Optional[dict]:
+def load_cached_output() -> dict | None:
     """Load previously saved output if it exists."""
     if OUTPUT_PATH.exists():
         try:
-            with open(OUTPUT_PATH, "r", encoding="utf-8") as f:
+            with open(OUTPUT_PATH, encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             pass
@@ -787,13 +842,21 @@ async def sync_city_data() -> dict:
         air_quality: dict = {}
         try:
             weather = await fetch_weather(client)
-            logger.info("Weather: %s°C (source: %s)", weather.get("temperature"), weather.get("source"))
+            logger.info(
+                "Weather: %s°C (source: %s)",
+                weather.get("temperature"),
+                weather.get("source"),
+            )
         except Exception as exc:
             logger.warning("Weather fetch failed: %s", exc)
 
         try:
             air_quality = await fetch_air_quality(client)
-            logger.info("Air quality: AQI %s (source: %s)", air_quality.get("aqi"), air_quality.get("source"))
+            logger.info(
+                "Air quality: AQI %s (source: %s)",
+                air_quality.get("aqi"),
+                air_quality.get("source"),
+            )
         except Exception as exc:
             logger.warning("Air quality fetch failed: %s", exc)
 
@@ -834,4 +897,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

@@ -4,13 +4,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Политика конфиденциальности — City Pulse</title>
+  <title>Политика конфиденциальности — Пульс города</title>
+
+  <!-- Design System Tokens -->
+  <link rel="stylesheet" href="/css/design-tokens.css">
+  <link rel="stylesheet" href="/css/components.css">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Exo+2:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700;800&family=IBM+Plex+Sans:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap"
     rel="stylesheet">
   <style>
+    /* Page-specific styles — tokens from design-tokens.css */
     *,
     *::before,
     *::after {
@@ -20,19 +26,19 @@
     }
 
     :root {
-      --bg-deep: #0a0c10;
-      --bg-surface: #12151c;
-      --bg-elevated: #1a1e28;
-      --text-primary: #f0f4f8;
-      --text-secondary: #94a3b8;
-      --text-muted: #64748b;
-      --accent-cyan: #00f0ff;
-      --accent-violet: #7c3aed;
-      --accent-orange: #ff6b35;
-      --glass-border: rgba(255, 255, 255, 0.08);
-      --glass-bg: rgba(26, 30, 40, 0.6);
-      --radius-md: 12px;
-      --radius-lg: 20px;
+      --bg-deep: var(--cp-bg);
+      --bg-surface: var(--cp-surface);
+      --bg-elevated: var(--cp-surface-elevated);
+      --text-primary: var(--cp-text);
+      --text-secondary: var(--cp-text-secondary);
+      --text-muted: var(--cp-text-tertiary);
+      --accent-cyan: var(--cp-primary);
+      --accent-violet: var(--cp-accent-violet);
+      --accent-orange: var(--cp-negative);
+      --glass-border: var(--cp-border);
+      --glass-bg: var(--cp-surface-glass);
+      --radius-md: var(--cp-radius-md);
+      --radius-lg: var(--cp-radius-lg);
     }
 
     html {
@@ -40,7 +46,7 @@
     }
 
     body {
-      font-family: 'Exo 2', 'Inter', sans-serif;
+      font-family: var(--cp-font-body);
       background: var(--bg-deep);
       color: var(--text-primary);
       line-height: 1.7;
@@ -567,7 +573,7 @@
       <!-- Page header -->
       <div class="page-header">
         <h1>Политика обработки персональных данных</h1>
-        <p class="subtitle">Настоящая Политика действует в отношении всей информации, которую Сервис «City Pulse» может
+        <p class="subtitle">Настоящая Политика действует в отношении всей информации, которую Сервис «Пульс города» может
           получить о Пользователе во время использования им программного комплекса и бота в Telegram.</p>
       </div>
 
@@ -598,8 +604,9 @@
         <h2><span class="section-num">3</span> Искусственный интеллект и приватность третьих лиц</h2>
         <p>3.1. Алгоритмы Сервиса обрабатывают открытые видеопотоки в реальном времени. Мы <strong>НЕ собираем</strong>,
           <strong>НЕ храним</strong> и <strong>НЕ передаем</strong> биометрические данные третьих лиц (распознавание лиц
-          лиц, не являющихся пользователями Сервиса).</p>
-        <p>3.2. Результаты ИИ-мониторинга предоставляются Пользователю в виде статичных скриншотов с указанием времени и
+          лиц, не являющихся пользователями Сервиса).
+        </p>
+        <p>3.2. Результаты AI-обработки предоставляются Пользователю в виде статичных скриншотов с указанием времени и
           локации совпадения объекта по визуальным метаданным.</p>
       </div>
 
@@ -621,7 +628,7 @@
         <div class="footer-brand">
           <div class="footer-logo">CP</div>
           <div class="footer-text">
-            <span>City Pulse</span> &middot; Нижневартовск<br>
+            <span>Пульс города</span> &middot; Нижневартовск<br>
             Опубликовано 28 марта 2026 г.
           </div>
         </div>
@@ -631,6 +638,64 @@
           <a href="javascript:history.back()">Назад</a>
         </div>
       </footer>
+
+      <section class="legal-card" id="geo-photo-data">
+        <h2>Геолокация и фотографии как персональные данные</h2>
+        <p>Согласно ст. 3 Закона № 152-ФЗ, к персональным данным относится любая информация, относящаяся к определённому физическому лицу. В Сервисе таковыми являются:</p>
+        <ul>
+          <li><strong>Геолокация Пользователя</strong> — собирается при активном согласии, используется для: привязки обращений к карте, поиска ближайших инцидентов в радиусе 500 м, отправки гео-push-уведомлений (опционально). Хранится в обезличенном виде (округлённые координаты);</li>
+          <li><strong>Фотографии</strong> — обрабатываются через Real-ESRGAN (улучшение x4), OCR-движок Tesseract, VLM-анализатор. На фото могут случайно попасть люди и госномера — Администрация не несёт ответственности за случайную фиксацию третьих лиц в публичных пространствах;</li>
+          <li><strong>IP-адрес</strong> — логируется 30 дней для защиты от DDoS, ботов и соблюдения anti-spam rate-limiting;</li>
+          <li><strong>Идентификатор устройства</strong> — генерируется случайным образом, не связан с IMEI/UDID, используется для геймификации (XP, уровни, достижения).</li>
+        </ul>
+      </section>
+
+      <section class="legal-card" id="legal-basis-152fz">
+        <h2>Правовое основание обработки (ст. 6 Закона № 152-ФЗ)</h2>
+        <p>Обработка персональных данных Пользователей осуществляется на следующих правовых основаниях:</p>
+        <ul>
+          <li><strong>п. 1 ч. 1 ст. 6</strong> — согласие Пользователя, данное при акцепте Пользовательского соглашения;</li>
+          <li><strong>п. 2 ч. 1 ст. 6</strong> — обработка необходима для достижения целей, предусмотренных законом (ФЗ-59 «О порядке рассмотрения обращений граждан», ФЗ-210 об организации предоставления гос. услуг);</li>
+          <li><strong>п. 5 ч. 1 ст. 6</strong> — обработка необходима для исполнения обязанностей и полномочий администрации города.</li>
+        </ul>
+        <p>Согласие Пользователя может быть отозвано в любой момент через направление письменного заявления на email Администрации.</p>
+      </section>
+
+      <section class="legal-card" id="age-limit">
+        <h2>Возраст Пользователей и согласие законных представителей</h2>
+        <p>В соответствии со ст. 9 Закона № 152-ФЗ:</p>
+        <ul>
+          <li>Согласие на обработку персональных данных лиц <strong>от 18 лет</strong> даётся ими самостоятельно;</li>
+          <li>Для лиц <strong>от 16 до 18 лет</strong> согласие даётся ими самостоятельно с учётом их полной дееспособности (эмансипация, брак);</li>
+          <li>Для лиц <strong>от 14 до 16 лет</strong> требуется письменное согласие одного из родителей или законных представителей;</li>
+          <li>Использование Сервиса лицами <strong>моложе 14 лет</strong> не допускается.</li>
+        </ul>
+      </section>
+
+      <section class="legal-card" id="cookies-policy">
+        <h2>Файлы cookie и localStorage</h2>
+        <p>Сервис использует следующие типы хранилищ на устройстве Пользователя:</p>
+        <ul>
+          <li><strong>HTTP-cookie</strong> — идентификатор сессии, флаг акцепта соглашения, JWT-токен авторизации (HttpOnly, Secure). Срок жизни — до 1 года;</li>
+          <li><strong>localStorage</strong> — настройки карты (выбранные категории, фильтры, последний город, last_route). Хранится бессрочно;</li>
+          <li><strong>IndexedDB</strong> — кэш оффлайн-обращений и фото для синхронизации при восстановлении сети;</li>
+          <li><strong>Service Worker cache</strong> — статики (HTML, JS, шрифты) для PWA-работы без интернета.</li>
+        </ul>
+        <p>Сервис <strong>не использует</strong> рекламные cookie Google DoubleClick, Yandex Metrica target, Facebook Pixel. Аналитика посещаемости обезличена. Очистка cookie возможна в настройках браузера.</p>
+      </section>
+
+      <section class="legal-card" id="subject-rights">
+        <h2>Права субъекта персональных данных (ст. 14-17 Закона № 152-ФЗ)</h2>
+        <p>Пользователь имеет право:</p>
+        <ul>
+          <li>Получить информацию об обрабатываемых данных (ст. 14);</li>
+          <li>Требовать уточнения, блокирования или уничтожения данных (ст. 15);</li>
+          <li>Отозвать согласие на обработку (ст. 9 ч. 2);</li>
+          <li>Обжаловать действия Администрации в Роскомнадзор или суд.</li>
+        </ul>
+        <p>Запросы направляются на email Администрации. Срок ответа — 30 дней согласно ст. 17 Закона.</p>
+      </section>
+
     </main>
   </div>
 

@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
+<!-- City Pulse native splash: dark background to avoid white flash before Flutter draws. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
+    <!-- Dark background (matches app #020617) — replaces default white -->
+    <item android:drawable="@color/pulse_bg_dark" />
 
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+    <!-- Subtle brand mark: simple radial pulse via centered ripple -->
+    <item>
+        <shape android:shape="oval">
+            <size android:width="120dp" android:height="120dp" />
+            <solid android:color="@android:color/transparent" />
+            <stroke android:width="2dp" android:color="@color/pulse_primary_cyan" />
+        </shape>
+    </item>
 </layer-list>

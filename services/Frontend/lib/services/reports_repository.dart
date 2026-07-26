@@ -155,6 +155,40 @@ class ReportsRepository {
     return const [];
   }
 
+  Future<List<Map<String, dynamic>>> fetchUkHousesCoordinates(String ukName) async {
+    final encodedName = Uri.encodeComponent(ukName);
+    final response = await _api.get(
+      '/api/uk/houses_coordinates?uk_name=$encodedName',
+      timeout: const Duration(seconds: 25),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('fetchUkHousesCoordinates HTTP ${response.statusCode}');
+    }
+    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    if (decoded is Map<String, dynamic> && decoded['houses'] is List) {
+      return List<Map<String, dynamic>>.from(
+        (decoded['houses'] as List).map((e) => Map<String, dynamic>.from(e as Map)),
+      );
+    }
+    return const [];
+  }
+
+  Future<Map<String, dynamic>?> fetchUkOfficeCoordinate(String ukName) async {
+    final encodedName = Uri.encodeComponent(ukName);
+    final response = await _api.get(
+      '/api/uk/office_coordinate?uk_name=$encodedName',
+      timeout: const Duration(seconds: 15),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      return null;
+    }
+    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+    return null;
+  }
+
   Future<int?> fetchLatestReportId() async {
     final reports = await fetchReports(limit: 1, order: 'id.desc');
     if (reports.isEmpty) {

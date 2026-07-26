@@ -1,12 +1,32 @@
 {
-    "python.testing.pytestArgs": [
-        "backend"
-    ],
-    "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true,
-    "dart.flutterBuildAdditionalArgs": [
-        "--no-tree-shake-icons"
-    ],
-    "CodeGPT.apiKey": "Google AI Studio",
-    "java.configuration.updateBuildConfiguration": "automatic"
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "python.formatting.provider": "none",
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
+  },
+  "dart.lineLength": 100,
+  "dart.previewSdkDaps": true,
+  "[dart]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "Dart-Code.dart-code",
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit"
+    }
+  },
+  "files.associations": {
+    "*.env.template": "properties",
+    "*.env.production.template": "properties"
+  },
+  "copilot.instructions": {
+    "file": ".cursorrules"
+  }
 }

@@ -13,7 +13,7 @@ import java.io.File
 
 class MainActivity : FlutterActivity() {
     private companion object {
-        const val SECURITY_CHANNEL = "com.soobshio.security/runtime"
+        const val SECURITY_CHANNEL = "com.pulse_gorod.security/runtime"
         private val ROOT_PATHS = listOf(
             "/system/bin/su",
             "/system/xbin/su",
@@ -45,9 +45,10 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (!BuildConfig.DEBUG) {
-            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        }
+        // Allow screenshots and recent app previews in release mode
+        // if (!BuildConfig.DEBUG) {
+        //     window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        // }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

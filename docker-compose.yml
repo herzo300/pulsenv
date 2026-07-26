@@ -18,7 +18,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-soobshio}
       POSTGRES_USER: ${POSTGRES_USER:-soobshio}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-soobshio_dev_pass}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -27,11 +27,12 @@ services:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-soobshio} -d ${POSTGRES_DB:-soobshio}" ]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
     deploy:
       resources:
         limits:
           memory: 1G
+          cpus: "1.0"
     security_opt:
       - no-new-privileges:true
 
@@ -41,20 +42,21 @@ services:
     restart: unless-stopped
     init: true
     logging: *default-logging
-    command: [ "redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-soobshio_redis_pwd}" ]
+    command: [ "redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-redis_dev_pass}" ]
     volumes:
       - redis_data:/data
     networks:
       - runtime
     healthcheck:
-      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-soobshio_redis_pwd}", "ping" ]
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_dev_pass}", "ping" ]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
     deploy:
       resources:
         limits:
           memory: 512M
+          cpus: "0.5"
     security_opt:
       - no-new-privileges:true
 
@@ -70,6 +72,12 @@ services:
       - .env
     environment:
       PORT: 8000
+      YOLO_MODELS_DIR: /app/models
+      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-http://45.153.68.59}
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-soobshio}:${POSTGRES_PASSWORD:-soobshio_dev_pass}@postgres:5432/${POSTGRES_DB:-soobshio}
+      VISERON_ENABLED: ${VISERON_ENABLED:-true}
+      VISERON_WEBHOOK_TOKEN: ${VISERON_WEBHOOK_TOKEN:-}
+      TG_AUTO_START_MONITOR: "false"
     depends_on:
       postgres:
         condition: service_healthy
@@ -78,21 +86,40 @@ services:
     volumes:
       - runtime_uploads:/app/static/uploads
       - runtime_logs:/app/logs
+      - ./public:/app/public:ro
+      - ./opendata_full.json:/app/opendata_full.json:ro
+      - ./data:/app/data
+      - ./models:/app/models:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
       - runtime
     healthcheck:
       test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()" ]
-      interval: 20s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
     deploy:
       resources:
         limits:
           memory: 1536M
+          cpus: "1.5"
     security_opt:
       - no-new-privileges:true
+
+  openserp:
+    image: karust/openserp:latest
+    container_name: soobshio_openserp
+    restart: unless-stopped
+    logging: *default-logging
+    command: ["serve", "--host", "0.0.0.0", "--port", "7000"]
+    ports:
+      - "7000:7000"
+    environment:
+      - PORT=7000
+    networks:
+      - runtime
+
 
   monitoring:
     build:
@@ -104,6 +131,9 @@ services:
     logging: *default-logging
     env_file:
       - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-soobshio}:${POSTGRES_PASSWORD:-soobshio_dev_pass}@postgres:5432/${POSTGRES_DB:-soobshio}
+      MONITORING_SESSION_PATH: /app/session/monitoring_session
     command: [ "python", "start_all_monitoring.py" ]
     depends_on:
       backend:
@@ -113,7 +143,7 @@ services:
     volumes:
       - runtime_uploads:/app/static/uploads
       - runtime_logs:/app/logs
-      - monitoring_session:/app/session
+      - ./session:/app/session
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -127,8 +157,11 @@ services:
       resources:
         limits:
           memory: 1G
+          cpus: "1.0"
     security_opt:
       - no-new-privileges:true
+    profiles:
+      - monitoring
 
   camera_probe:
     build:
@@ -140,6 +173,8 @@ services:
     logging: *default-logging
     env_file:
       - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-soobshio}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-soobshio}
     command: [ "python", "start_camera_probe.py" ]
     depends_on:
       backend:
@@ -148,8 +183,6 @@ services:
         condition: service_healthy
     volumes:
       - runtime_logs:/app/logs
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       - runtime
     healthcheck:
@@ -161,37 +194,69 @@ services:
       resources:
         limits:
           memory: 768M
+          cpus: "0.5"
     security_opt:
       - no-new-privileges:true
+    profiles:
+      - monitoring
 
-  # ─── Frigate NVR (городское видеонаблюдение) ───
-  frigate:
-    image: ghcr.io/blakeblackshear/frigate:0.14.1
-    container_name: soobshio_frigate
+  # ─── Viseron NVR (городское видеонаблюдение) ───
+  viseron:
+    image: roflcoopter/viseron:3.5.3
+    container_name: soobshio_viseron
     restart: unless-stopped
     logging: *default-logging
-    env_file:
-      - .env
-    environment:
-      FRIGATE_RTSP_PASSWORD: ""
     shm_size: "256mb"
     volumes:
-      - ./ops/frigate/config.yml:/config/config.yml:ro
-      - frigate_db:/db
-      - frigate_media:/media/frigate
+      - ./ops/viseron/config:/config
+      - viseron_data:/data
     ports:
-      - "127.0.0.1:5000:5000"
+      - "127.0.0.1:8888:8888"
+    depends_on:
+      backend:
+        condition: service_healthy
     networks:
       - runtime
-    healthcheck:
-      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/version', timeout=5).read()" ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
     deploy:
       resources:
         limits:
           memory: 1536M
+          cpus: "1.0"
+    security_opt:
+      - no-new-privileges:true
+    profiles:
+      - monitoring
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: soobshio_nginx
+    restart: unless-stopped
+    init: true
+    logging: *default-logging
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./ops/timeweb/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ops/timeweb/soobshio-locations.inc:/etc/nginx/conf.d/soobshio-locations.inc:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - runtime_uploads:/var/www/soobshio/uploads:ro
+      - ./public:/usr/share/nginx/html:ro
+    networks:
+      - runtime
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -q -O - http://127.0.0.1/healthz >/dev/null 2>&1 || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
     security_opt:
       - no-new-privileges:true
 
@@ -214,9 +279,12 @@ services:
     deploy:
       resources:
         limits:
-          memory: 3G
+          memory: 2G
+          cpus: "1.5"
     security_opt:
       - no-new-privileges:true
+    profiles:
+      - ai
 
   # ─── LiteLLM (унифицированный AI-прокси) ───
   litellm:
@@ -229,7 +297,7 @@ services:
       - .env
     environment:
       OLLAMA_API_BASE: http://ollama:11434
-      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-unused}
       DATABASE_URL: postgresql://${POSTGRES_USER:-soobshio}:${POSTGRES_PASSWORD}@postgres:5432/litellm_proxy
       LITELLM_MIGRATION_DIR: /tmp/litellm_prisma
     volumes:
@@ -248,39 +316,23 @@ services:
       resources:
         limits:
           memory: 1G
+          cpus: "1.0"
     security_opt:
       - no-new-privileges:true
+    profiles:
+      - ai
 
-  nginx:
-    image: nginx:1.27-alpine
-    container_name: soobshio_nginx
+  tor:
+    image: alpine:latest
+    container_name: soobshio_tor
     restart: unless-stopped
-    init: true
     logging: *default-logging
-    depends_on:
-      backend:
-        condition: service_healthy
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./ops/timeweb/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - runtime_uploads:/var/www/soobshio/uploads:ro
-      - ./services/Frontend/build/web:/usr/share/nginx/html:ro
-      - ./certs:/etc/nginx/certs:ro
     networks:
       - runtime
-    healthcheck:
-      test: [ "CMD-SHELL", "wget -q -O - http://127.0.0.1/healthz >/dev/null 2>&1 || exit 1" ]
-      interval: 20s
-      timeout: 5s
-      retries: 5
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-    security_opt:
-      - no-new-privileges:true
+    command: >
+      sh -c "apk add --no-cache tor &&
+             echo 'SocksPort 0.0.0.0:9050' > /etc/tor/torrc &&
+             tor -f /etc/tor/torrc"
 
 volumes:
   postgres_data:
@@ -291,14 +343,10 @@ volumes:
     name: soobshio_runtime_uploads
   runtime_logs:
     name: soobshio_runtime_logs
-  frigate_db:
-    name: soobshio_frigate_db
-  frigate_media:
-    name: soobshio_frigate_media
   ollama_models:
     name: soobshio_ollama_models
-  monitoring_session:
-    name: soobshio_monitoring_session
+  viseron_data:
+    name: soobshio_viseron_data
 
 networks:
   runtime:

@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from sqlalchemy import func, or_
 
-from backend.database import SessionLocal
-from backend.models import GeoSubscription, Report
-from services.cache_service import get_categories_cached
+from services.data_layer.database import SessionLocal, get_db
+from services.data_layer.models import GeoSubscription, Report, User
 
 from ..admin_metrics import (
     extract_client_ip,
@@ -57,12 +57,8 @@ class DeviceUnbindPayload(BaseModel):
     device_id: str
 
 
-class WatchdogScanPayload(BaseModel):
-    max_cameras: int = 5
-
-
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _public_source_filter():
@@ -120,6 +116,43 @@ def _derive_attack_signal(snapshot: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _env_is_configured(name: str) -> bool:
+    value = (os.getenv(name) or "").strip().strip('"').strip("'")
+    if not value:
+        return False
+    return value.lower() not in {"change_me", "your_token_here", "placeholder"}
+
+
+def _file_status(path: Path) -> dict[str, Any]:
+    exists = path.exists()
+    stat = path.stat() if exists else None
+    return {
+        "exists": exists,
+        "size_bytes": stat.st_size if stat else 0,
+        "modified_at": (
+            datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat()
+            if stat
+            else None
+        ),
+    }
+
+
+def _decode_event_name(screen: str | None) -> str | None:
+    if not screen or not screen.startswith("event:"):
+        return None
+    return screen.split(":", 2)[1].strip() or None
+
+
+def _quality_bucket(report: Report) -> str:
+    has_address = bool((report.address or "").strip())
+    has_coords = report.lat is not None and report.lng is not None
+    if has_address and has_coords:
+        return "confident"
+    if has_address or has_coords:
+        return "partial"
+    return "no_address"
+
+
 @router.post("/runtime/heartbeat")
 def runtime_heartbeat(payload: HeartbeatPayload, request: Request):
     ip = extract_client_ip(request)
@@ -140,9 +173,59 @@ def get_runtime_access_policy(request: Request):
     return metrics_store.get_access_policy(device_id)
 
 
-@router.get("/cameras")
-def get_public_cameras():
-    return {"cameras": metrics_store.get_public_cameras()}
+@router.get("/runtime/monitoring-status")
+def get_runtime_monitoring_status():
+    """Public-safe runtime diagnostics for ingestion readiness."""
+    root = Path(__file__).resolve().parents[3]
+    env = {
+        key: _env_is_configured(key)
+        for key in (
+            "TG_API_ID",
+            "TG_API_HASH",
+            "TG_PHONE",
+            "TG_BOT_TOKEN",
+            "TARGET_CHANNEL",
+            "VK_SERVICE_TOKEN",
+            "JWT_SECRET",
+            "PUBLIC_API_BASE_URL",
+        )
+    }
+    session_candidates = (
+        root / "session" / "monitoring_session.session",
+        root / "monitoring_session.session",
+        root / "soobshio_session.session",
+    )
+    sessions = {
+        "monitoring_session": next(
+            (_file_status(path) for path in session_candidates if path.exists()),
+            _file_status(root / "session" / "monitoring_session.session"),
+        ),
+        "soobshio_session": _file_status(root / "soobshio_session.session"),
+    }
+    monitor_session_ready = any(item["exists"] for item in sessions.values())
+    telegram_env_ready = env["TG_API_ID"] and env["TG_API_HASH"]
+    try:
+        from services.monitoring.config import CHANNELS_TO_MONITOR
+
+        channels_count = len(CHANNELS_TO_MONITOR)
+    except Exception:
+        channels_count = 0
+
+    return {
+        "ok": True,
+        "generated_at": _utcnow().isoformat(),
+        "env": env,
+        "sessions": sessions,
+        "telegram_ready": telegram_env_ready and monitor_session_ready,
+        "telegram_env_ready": telegram_env_ready,
+        "telegram_session_ready": monitor_session_ready,
+        "vk_ready": env["VK_SERVICE_TOKEN"],
+        "target_channel_configured": env["TARGET_CHANNEL"],
+        "channels_to_monitor_count": channels_count,
+        "monitor_poll_interval_seconds": int(
+            os.getenv("MONITOR_POLL_INTERVAL_SECONDS") or "20"
+        ),
+    }
 
 
 @router.post("/admin/session/claim", response_model=AdminClaimResponse)
@@ -156,7 +239,9 @@ def claim_admin_session(request: Request, payload: AdminClaimPayload | None = No
 
 
 @router.post("/admin/session/release")
-def release_admin_session(request: Request, _device_id: str = Depends(require_admin_session)):
+def release_admin_session(
+    request: Request, _device_id: str = Depends(require_admin_session)
+):
     token = request.headers.get("authorization", "").split(" ", 1)[1].strip()
     metrics_store.release_admin_session(device_id=_device_id, token=token)
     return {"ok": True}
@@ -167,8 +252,111 @@ def get_admin_metrics(_device_id: str = Depends(require_admin_session)):
     return metrics_store.snapshot()
 
 
+@router.get("/admin/product-funnel")
+def get_admin_product_funnel(_device_id: str = Depends(require_admin_session)):
+    from services.Backend.admin_metrics.models import AdminHeartbeatEvent
+
+    db = metrics_store._db()
+    try:
+        day_threshold = _utcnow() - timedelta(hours=24)
+        week_threshold = _utcnow() - timedelta(days=7)
+
+        def collect(threshold: datetime) -> dict[str, Any]:
+            rows = (
+                db.query(AdminHeartbeatEvent)
+                .filter(AdminHeartbeatEvent.happened_at >= threshold)
+                .all()
+            )
+            event_counts: dict[str, int] = {}
+            event_devices: dict[str, set[str]] = {}
+            for row in rows:
+                event = _decode_event_name(row.screen)
+                if not event:
+                    continue
+                event_counts[event] = event_counts.get(event, 0) + 1
+                event_devices.setdefault(event, set()).add(row.device_id)
+            funnel = [
+                "map_viewed",
+                "report_cta_tapped",
+                "photo_added",
+                "address_confirmed",
+                "report_submit_started",
+                "report_submit_completed",
+                "report_saved_to_draft",
+            ]
+            return {
+                "events": event_counts,
+                "unique_devices": {
+                    event: len(event_devices.get(event, set())) for event in funnel
+                },
+                "funnel": [
+                    {
+                        "event": event,
+                        "count": int(event_counts.get(event, 0)),
+                        "unique_devices": len(event_devices.get(event, set())),
+                    }
+                    for event in funnel
+                ],
+            }
+
+        return {
+            "generated_at": _utcnow().isoformat(),
+            "north_star": "weekly_active_reporters",
+            "day": collect(day_threshold),
+            "week": collect(week_threshold),
+        }
+    finally:
+        db.close()
+
+
+@router.get("/admin/ingestion-quality")
+def get_admin_ingestion_quality(_device_id: str = Depends(require_admin_session)):
+    db = SessionLocal()
+    try:
+        month_threshold = _utcnow() - timedelta(days=30)
+        public_filter = _public_source_filter()
+        rows = (
+            db.query(Report)
+            .filter(public_filter, Report.created_at >= month_threshold)
+            .order_by(Report.created_at.desc())
+            .limit(500)
+            .all()
+        )
+        buckets: dict[str, int] = {"confident": 0, "partial": 0, "no_address": 0}
+        by_category: dict[str, int] = {}
+        by_source: dict[str, int] = {}
+        recent_needs_review: list[dict[str, Any]] = []
+        for report in rows:
+            bucket = _quality_bucket(report)
+            buckets[bucket] = buckets.get(bucket, 0) + 1
+            category = report.category or "unknown"
+            by_category[category] = by_category.get(category, 0) + 1
+            source = (report.source or "unknown").split(":", 1)[0]
+            by_source[source] = by_source.get(source, 0) + 1
+            if bucket != "confident" and len(recent_needs_review) < 20:
+                recent_needs_review.append(_report_excerpt(report) or {})
+
+        return {
+            "generated_at": _utcnow().isoformat(),
+            "window_days": 30,
+            "total_public_reports": len(rows),
+            "quality": buckets,
+            "confidence_ratio": round(
+                buckets.get("confident", 0) / max(1, len(rows)),
+                3,
+            ),
+            "by_category": by_category,
+            "by_source": by_source,
+            "recent_needs_review": recent_needs_review,
+        }
+    finally:
+        db.close()
+
+
 @router.get("/admin/notification-diagnostics")
-def get_admin_notification_diagnostics(_device_id: str = Depends(require_admin_session)):
+def get_admin_notification_diagnostics(
+    _device_id: str = Depends(require_admin_session),
+):
     snapshot = metrics_store.snapshot()
     now = _utcnow()
     hour_threshold = now - timedelta(hours=1)
@@ -241,10 +429,7 @@ def get_admin_notification_diagnostics(_device_id: str = Depends(require_admin_s
             .all()
         )
 
-        geo_subscriptions_total = (
-            db.query(func.count(GeoSubscription.id)).scalar()
-            or 0
-        )
+        geo_subscriptions_total = db.query(func.count(GeoSubscription.id)).scalar() or 0
         geo_subscriptions_active = (
             db.query(func.count(GeoSubscription.id))
             .filter(GeoSubscription.is_active.is_(True))
@@ -284,9 +469,7 @@ def get_admin_notification_diagnostics(_device_id: str = Depends(require_admin_s
             else 1.0
         )
         status = "ready"
-        if not tg_token_configured or not categories:
-            status = "degraded"
-        elif public_reports_last_day and coords_coverage < 0.35:
+        if not tg_token_configured or not categories or public_reports_last_day and coords_coverage < 0.35:
             status = "degraded"
 
         return {
@@ -296,7 +479,9 @@ def get_admin_notification_diagnostics(_device_id: str = Depends(require_admin_s
                 "storage_mode": snapshot.get("storage_mode"),
                 "uptime_human": snapshot.get("uptime_human"),
                 "requests_last_hour": int(snapshot.get("requests_last_hour") or 0),
-                "requests_last_24_hours": int(snapshot.get("requests_last_24_hours") or 0),
+                "requests_last_24_hours": int(
+                    snapshot.get("requests_last_24_hours") or 0
+                ),
                 "active_unique_users": int(snapshot.get("active_unique_users") or 0),
             },
             "notifications": {
@@ -313,12 +498,20 @@ def get_admin_notification_diagnostics(_device_id: str = Depends(require_admin_s
             "ingestion": {
                 "public_reports_last_hour": int(public_reports_last_hour),
                 "public_reports_last_24_hours": int(public_reports_last_day),
-                "public_reports_with_coords_last_24_hours": int(public_reports_with_coords_last_day),
-                "public_reports_without_coords_last_24_hours": int(public_reports_without_coords_last_day),
+                "public_reports_with_coords_last_24_hours": int(
+                    public_reports_with_coords_last_day
+                ),
+                "public_reports_without_coords_last_24_hours": int(
+                    public_reports_without_coords_last_day
+                ),
                 "coords_coverage_ratio": round(coords_coverage, 3),
                 "latest_public_report": _report_excerpt(latest_public_report),
-                "latest_geocoded_public_report": _report_excerpt(latest_geocoded_public_report),
-                "recent_unlocated_public": [_report_excerpt(item) for item in recent_unlocated_public],
+                "latest_geocoded_public_report": _report_excerpt(
+                    latest_geocoded_public_report
+                ),
+                "recent_unlocated_public": [
+                    _report_excerpt(item) for item in recent_unlocated_public
+                ],
             },
             "security": _derive_attack_signal(snapshot),
         }
@@ -374,30 +567,191 @@ def update_camera_visibility(
     )
 
 
-@router.get("/admin/watchdog/status")
-async def get_admin_watchdog_status(_device_id: str = Depends(require_admin_session)):
-    from .watchdog import collect_watchdog_status
+class GrantPremiumPayload(BaseModel):
+    telegram_id: int | None = None
+    username: str | None = None
+    phone: str | None = None
+    address: str | None = None
+    vk_id: str | None = None
+    days: int = 30
 
-    return await collect_watchdog_status()
 
-
-@router.get("/admin/watchdog/alerts")
-def get_admin_watchdog_alerts(
-    limit: int = 20,
+@router.post("/admin/grant-premium")
+def grant_premium_access(
+    payload: GrantPremiumPayload,
+    db: SessionLocal = Depends(get_db),
     _device_id: str = Depends(require_admin_session),
 ):
-    from .watchdog import collect_watchdog_alerts
+    """Grant VIP/Premium access to any user by TG ID, Username, Phone, Address, or VK ID (Admin feature)."""
+    from fastapi import HTTPException
+    
+    user = None
+    if payload.telegram_id:
+        user = db.query(User).filter(User.telegram_id == payload.telegram_id).first()
+    elif payload.username:
+        username = payload.username.lstrip("@").strip()
+        user = db.query(User).filter(User.username == username).first()
+    elif payload.phone:
+        phone = payload.phone.strip()
+        user = db.query(User).filter(User.phone == phone).first()
+    elif payload.address:
+        address = payload.address.strip()
+        user = db.query(User).filter(User.address == address).first()
+    elif payload.vk_id:
+        vk_id = payload.vk_id.strip()
+        user = db.query(User).filter(User.vk_id == vk_id).first()
+        
+    if not user:
+        # Create a new user stub
+        user = User(
+            telegram_id=payload.telegram_id,
+            username=payload.username.lstrip("@").strip() if payload.username else None,
+            phone=payload.phone.strip() if payload.phone else None,
+            address=payload.address.strip() if payload.address else None,
+            vk_id=payload.vk_id.strip() if payload.vk_id else None,
+            first_name="Абонент",
+            last_name="Премиум",
+        )
+        db.add(user)
+        db.flush()
+        
+    subscription_end = datetime.utcnow() + timedelta(days=payload.days)
+    user.digest_subscription_until = subscription_end
+    db.commit()
+    
+    identifier_desc = []
+    if user.telegram_id:
+        identifier_desc.append(f"TG ID: {user.telegram_id}")
+    if user.username:
+        identifier_desc.append(f"username: @{user.username}")
+    if user.phone:
+        identifier_desc.append(f"тел: {user.phone}")
+    if user.address:
+        identifier_desc.append(f"адрес: {user.address}")
+    if user.vk_id:
+        identifier_desc.append(f"VK ID: {user.vk_id}")
+    
+    return {
+        "ok": True,
+        "message": f"Пользователю {user.first_name or ''} {user.last_name or ''} ({', '.join(identifier_desc)}) успешно выдан Premium доступ на {payload.days} дней (до {subscription_end.strftime('%d.%m.%Y %H:%M:%S')})"
+    }
 
-    return collect_watchdog_alerts(limit=limit)
 
-
-@router.post("/admin/watchdog/scan")
-async def run_admin_watchdog_scan(
-    payload: WatchdogScanPayload | None = None,
+@router.get("/admin/users")
+def get_admin_users(
+    search: str = "",
+    db: SessionLocal = Depends(get_db),
     _device_id: str = Depends(require_admin_session),
 ):
-    from .watchdog import run_watchdog_scan
+    """Search users with VIP status and API cost / camera scan metrics. Does not list everyone by default."""
+    from sqlalchemy import cast, String
+    search_val = search.strip()
+    if not search_val:
+        return {
+            "generated_at": _utcnow().isoformat(),
+            "total": 0,
+            "users": [],
+        }
+        
+    query_str = f"%{search_val}%"
+    users = (
+        db.query(User)
+        .filter(
+            (User.username.ilike(query_str))
+            | (User.first_name.ilike(query_str))
+            | (User.last_name.ilike(query_str))
+            | (User.phone.ilike(query_str))
+            | (User.vk_id.ilike(query_str))
+            | (User.address.ilike(query_str))
+            | (cast(User.telegram_id, String).ilike(query_str))
+        )
+        .order_by(User.id.desc())
+        .limit(30)
+        .all()
+    )
 
-    requested = int(payload.max_cameras) if payload is not None else 5
-    max_cameras = max(1, min(requested, 25))
-    return await run_watchdog_scan(max_cameras=max_cameras)
+    return {
+        "generated_at": _utcnow().isoformat(),
+        "total": len(users),
+        "users": [
+            {
+                "id": u.id,
+                "telegram_id": u.telegram_id,
+                "username": u.username,
+                "first_name": u.first_name,
+                "last_name": u.last_name,
+                "phone": u.phone,
+                "address": u.address,
+                "vk_id": u.vk_id,
+                "is_vip": bool(
+                    u.digest_subscription_until
+                    and u.digest_subscription_until > _utcnow()
+                ),
+                "vip_until": (
+                    u.digest_subscription_until.isoformat()
+                    if u.digest_subscription_until
+                    else None
+                ),
+                "api_cost_this_month": round(u.api_cost_this_month or 0.0, 4),
+                "api_budget_used_pct": round(
+                    (u.api_cost_this_month or 0.0) / 30.0 * 100, 1
+                ),
+                "camera_scans_today": u.camera_scans_today or 0,
+                "created_at": u.created_at.isoformat() if u.created_at else None,
+            }
+            for u in users
+        ],
+    }
+
+
+@router.get("/api/admin/hermes-report")
+def get_hermes_report():
+    import json
+    report_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "services", "ai", "daily_hermes_training_report.json")
+    visibility_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "services", "ai", "hermes_report_visibility.json")
+    
+    visible = True
+    if os.path.exists(visibility_path):
+        try:
+            with open(visibility_path, "r", encoding="utf-8") as f:
+                visible = json.load(f).get("visible", True)
+        except Exception:
+            pass
+            
+    report_data = None
+    if os.path.exists(report_path):
+        try:
+            with open(report_path, "r", encoding="utf-8") as f:
+                report_data = json.load(f)
+        except Exception:
+            pass
+            
+    return {
+        "visible": visible,
+        "report": report_data
+    }
+
+
+@router.post("/api/admin/hermes-report/dismiss")
+def dismiss_hermes_report():
+    import json
+    visibility_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "services", "ai", "hermes_report_visibility.json")
+    try:
+        with open(visibility_path, "w", encoding="utf-8") as f:
+            json.dump({"visible": False}, f)
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    return {"status": "success", "visible": False}
+
+
+@router.post("/api/admin/hermes-report/reset")
+def reset_hermes_report():
+    import json
+    visibility_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "services", "ai", "hermes_report_visibility.json")
+    try:
+        with open(visibility_path, "w", encoding="utf-8") as f:
+            json.dump({"visible": True}, f)
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    return {"status": "success", "visible": True}
+

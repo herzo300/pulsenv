@@ -5,7 +5,6 @@ Telegram monitor management endpoints: start, stop, status, messages.
 
 import logging
 import os
-from typing import Optional
 
 from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel, Field
@@ -30,7 +29,7 @@ async def start_telegram_monitor(config: TelegramMonitorConfig, request: Request
     """Start monitoring Telegram channels."""
     require_admin_api_token(request)
     try:
-        from backend.database import get_db
+        from services.data_layer.database import get_db
         from services.telegram_monitor import start_telegram_monitoring
 
         # Get a fresh DB session for the monitor
@@ -79,7 +78,7 @@ async def get_telegram_monitor_status(request: Request):
 @router.get("/monitor/messages")
 async def get_telegram_messages(
     request: Request,
-    category: Optional[str] = None,
+    category: str | None = None,
     limit: int = Query(100, le=100),
     offset: int = Query(0, ge=0),
 ):

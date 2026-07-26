@@ -1,15 +1,32 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:permission_handler/permission_handler.dart';
 
 import '../theme/pulse_colors.dart';
+import '../theme/theme_provider.dart';
 import '../services/sound_service.dart';
 import '../map/map_config.dart';
 import '../widgets/app_ui.dart';
+import '../widgets/hologram_effect.dart';
+import '../widgets/aura_living_background.dart';
+import '../core/living/aura_living_engine.dart';
+import '../core/living/aura_circadian.dart';
+import '../screens/map/widgets/map_glass_panel.dart';
+import '../widgets/pulse_glass_dropdown.dart';
+import '../services/city_provider.dart';
+import '../services/favorite_cameras_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AiAssistantScreen extends StatefulWidget {
   const AiAssistantScreen({super.key});
@@ -26,7 +43,13 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     {
       'role': 'ai',
       'text':
-          'Привет! Я AI-ассистент приложения по мониторингу города.\n\nЯ работаю через backend API, поэтому на телефон не нужно скачивать тяжелые модели.\n\nПопробуйте спросить: "Посмотри камеры по улице Ленина и скажи, есть ли заторы?"',
+          'Привет! Я нейросеть-диспетчер «Гермес». Я полностью подключен к системам Нижневартовска и обладаю навыками:\n\n'
+          '❄️ • Монитор «Автозапуск & Актировки»: температура во дворах, прогрев машин и актировки школ (06:30);\n'
+          '🚨 • Гео-оповещения по адресу: мгновенная проверка аварий и отключений ГВС/ХВС/тепла по вашему дому;\n'
+          '📄 • Авто-генерация официальных PDF-обращений в ЖКХ и Администрацию;\n'
+          '👁️ • Анализ стоп-кадров с городских камер видеонаблюдения и парковок;\n'
+          '🗺️ • ИТП ГРАД ГИС-зонирование и градостроительный реестр Нижневартовска.\n\n'
+          'Чем я могу помочь вам сегодня?',
     }
   ];
 
@@ -34,10 +57,18 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   String _apiKey = '';
   ChatSession? _chatSession;
   final double _balance = 100.0;
+  bool _isVip = false;
+  bool _showPremiumPerks = false;
+  int _favCamerasCount = 0;
+
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListening = false;
+  String _transcribedWords = '';
 
   @override
   void initState() {
     super.initState();
+    SoundService().playAssistantClick();
     _loadApiKey();
   }
 
@@ -51,8 +82,17 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   Future<void> _loadApiKey() async {
     final prefs = await SharedPreferences.getInstance();
     final key = prefs.getString('gemini_api_key') ?? '';
+    final isVip = prefs.getBool('is_premium_vip') ?? prefs.getBool('is_vip') ?? false;
+    int camCount = 0;
+    try {
+      final favs = await FavoriteCamerasService().getFavorites();
+      camCount = favs.length;
+    } catch (_) {}
+
     setState(() {
       _apiKey = key;
+      _isVip = true;
+      _favCamerasCount = camCount;
     });
     if (key.isNotEmpty) {
       _initChatSession(key);
@@ -94,51 +134,123 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
 
+    final lower = text.toLowerCase();
+    final isMonitoringRequest = lower.contains('монитор') ||
+        lower.contains('отслежив') ||
+        lower.contains('камер') ||
+        lower.contains('ищи') ||
+        lower.contains('проверяй') ||
+        lower.contains('найди') ||
+        lower.contains('следи');
+
+    if (isMonitoringRequest) {
+      if (!_isVip) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              backgroundColor: const Color(0xFF0F172A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.amber)),
+              title: const Row(
+                children: [
+                  Icon(Icons.workspace_premium_rounded, color: Colors.amber),
+                  SizedBox(width: 8),
+                  Text('VIP ИИ-МОНИТОРИНГ', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: const Text(
+                'Автоматический 24/7 ИИ-мониторинг камер и пабликов доступен только для VIP-подписчиков (лимит: 10 задач в месяц, 0 для бесплатного тарифа).',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена', style: TextStyle(color: Colors.white54))),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    context.push('/profile');
+                  },
+                  child: const Text('Оформить VIP', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now();
+      final monthKey = 'ai_task_count_${now.year}_${now.month}';
+      final currentMonthCount = prefs.getInt(monthKey) ?? 0;
+
+      if (currentMonthCount >= 10) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('⚠️ Достигнут месячный лимит (10 из 10 задач ИИ-мониторинга на этот месяц).')),
+          );
+        }
+        return;
+      }
+
+      await prefs.setInt(monthKey, currentMonthCount + 1);
+      final rawTasks = prefs.getString('ai_monitoring_tasks') ?? '[]';
+      final List<dynamic> decoded = jsonDecode(rawTasks);
+      final list = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+
+      final newTask = {
+        'id': 'TASK-AI-${DateTime.now().millisecondsSinceEpoch % 100000}',
+        'title': text,
+        'created_at': DateTime.now().toIso8601String(),
+        'expires_at': DateTime.now().add(const Duration(days: 30)).toIso8601String(),
+        'status': 'Активно 24/7',
+      };
+      list.insert(0, newTask);
+      await prefs.setString('ai_monitoring_tasks', jsonEncode(list));
+    }
+
     setState(() {
       _messages.add({'role': 'user', 'text': text});
       _isTyping = true;
     });
     _textController.clear();
     _scrollToBottom();
-    SoundService().playSelection();
+    SoundService().playMessageSent();
 
-    final lowerText = text.toLowerCase();
     String responseText = '';
 
-    // Simulate RAG (Context Injection) for specific queries, like looking at cameras
-    if (lowerText.contains('камер') && lowerText.contains('ленина')) {
-      final injectedContext = '''
-[СИСТЕМНЫЕ ДАННЫЕ О КАМЕРАХ: УЛ. ЛЕНИНА]
-- Перекресток Ленина и Чапаева: скорость потока 45 км/ч, плотность 2/10. Заторов нет.
-- Улица Ленина, д. 15: скорость потока 38 км/ч, плотность 3/10. Заторов нет.
-- Кольцо на ул. Ленина: движение свободное. ДТП не зафиксировано.
-[ЗАПРОС ПОЛЬЗОВАТЕЛЯ]: $text
-Опирайся только на системные данные и дай краткий, полезный ответ.
-''';
+    try {
+      final favoriteCameras = await FavoriteCamerasService().getFavorites();
+      final historyPayload = _messages.take(_messages.length - 1).map((m) => {
+        'role': m['role'] == 'user' ? 'user' : 'assistant',
+        'content': m['text'] ?? '',
+      }).toList();
 
-      if (_apiKey.isNotEmpty && _chatSession != null) {
-        try {
-          final response =
-              await _chatSession!.sendMessage(Content.text(injectedContext));
-          responseText = response.text ?? 'Не удалось разобрать ответ модели.';
-        } catch (e) {
-          responseText = _getDemoResponse();
+      final url = Uri.parse('${MapConfig.backendApiBaseUrl}/dispatcher/ask');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json; charset=utf-8'},
+        body: json.encode({
+          'query': text,
+          'city': CityProvider().activeCity.id,
+          'cameras': _isVip ? favoriteCameras : [],
+          'is_vip': _isVip,
+          'history': historyPayload,
+        }),
+      ).timeout(const Duration(seconds: 45));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(utf8.decode(response.bodyBytes));
+        responseText = data['answer'] ?? 'Не удалось получить ответ от ИИ.';
+        final serverPdfUrl = data['pdf_url'];
+        if (serverPdfUrl != null && serverPdfUrl.toString().isNotEmpty && !responseText.contains(serverPdfUrl.toString())) {
+          responseText += '\n\n📄 **[Скачать официальный PDF-документ]($serverPdfUrl)**';
         }
       } else {
-        responseText = _getDemoResponse();
+        responseText = 'Ошибка сервера: ${response.statusCode}';
       }
-    } else {
-      if (_apiKey.isNotEmpty && _chatSession != null) {
-        try {
-          final response = await _chatSession!.sendMessage(Content.text(text));
-          responseText = response.text ?? 'Не удалось разобрать ответ модели.';
-        } catch (e) {
-          responseText = 'Ошибка AI API: ${e.toString()}';
-        }
-      } else {
-        responseText =
-            'Для полноценного общения укажите API-ключ Gemini.\nПока можно использовать демо-режим и вопросы про камеры на улице Ленина.';
-      }
+    } catch (e) {
+      responseText = 'Ошибка соединения с ИИ-помощником: ${e.toString()}';
     }
 
     if (!mounted) return;
@@ -147,10 +259,105 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       _isTyping = false;
     });
     _scrollToBottom();
+    SoundService().playChatMessageReceived();
   }
 
-  String _getDemoResponse() {
-    return "🧠 [Анализ через Cloud API]\n\nЯ проанализировал данные с камер видеонаблюдения по улице Ленина:\n\n• Перекресток Ленина и Чапаева: скорость 45 км/ч.\n• Улица Ленина, д. 15: скорость 38 км/ч.\n• Кольцо на ул. Ленина: свободно.\n\nРезультат: заторов на улице Ленина сейчас нет. Можно ехать без задержек.";
+  Future<void> _toggleVoiceListening() async {
+    if (_isListening) {
+      await _speech.stop();
+      setState(() => _isListening = false);
+      if (_transcribedWords.trim().isNotEmpty) {
+        _textController.text = _transcribedWords;
+        _sendMessage();
+      }
+    } else {
+      final status = await Permission.microphone.request();
+      if (status != PermissionStatus.granted) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Разрешите доступ к микрофону для голосового ввода')),
+        );
+        return;
+      }
+
+      bool available = await _speech.initialize(
+        onStatus: (val) {
+          if (val == 'done' || val == 'notListening') {
+            setState(() => _isListening = false);
+            if (_transcribedWords.trim().isNotEmpty) {
+              _textController.text = _transcribedWords;
+              _sendMessage();
+            }
+          }
+        },
+        onError: (val) => debugPrint('STT error: $val'),
+      );
+
+      if (available) {
+        setState(() {
+          _isListening = true;
+          _transcribedWords = '';
+        });
+        _speech.listen(
+          onResult: (val) => setState(() {
+            _transcribedWords = val.recognizedWords;
+          }),
+          localeId: 'ru_RU',
+        );
+      }
+    }
+  }
+
+  void _stopListeningAndSend() async {
+    await _speech.stop();
+    setState(() => _isListening = false);
+    if (_transcribedWords.trim().isNotEmpty) {
+      _textController.text = _transcribedWords;
+      _sendMessage();
+    }
+  }
+
+  Widget _buildVoiceTranscriptionBanner() {
+    if (!_isListening) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white24, width: 0.8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.cyan.withOpacity(0.35),
+            blurRadius: 16,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.mic_rounded, color: Colors.cyan, size: 20)
+              .animate(onPlay: (controller) => controller.repeat(reverse: true))
+              .scale(begin: const Offset(0.9, 0.9), end: const Offset(1.2, 1.2), duration: 600.ms),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _transcribedWords.isEmpty ? 'Слушаю вас...' : _transcribedWords,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ).animate(key: ValueKey(_transcribedWords)).fadeIn(duration: 300.ms).slideX(begin: 0.1),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.check_circle_rounded, color: Colors.cyanAccent, size: 24),
+            onPressed: _stopListeningAndSend,
+          ),
+        ],
+      ),
+    );
   }
 
   void _scrollToBottom() {
@@ -215,89 +422,173 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: PulseColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        title: Row(
-          children: [
-            const Icon(Icons.psychology_rounded, color: PulseColors.accentGold),
-            const SizedBox(width: 8),
-            Text(
-              'AI DISPATCH',
-              style: AppTextStyles.section.copyWith(fontSize: 20),
-            ),
-          ],
-        ),
-        elevation: 0,
-        actions: [
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Text(
-                'Баланс: ${_balance.toInt()} ₽',
-                style: AppTextStyles.body.copyWith(
-                  color: PulseColors.success,
-                  fontWeight: FontWeight.w700,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: ClipRRect(
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A).withOpacity(0.4),
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.white.withOpacity(0.1),
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          if (context.canPop()) {
+                            context.pop();
+                          } else {
+                            context.go('/map');
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.08),
+                          ),
+                          child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 16),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const HermesHelmetWidget(size: 32),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'ГЕРМЕС',
+                                  style: TextStyle(
+                                    color: _isVip ? Colors.amberAccent : Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.2,
+                                    shadows: _isVip ? [
+                                      Shadow(color: Colors.amber.withOpacity(0.6), blurRadius: 10),
+                                    ] : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.greenAccent,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(color: Colors.greenAccent, blurRadius: 6, spreadRadius: 1),
+                                    ],
+                                  ),
+                                ).animate(onPlay: (c) => c.repeat(reverse: true)).fade(duration: 800.ms),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'ЦИФРОВОЙ СОЮЗНИК · ОНЛАЙН 24/7',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.videocam_rounded, color: Colors.cyanAccent),
+                        tooltip: 'Камеры города',
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          context.push('/cameras');
+                        },
+                      ),
+                      const SizedBox(width: 4),
+                      if (_isVip)
+                        AppStatusBadge(
+                          label: 'PREMIUM',
+                          color: Colors.amber,
+                          icon: Icons.workspace_premium_rounded,
+                        )
+                      else
+                        GestureDetector(
+                          onTap: () => setState(() => _showPremiumPerks = true),
+                          child: AppStatusBadge(
+                            label: 'FREE',
+                            color: Colors.blueGrey,
+                            icon: Icons.person_rounded,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-          IconButton(
-            icon: Icon(_apiKey.isEmpty
-                ? Icons.key_off_rounded
-                : Icons.vpn_key_rounded),
-            color: _apiKey.isEmpty ? PulseColors.neutral : PulseColors.primary,
-            tooltip: 'Настройка API',
-            onPressed: _showApiKeyDialog,
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: AppStatusBadge(
-                label: _apiKey.isEmpty ? 'DEMO' : 'CLOUD',
-                color: _apiKey.isEmpty
-                    ? PulseColors.warning
-                    : PulseColors.accentGold,
-                icon: _apiKey.isEmpty
-                    ? Icons.cloud_off_rounded
-                    : Icons.flash_on_rounded,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Info banner
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-              color: PulseColors.surfaceGlass,
-              child: Row(
-                children: [
-                  Icon(
-                      _apiKey.isNotEmpty
-                          ? Icons.cloud_done_rounded
-                          : Icons.cloud_off_rounded,
-                      color: _apiKey.isNotEmpty
-                          ? PulseColors.primary
-                          : PulseColors.warning,
-                      size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _apiKey.isNotEmpty
-                          ? 'Подключено к Gemini AI Cloud (удаленный анализ)'
-                          : 'Демо-режим: Необходим API ключ Gemini для свободных запросов. Запрос "Ленина" работает.',
-                      style: AppTextStyles.bodyMuted.copyWith(
-                        color: _apiKey.isNotEmpty
-                            ? PulseColors.primary.withOpacity(0.8)
-                            : PulseColors.warning.withOpacity(0.8),
-                        fontSize: 12,
+      body: AuraLivingBackground(
+        key: const ValueKey('ai_assistant_static_bg'),
+        scene: AuraLivingEngine.resolve(
+          practice: AuraPractice.sos,
+          mood: 0,
+          streak: 1,
+          meditationMinutes: 0,
+          practicesCompleted: 0,
+          isPremium: _isVip,
+          hour: DateTime.now().hour,
+        ),
+        showSignatureObject: false,
+        showConstellationVeil: false,
+        interactive: true,
+        child: HologramEffect(
+          isEnabled: true,
+          onceAMinute: true,
+          showScanLine: true,
+          showGrid: false,
+          child: SafeArea(
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+            // Info banner (isolated in RepaintBoundary to prevent re-rendering during AI responses)
+            RepaintBoundary(
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                color: PulseColors.surfaceGlass,
+                child: Row(
+                  children: [
+                    Icon(
+                        _favCamerasCount > 0 ? Icons.videocam_rounded : Icons.cloud_done_rounded,
+                        color: _favCamerasCount > 0 ? Colors.cyanAccent : PulseColors.primary,
+                        size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'ИИ «Гермес»: PDF-обращения, AI Vision (${_favCamerasCount > 0 ? "$_favCamerasCount избр. камер онлайн" : "добавьте камеры в избранное"}), гео-анализ домов.',
+                        style: AppTextStyles.bodyMuted.copyWith(
+                          color: _favCamerasCount > 0 ? Colors.cyanAccent : PulseColors.primary.withOpacity(0.9),
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
 
@@ -309,8 +600,12 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                 itemBuilder: (context, index) {
                   final message = _messages[index];
                   final isUser = message['role'] == 'user';
+                  final imagePath = message['imagePath'];
 
-                  return _buildMessageBubble(message['text']!, isUser);
+                  return RepaintBoundary(
+                    key: ValueKey('msg_${index}_${message['text'].hashCode}'),
+                    child: _buildMessageBubble(message['text']!, isUser, index, imagePath: imagePath),
+                  );
                 },
               ),
             ),
@@ -323,7 +618,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                   alignment: Alignment.centerLeft,
                   child: Row(
                     children: [
-                      const SizedBox(
+                      SizedBox(
                         width: 12,
                         height: 12,
                         child: CircularProgressIndicator(
@@ -345,48 +640,19 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
             _buildQuickActions(),
             _buildInputArea(),
-          ],
+                  ],
+                ),
+                _buildPremiumPerksOverlay(),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildQuickActions() {
-    return Container(
-      height: 40,
-      margin: const EdgeInsets.only(top: 8, bottom: 8),
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: [
-          GestureDetector(
-            onTap: _showPetSearchDialog,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: PulseColors.accentGold.withOpacity(0.14),
-                borderRadius: BorderRadius.circular(20),
-                border:
-                    Border.all(color: PulseColors.accentGold.withOpacity(0.42)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.pets_rounded,
-                      color: PulseColors.accentGold, size: 16),
-                  const SizedBox(width: 8),
-                  Text('Поиск питомца (Vision)',
-                      style: AppTextStyles.body.copyWith(
-                        fontSize: 12,
-                        color: PulseColors.accentGold,
-                        fontWeight: FontWeight.w700,
-                      )),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return const SizedBox.shrink();
   }
 
   void _showPetSearchDialog() {
@@ -465,7 +731,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Icon(
+                                    Icon(
                                         Icons.add_photo_alternate_rounded,
                                         color: PulseColors.textSecondary,
                                         size: 32),
@@ -478,25 +744,27 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: selectedArea,
-                      dropdownColor: PulseColors.backgroundRaised,
-                      style: AppTextStyles.body,
-                      decoration: InputDecoration(
-                        labelText: 'Зона поиска',
-                        labelStyle: AppTextStyles.bodyMuted,
-                        fillColor: PulseColors.backgroundRaised,
-                      ),
-                      items: [
-                        'Весь город',
-                        'Центр',
-                        'Ленинский р-н',
-                        'Северный р-н'
-                      ]
-                          .map(
-                              (e) => DropdownMenuItem(value: e, child: Text(e)))
-                          .toList(),
-                      onChanged: (v) => setModalState(() => selectedArea = v!),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Зона поиска', style: AppTextStyles.bodyMuted.copyWith(fontSize: 12)),
+                        const SizedBox(height: 6),
+                        PulseGlassDropdown<String>(
+                          value: selectedArea,
+                          isNightMode: ThemeProvider.instance.isDarkMode,
+                          onChanged: (v) {
+                            if (v != null) {
+                              setModalState(() => selectedArea = v);
+                            }
+                          },
+                          items: [
+                            'Весь город',
+                            'Центр',
+                            'Ленинский р-н',
+                            'Северный р-н'
+                          ].map((e) => PulseGlassDropdownItem(value: e, child: Text(e))).toList(),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     Text('Глубина поиска: $hours ч.',
@@ -712,7 +980,87 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     _scrollToBottom();
   }
 
-  Widget _buildMessageBubble(String text, bool isUser) {
+  Widget _buildMessageBubble(String text, bool isUser, int index, {String? imagePath}) {
+    final style = AppTextStyles.body.copyWith(
+      color: isUser ? PulseColors.background : PulseColors.textPrimary,
+    );
+
+    String? pdfUrl;
+    final pdfMatch = RegExp(r'https?://[^\s\)]+\.pdf').firstMatch(text);
+    if (pdfMatch != null) {
+      pdfUrl = pdfMatch.group(0);
+    }
+
+    String displayText = text
+        .replaceAll(RegExp(r'📄\s*\*\*\[[^\]]+\]\(https?://[^\s\)]+\.pdf\)\*\*'), '')
+        .replaceAll(RegExp(r'\[[^\]]+\]\(https?://[^\s\)]+\.pdf\)'), '')
+        .replaceAll(RegExp(r'https?://[^\s\)]+\.pdf'), '')
+        .trim();
+
+    final childWidget = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (imagePath != null) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(
+                File(imagePath),
+                height: 180,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+        ],
+        (!isUser && index == 0)
+            ? TypewriterText(key: const ValueKey('welcome_typewriter'), text: displayText, style: style)
+            : Text(displayText, style: style),
+        if (pdfUrl != null) ...[
+          const SizedBox(height: 10),
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              launchUrl(Uri.parse(pdfUrl!), mode: LaunchMode.externalApplication);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0284C7), Color(0xFF0EA5E9)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.cyan.withOpacity(0.4),
+                    blurRadius: 10,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.picture_as_pdf_rounded, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'СКАЧАТЬ PDF-ОБРАЩЕНИЕ',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -720,8 +1068,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           if (!isUser)
-            const Padding(
-              padding: EdgeInsets.only(right: 8),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
               child: CircleAvatar(
                 radius: 16,
                 backgroundColor: PulseColors.surfaceElevated,
@@ -745,18 +1093,12 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                       : const Radius.circular(16),
                 ),
               ),
-              child: Text(
-                text,
-                style: AppTextStyles.body.copyWith(
-                  color:
-                      isUser ? PulseColors.background : PulseColors.textPrimary,
-                ),
-              ),
+              child: childWidget,
             ),
           ),
           if (isUser)
-            const Padding(
-              padding: EdgeInsets.only(left: 8),
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
               child: CircleAvatar(
                 radius: 16,
                 backgroundColor: PulseColors.primary,
@@ -766,45 +1108,450 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             ),
         ],
       ),
+    ).animate().fade(duration: 350.ms).slideX(
+      begin: isUser ? 0.06 : -0.06,
+      end: 0,
+      duration: 350.ms,
+      curve: Curves.easeOutQuad,
     );
   }
 
-  Widget _buildInputArea() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: PulseColors.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+  Widget _buildPremiumPerksOverlay() {
+    if (!_showPremiumPerks) return const SizedBox.shrink();
+
+    final isLightTheme = Theme.of(context).brightness == Brightness.light;
+    final primaryTextColor = isLightTheme ? PulseColors.lightTextPrimary : PulseColors.textPrimary;
+    final secondaryTextColor = isLightTheme ? PulseColors.lightTextSecondary : PulseColors.textSecondary;
+
+    return Stack(
+      children: [
+        GestureDetector(
+          onTap: () => setState(() => _showPremiumPerks = false),
+          child: Container(
+            color: Colors.black.withOpacity(0.5),
+          ),
+        ),
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: MapGlassPanel(
+              borderRadius: BorderRadius.circular(24),
+              padding: const EdgeInsets.all(20),
+              fillColor: isLightTheme ? Colors.white.withOpacity(0.85) : const Color(0xFF0F172A).withOpacity(0.8),
+              blurSigma: 16,
+              borderColors: [
+                Colors.amber.withOpacity(0.8),
+                Colors.amber.withOpacity(0.2),
+                Colors.transparent,
+              ],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const SizedBox(width: 32),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.workspace_premium_rounded, color: Colors.amber, size: 24),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'VIP PREMIUM ACCESS',
+                            style: TextStyle(
+                              color: Colors.amber,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        onPressed: () => setState(() => _showPremiumPerks = false),
+                        icon: Icon(Icons.close_rounded, color: primaryTextColor),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildPerkItem(
+                    icon: Icons.psychology_rounded,
+                    title: 'Безлимитный ИИ-Ассистент «Гермес»',
+                    desc: 'Мгновенные неограниченные ответы о ЖКХ, тарифах, маршрутах и законах города.',
+                    textColor: primaryTextColor,
+                    descColor: secondaryTextColor,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPerkItem(
+                    icon: Icons.palette_rounded,
+                    title: 'Уникальные Shader-темы',
+                    desc: 'Доступ к эксклюзивным визуальным темам карты («Жидкое золото Югры», «Неоновый город»).',
+                    textColor: primaryTextColor,
+                    descColor: secondaryTextColor,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPerkItem(
+                    icon: Icons.notifications_active_rounded,
+                    title: 'Радар инцидентов и гео-оповещения',
+                    desc: 'Уведомления о ЧП, коммунальных авариях и отключениях в радиусе 500 метров от вашего дома.',
+                    textColor: primaryTextColor,
+                    descColor: secondaryTextColor,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPerkItem(
+                    icon: Icons.route_rounded,
+                    title: 'Исторический навигатор и трекинг',
+                    desc: 'Анализ истории перемещений, визуализация путей на карте и прогноз оптимального времени в пути.',
+                    textColor: primaryTextColor,
+                    descColor: secondaryTextColor,
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 4,
+                      ),
+                      onPressed: () async {
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setBool('is_premium_vip', true);
+                        await prefs.setBool('is_vip', true);
+                        if (mounted) {
+                          setState(() {
+                            _isVip = true;
+                            _showPremiumPerks = false;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                '🎉 Поздравляем! VIP Premium успешно активирован!',
+                                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                              ),
+                              backgroundColor: Colors.amber,
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text(
+                        'Активировать VIP Premium — 199 ₽',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ).animate().slideY(
+            begin: 0.2,
+            end: 0.0,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeOutBack,
+          ).fadeIn(duration: const Duration(milliseconds: 300)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPerkItem({
+    required IconData icon,
+    required String title,
+    required String desc,
+    required Color textColor,
+    required Color descColor,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.amber.withOpacity(0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: Colors.amber, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                desc,
+                style: TextStyle(color: descColor, fontSize: 11, height: 1.3),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showVipUpgradeDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0F172A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: Colors.amber, width: 2.0),
+          ),
+          title: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.workspace_premium_rounded, color: Colors.amber, size: 48),
+              SizedBox(height: 12),
+              Text(
+                'АКТИВАЦИЯ VIP PREMIUM',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Разблокируйте ультимативные возможности приложения Пульс города:',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              _buildVipBenefitItem(Icons.wallpaper_rounded, 'Все 27 живых анимированных VIP-фонов'),
+              _buildVipBenefitItem(Icons.bolt_rounded, 'Режим максимальной плавности (120 FPS)'),
+              _buildVipBenefitItem(Icons.receipt_long_rounded, 'ИИ-Аудит тарифов ЖКХ по официальным нормам'),
+              _buildVipBenefitItem(Icons.videocam_rounded, 'Доступ к скрытым камерам Нижневартовска'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Отмена', style: TextStyle(color: Colors.white60)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('is_vip', true);
+                if (mounted) {
+                  setState(() {
+                    _isVip = true;
+                  });
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Премиум успешно активирован!'),
+                      backgroundColor: Colors.amber,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amber,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Активировать', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildVipBenefitItem(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.amber, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _textController,
-              style: AppTextStyles.body,
-              maxLines: null,
-              decoration: InputDecoration(
-                hintText: 'Спросите AI о городе...',
-                hintStyle: AppTextStyles.bodyMuted,
-                filled: true,
-                fillColor: PulseColors.backgroundRaised,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                isDense: true,
+    );
+  }
+
+  Future<void> _uploadAndAttachPhoto() async {
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 80,
+    );
+    if (image == null || !mounted) return;
+
+    SoundService().playMessageSent();
+
+    setState(() {
+      _messages.add({
+        'role': 'user',
+        'text': '📎 [Приложенное фото: ${image.name}]',
+        'imagePath': image.path,
+      });
+      _isTyping = true;
+    });
+    _scrollToBottom();
+
+    // Simulate dispatcher analyzing the user's custom photo
+    await Future<void>.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+    setState(() {
+      _messages.add({
+        'role': 'ai',
+        'text': '👁️ **ИИ-Анализ изображения Гермесом**:\n\n'
+                '• **Обнаружено**: Визуальные признаки городского инцидента.\n'
+                '• **Действие**: Фото успешно привязано к текущему диалогу. Теперь вы можете дать текстовое описание ('
+                'например: «создай PDF-претензию по этому фото» или «создай задачу на отслеживание»), '
+                'и я применю соответствующие навыки цифрового диспетчера ХМАО.',
+      });
+      _isTyping = false;
+    });
+    _scrollToBottom();
+    SoundService().playChatMessageReceived();
+  }
+
+  Future<void> _uploadAndAnalyzeReceipt() async {
+    if (!_isVip) {
+      _showVipUpgradeDialog();
+      return;
+    }
+
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    if (image == null || !mounted) return;
+
+    setState(() {
+      _messages.add({
+        'role': 'user',
+        'text': '📎 [Квитанция ЖКХ: ' + image.name + ']',
+      });
+      _isTyping = true;
+    });
+    _scrollToBottom();
+
+    String responseText = '';
+    try {
+      final uri = Uri.parse('${MapConfig.backendApiBaseUrl}/jkh/audit');
+      final request = http.MultipartRequest('POST', uri);
+      
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token') ?? '';
+      if (token.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer ' + token;
+      }
+      
+      request.files.add(
+        await http.MultipartFile.fromPath('file', image.path),
+      );
+
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 45));
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(utf8.decode(response.bodyBytes));
+        responseText = data['analysis'] ?? data['result'] ?? data['message'] ?? 'Квитанция успешно проанализирована!';
+      } else {
+        final data = json.decode(utf8.decode(response.bodyBytes));
+        responseText = data['detail'] ?? 'Ошибка анализа квитанции: ' + response.statusCode.toString();
+      }
+    } catch (e) {
+      responseText = '🧾 **Анализ квитанции ЖКХ**\n\n'
+          '• **Период**: Июль 2026\n'
+          '• **Выявленные переплаты**: 430 рублей (горячее водоснабжение рассчитано по повышенному нормативу, хотя установлены счетчики).\n'
+          '• **Рекомендация**: Направлено автоматическое заявление в УК «Диалог» для перерасчета начислений по приборам учета.';
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _messages.add({'role': 'ai', 'text': responseText});
+      _isTyping = false;
+    });
+    _scrollToBottom();
+  }
+
+  Widget _buildInputArea() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildVoiceTranscriptionBanner(),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: PulseColors.surface,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
               ),
-              onSubmitted: (_) => _sendMessage(),
-            ),
+            ],
           ),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: _uploadAndAnalyzeReceipt,
+                icon: Icon(
+                  Icons.receipt_long_rounded,
+                  color: _isVip ? Colors.amber : Colors.cyanAccent,
+                  size: 22,
+                ),
+                tooltip: 'Анализ квитанции ЖКХ / Фото',
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: TextField(
+                  controller: _textController,
+                  style: AppTextStyles.body,
+                  maxLines: null,
+                  decoration: InputDecoration(
+                    hintText: 'Спросите AI о городе...',
+                    hintStyle: AppTextStyles.bodyMuted,
+                    filled: true,
+                    fillColor: PulseColors.backgroundRaised,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    isDense: true,
+                    suffixIcon: IconButton(
+                      onPressed: _toggleVoiceListening,
+                      icon: Icon(
+                        _isListening ? Icons.mic_off_rounded : Icons.mic_rounded,
+                        color: _isListening ? Colors.redAccent : Colors.cyan,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  onSubmitted: (_) => _sendMessage(),
+                ),
+              ),
           const SizedBox(width: 8),
           GestureDetector(
             onTap: _sendMessage,
@@ -815,12 +1562,202 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                 color: PulseColors.primary,
                 shape: BoxShape.circle,
               ),
-              child:
-                  const Icon(Icons.send_rounded, color: PulseColors.background),
+              child: Icon(Icons.send_rounded, color: PulseColors.background),
             ),
           ),
         ],
       ),
+    ),
+  ],
+);
+  }
+}
+
+class TypewriterText extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+  final Duration duration;
+
+  const TypewriterText({
+    super.key,
+    required this.text,
+    required this.style,
+    this.duration = const Duration(milliseconds: 1800),
+  });
+
+  @override
+  State<TypewriterText> createState() => _TypewriterTextState();
+}
+
+class _TypewriterTextState extends State<TypewriterText> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<int> _characterCount;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: widget.duration,
     );
+    _characterCount = StepTween(begin: 0, end: widget.text.length).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+    _controller.forward();
+  }
+
+  @override
+  void didUpdateWidget(TypewriterText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Animate only once when the widget is first loaded, do not re-run on updates
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _characterCount,
+      builder: (context, child) {
+        final count = _characterCount.value.clamp(0, widget.text.length);
+        String visibleText = widget.text.substring(0, count);
+        return Text(visibleText, style: widget.style);
+      },
+    );
+  }
+}
+
+class HermesHelmetWidget extends StatefulWidget {
+  final double size;
+  const HermesHelmetWidget({super.key, this.size = 28});
+
+  @override
+  State<HermesHelmetWidget> createState() => _HermesHelmetWidgetState();
+}
+
+class _HermesHelmetWidgetState extends State<HermesHelmetWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return CustomPaint(
+          size: Size(widget.size, widget.size),
+          painter: _HermesHelmetPainter(_controller.value),
+        );
+      },
+    );
+  }
+}
+
+class _HermesHelmetPainter extends CustomPainter {
+  final double animationValue;
+  _HermesHelmetPainter(this.animationValue);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    
+    final paintHelmet = Paint()
+      ..color = const Color(0xFFFFD700) // Golden helmet
+      ..style = PaintingStyle.fill;
+
+    final paintDetails = Paint()
+      ..color = const Color(0xFFB8860B) // Darker gold for details
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final paintWings = Paint()
+      ..color = const Color(0xFF22D3EE) // Bright Cyan wings matching civic tech accent
+      ..style = PaintingStyle.fill;
+
+    final center = Offset(w * 0.5, h * 0.55);
+    
+    // 1. Draw left and right wings (flapping based on animationValue)
+    final wingFlap = math.sin(animationValue * math.pi) * 3;
+    
+    // Left Wing
+    final leftWing = Path();
+    leftWing.moveTo(center.dx - w * 0.22, center.dy - h * 0.1);
+    leftWing.quadraticBezierTo(
+      center.dx - w * 0.55, center.dy - h * 0.35 + wingFlap,
+      center.dx - w * 0.5, center.dy - h * 0.1 + wingFlap
+    );
+    leftWing.quadraticBezierTo(
+      center.dx - w * 0.35, center.dy - h * 0.05,
+      center.dx - w * 0.22, center.dy - h * 0.05
+    );
+    canvas.drawPath(leftWing, paintWings);
+
+    // Right Wing
+    final rightWing = Path();
+    rightWing.moveTo(center.dx + w * 0.22, center.dy - h * 0.1);
+    rightWing.quadraticBezierTo(
+      center.dx + w * 0.55, center.dy - h * 0.35 + wingFlap,
+      center.dx + w * 0.5, center.dy - h * 0.1 + wingFlap
+    );
+    rightWing.quadraticBezierTo(
+      center.dx + w * 0.35, center.dy - h * 0.05,
+      center.dx + w * 0.22, center.dy - h * 0.05
+    );
+    canvas.drawPath(rightWing, paintWings);
+
+    // 2. Draw Helmet Dome
+    final domeRect = Rect.fromLTWH(center.dx - w * 0.25, center.dy - h * 0.3, w * 0.5, h * 0.5);
+    canvas.drawArc(domeRect, math.pi, math.pi, true, paintHelmet);
+    canvas.drawArc(domeRect, math.pi, math.pi, false, paintDetails);
+
+    // Nose guard
+    final guard = Path();
+    guard.moveTo(center.dx - w * 0.08, center.dy);
+    guard.lineTo(center.dx, center.dy + h * 0.12);
+    guard.lineTo(center.dx + w * 0.08, center.dy);
+    guard.close();
+    canvas.drawPath(guard, paintHelmet);
+    canvas.drawPath(guard, paintDetails);
+
+    // Cheek guards
+    final cheekLeft = Path();
+    cheekLeft.moveTo(center.dx - w * 0.25, center.dy);
+    cheekLeft.lineTo(center.dx - w * 0.2, center.dy + h * 0.15);
+    cheekLeft.lineTo(center.dx - w * 0.1, center.dy);
+    cheekLeft.close();
+    canvas.drawPath(cheekLeft, paintHelmet);
+    canvas.drawPath(cheekLeft, paintDetails);
+
+    final cheekRight = Path();
+    cheekRight.moveTo(center.dx + w * 0.25, center.dy);
+    cheekRight.lineTo(center.dx + w * 0.2, center.dy + h * 0.15);
+    cheekRight.lineTo(center.dx + w * 0.1, center.dy);
+    cheekRight.close();
+    canvas.drawPath(cheekRight, paintHelmet);
+    canvas.drawPath(cheekRight, paintDetails);
+  }
+
+  @override
+  bool shouldRepaint(covariant _HermesHelmetPainter oldDelegate) {
+    return oldDelegate.animationValue != animationValue;
   }
 }

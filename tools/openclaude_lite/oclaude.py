@@ -13,7 +13,6 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-
 DEFAULT_BASE_URL = "http://127.0.0.1:4000/v1"
 DEFAULT_MODEL = "qwen-mini"
 CONFIG_PATH = Path.home() / ".openclaude-lite.json"
@@ -154,9 +153,7 @@ def _request_stream(
                 except json.JSONDecodeError:
                     continue
                 delta = (
-                    chunk.get("choices", [{}])[0]
-                    .get("delta", {})
-                    .get("content", "")
+                    chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
                 )
                 if delta:
                     print(delta, end="", flush=True)
@@ -165,7 +162,9 @@ def _request_stream(
         raise RuntimeError(f"HTTP {exc.code}: {error_body}") from exc
 
 
-def _build_user_content(prompt: str, image_path: str | None) -> list[dict[str, Any]] | str:
+def _build_user_content(
+    prompt: str, image_path: str | None
+) -> list[dict[str, Any]] | str:
     if not image_path:
         return prompt
     path = Path(image_path).expanduser().resolve()
@@ -195,7 +194,10 @@ def _chat_payload(
         messages.append({"role": "system", "content": system_prompt})
 
     messages.append(
-        {"role": "user", "content": _build_user_content(prompt=prompt, image_path=image_path)}
+        {
+            "role": "user",
+            "content": _build_user_content(prompt=prompt, image_path=image_path),
+        }
     )
     payload: dict[str, Any] = {
         "model": cfg["model"],
@@ -351,18 +353,36 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="oclaude",
         description="OpenClaude-like CLI over LiteLLM or any OpenAI-compatible API.",
     )
-    parser.add_argument("prompt", nargs="*", help="Prompt text. If omitted, starts interactive chat.")
+    parser.add_argument(
+        "prompt", nargs="*", help="Prompt text. If omitted, starts interactive chat."
+    )
     parser.add_argument("--system", help="Optional system prompt.")
     parser.add_argument("--model", help="Override model name.")
     parser.add_argument("--base-url", help="Override base URL.")
     parser.add_argument("--api-key", help="Override API key.")
-    parser.add_argument("--timeout", type=int, default=120, help="HTTP timeout in seconds.")
-    parser.add_argument("--temperature", type=float, default=0.2, help="Sampling temperature.")
-    parser.add_argument("--max-tokens", type=int, default=None, help="Optional max_tokens.")
-    parser.add_argument("--image", help="Optional image path for vision-capable models.")
-    parser.add_argument("--json", action="store_true", help="Print raw JSON response for one-shot prompts.")
-    parser.add_argument("--list-models", action="store_true", help="List available models.")
-    parser.add_argument("--print-config", action="store_true", help="Print resolved runtime config.")
+    parser.add_argument(
+        "--timeout", type=int, default=120, help="HTTP timeout in seconds."
+    )
+    parser.add_argument(
+        "--temperature", type=float, default=0.2, help="Sampling temperature."
+    )
+    parser.add_argument(
+        "--max-tokens", type=int, default=None, help="Optional max_tokens."
+    )
+    parser.add_argument(
+        "--image", help="Optional image path for vision-capable models."
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Print raw JSON response for one-shot prompts.",
+    )
+    parser.add_argument(
+        "--list-models", action="store_true", help="List available models."
+    )
+    parser.add_argument(
+        "--print-config", action="store_true", help="Print resolved runtime config."
+    )
     parser.add_argument(
         "--stream",
         action=argparse.BooleanOptionalAction,

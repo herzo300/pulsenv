@@ -11,7 +11,7 @@ import 'package:soobshio/main.dart';
 
 void main() {
   test('App class can be created', () {
-    const app = SoobshioApp();
-    expect(app, isA<SoobshioApp>());
+    const app = PulseCityApp();
+    expect(app, isA<PulseCityApp>());
   });
 }

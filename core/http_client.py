@@ -5,7 +5,9 @@
 
 USE_PROXY_FOR_EXTERNAL=true — использовать прокси для OpenRouter, Firebase, VK (когда прямое соединение недоступно).
 """
+
 import os
+
 import httpx
 from dotenv import load_dotenv
 
@@ -18,7 +20,11 @@ _PROXY_PASS = os.getenv("PROXY_PASS", "")
 _PROXY_URL = os.getenv("PROXY_URL", "")
 SOCKS_PROXY = os.getenv("SOCKS_PROXY", "").strip()
 HTTP_PROXY = os.getenv("HTTP_PROXY", "").strip() or os.getenv("HTTPS_PROXY", "").strip()
-USE_PROXY_FOR_EXTERNAL = os.getenv("USE_PROXY_FOR_EXTERNAL", "auto").lower() in ("true", "1", "yes")
+USE_PROXY_FOR_EXTERNAL = os.getenv("USE_PROXY_FOR_EXTERNAL", "auto").lower() in (
+    "true",
+    "1",
+    "yes",
+)
 
 
 def _socks_supported() -> bool:
@@ -28,6 +34,7 @@ def _socks_supported() -> bool:
     """
     try:
         import socksio  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -59,7 +66,9 @@ def get_proxy_url() -> str | None:
 _AUTO_PROXY = object()
 
 
-def get_http_client(timeout: float = 30.0, proxy: str | None | bool | object = _AUTO_PROXY, **kwargs) -> httpx.AsyncClient:
+def get_http_client(
+    timeout: float = 30.0, proxy: str | None | bool | object = _AUTO_PROXY, **kwargs
+) -> httpx.AsyncClient:
     """
     Создаёт AsyncClient. Параметр proxy:
     - не передан (по умолчанию): при USE_PROXY_FOR_EXTERNAL=true использовать прокси
@@ -85,7 +94,14 @@ def get_http_client(timeout: float = 30.0, proxy: str | None | bool | object = _
     return httpx.AsyncClient(timeout=timeout, **kwargs)
 
 
-async def fetch_with_proxy_fallback(method: str, url: str, *, timeout: float = 30.0, try_proxy_first: bool = False, **kwargs):
+async def fetch_with_proxy_fallback(
+    method: str,
+    url: str,
+    *,
+    timeout: float = 30.0,
+    try_proxy_first: bool = False,
+    **kwargs,
+):
     """
     Выполняет запрос, при ошибке пробует другой режим (с/без прокси).
     Returns: httpx.Response or None

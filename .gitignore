@@ -1,5 +1,8 @@
 # Environment variables
 .env
+.env.production.local
+secrets-rotation-*.env
+*.production.local
 
 # Python
 __pycache__/
@@ -79,6 +82,7 @@ opendata_full.json
 
 # Runtime data
 data/
+!data/uk_catalog.json
 
 # Node (Cloudflare Worker)
 cloudflare-worker/node_modules/

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Запуск всех сервисов проекта
 """
 
+import os
 import subprocess
 import sys
-import os
 import time
 from pathlib import Path
+
 
 def run_service(name, script, cwd, delay=2):
     """Запуск сервиса в отдельном процессе"""
@@ -20,7 +20,9 @@ def run_service(name, script, cwd, delay=2):
             [sys.executable, script],
             cwd=cwd,
             env=env,
-            creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == 'win32' else 0
+            creationflags=subprocess.CREATE_NEW_CONSOLE
+            if sys.platform == "win32"
+            else 0,
         )
         print(f"[{name}] Запущен (PID: {process.pid})")
         time.sleep(delay)
@@ -29,21 +31,22 @@ def run_service(name, script, cwd, delay=2):
         print(f"[{name}] Ошибка запуска: {e}")
         return None
 
+
 def main():
-    print("="*60)
+    print("=" * 60)
     print("  ЗАПУСК ВСЕХ СЕРВИСОВ")
-    print("="*60)
-    
+    print("=" * 60)
+
     # Корень проекта (scripts/maintenance -> scripts -> Soobshio_project)
     base_dir = Path(__file__).resolve().parent.parent.parent
-    
+
     services = [
         ("Monitoring", "start_all_monitoring.py"),
         ("Daily Categorizer", "scripts/maintenance/daily_complaint_categorizer.py"),
     ]
-    
+
     processes = []
-    
+
     for name, script in services:
         script_path = base_dir / script
         if script_path.exists():
@@ -52,17 +55,17 @@ def main():
                 processes.append((name, proc))
         else:
             print(f"[{name}] Файл {script} не найден")
-    
-    print("\n" + "="*60)
+
+    print("\n" + "=" * 60)
     print("  СЕРВИСЫ ЗАПУЩЕНЫ")
-    print("="*60)
+    print("=" * 60)
     print(f"\nЗапущено процессов: {len(processes)}")
     for name, proc in processes:
         print(f"  - {name} (PID: {proc.pid})")
-    
+
     print("\nДля остановки закройте окна или нажмите Ctrl+C")
-    print("="*60)
-    
+    print("=" * 60)
+
     try:
         # Ждем завершения
         for name, proc in processes:
@@ -73,8 +76,9 @@ def main():
             try:
                 proc.terminate()
                 print(f"[{name}] Остановлен")
-            except:
-                pass
+            except OSError:
+                print(f"[{name}] Уже остановлен")
+
 
 if __name__ == "__main__":
     try:
@@ -85,5 +89,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\nERROR: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

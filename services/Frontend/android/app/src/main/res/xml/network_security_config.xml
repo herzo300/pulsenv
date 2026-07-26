@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- Production VPS (HTTP until TLS is enabled) -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">45.153.68.59</domain>
+    </domain-config>
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />

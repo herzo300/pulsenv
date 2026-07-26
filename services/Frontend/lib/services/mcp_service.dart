@@ -3,9 +3,9 @@
 /// Интеграция с MCP серверами для получения данных и выполнения операций
 library;
 
-
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -121,6 +121,7 @@ class MCPService {
   final Map<String, MCPServerConfig> _servers = {};
   final Map<String, WebSocketChannel?> _connections = {};
   final Map<int, Completer<MCPResponse>> _pendingRequests = {};
+  final Map<int, String> _pendingRequestServers = {};
   int _requestIdCounter = 1;
 
   /// Инициализация сервиса
@@ -174,18 +175,19 @@ class MCPService {
         headers['Authorization'] = 'Bearer ${server.apiKey}';
       }
 
-      final response = await http.post(
-        Uri.parse(server.url),
-        headers: headers,
-        body: jsonEncode(request.toJson()),
-      ).timeout(const Duration(seconds: 30));
+      final response = await http
+          .post(
+            Uri.parse(server.url),
+            headers: headers,
+            body: jsonEncode(request.toJson()),
+          )
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
         return MCPResponse.fromJson(json);
       } else {
-        throw Exception(
-            'HTTP ${response.statusCode}: ${response.body}');
+        throw Exception('HTTP ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
       throw Exception('Ошибка MCP запроса: $e');
@@ -223,6 +225,7 @@ class MCPService {
 
     final completer = Completer<MCPResponse>();
     _pendingRequests[request.id!] = completer;
+    _pendingRequestServers[request.id!] = serverName;
 
     try {
       channel.sink.add(jsonEncode(request.toJson()));
@@ -231,11 +234,13 @@ class MCPService {
         const Duration(seconds: 30),
         onTimeout: () {
           _pendingRequests.remove(request.id);
+          _pendingRequestServers.remove(request.id);
           throw TimeoutException('MCP запрос превысил время ожидания');
         },
       );
     } catch (e) {
       _pendingRequests.remove(request.id);
+      _pendingRequestServers.remove(request.id);
       rethrow;
     }
   }
@@ -267,11 +272,12 @@ class MCPService {
             final response = MCPResponse.fromJson(json);
 
             final completer = _pendingRequests.remove(response.id);
+            _pendingRequestServers.remove(response.id);
             if (completer != null && !completer.isCompleted) {
               completer.complete(response);
             }
-          } catch (e) {
-            // Игнорируем ошибки парсинга
+          } catch (e, st) {
+            debugPrint('[MCPService] WebSocket parse error: $e\n$st');
           }
         },
         onError: (error) {
@@ -282,6 +288,7 @@ class MCPService {
             }
           }
           _pendingRequests.clear();
+          _pendingRequestServers.clear();
           _connections[serverName] = null;
         },
         onDone: () {
@@ -302,10 +309,30 @@ class MCPService {
       channel.sink.close();
       _connections[serverName] = null;
     }
+    // Complete all pending requests for this server with error
+    final pendingForServer = _pendingRequests.entries
+        .where((e) => _pendingRequestServers[e.key] == serverName)
+        .toList();
+    for (final entry in pendingForServer) {
+      if (!entry.value.isCompleted) {
+        entry.value.completeError('Disconnected from $serverName');
+      }
+      _pendingRequests.remove(entry.key);
+      _pendingRequestServers.remove(entry.key);
+    }
   }
 
   /// Отключиться от всех серверов
   void disconnectAll() {
+    // Complete all pending requests
+    for (final entry in _pendingRequests.entries.toList()) {
+      if (!entry.value.isCompleted) {
+        entry.value.completeError('MCP service disconnected');
+      }
+    }
+    _pendingRequests.clear();
+    _pendingRequestServers.clear();
+
     for (var serverName in _connections.keys.toList()) {
       disconnect(serverName);
     }
@@ -361,8 +388,9 @@ extension MCPServiceComplaints on MCPService {
           return json.cast<Map<String, dynamic>>();
         }
       }
-    } catch (e) {
-      // Fallback на прямой HTTP запрос
+    } catch (e, st) {
+      debugPrint(
+          '[MCPServiceComplaints] getComplaints MCP call failed, falling back: $e\n$st');
     }
 
     // Fallback на прямой запрос
@@ -375,8 +403,9 @@ extension MCPServiceComplaints on MCPService {
         final json = jsonDecode(httpResponse.body) as List<dynamic>;
         return json.cast<Map<String, dynamic>>();
       }
-    } catch (e) {
-      // Игнорируем ошибки
+    } catch (e, st) {
+      debugPrint(
+          '[MCPServiceComplaints] getComplaints fallback failed: $e\n$st');
     }
 
     return [];
@@ -402,7 +431,8 @@ extension MCPServiceComplaints on MCPService {
       );
 
       return response.isSuccess;
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[MCPServiceComplaints] submitComplaint failed: $e\n$st');
       return false;
     }
   }

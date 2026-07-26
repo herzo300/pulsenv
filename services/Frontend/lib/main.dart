@@ -3,11 +3,21 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import 'core/app_branding.dart';
 import 'core/app_router.dart';
+import 'core/di/service_locator.dart';
+import 'core/living/aura_theme_service.dart';
+import 'services/app_links_service.dart';
+import 'services/security/secure_storage_migration.dart';
+import 'screens/splash_router_screen.dart';
 import 'screens/security_lock_screen.dart';
+import 'screens/map_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'services/app_state_service.dart';
 import 'services/app_metrics_service.dart';
 import 'services/app_security_service.dart';
 import 'services/background_notifications_service.dart';
@@ -16,12 +26,109 @@ import 'services/notification_navigation_service.dart';
 import 'services/notification_service.dart';
 import 'services/runtime_config_service.dart';
 import 'theme/pulse_colors.dart';
+import 'theme/pulse_typography.dart';
 import 'theme/theme_provider.dart';
 import 'utils/offline_tiles_service.dart';
-import 'widgets/app_ui.dart';
+import 'dart:io';
+
+class PulseHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback =
+          (X509Certificate cert, String host, int port) => true;
+  }
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  HttpOverrides.global = PulseHttpOverrides();
+  GoogleFonts.config.allowRuntimeFetching = true;
+
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    debugPrint('Global ErrorWidget caught error: ${details.exception}\n${details.stack}');
+    final errorText = '${details.exception}\n\n${details.stack}';
+    return Material(
+      color: const Color(0xFF020817),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Color(0xFFFF5252), size: 28),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'CITY PULSE • Сбой интерфейса',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Builder(
+                    builder: (ctx) => ElevatedButton.icon(
+                      onPressed: () async {
+                        try {
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setBool('first_launch_accepted', true);
+                          await prefs.setBool('seen_onboarding', true);
+                        } catch (_) {}
+                        try {
+                          AppRouter.router.go('/map');
+                        } catch (_) {
+                          try {
+                            NotificationNavigationService.navigatorKey.currentState?.pushReplacement(
+                              MaterialPageRoute(builder: (_) => const MapScreen()),
+                            );
+                          } catch (_) {}
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00E5FF),
+                        foregroundColor: const Color(0xFF020817),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      ),
+                      icon: const Icon(Icons.map_rounded, size: 16),
+                      label: const Text('Открыть карту', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0D1829),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: SingleChildScrollView(
+                    child: SelectableText(
+                      errorText,
+                      style: const TextStyle(
+                        color: Color(0xFFFF8A80),
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  };
+
   if (kReleaseMode) {
     debugPrint = (String? _, {int? wrapWidth}) {};
   }
@@ -32,34 +139,96 @@ Future<void> main() async {
     return;
   }
 
-  await RuntimeConfigService.instance.bootstrap();
-  await NotificationService().ensureInitialized();
-  await NotificationNavigationService.initialize();
+  try {
+    await RuntimeConfigService.instance.bootstrap();
+  } catch (e) {
+    debugPrint('Error bootstrapping RuntimeConfigService: $e');
+  }
+
+  // Item 1, 2, 7: инициализация DI-контейнера (Isar + SecureStorage +
+  // Biometric + обёртки существующих синглтонов) и одноразовая миграция
+  // PII из SharedPreferences в flutter_secure_storage.
+  try {
+    await setupServiceLocator();
+    await SecureStorageMigration.runIfNeeded();
+  } catch (e) {
+    debugPrint('Error initializing service locator / secure migration: $e');
+  }
+
+  try {
+    await AppStateService.instance.initialize();
+  } catch (e) {
+    debugPrint('Error initializing AppStateService: $e');
+  }
+
+  try {
+    await NotificationService().ensureInitialized();
+  } catch (e) {
+    debugPrint('Error initializing NotificationService: $e');
+  }
+
+  try {
+    await NotificationNavigationService.initialize();
+  } catch (e) {
+    debugPrint('Error initializing NotificationNavigationService: $e');
+  }
+
+  try {
+    await ThemeProvider.instance.initialize();
+  } catch (e) {
+    debugPrint('Error initializing ThemeProvider: $e');
+  }
+
+  try {
+    await AuraThemeService.instance.initialize();
+  } catch (e) {
+    debugPrint('Error initializing AuraThemeService: $e');
+  }
+
+  try {
+    AppRouter.initialize();
+  } catch (e) {
+    debugPrint('Error initializing AppRouter: $e');
+  }
+
+  try {
+    await AppLinksService.instance.initialize();
+  } catch (e) {
+    debugPrint('Error initializing AppLinksService: $e');
+  }
 
   SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
+    SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       systemNavigationBarColor: PulseColors.background,
     ),
   );
 
-  await SentryFlutter.init(
-    (options) {
-      options.dsn =
-          const String.fromEnvironment('SENTRY_DSN', defaultValue: '');
-      options.tracesSampleRate = kReleaseMode ? 0.05 : 1.0;
-      options.attachStacktrace = true;
-      options.sendDefaultPii = false;
-      options.attachScreenshot = false;
-      options.enableLogs = !kReleaseMode;
-    },
-    appRunner: () {
-      runApp(const SoobshioApp());
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        unawaited(_warmUpRuntimeServices());
-      });
-    },
-  );
+  try {
+    await SentryFlutter.init(
+      (options) {
+        options.dsn =
+            const String.fromEnvironment('SENTRY_DSN', defaultValue: '');
+        options.tracesSampleRate = kReleaseMode ? 0.05 : 1.0;
+        options.attachStacktrace = true;
+        options.sendDefaultPii = false;
+        options.attachScreenshot = false;
+        options.enableLogs = !kReleaseMode;
+      },
+      appRunner: () {
+        runApp(const ProviderScope(child: PulseCityApp()));
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          unawaited(_warmUpRuntimeServices());
+        });
+      },
+    );
+  } catch (e) {
+    debugPrint('Sentry initialization failed: $e');
+    runApp(const ProviderScope(child: PulseCityApp()));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_warmUpRuntimeServices());
+    });
+  }
 }
 
 class SecurityBootstrapApp extends StatelessWidget {
@@ -87,30 +256,51 @@ Future<void> _warmUpRuntimeServices() async {
   unawaited(DraftBoxService.instance.syncOnline());
 }
 
-class SoobshioApp extends StatefulWidget {
-  const SoobshioApp({super.key});
+class PulseCityApp extends StatefulWidget {
+  const PulseCityApp({super.key});
 
   @override
-  State<SoobshioApp> createState() => _SoobshioAppState();
+  State<PulseCityApp> createState() => _PulseCityAppState();
 }
 
-class _SoobshioAppState extends State<SoobshioApp> {
+class _PulseCityAppState extends State<PulseCityApp>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    _initThemeAndRouter();
+    WidgetsBinding.instance.addObserver(this);
   }
 
-  Future<void> _initThemeAndRouter() async {
-    await ThemeProvider.instance.initialize();
-    AppRouter.initialize();
-    if (mounted) setState(() {});
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        // Сохраняем состояние при свёртывании или выходе
+        unawaited(AppStateService.instance.onAppPause());
+      case AppLifecycleState.resumed:
+        AppStateService.instance.onAppResume();
+      default:
+        break;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final baseTextTheme =
-        GoogleFonts.manropeTextTheme(ThemeData.dark().textTheme);
+    TextTheme baseTextTheme;
+    try {
+      baseTextTheme = GoogleFonts.manropeTextTheme(ThemeData.dark().textTheme);
+    } catch (_) {
+      baseTextTheme = ThemeData.dark().textTheme;
+    }
+
+    final themedBase = PulseTypography.textTheme;
     final darkColorScheme = ColorScheme.fromSeed(
       seedColor: PulseColors.primary,
       brightness: Brightness.dark,
@@ -144,54 +334,60 @@ class _SoobshioAppState extends State<SoobshioApp> {
     return AnimatedBuilder(
       animation: ThemeProvider.instance,
       builder: (ctx, _) => MaterialApp.router(
-        title: 'Пульс города',
+        title: AppBranding.appName,
         debugShowCheckedModeBanner: false,
         routerConfig: AppRouter.router,
         themeMode: ThemeProvider.instance.themeMode,
-        theme: _buildLightTheme(lightColorScheme, baseTextTheme),
-        darkTheme: _buildDarkTheme(darkColorScheme, baseTextTheme),
+        theme: _buildLightTheme(lightColorScheme, themedBase),
+        darkTheme: _buildDarkTheme(darkColorScheme, themedBase),
+        scrollBehavior: const _BouncingScrollBehavior(),
       ),
     );
   }
 
   ThemeData _buildDarkTheme(ColorScheme colorScheme, TextTheme baseTextTheme) {
+    const darkPrimary = Color(0xFF00E5FF);
+    String? font;
+    try {
+      font = GoogleFonts.manrope().fontFamily;
+    } catch (_) {}
     return ThemeData(
       colorScheme: colorScheme,
       useMaterial3: true,
       brightness: Brightness.dark,
-      fontFamily: GoogleFonts.manrope().fontFamily,
-      scaffoldBackgroundColor: PulseColors.background,
-      canvasColor: PulseColors.background,
-      splashColor: PulseColors.primary.withOpacity(0.12),
-      highlightColor: PulseColors.primary.withOpacity(0.08),
+      fontFamily: font,
+      scaffoldBackgroundColor: PulseColors.darkBackground,
+      canvasColor: PulseColors.darkBackground,
+      splashColor: darkPrimary.withOpacity(0.12),
+      highlightColor: darkPrimary.withOpacity(0.08),
       appBarTheme: const AppBarTheme(
-        backgroundColor: PulseColors.background,
-        foregroundColor: PulseColors.textPrimary,
+        backgroundColor: PulseColors.darkBackground,
+        foregroundColor: PulseColors.darkTextPrimary,
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.light,
       ),
-      cardColor: PulseColors.surface,
-      dividerColor: PulseColors.primary.withOpacity(0.12),
+      cardColor: PulseColors.darkSurface,
+      dividerColor: darkPrimary.withOpacity(0.12),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: PulseColors.backgroundRaised,
-        contentTextStyle: const TextStyle(color: PulseColors.textPrimary),
-        actionTextColor: PulseColors.primary,
+        backgroundColor: PulseColors.darkBackgroundRaised,
+        contentTextStyle: const TextStyle(color: PulseColors.darkTextPrimary),
+        actionTextColor: darkPrimary,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: PulseColors.primary.withOpacity(0.2)),
+          side: BorderSide(color: darkPrimary.withOpacity(0.2)),
         ),
         behavior: SnackBarBehavior.floating,
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: PulseColors.primary,
-        foregroundColor: PulseColors.background,
+        backgroundColor: darkPrimary,
+        foregroundColor: PulseColors.darkBackground,
       ),
-      inputDecorationTheme: _inputTheme(PulseColors.surfaceGlass,
-          PulseColors.borderStrong, PulseColors.primary),
+      inputDecorationTheme: _inputTheme(PulseColors.darkSurfaceGlass,
+          PulseColors.darkBorderStrong, darkPrimary),
       filledButtonTheme:
-          _filledButtonTheme(PulseColors.primary, PulseColors.background),
+          _filledButtonTheme(darkPrimary, PulseColors.darkBackground),
       outlinedButtonTheme: _outlinedButtonTheme(
-          PulseColors.textPrimary, PulseColors.borderStrong),
+          PulseColors.darkTextPrimary, PulseColors.darkBorderStrong),
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
@@ -201,11 +397,15 @@ class _SoobshioAppState extends State<SoobshioApp> {
   }
 
   ThemeData _buildLightTheme(ColorScheme colorScheme, TextTheme baseTextTheme) {
+    String? font;
+    try {
+      font = GoogleFonts.manrope().fontFamily;
+    } catch (_) {}
     return ThemeData(
       colorScheme: colorScheme,
       useMaterial3: true,
       brightness: Brightness.light,
-      fontFamily: GoogleFonts.manrope().fontFamily,
+      fontFamily: font,
       scaffoldBackgroundColor: PulseColors.lightBackground,
       canvasColor: PulseColors.lightBackground,
       splashColor: PulseColors.primaryDeep.withOpacity(0.08),
@@ -260,15 +460,15 @@ class _SoobshioAppState extends State<SoobshioApp> {
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadii.mdR),
+        borderRadius: BorderRadius.circular(12.0),
         borderSide: BorderSide(color: border),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadii.mdR),
+        borderRadius: BorderRadius.circular(12.0),
         borderSide: BorderSide(color: border),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadii.mdR),
+        borderRadius: BorderRadius.circular(12.0),
         borderSide: BorderSide(color: focus, width: 1.2),
       ),
     );
@@ -284,7 +484,7 @@ class _SoobshioAppState extends State<SoobshioApp> {
           fontSize: 15,
         ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadii.mdR),
+          borderRadius: BorderRadius.circular(12.0),
         ),
       ),
     );
@@ -300,7 +500,7 @@ class _SoobshioAppState extends State<SoobshioApp> {
           fontSize: 14,
         ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadii.mdR),
+          borderRadius: BorderRadius.circular(12.0),
         ),
       ),
     );
@@ -358,5 +558,13 @@ class _SoobshioAppState extends State<SoobshioApp> {
           bodyColor: primaryColor,
           displayColor: primaryColor,
         );
+  }
+}
+
+class _BouncingScrollBehavior extends ScrollBehavior {
+  const _BouncingScrollBehavior();
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
   }
 }

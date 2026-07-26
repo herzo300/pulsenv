@@ -10,14 +10,38 @@ class NotificationMessageFormatter {
     final reserve = _sanitize(fallback);
     final source = base.isNotEmpty ? base : reserve;
     if (source.isEmpty) {
-      return 'Нажмите, чтобы посмотреть подробности';
+      return 'Нажмите, чтобы посмотреть подробности.';
     }
 
     final sentence = _firstSentence(source);
     if (sentence.length <= maxLength) {
+      if (!sentence.endsWith('.') && !sentence.endsWith('!') && !sentence.endsWith('?')) {
+        return '$sentence.';
+      }
       return sentence;
     }
-    return '${sentence.substring(0, maxLength - 1).trimRight()}…';
+
+    var cutIndex = maxLength - 1;
+    final sub = sentence.substring(0, maxLength);
+    
+    final lastSentenceEnd = RegExp(r'[.!?]\s+[A-ZА-ЯёЁ]').allMatches(sub);
+    if (lastSentenceEnd.isNotEmpty) {
+      cutIndex = lastSentenceEnd.last.start + 1;
+    } else {
+      final lastSpace = sub.lastIndexOf(' ');
+      if (lastSpace > maxLength ~/ 2) {
+        cutIndex = lastSpace;
+      }
+    }
+
+    var result = sentence.substring(0, cutIndex).trimRight();
+    while (result.endsWith(',') || result.endsWith('-') || result.endsWith(':') || result.endsWith(';')) {
+      result = result.substring(0, result.length - 1).trimRight();
+    }
+    if (!result.endsWith('.') && !result.endsWith('!') && !result.endsWith('?')) {
+      result = '$result.';
+    }
+    return result;
   }
 
   static String _sanitize(String? value) {

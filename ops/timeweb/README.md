@@ -10,15 +10,16 @@
 - `postgres`: основная БД
 - `redis`: кэш и временное состояние
 - `nginx`: внешний reverse proxy
-- `soobshio-healthcheck.timer`: watchdog для автоперезапуска при runtime-сбое
+- `soobshio-healthcheck.timer`: healthcheck для автоперезапуска при runtime-сбое
 
 ## Быстрый запуск
 
 1. Скопируйте проект на сервер в `/opt/soobshio`.
 2. Скопируйте `.env.production.template` в `.env.production`.
 3. Заполните секреты и URL.
-4. Положите TLS-сертификаты в `/opt/soobshio/certs`, если нужен HTTPS в контейнере nginx.
-5. Выполните:
+4. Положите TLS-сертификаты в `/etc/letsencrypt` на хосте (certbot) — монтируются в nginx контейнер.
+5. Домен по умолчанию: `45-153-68-59.sslip.io` (sslip.io для IP VPS).
+6. Выполните:
 
 ```bash
 cd /opt/soobshio

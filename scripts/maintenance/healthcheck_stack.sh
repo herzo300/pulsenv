@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eu -o pipefail
 
 ENV_FILE="${1:-/opt/soobshio/.env.production}"
 PROJECT_DIR="${2:-/opt/soobshio}"

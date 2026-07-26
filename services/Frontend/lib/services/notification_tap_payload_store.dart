@@ -8,10 +8,14 @@ class NotificationTapPayloadStore {
     if (payload == null || payload.isEmpty) {
       return false;
     }
+    if (payload['type'] == 'weather_anomaly' || payload['open_weather'] == 'true') {
+      return true;
+    }
     final reportId = payload['report_id']?.trim() ?? '';
     final lat = payload['lat']?.trim() ?? '';
     final lng = payload['lng']?.trim() ?? '';
-    return reportId.isNotEmpty || (lat.isNotEmpty && lng.isNotEmpty);
+    final address = payload['address']?.trim() ?? '';
+    return reportId.isNotEmpty || (lat.isNotEmpty && lng.isNotEmpty) || address.isNotEmpty;
   }
 
   static Map<String, String?>? normalizePayload(Map<dynamic, dynamic>? payload) {
@@ -45,6 +49,7 @@ class NotificationTapPayloadStore {
       normalized!['report_id'] ?? '',
       normalized['lat'] ?? '',
       normalized['lng'] ?? '',
+      normalized['address'] ?? '',
     ].join('|');
     if (key == _lastHandledKey) {
       return;
@@ -60,6 +65,7 @@ class NotificationTapPayloadStore {
     }
     final payload = Map<String, String?>.from(_pendingPayload!);
     _pendingPayload = null;
+    _lastHandledKey = null;
     return payload;
   }
 }

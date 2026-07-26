@@ -3,6 +3,7 @@
 Создаёт временную директорию с копиями/хардлинками ключевых файлов,
 затем запускает `mempalace mine` на ней.
 """
+
 import shutil
 import subprocess
 import sys
@@ -43,16 +44,41 @@ ROOT_FILES = [
 ]
 
 SKIP_EXTENSIONS = {
-    ".pyc", ".pyo", ".pt", ".db", ".session", ".lock",
-    ".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp",
-    ".woff", ".woff2", ".ttf", ".eot",
-    ".zip", ".tar", ".gz", ".7z",
+    ".pyc",
+    ".pyo",
+    ".pt",
+    ".db",
+    ".session",
+    ".lock",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".ico",
+    ".webp",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".eot",
+    ".zip",
+    ".tar",
+    ".gz",
+    ".7z",
 }
 
 SKIP_DIRS = {
-    "__pycache__", ".git", ".venv", "node_modules",
-    ".dart_tool", ".idea", "build", ".omc", ".agents",
-    ".cursor", ".qwen", "~",
+    "__pycache__",
+    ".git",
+    ".venv",
+    "node_modules",
+    ".dart_tool",
+    ".idea",
+    "build",
+    ".omc",
+    ".agents",
+    ".cursor",
+    ".qwen",
+    "~",
 }
 
 
@@ -129,7 +155,10 @@ def main():
     result = subprocess.run(
         [
             str(PROJECT_ROOT / ".venv" / "Scripts" / "python.exe"),
-            "-m", "mempalace", "mine", str(STAGE_DIR),
+            "-m",
+            "mempalace",
+            "mine",
+            str(STAGE_DIR),
         ],
         env=env,
         cwd=str(STAGE_DIR),

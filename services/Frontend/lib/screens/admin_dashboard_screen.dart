@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../services/admin_dashboard_service.dart';
 import '../services/device_identity_service.dart';
+import '../services/sound_service.dart';
 import '../theme/pulse_colors.dart';
 import '../widgets/app_ui.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -20,26 +21,52 @@ class AdminDashboardScreen extends StatefulWidget {
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
-class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+class _AdminDashboardScreenState extends State<AdminDashboardScreen>
+    with SingleTickerProviderStateMixin {
   final AdminDashboardService _adminService = AdminDashboardService.instance;
+  final TextEditingController _passwordController = TextEditingController();
+  String? _localPassword;
+
+  String? get _twoFactorCode => (_localPassword ?? '').trim().isNotEmpty
+      ? _localPassword!.trim()
+      : (widget.initialTwoFactorCode.trim().isNotEmpty
+          ? widget.initialTwoFactorCode.trim()
+          : null);
   Timer? _refreshTimer;
+  late TabController _tabController;
 
   Map<String, dynamic>? _metrics;
-  Map<String, dynamic>? _watchdogStatus;
+  Map<String, dynamic>? _productFunnel;
+  Map<String, dynamic>? _ingestionQuality;
+  Map<String, dynamic>? _hermesReport;
+  bool _hermesReportVisible = false;
   List<Map<String, dynamic>> _cameras = const <Map<String, dynamic>>[];
-  List<Map<String, dynamic>> _watchdogAlerts = const <Map<String, dynamic>>[];
   bool _loading = true;
   bool _claimingSession = true;
   bool _recheckingCameras = false;
-  bool _runningWatchdogScan = false;
   String? _error;
   String? _busyDeviceId;
   String? _busyCameraId;
   String? _localDeviceId;
+  String? _banningUserId;
+
+  final TextEditingController _userSearchController = TextEditingController();
+  final TextEditingController _grantTgIdController = TextEditingController();
+  final TextEditingController _grantUsernameController = TextEditingController();
+  final TextEditingController _grantPhoneController = TextEditingController();
+  final TextEditingController _grantAddressController = TextEditingController();
+  final TextEditingController _grantVkIdController = TextEditingController();
+
+  List<Map<String, dynamic>> _searchedUsers = [];
+  bool _searchingUsers = false;
+  String? _searchError;
+  int _grantDays = 30;
+  bool _grantingPremium = false;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
     unawaited(_loadLocalDeviceId());
     _bootstrap();
     _refreshTimer = Timer.periodic(
@@ -50,8 +77,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   void dispose() {
+    _tabController.dispose();
     _refreshTimer?.cancel();
     _adminService.releaseSession();
+    _userSearchController.dispose();
+    _grantTgIdController.dispose();
+    _grantUsernameController.dispose();
+    _grantPhoneController.dispose();
+    _grantAddressController.dispose();
+    _grantVkIdController.dispose();
     super.dispose();
   }
 
@@ -68,7 +102,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Future<void> _bootstrap() async {
     try {
       await _adminService.ensureSession(
-        twoFactorCode: widget.initialTwoFactorCode,
+        twoFactorCode: _twoFactorCode,
       );
       if (!mounted) {
         return;
@@ -92,30 +126,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Future<void> _refresh() async {
     try {
       final results = await Future.wait<dynamic>([
-        _adminService.fetchMetrics(twoFactorCode: widget.initialTwoFactorCode),
-        _adminService.fetchCameras(twoFactorCode: widget.initialTwoFactorCode),
+        _adminService.fetchMetrics(twoFactorCode: _twoFactorCode),
+        _adminService.fetchCameras(twoFactorCode: _twoFactorCode),
+        _adminService.fetchProductFunnel(twoFactorCode: _twoFactorCode),
+        _adminService.fetchIngestionQuality(twoFactorCode: _twoFactorCode),
+        _adminService.fetchHermesReport(twoFactorCode: _twoFactorCode),
       ]);
-      Map<String, dynamic>? watchdogStatus;
-      List<Map<String, dynamic>> watchdogAlerts = _watchdogAlerts;
-      try {
-        watchdogStatus = await _adminService.fetchWatchdogStatus(
-          twoFactorCode: widget.initialTwoFactorCode,
-        );
-        watchdogAlerts = await _adminService.fetchWatchdogAlerts(
-          twoFactorCode: widget.initialTwoFactorCode,
-          limit: 8,
-        );
-      } catch (_) {
-        watchdogStatus = _watchdogStatus;
-      }
       if (!mounted) {
         return;
       }
       setState(() {
         _metrics = (results[0] as Map<String, dynamic>);
         _cameras = (results[1] as List<Map<String, dynamic>>);
-        _watchdogStatus = watchdogStatus;
-        _watchdogAlerts = watchdogAlerts;
+        _productFunnel = (results[2] as Map<String, dynamic>);
+        _ingestionQuality = (results[3] as Map<String, dynamic>);
+        final hermesData = (results[4] as Map<String, dynamic>);
+        _hermesReportVisible = hermesData['visible'] ?? false;
+        _hermesReport = hermesData['report'];
         _loading = false;
         _error = null;
       });
@@ -127,6 +154,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _loading = false;
         _error = error.toString();
       });
+    }
+  }
+
+  Future<void> _dismissHermesReport() async {
+    try {
+      await _adminService.dismissHermesReport(twoFactorCode: _twoFactorCode);
+      setState(() {
+        _hermesReportVisible = false;
+      });
+    } catch (e) {
+      debugPrint('Error dismissing Hermes report: $e');
     }
   }
 
@@ -151,7 +189,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         mapAccess: mapAccess,
         cameraAccess: cameraAccess,
         freeAccess: freeAccess,
-        twoFactorCode: widget.initialTwoFactorCode,
+        twoFactorCode: _twoFactorCode,
       );
       await _refresh();
     } catch (error) {
@@ -159,7 +197,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Policy update failed: $error')),
+        SnackBar(content: Text('Не удалось обновить политику: $error')),
       );
     } finally {
       if (mounted) {
@@ -189,21 +227,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         cameraAccess: true,
         freeAccess: true,
         note: note,
-        twoFactorCode: widget.initialTwoFactorCode,
+        twoFactorCode: _twoFactorCode,
       );
       await _refresh();
       if (!mounted) {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Full access granted')),
+        const SnackBar(content: Text('Полный доступ предоставлен')),
       );
     } catch (error) {
       if (!mounted) {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Grant full access failed: $error')),
+        SnackBar(
+            content: Text('Не удалось предоставить полный доступ: $error')),
       );
     } finally {
       if (mounted) {
@@ -223,7 +262,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     });
     try {
       final report = await _adminService.recheckCameras(
-        twoFactorCode: widget.initialTwoFactorCode,
+        twoFactorCode: _twoFactorCode,
       );
       if (!mounted) {
         return;
@@ -232,10 +271,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (!mounted) {
         return;
       }
+      final msg = 'Проверка камер завершена: ${report['streamable'] ?? 0} из ${report['total'] ?? 0} доступны для трансляции';
+      SoundService().speak(msg);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Camera check: ${report['streamable'] ?? 0}/${report['total'] ?? 0} streamable',
+            'Проверка камер: ${report['streamable'] ?? 0}/${report['total'] ?? 0} доступны для трансляции',
           ),
         ),
       );
@@ -244,7 +285,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Camera recheck failed: $error')),
+        SnackBar(content: Text('Не удалось перепроверить камеры: $error')),
       );
     } finally {
       if (mounted) {
@@ -269,7 +310,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       await _adminService.setCameraVisibility(
         cameraId: cameraId,
         hiddenByAdmin: hiddenByAdmin,
-        twoFactorCode: widget.initialTwoFactorCode,
+        twoFactorCode: _twoFactorCode,
       );
       await _refresh();
     } catch (error) {
@@ -277,52 +318,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Camera visibility update failed: $error')),
+        SnackBar(content: Text('Не удалось обновить видимость камеры: $error')),
       );
     } finally {
       if (mounted) {
         setState(() {
           _busyCameraId = null;
-        });
-      }
-    }
-  }
-
-  Future<void> _runWatchdogScan({int maxCameras = 4}) async {
-    if (_runningWatchdogScan) {
-      return;
-    }
-    setState(() {
-      _runningWatchdogScan = true;
-    });
-    try {
-      final report = await _adminService.triggerWatchdogScan(
-        twoFactorCode: widget.initialTwoFactorCode,
-        maxCameras: maxCameras,
-      );
-      await _refresh();
-      if (!mounted) {
-        return;
-      }
-      final found = report['alerts_found']?.toString() ?? '0';
-      final scanned = report['scanned']?.toString() ?? maxCameras.toString();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Watchdog scan complete: $found alerts from $scanned cameras'),
-        ),
-      );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Watchdog scan failed: $error')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _runningWatchdogScan = false;
         });
       }
     }
@@ -336,22 +337,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: PulseColors.surfaceElevated,
-        title: const Text('Unbind device',
+        title: Text('Отвязать устройство',
             style: TextStyle(color: PulseColors.textPrimary)),
         content: Text(
           currentDevice
-              ? 'Unbind this device from admin panel and rotate local device ID?'
-              : 'Remove this device from admin registry?',
+              ? 'Отвязать это устройство от панели администратора и обновить локальный идентификатор устройства?'
+              : 'Удалить это устройство из реестра?',
           style: AppTextStyles.bodyMuted,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
+            child: const Text('Отмена'),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Unbind'),
+            child: const Text('Отвязать'),
           ),
         ],
       ),
@@ -366,7 +367,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     try {
       await _adminService.unbindDevice(
         deviceId: deviceId,
-        twoFactorCode: widget.initialTwoFactorCode,
+        twoFactorCode: _twoFactorCode,
       );
 
       if (currentDevice) {
@@ -376,7 +377,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           return;
         }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Current device unbound and rotated.')),
+          const SnackBar(
+              content:
+                  Text('Текущее устройство отвязано, идентификатор обновлён.')),
         );
         Navigator.of(context).pop();
         return;
@@ -387,14 +390,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Device unbound')),
+        const SnackBar(content: Text('Устройство отвязано')),
       );
     } catch (error) {
       if (!mounted) {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Device unbind failed: $error')),
+        SnackBar(content: Text('Не удалось отвязать устройство: $error')),
       );
     } finally {
       if (mounted) {
@@ -402,6 +405,61 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           _busyDeviceId = null;
         });
       }
+    }
+  }
+
+  Future<void> _banUser(Map<String, dynamic> user) async {
+    final userId = user['telegram_id']?.toString() ?? user['vk_id']?.toString() ?? '';
+    if (userId.isEmpty) return;
+    
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: PulseColors.surfaceElevated,
+        title: Row(
+          children: [
+            Icon(Icons.block_rounded, color: PulseColors.negative),
+            const SizedBox(width: 8),
+            Text('Заблокировать?', style: TextStyle(color: PulseColors.textPrimary)),
+          ],
+        ),
+        content: Text(
+          'Пользователь ${user['first_name'] ?? ''} ${user['last_name'] ?? ''} (ID: $userId) будет заблокирован.',
+          style: AppTextStyles.bodyMuted,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: PulseColors.negative),
+            child: const Text('Заблокировать', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    
+    setState(() => _banningUserId = userId);
+    try {
+      await _adminService.banUser(
+        userId: userId,
+        twoFactorCode: _twoFactorCode,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Пользователь $userId заблокирован'), backgroundColor: PulseColors.negative),
+      );
+      if (_userSearchController.text.trim().isNotEmpty) await _searchUsers();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка бана: $e'), backgroundColor: PulseColors.warning),
+      );
+    } finally {
+      if (mounted) setState(() => _banningUserId = null);
     }
   }
 
@@ -415,7 +473,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             backgroundColor: Colors.transparent,
             elevation: 0,
             title: Text(
-              'ADMIN CONTROL',
+              'ПАНЕЛЬ УПРАВЛЕНИЯ',
               style: AppTextStyles.overline.copyWith(
                 color: PulseColors.textPrimary,
                 fontSize: 14,
@@ -424,7 +482,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             actions: [
               IconButton(
                 onPressed: _refresh,
-                icon: const Icon(Icons.refresh_rounded,
+                icon: Icon(Icons.refresh_rounded,
                     color: PulseColors.textPrimary),
               ),
               if ((_localDeviceId ?? '').isNotEmpty)
@@ -435,11 +493,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             deviceId: _localDeviceId!,
                             currentDevice: true,
                           ),
-                  tooltip: 'Unbind this device',
-                  icon: const Icon(Icons.link_off_rounded,
+                  tooltip: 'Отвязать это устройство',
+                  icon: Icon(Icons.link_off_rounded,
                       color: PulseColors.textPrimary),
                 ),
             ],
+            bottom: _claimingSession || _loading || _error != null
+                ? null
+                : TabBar(
+                    controller: _tabController,
+                    indicatorColor: PulseColors.primary,
+                    labelColor: PulseColors.textPrimary,
+                    unselectedLabelColor: PulseColors.textSecondary,
+                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                    unselectedLabelStyle: const TextStyle(fontSize: 11),
+                    tabs: const [
+                      Tab(icon: Icon(Icons.analytics_rounded, size: 18), text: 'Аналитика'),
+                      Tab(icon: Icon(Icons.videocam_rounded, size: 18), text: 'Камеры'),
+                      Tab(icon: Icon(Icons.admin_panel_settings_rounded, size: 18), text: 'Управление'),
+                    ],
+                  ),
           ),
           body: _claimingSession
               ? const Center(child: CircularProgressIndicator())
@@ -447,61 +520,302 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ? const Center(child: CircularProgressIndicator())
                   : _error != null
                       ? _buildErrorState()
-                      : RefreshIndicator(
-                          onRefresh: _refresh,
-                          child: ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-                            children: [
-                              _buildHeroCard(),
-                              const SizedBox(height: 16),
-                              _buildSummaryGrid(),
-                              const SizedBox(height: 16),
-                              _buildTrafficCard(),
-                              const SizedBox(height: 16),
-                              _buildRealtimeGroups(),
-                              const SizedBox(height: 16),
-                              _buildTopRoutesCard(),
-                              const SizedBox(height: 16),
-                              _buildWatchdogCard(),
-                              const SizedBox(height: 16),
-                              _buildCamerasCard(),
-                              const SizedBox(height: 16),
-                              _buildSentryTestCard(),
-                              const SizedBox(height: 16),
-                              _buildDevicesCard(),
-                            ],
-                          ),
+                      : TabBarView(
+                          controller: _tabController,
+                          children: [
+                            _buildAnalyticsTab(),
+                            _buildCamerasTab(),
+                            _buildManagementTab(),
+                          ],
                         ),
         ),
       ),
     );
   }
 
+  // ─── TAB 1: ANALYTICS ─────────────────────────────────────────────
+  Widget _buildAnalyticsTab() {
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+        children: [
+          _buildHermesReportCard(),
+          _buildHeroCard(),
+          const SizedBox(height: 20),
+          _buildSummaryGrid(),
+          const SizedBox(height: 20),
+          _buildUserGrowthCard(),
+          const SizedBox(height: 20),
+          _buildScreenTimeCard(),
+          const SizedBox(height: 20),
+          _buildProductOpsCard(),
+          const SizedBox(height: 20),
+          _buildTrafficCard(),
+          const SizedBox(height: 20),
+          _buildRealtimeGroups(),
+          const SizedBox(height: 20),
+          _buildTopRoutesCard(),
+        ],
+      ),
+    );
+  }
+
+  // ─── TAB 2: CAMERAS ───────────────────────────────────────────────
+  Widget _buildCamerasTab() {
+    final totalCams = _cameras.length;
+    final onlineCams = _cameras.where((c) => _readBool(c['streamable'], fallback: false)).length;
+    final offlineCams = totalCams - onlineCams;
+    final hiddenCams = _cameras.where((c) => _readBool(c['hidden_by_admin'], fallback: false)).length;
+    
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+        children: [
+          // Camera stats summary
+          Row(
+            children: [
+              Expanded(child: _miniMetric('Всего камер', '$totalCams', PulseColors.primary)),
+              const SizedBox(width: 10),
+              Expanded(child: _miniMetric('Онлайн', '$onlineCams', PulseColors.success)),
+              const SizedBox(width: 10),
+              Expanded(child: _miniMetric('Оффлайн', '$offlineCams', PulseColors.negative)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _miniMetric('Скрыты админом', '$hiddenCams', PulseColors.warning)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _miniMetric(
+                  'Просмотров/24ч',
+                  '${_readInt('camera_views_24h')}',
+                  PulseColors.accentViolet,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _miniMetric(
+                  'CPM потенциал',
+                  '${(_readInt('camera_views_24h') * 0.05).toStringAsFixed(0)}₽',
+                  PulseColors.accentGold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildCamerasCard(),
+        ],
+      ),
+    );
+  }
+
+  // ─── TAB 3: MANAGEMENT ────────────────────────────────────────────
+  Widget _buildManagementTab() {
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+        children: [
+          _buildVipManagementCard(),
+          const SizedBox(height: 20),
+          _buildDevicesCard(),
+          const SizedBox(height: 20),
+          _buildSentryTestCard(),
+        ],
+      ),
+    );
+  }
+
+  // ─── NEW: User Growth Card ────────────────────────────────────────
+  Widget _buildUserGrowthCard() {
+    final total = _readInt('total_unique_users');
+    final registered = _readInt('total_registered_users');
+    final online = _readInt('online_users');
+    final peak = _readInt('peak_active_unique_users');
+    final newToday = _readInt('new_users_today');
+    final newWeek = _readInt('new_users_7d');
+    final launches = _readInt('app_launches_total');
+    
+    return _SectionCard(
+      title: 'Рост пользователей',
+      icon: Icons.trending_up_rounded,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: _growthTile('Всего', '$total', PulseColors.primary, Icons.people_rounded)),
+              const SizedBox(width: 10),
+              Expanded(child: _growthTile('Регистраций', '$registered', PulseColors.warning, Icons.person_add_rounded)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: _growthTile('Онлайн сейчас', '$online', PulseColors.success, Icons.wifi_rounded)),
+              const SizedBox(width: 10),
+              Expanded(child: _growthTile('Пик', '$peak', PulseColors.accentViolet, Icons.show_chart_rounded)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: _growthTile('Новых сегодня', '$newToday', PulseColors.accentGold, Icons.fiber_new_rounded)),
+              const SizedBox(width: 10),
+              Expanded(child: _growthTile('Новых за 7д', '$newWeek', PulseColors.primaryDeep, Icons.date_range_rounded)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _buildTrafficRow('Запусков приложения', '$launches'),
+        ],
+      ),
+    );
+  }
+
+  Widget _growthTile(String label, String value, Color color, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.18)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(value, style: AppTextStyles.section.copyWith(color: color, fontSize: 18)),
+                Text(label, style: AppTextStyles.bodyMuted.copyWith(fontSize: 10)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── NEW: Screen Time Card ────────────────────────────────────────
+  Widget _buildScreenTimeCard() {
+    final activeScreens = _readMap('active_screens');
+    final totalMinutes = _readInt('total_screen_minutes');
+    final avgSession = _readInt('avg_session_seconds');
+    
+    return _SectionCard(
+      title: 'Время на экранах',
+      icon: Icons.timer_rounded,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _miniMetric('Общее время', '${totalMinutes > 0 ? totalMinutes : '—'} мин', PulseColors.primary),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _miniMetric('Ср. сессия', '${avgSession > 0 ? avgSession : '—'} сек', PulseColors.accentViolet),
+              ),
+            ],
+          ),
+          if (activeScreens.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Text('Активные экраны сейчас:', style: AppTextStyles.overline),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: activeScreens.entries.map((e) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: PulseColors.primary.withOpacity(0.08),
+                  borderRadius: AppRadii.pill,
+                  border: Border.all(color: PulseColors.primary.withOpacity(0.15)),
+                ),
+                child: Text(
+                  '${e.key}: ${e.value}',
+                  style: AppTextStyles.mono.copyWith(fontSize: 11),
+                ),
+              )).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildErrorState() {
+    final bool needsPassword = _error != null && (() {
+      final lower = _error!.toLowerCase();
+      return ['password', 'сесси', 'session', 'tfa', 'двухфакт', 'auth', 'unauthorized'].any((k) => lower.contains(k));
+    })();
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.lock_person_rounded,
+            Icon(Icons.lock_person_rounded,
                 size: 44, color: PulseColors.textTertiary),
             const SizedBox(height: 12),
             Text(
-              'Admin session unavailable',
+              'Сессия администратора недоступна',
               style: AppTextStyles.section,
             ),
             const SizedBox(height: 8),
             Text(
-              _error ?? 'Unknown error',
+              _error ?? 'Неизвестная ошибка',
               textAlign: TextAlign.center,
               style: AppTextStyles.bodyMuted,
             ),
+            if (needsPassword) ...[
+              const SizedBox(height: 16),
+              Container(
+                constraints: const BoxConstraints(maxWidth: 280),
+                child: TextField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  style: TextStyle(color: PulseColors.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: 'Пароль администратора',
+                    labelStyle: TextStyle(color: PulseColors.textSecondary),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: PulseColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: PulseColors.primary),
+                    ),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             AppPrimaryButton(
-              label: 'Retry',
-              onPressed: _bootstrap,
+              label: needsPassword ? 'Войти' : 'Повторить',
+              onPressed: () {
+                if (needsPassword) {
+                  final code = _passwordController.text.trim();
+                  if (code.isNotEmpty) {
+                    setState(() {
+                      _localPassword = code;
+                      _claimingSession = true;
+                      _error = null;
+                    });
+                    _bootstrap();
+                    return;
+                  }
+                }
+                _bootstrap();
+              },
             ),
           ],
         ),
@@ -511,29 +825,39 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _buildHeroCard() {
     return AppPanel(
+      style: PanelStyle.aurora,
+      accent: PulseColors.primaryDeep,
+      showAuroraGlow: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.shield_rounded, color: PulseColors.primary),
-              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: PulseColors.primary.withOpacity(0.2),
+                  borderRadius: AppRadii.sm,
+                ),
+                child: Icon(Icons.shield_rounded, color: PulseColors.primary),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Postgres-backed runtime control',
-                  style: AppTextStyles.section,
+                  'Управление PostgreSQL',
+                  style: AppTextStyles.hero.copyWith(fontSize: 24),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(
-            'Last activity: ${_readString('last_activity_at', fallback: 'n/a')}',
+            'Последняя активность: ${_readString('last_activity_at', fallback: 'н/д')}',
             style: AppTextStyles.bodyMuted,
           ),
           const SizedBox(height: 6),
           Text(
-            'Active window: ${_readInt('active_window_seconds')}s',
+            'Активное окно: ${_readInt('active_window_seconds')}с',
             style: AppTextStyles.mono,
           ),
           const SizedBox(height: 6),
@@ -549,7 +873,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           if ((_localDeviceId ?? '').isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
-              'Current device: $_localDeviceId',
+              'Текущее устройство: $_localDeviceId',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTextStyles.mono,
@@ -558,13 +882,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             Align(
               alignment: Alignment.centerLeft,
               child: AppPrimaryButton(
-                label: 'Grant full access to this device',
+                label: 'Предоставить полный доступ этому устройству',
                 icon: Icons.verified_user_rounded,
                 onPressed: _busyDeviceId == _localDeviceId
                     ? null
                     : () => _grantFullAccess(
                           deviceId: _localDeviceId!,
-                          note: 'Admin dashboard full access',
+                          note: 'Полный доступ из панели администратора',
                         ),
               ),
             ),
@@ -576,25 +900,36 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _buildSummaryGrid() {
     final items = <_MetricTileData>[
-      _MetricTileData('App opens', _readInt('app_launches_total').toString(),
-          PulseColors.success, Icons.play_circle_fill_rounded),
-      _MetricTileData('Unique users', _readInt('total_unique_users').toString(),
-          PulseColors.primaryDeep, Icons.people_alt_rounded),
-      _MetricTileData('Online now', _readInt('online_users').toString(),
-          PulseColors.primary, Icons.radar_rounded),
       _MetricTileData(
-          'Peak online',
-          _readInt('peak_active_unique_users').toString(),
+          'Всего устройств',
+          _readInt('total_unique_users').toString(),
+          PulseColors.primaryDeep,
+          Icons.phone_android_rounded),
+      _MetricTileData(
+          'Зарегистрировано',
+          _readInt('total_registered_users').toString(),
           PulseColors.warning,
+          Icons.supervised_user_circle_rounded),
+      _MetricTileData(
+          'Активны сейчас', 
+          _readInt('online_users').toString(),
+          PulseColors.success, 
+          Icons.radar_rounded),
+      _MetricTileData(
+          'Пик активности',
+          _readInt('peak_active_unique_users').toString(),
+          PulseColors.primary,
           Icons.show_chart_rounded),
-      _MetricTileData('Requests', _readInt('total_requests').toString(),
-          const Color(0xFFF472B6), Icons.sync_alt_rounded),
-      _MetricTileData('Heartbeats', _readInt('total_heartbeats').toString(),
-          PulseColors.accentViolet, Icons.favorite_rounded),
-      _MetricTileData('Cameras', _readInt('cameras_total').toString(),
-          PulseColors.success, Icons.videocam_rounded),
-      _MetricTileData('Hidden cams', _readInt('cameras_hidden').toString(),
-          PulseColors.negative, Icons.visibility_off_rounded),
+      _MetricTileData(
+          'Открытий приложения',
+          _readInt('app_launches_total').toString(),
+          PulseColors.accentViolet,
+          Icons.play_circle_fill_rounded),
+      _MetricTileData(
+          'Адресов с жалобами',
+          _readInt('unique_report_addresses').toString(),
+          PulseColors.neutral,
+          Icons.home_work_rounded),
     ];
 
     return GridView.builder(
@@ -603,29 +938,36 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       itemCount: items.length,
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 200,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 1.1,
       ),
       itemBuilder: (context, index) {
         final item = items[index];
         return AppPanel(
+          style: PanelStyle.neo,
           padding: const EdgeInsets.all(16),
-          borderColor: item.accent.withOpacity(0.22),
-          backgroundColor: PulseColors.surfaceSoft,
+          accent: item.accent,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(item.icon, color: item.accent, size: 22),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: item.accent.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(item.icon, color: item.accent, size: 24),
+              ),
               const Spacer(),
               Text(
                 item.value,
-                style: AppTextStyles.metric.copyWith(color: item.accent),
+                style: AppTextStyles.title.copyWith(color: PulseColors.textPrimary),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 item.label,
-                style: AppTextStyles.bodyMuted,
+                style: AppTextStyles.caption.copyWith(color: PulseColors.textSecondary),
               ),
             ],
           ),
@@ -634,19 +976,129 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+  Widget _buildProductOpsCard() {
+    final week = (_productFunnel?['week'] as Map?) ?? const {};
+    final funnel = (week['funnel'] as List?) ?? const [];
+    final quality = (_ingestionQuality?['quality'] as Map?) ?? const {};
+    final ratio = ((_ingestionQuality?['confidence_ratio'] as num?) ?? 0).toDouble();
+    return AppPanel(
+      style: PanelStyle.aurora,
+      accent: PulseColors.accentViolet,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.insights_rounded, color: PulseColors.accentViolet),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Аналитика продукта', style: AppTextStyles.section),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _miniMetric(
+                'Уверенные входящие',
+                '${((ratio * 100).round())}%',
+                PulseColors.success,
+              ),
+              _miniMetric(
+                'С адресом и координатами',
+                '${quality['confident'] ?? 0}',
+                PulseColors.primary,
+              ),
+              _miniMetric(
+                'На проверку',
+                '${(quality['partial'] ?? 0) + (quality['no_address'] ?? 0)}',
+                PulseColors.warning,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text('Funnel за 7 дней', style: AppTextStyles.overline),
+          const SizedBox(height: 8),
+          for (final item in funnel.take(7))
+            if (item is Map)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _translateFunnelEvent(item['event']?.toString() ?? '-'),
+                        style: AppTextStyles.bodyMuted.copyWith(fontSize: 12),
+                      ),
+                    ),
+                    Text(
+                      '${item['count'] ?? 0}',
+                      style: AppTextStyles.mono,
+                    ),
+                  ],
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniMetric(String label, String value, Color color) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 150),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AppTextStyles.bodyMuted.copyWith(fontSize: 11)),
+          const SizedBox(height: 6),
+          Text(value, style: AppTextStyles.section.copyWith(color: color)),
+        ],
+      ),
+    );
+  }
+
+  String _translateFunnelEvent(String event) {
+    switch (event) {
+      case 'map_viewed':
+        return 'Просмотр карты';
+      case 'report_cta_tapped':
+        return 'Клик по "Создать сигнал"';
+      case 'photo_added':
+        return 'Добавлено фото';
+      case 'address_confirmed':
+        return 'Адрес подтвержден';
+      case 'report_submit_started':
+        return 'Начало отправки сигнала';
+      case 'report_submit_completed':
+        return 'Сигнал успешно отправлен';
+      case 'report_saved_to_draft':
+        return 'Сохранено в черновик';
+      default:
+        return event;
+    }
+  }
+
   Widget _buildTrafficCard() {
     return _SectionCard(
-      title: 'Traffic',
+      title: 'Трафик',
       icon: Icons.hub_rounded,
       child: Column(
         children: [
-          _buildTrafficRow('Server traffic total',
+          _buildTrafficRow('Общий трафик сервера',
               _formatBytes(_readInt('total_traffic_bytes'))),
-          _buildTrafficRow('Server traffic 1h',
+          _buildTrafficRow('Трафик сервера за 1 ч',
               _formatBytes(_readInt('traffic_last_hour_bytes'))),
-          _buildTrafficRow('Server traffic 24h',
+          _buildTrafficRow('Трафик сервера за 24 ч',
               _formatBytes(_readInt('traffic_last_24_hours_bytes'))),
-          _buildTrafficRow('Server traffic 7d',
+          _buildTrafficRow('Трафик сервера за 7 дн',
               _formatBytes(_readInt('traffic_last_7_days_bytes'))),
         ],
       ),
@@ -655,18 +1107,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _buildSentryTestCard() {
     return _SectionCard(
-      title: 'Diagnostics & Monitoring',
+      title: 'Диагностика и мониторинг',
       icon: Icons.bug_report_rounded,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Use this to verify Sentry and error-monitoring agent integration. It will trigger a deliberate runtime exception.',
+            'Используйте для проверки интеграции Sentry и системы мониторинга ошибок. Будет вызвано намеренное исключение.',
             style: AppTextStyles.bodyMuted,
           ),
           const SizedBox(height: 16),
           AppSecondaryButton(
-            label: 'Send Test Crash to Sentry',
+            label: 'Отправить тестовый сбой в Sentry',
             icon: Icons.flash_on_rounded,
             onPressed: () async {
               try {
@@ -679,7 +1131,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                        content: Text('Test exception sent to Sentry!')),
+                        content:
+                            Text('Тестовое исключение отправлено в Sentry!')),
                   );
                 }
               }
@@ -716,19 +1169,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return Column(
       children: [
         _buildKeyValueCard(
-          title: 'Platforms online',
+          title: 'Платформы онлайн',
           icon: Icons.devices_rounded,
           values: _readMap('active_platforms'),
         ),
         const SizedBox(height: 16),
         _buildKeyValueCard(
-          title: 'App versions online',
+          title: 'Версии приложения онлайн',
           icon: Icons.system_update_alt_rounded,
           values: _readMap('active_app_versions'),
         ),
         const SizedBox(height: 16),
         _buildKeyValueCard(
-          title: 'Screens online',
+          title: 'Экраны онлайн',
           icon: Icons.space_dashboard_rounded,
           values: _readMap('active_screens'),
         ),
@@ -746,7 +1199,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       icon: icon,
       child: values.isEmpty
           ? Text(
-              'No active data',
+              'Нет активных данных',
               style: AppTextStyles.bodyMuted,
             )
           : Wrap(
@@ -781,10 +1234,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             .toList();
 
     return _SectionCard(
-      title: 'Top backend routes',
+      title: 'Основные маршруты',
       icon: Icons.route_rounded,
       child: routes.isEmpty
-          ? Text('No route data yet', style: AppTextStyles.bodyMuted)
+          ? Text('Нет данных о маршрутах', style: AppTextStyles.bodyMuted)
           : Column(
               children: routes
                   .map(
@@ -813,165 +1266,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildWatchdogCard() {
-    final status = _watchdogStatus ?? const <String, dynamic>{};
-    final legacy = _readInlineMap(status['legacy_watchdog']);
-    final frigate = _readInlineMap(status['frigate']);
-    final edgeFilter = _readInlineMap(status['edge_filter']);
-    final smolvlm = _readInlineMap(status['smolvlm']);
-    final legacyEnabled = _readBool(legacy['enabled'], fallback: false);
-    final frigateAvailable = _readBool(frigate['available'], fallback: false);
-    final edgeReady = edgeFilter.isNotEmpty && !edgeFilter.containsKey('error');
-    final vlmReady = smolvlm.isNotEmpty && !smolvlm.containsKey('error');
-
-    return _SectionCard(
-      title: 'Watchdog control',
-      icon: Icons.shield_rounded,
-      action: FilledButton.icon(
-        onPressed: _runningWatchdogScan ? null : () => _runWatchdogScan(),
-        icon: _runningWatchdogScan
-            ? const SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.play_arrow_rounded, size: 16),
-        label: const Text('Run scan'),
-        style: FilledButton.styleFrom(
-          backgroundColor: PulseColors.primary,
-          foregroundColor: PulseColors.background,
-          textStyle: AppTextStyles.button,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildStatusChip(
-                label: legacyEnabled
-                    ? 'Legacy watchdog ON'
-                    : 'Legacy watchdog OFF',
-                color:
-                    legacyEnabled ? PulseColors.success : PulseColors.negative,
-              ),
-              _buildStatusChip(
-                label: frigateAvailable
-                    ? 'Frigate bridge OK'
-                    : 'Frigate bridge OFF',
-                color: frigateAvailable
-                    ? PulseColors.primary
-                    : PulseColors.warning,
-              ),
-              _buildStatusChip(
-                label: edgeReady ? 'YOLO edge ready' : 'YOLO edge issue',
-                color:
-                    edgeReady ? PulseColors.accentViolet : PulseColors.warning,
-              ),
-              _buildStatusChip(
-                label: vlmReady ? 'SmolVLM ready' : 'SmolVLM issue',
-                color: vlmReady ? PulseColors.primaryDeep : PulseColors.warning,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Manual scan is available even when the background watchdog loop is off. Interval: ${legacy['interval'] ?? '-'}s, concurrency: ${legacy['max_concurrency'] ?? '-'}',
-            style: AppTextStyles.mono,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Recent alerts',
-            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 10),
-          if (_watchdogAlerts.isEmpty)
-            Text(
-              'No recent watchdog alerts',
-              style: AppTextStyles.bodyMuted,
-            )
-          else
-            Column(
-              children:
-                  _watchdogAlerts.take(5).map(_buildWatchdogAlertTile).toList(),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusChip({
-    required String label,
-    required Color color,
-  }) {
-    return AppStatusBadge(
-      label: label,
-      color: color,
-    );
-  }
-
-  Widget _buildWatchdogAlertTile(Map<String, dynamic> alert) {
-    final camera = alert['camera_name']?.toString().trim().isNotEmpty == true
-        ? alert['camera_name'].toString()
-        : (alert['camera']?.toString().trim().isNotEmpty == true
-            ? alert['camera'].toString()
-            : 'Unknown camera');
-    final eventType = alert['event_type']?.toString().trim().isNotEmpty == true
-        ? alert['event_type'].toString()
-        : (alert['type']?.toString().trim().isNotEmpty == true
-            ? alert['type'].toString()
-            : 'event');
-    final description = alert['description']?.toString().trim() ?? '';
-    final confidenceValue = alert['confidence'];
-    final confidence = confidenceValue is num
-        ? '${(confidenceValue * 100).round()}%'
-        : confidenceValue?.toString() ?? '-';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: PulseColors.textPrimary.withOpacity(0.03),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: PulseColors.textPrimary.withOpacity(0.06)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  camera,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style:
-                      AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
-                ),
-              ),
-              Text(
-                '$eventType · $confidence',
-                style: AppTextStyles.mono.copyWith(color: PulseColors.negative),
-              ),
-            ],
-          ),
-          if (description.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              description,
-              style: AppTextStyles.bodyMuted,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   Widget _buildCamerasCard() {
     return _SectionCard(
-      title: 'City cameras',
+      title: 'Городские камеры',
       icon: Icons.videocam_rounded,
       action: TextButton.icon(
         onPressed: _recheckingCameras ? null : _recheckCameras,
@@ -982,13 +1279,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             : const Icon(Icons.sync_rounded, size: 16),
-        label: const Text('Recheck'),
+        label: const Text('Перепроверить'),
         style: TextButton.styleFrom(
           foregroundColor: PulseColors.textPrimary,
         ),
       ),
       child: _cameras.isEmpty
-          ? Text('No cameras in catalog', style: AppTextStyles.bodyMuted)
+          ? Text('Нет камер в каталоге', style: AppTextStyles.bodyMuted)
           : Column(
               children: _cameras.map(_buildCameraTile).toList(),
             ),
@@ -997,7 +1294,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _buildCameraTile(Map<String, dynamic> camera) {
     final cameraId = camera['camera_id']?.toString() ?? '';
-    final name = camera['name']?.toString() ?? 'Camera';
+    final name = camera['name']?.toString() ?? 'Камера';
     final streamable = _readBool(camera['streamable'], fallback: false);
     final hiddenByAdmin = _readBool(camera['hidden_by_admin'], fallback: false);
     final hiddenDueToOffline =
@@ -1037,7 +1334,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            streamable ? 'Stream: OK' : 'Stream: OFFLINE',
+            streamable ? 'Поток: OK' : 'Поток: НЕДОСТУПЕН',
             style: AppTextStyles.bodyMuted.copyWith(
               color: streamable ? PulseColors.success : PulseColors.negative,
               fontWeight: FontWeight.w700,
@@ -1045,8 +1342,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Hidden: ${hiddenInMap ? 'yes' : 'no'} · '
-            'manual=${hiddenByAdmin ? '1' : '0'} · offline=${hiddenDueToOffline ? '1' : '0'}',
+            'Hidden: ${hiddenInMap ? 'yes' : 'no'} В· '
+            'manual=${hiddenByAdmin ? '1' : '0'} В· offline=${hiddenDueToOffline ? '1' : '0'}',
             style: AppTextStyles.mono,
           ),
           const SizedBox(height: 8),
@@ -1060,7 +1357,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       hiddenByAdmin: value,
                     ),
             title: Text(
-              'Hide on map (admin)',
+              'Скрыть на карте (админ)',
               style: AppTextStyles.body,
             ),
           ),
@@ -1078,10 +1375,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             .toList();
 
     return _SectionCard(
-      title: 'Devices and access policies',
+      title: 'Устройства и политики доступа',
       icon: Icons.admin_panel_settings_rounded,
       child: devices.isEmpty
-          ? Text('No devices registered yet', style: AppTextStyles.bodyMuted)
+          ? Text('Устройства ещё не зарегистрированы',
+              style: AppTextStyles.bodyMuted)
           : Column(
               children: devices.map(_buildDeviceTile).toList(),
             ),
@@ -1118,7 +1416,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
               if (isCurrentDevice)
                 AppStatusBadge(
-                  label: 'THIS DEVICE',
+                  label: 'ЭТО УСТРОЙСТВО',
                   color: PulseColors.primary,
                 ),
               const SizedBox(width: 8),
@@ -1129,9 +1427,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           deviceId: deviceId,
                           currentDevice: isCurrentDevice,
                         ),
-                icon: const Icon(Icons.link_off_rounded,
+                icon: Icon(Icons.link_off_rounded,
                     color: PulseColors.textSecondary, size: 20),
-                tooltip: 'Unbind device',
+                tooltip: 'Отвязать устройство',
               ),
               if (busy)
                 const SizedBox(
@@ -1143,12 +1441,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            '${device['platform'] ?? 'unknown'} · ${device['app_version'] ?? 'unknown'}',
+            '${device['platform'] ?? 'unknown'} В· ${device['app_version'] ?? 'unknown'}',
             style: AppTextStyles.bodyMuted,
           ),
           const SizedBox(height: 4),
           Text(
-            'Last seen: ${device['last_seen_at'] ?? 'n/a'}',
+            'Последнее подключение: ${device['last_seen_at'] ?? 'н/д'}',
             style: AppTextStyles.mono,
           ),
           const SizedBox(height: 12),
@@ -1156,16 +1454,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             alignment: Alignment.centerLeft,
             child: AppSecondaryButton(
               label: isCurrentDevice
-                  ? 'Full access for this device'
-                  : 'Grant full access',
+                  ? 'Полный доступ для этого устройства'
+                  : 'Предоставить полный доступ',
               icon: Icons.verified_user_rounded,
               onPressed: busy
                   ? null
                   : () => _grantFullAccess(
                         deviceId: deviceId,
                         note: isCurrentDevice
-                            ? 'Current admin device full access'
-                            : 'Admin full access issued',
+                            ? 'Полный доступ для текущего администратора'
+                            : 'Полный доступ выдан администратором',
                       ),
             ),
           ),
@@ -1175,7 +1473,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             onChanged: busy
                 ? null
                 : (value) => _updatePolicy(device: device, mapAccess: value),
-            title: Text('Map access', style: AppTextStyles.body),
+            title: Text('Доступ к карте', style: AppTextStyles.body),
           ),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
@@ -1183,7 +1481,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             onChanged: busy
                 ? null
                 : (value) => _updatePolicy(device: device, cameraAccess: value),
-            title: Text('Camera access', style: AppTextStyles.body),
+            title: Text('Доступ к камерам', style: AppTextStyles.body),
           ),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
@@ -1191,8 +1489,50 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             onChanged: busy
                 ? null
                 : (value) => _updatePolicy(device: device, freeAccess: value),
-            title: Text('Free access', style: AppTextStyles.body),
+            title: Text('Свободный доступ', style: AppTextStyles.body),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdvancedTrafficCard() {
+    final traffic = (_metrics?['traffic_last_hour'] as Map?) ?? const {};
+    final level = (_metrics?['attack_signal']?['level'] as String?) ?? 'low';
+    final label = (_metrics?['attack_signal']?['label'] as String?) ?? 'Норма';
+    final Color signalColor = level == 'high'
+        ? PulseColors.negative
+        : level == 'elevated'
+            ? PulseColors.warning
+            : PulseColors.success;
+
+    return AppPanel(
+      style: PanelStyle.aurora,
+      accent: signalColor,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.traffic_rounded, color: signalColor),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Сигнал угроз / Трафик', style: AppTextStyles.section),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: signalColor.withOpacity(0.15),
+                  borderRadius: AppRadii.pill,
+                ),
+                child: Text(
+                  label,
+                  style: AppTextStyles.overline.copyWith(color: signalColor),
+                ),
+              )
+            ],
+          ),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -1254,6 +1594,445 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         value >= 100 ? value.toStringAsFixed(0) : value.toStringAsFixed(1);
     return '$fixed ${units[unitIndex]}';
   }
+
+  Future<void> _searchUsers() async {
+    final query = _userSearchController.text.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _searchedUsers = const [];
+        _searchError = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _searchingUsers = true;
+      _searchError = null;
+    });
+
+    try {
+      final results = await _adminService.searchUsers(
+        query: query,
+        twoFactorCode: _twoFactorCode,
+      );
+      if (!mounted) return;
+      setState(() {
+        _searchedUsers = results;
+        _searchingUsers = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _searchingUsers = false;
+        _searchError = e.toString();
+      });
+    }
+  }
+
+  Future<void> _submitGrantPremium({
+    int? telegramId,
+    String? username,
+    String? phone,
+    String? address,
+    String? vkId,
+    required int days,
+  }) async {
+    setState(() {
+      _grantingPremium = true;
+    });
+
+    try {
+      final response = await _adminService.grantPremium(
+        telegramId: telegramId,
+        username: username,
+        phone: phone,
+        address: address,
+        vkId: vkId,
+        days: days,
+        twoFactorCode: _twoFactorCode,
+      );
+      if (!mounted) return;
+      setState(() {
+        _grantingPremium = false;
+      });
+      
+      final msg = response['message']?.toString() ?? 'VIP доступ успешно выдан';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: PulseColors.success),
+      );
+      
+      if (_userSearchController.text.trim().isNotEmpty) {
+        await _searchUsers();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _grantingPremium = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка: $e'), backgroundColor: PulseColors.negative),
+      );
+    }
+  }
+
+  Widget _buildVipManagementCard() {
+    return _SectionCard(
+      title: 'Управление VIP-подписками',
+      icon: Icons.workspace_premium_rounded,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Поиск пользователя по телефону, адресу, VK ID, TG ID или юзернейму:',
+            style: AppTextStyles.bodyMuted,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _userSearchController,
+                  style: TextStyle(color: PulseColors.textPrimary),
+                  decoration: InputDecoration(
+                    hintText: 'Введите поисковый запрос...',
+                    hintStyle: TextStyle(color: PulseColors.textSecondary.withOpacity(0.5)),
+                    filled: true,
+                    fillColor: PulseColors.textPrimary.withOpacity(0.03),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: PulseColors.border),
+                    ),
+                  ),
+                  onSubmitted: (_) => _searchUsers(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              AppPrimaryButton(
+                label: 'Найти',
+                onPressed: _searchingUsers ? null : _searchUsers,
+              ),
+            ],
+          ),
+          if (_searchingUsers) ...[
+            const SizedBox(height: 12),
+            const Center(child: CircularProgressIndicator()),
+          ],
+          if (_searchError != null) ...[
+            const SizedBox(height: 8),
+            Text(_searchError!, style: TextStyle(color: PulseColors.negative)),
+          ],
+          if (!_searchingUsers && _searchedUsers.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text('Результаты поиска (${_searchedUsers.length}):', style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            ..._searchedUsers.map((u) {
+              final isVip = u['is_vip'] == true;
+              final vipUntil = u['vip_until']?.toString() ?? 'нет';
+              final telegramId = u['telegram_id'];
+              final username = u['username']?.toString();
+              final phone = u['phone']?.toString();
+              final address = u['address']?.toString();
+              final vkId = u['vk_id']?.toString();
+              
+              final name = [
+                u['first_name']?.toString() ?? '',
+                u['last_name']?.toString() ?? ''
+              ].join(' ').trim();
+              
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: PulseColors.textPrimary.withOpacity(0.02),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: PulseColors.textPrimary.withOpacity(0.05)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(name.isNotEmpty ? name : 'Аноним', style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold)),
+                        AppStatusBadge(
+                          label: isVip ? 'VIP АКТИВЕН' : 'БЕЗ VIP',
+                          color: isVip ? Colors.amber : PulseColors.textSecondary,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    if (telegramId != null) Text('Telegram ID: $telegramId', style: AppTextStyles.mono),
+                    if (username != null && username.isNotEmpty) Text('Username: @$username', style: AppTextStyles.bodyMuted),
+                    if (phone != null && phone.isNotEmpty) Text('Телефон: $phone', style: AppTextStyles.bodyMuted),
+                    if (address != null && address.isNotEmpty) Text('Адрес: $address', style: AppTextStyles.bodyMuted),
+                    if (vkId != null && vkId.isNotEmpty) Text('VK ID: $vkId', style: AppTextStyles.mono),
+                    if (isVip) Text('Активен до: $vipUntil', style: TextStyle(color: Colors.amber.shade300, fontSize: 12)),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: AppSecondaryButton(
+                            label: 'Продлить на 30 дней',
+                            onPressed: _grantingPremium
+                                ? null
+                                : () => _submitGrantPremium(
+                                      telegramId: telegramId is int ? telegramId : null,
+                                      username: username,
+                                      phone: phone,
+                                      address: address,
+                                      vkId: vkId,
+                                      days: 30,
+                                    ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: AppSecondaryButton(
+                            label: 'Продлить на год',
+                            onPressed: _grantingPremium
+                                ? null
+                                : () => _submitGrantPremium(
+                                      telegramId: telegramId is int ? telegramId : null,
+                                      username: username,
+                                      phone: phone,
+                                      address: address,
+                                      vkId: vkId,
+                                      days: 365,
+                                    ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ] else if (!_searchingUsers && _userSearchController.text.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text('Пользователи не найдены.', style: AppTextStyles.bodyMuted),
+          ],
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 16),
+          Text(
+            'Выдать VIP новой записи (создастся профиль, если не существует):',
+            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          _buildFormTextField(_grantTgIdController, 'Telegram ID (число)'),
+          const SizedBox(height: 8),
+          _buildFormTextField(_grantUsernameController, 'Telegram Username (без @)'),
+          const SizedBox(height: 8),
+          _buildFormTextField(_grantPhoneController, 'Номер телефона'),
+          const SizedBox(height: 8),
+          _buildFormTextField(_grantAddressController, 'Адрес пользователя'),
+          const SizedBox(height: 8),
+          _buildFormTextField(_grantVkIdController, 'VK ID / ник'),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Срок подписки:', style: AppTextStyles.body),
+              DropdownButton<int>(
+                dropdownColor: PulseColors.surface,
+                value: _grantDays,
+                items: const [
+                  DropdownMenuItem(value: 30, child: Text('30 дней', style: TextStyle(color: Colors.white))),
+                  DropdownMenuItem(value: 90, child: Text('90 дней', style: TextStyle(color: Colors.white))),
+                  DropdownMenuItem(value: 365, child: Text('365 дней', style: TextStyle(color: Colors.white))),
+                ],
+                onChanged: (val) {
+                  if (val != null) setState(() => _grantDays = val);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          AppPrimaryButton(
+            label: _grantingPremium ? 'Выдача...' : 'Активировать VIP подписку',
+            onPressed: _grantingPremium
+                ? null
+                : () {
+                    final tgIdStr = _grantTgIdController.text.trim();
+                    final username = _grantUsernameController.text.trim();
+                    final phone = _grantPhoneController.text.trim();
+                    final address = _grantAddressController.text.trim();
+                    final vkId = _grantVkIdController.text.trim();
+                    
+                    if (tgIdStr.isEmpty && username.isEmpty && phone.isEmpty && address.isEmpty && vkId.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Заполните хотя бы одно поле идентификатора')),
+                      );
+                      return;
+                    }
+                    
+                    final int? tgId = int.tryParse(tgIdStr);
+                    _submitGrantPremium(
+                      telegramId: tgId,
+                      username: username.isNotEmpty ? username : null,
+                      phone: phone.isNotEmpty ? phone : null,
+                      address: address.isNotEmpty ? address : null,
+                      vkId: vkId.isNotEmpty ? vkId : null,
+                      days: _grantDays,
+                    ).then((_) {
+                      _grantTgIdController.clear();
+                      _grantUsernameController.clear();
+                      _grantPhoneController.clear();
+                      _grantAddressController.clear();
+                      _grantVkIdController.clear();
+                    });
+                  },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormTextField(TextEditingController controller, String label) {
+    return TextField(
+      controller: controller,
+      style: TextStyle(color: PulseColors.textPrimary, fontSize: 13),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: PulseColors.textSecondary.withOpacity(0.6), fontSize: 13),
+        filled: true,
+        fillColor: PulseColors.textPrimary.withOpacity(0.02),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: PulseColors.border.withOpacity(0.5)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHermesReportCard() {
+    if (!_hermesReportVisible || _hermesReport == null) {
+      return const SizedBox.shrink();
+    }
+    final report = _hermesReport!;
+    final points = (report['new_knowledge_points'] as List<dynamic>?) ?? [];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      child: AppPanel(
+        style: PanelStyle.aurora,
+        accent: PulseColors.accentGold,
+        showAuroraGlow: true,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.psychology_rounded, color: PulseColors.accentGold, size: 24),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'ИИ-Помощник «Гермес»: Отчёт',
+                    style: AppTextStyles.cardTitle.copyWith(
+                      color: PulseColors.accentGold,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _dismissHermesReport,
+                  child: Icon(Icons.close_rounded, color: PulseColors.textSecondary, size: 20),
+                ),
+              ],
+            ),
+            const Divider(height: 20, color: Colors.white12),
+            Text(
+              '${report['summary']}',
+              style: AppTextStyles.body.copyWith(
+                color: PulseColors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildReportStat('Сигналов обработано', '${report['signals_processed']}'),
+                _buildReportStat('Индекс комфорта', '${report['comfort_score']}'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Области внимания: ${report['categories_breakdown']}',
+              style: AppTextStyles.bodyMuted.copyWith(fontSize: 12),
+            ),
+            if (points.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Самообучение и базы знаний:',
+                style: AppTextStyles.body.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12.5,
+                ),
+              ),
+              const SizedBox(height: 6),
+              ...points.map((pt) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('• ', style: TextStyle(color: PulseColors.accentGold)),
+                        Expanded(
+                          child: Text(
+                            pt.toString(),
+                            style: AppTextStyles.bodyMuted.copyWith(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+            ],
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Обновлено: ${report['date']} в ${report['time']}',
+                  style: AppTextStyles.mono.copyWith(fontSize: 10, color: PulseColors.textSecondary),
+                ),
+                TextButton(
+                  onPressed: _dismissHermesReport,
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    'Убрать отчёт с экрана',
+                    style: TextStyle(color: Colors.redAccent.shade100, fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReportStat(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTextStyles.bodyMuted.copyWith(fontSize: 11)),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: AppTextStyles.cardTitle.copyWith(
+            color: PulseColors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _SectionCard extends StatelessWidget {
@@ -1304,3 +2083,4 @@ class _MetricTileData {
   final Color accent;
   final IconData icon;
 }
+

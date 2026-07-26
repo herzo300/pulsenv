@@ -51,18 +51,20 @@ class _CityPulseWaveState extends State<CityPulseWave> with SingleTickerProvider
       (critical / (widget.totalCount == 0 ? 1 : widget.totalCount)).clamp(0.0, 1.0),
     )!;
 
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return CustomPaint(
-          painter: _PulsePainter(
-            progress: _controller.value,
-            intensity: intensity,
-            color: pulseColor,
-          ),
-          child: SizedBox(height: 40, width: double.infinity),
-        );
-      },
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return CustomPaint(
+            painter: _PulsePainter(
+              progress: _controller.value,
+              intensity: intensity,
+              color: pulseColor,
+            ),
+            child: SizedBox(height: 40, width: double.infinity),
+          );
+        },
+      ),
     );
   }
 }

@@ -64,7 +64,7 @@ class _EmbeddedWebViewScreenState extends State<EmbeddedWebViewScreen> {
                     children: [
                       IconButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back_ios_new_rounded,
                           color: PulseColors.textPrimary,
                         ),
@@ -82,7 +82,7 @@ class _EmbeddedWebViewScreenState extends State<EmbeddedWebViewScreen> {
                           setState(() => _isLoading = true);
                           _controller.reload();
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.refresh_rounded,
                           color: PulseColors.primary,
                         ),
@@ -107,7 +107,7 @@ class _EmbeddedWebViewScreenState extends State<EmbeddedWebViewScreen> {
                       ),
                     ),
                     if (_isLoading)
-                      const Center(
+                      Center(
                         child: CircularProgressIndicator(
                           color: PulseColors.primary,
                         ),

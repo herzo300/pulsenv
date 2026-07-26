@@ -1,4 +1,2 @@
-from backend.database import engine, Base, get_db, SessionLocal
-from backend.models import Report
+"""Legacy backend namespace kept for compatibility with older tests/tools."""
 
-__all__ = ['engine', 'Base', 'get_db', 'SessionLocal', 'Report']

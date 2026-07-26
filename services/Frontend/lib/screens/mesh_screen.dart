@@ -3,10 +3,16 @@
 /// Работает через P2P (BLE / Wi-Fi Direct) без интернета.
 library;
 
-
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import '../map/map_config.dart';
 import '../theme/pulse_colors.dart';
+import '../utils/offline_tiles_service.dart';
 import '../widgets/app_ui.dart';
 import '../services/mesh_network_service.dart';
 
@@ -17,34 +23,64 @@ class MeshScreen extends StatefulWidget {
   State<MeshScreen> createState() => _MeshScreenState();
 }
 
-class _MeshScreenState extends State<MeshScreen> {
-  bool _meshActive = false;
-  int _peersCount = 0;
+class _MeshScreenState extends State<MeshScreen> with SingleTickerProviderStateMixin {
+  final MeshNetworkService _meshService = MeshNetworkService();
+  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _chatInputController = TextEditingController();
+  final MapController _mapController = MapController();
+  late AnimationController _radarController;
+  int _activeTab = 0; // 0 = Узлы, 1 = Чат
 
   @override
   void initState() {
     super.initState();
-    _startMesh();
-  }
-
-  Future<void> _startMesh() async {
-    try {
-      MeshNetworkService().startMesh();
-      if (mounted) {
-        setState(() {
-          _meshActive = true;
-          _peersCount = 0; // Will be updated by mesh discovery
-        });
-      }
-    } catch (e) {
-      debugPrint('Mesh init error: $e');
+    _meshService.addListener(_onServiceStateChanged);
+    _radarController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    );
+    if (_meshService.isConnected) {
+      _radarController.repeat();
     }
   }
 
   @override
+  void dispose() {
+    _meshService.removeListener(_onServiceStateChanged);
+    _searchController.dispose();
+    _chatInputController.dispose();
+    _radarController.dispose();
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  void _onServiceStateChanged() {
+    if (mounted) {
+      setState(() {
+        if (_meshService.isConnected) {
+          if (!_radarController.isAnimating) {
+            _radarController.repeat();
+          }
+        } else {
+          _radarController.stop();
+        }
+      });
+    }
+  }
+
+  Future<void> _toggleMesh() async {
+    HapticFeedback.heavyImpact();
+    await _meshService.toggleConnection();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isConnected = _meshService.isConnected;
+    final peers = _meshService.filteredPeers;
+    final totalCount = _meshService.peers.length;
+
     return Scaffold(
-      backgroundColor: PulseColors.background,
+      backgroundColor: const Color(0xFF02130D),
       appBar: AppBar(
         title: const Text(
           'MESH-СЕТЬ',
@@ -64,8 +100,27 @@ class _MeshScreenState extends State<MeshScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildStatusCard(),
+                _buildRadarCard(isConnected),
+                const SizedBox(height: AppSpacing.lg),
+                _buildToggleButton(isConnected),
                 const SizedBox(height: AppSpacing.xxl),
+                if (isConnected) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  _buildTabSelector(),
+                  const SizedBox(height: AppSpacing.lg),
+                  if (_activeTab == 0) ...[
+                    Text('КАРТА УЗЛОВ MESH-СЕТИ', style: AppTextStyles.overline),
+                    const SizedBox(height: AppSpacing.sm),
+                    _buildMeshMap(peers),
+                    const SizedBox(height: AppSpacing.xl),
+                    _buildSearchAndCountSection(peers.length, totalCount),
+                    const SizedBox(height: AppSpacing.md),
+                    _buildPeersList(peers),
+                  ] else ...[
+                    _buildChatSection(),
+                  ],
+                  const SizedBox(height: AppSpacing.xxl),
+                ],
                 Text('ВОЗМОЖНОСТИ', style: AppTextStyles.overline),
                 const SizedBox(height: AppSpacing.sm),
                 _buildFeatureCard(
@@ -94,7 +149,7 @@ class _MeshScreenState extends State<MeshScreen> {
                 const SizedBox(height: AppSpacing.xxl),
                 Text('СОСТОЯНИЕ СЕТИ', style: AppTextStyles.overline),
                 const SizedBox(height: AppSpacing.sm),
-                _buildNetworkInfo(),
+                _buildNetworkInfo(isConnected, totalCount),
               ],
             ),
           ),
@@ -103,50 +158,404 @@ class _MeshScreenState extends State<MeshScreen> {
     );
   }
 
-  Widget _buildStatusCard() {
-    return AppPanel(
-      child: Row(
-        children: [
-          Icon(
-            _meshActive ? Icons.hub_rounded : Icons.hub_outlined,
-            color: _meshActive ? PulseColors.success : PulseColors.textTertiary,
-            size: 32,
+  Widget _buildMeshMap(List<Map<String, dynamic>> peers) {
+    final markers = <Marker>[];
+    
+    // Add central user marker
+    markers.add(
+      Marker(
+        point: const LatLng(60.940, 76.570),
+        width: 45,
+        height: 45,
+        child: Container(
+          decoration: BoxDecoration(
+            color: PulseColors.primary.withOpacity(0.2),
+            shape: BoxShape.circle,
           ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _meshActive ? 'MESH-СЕТЬ АКТИВНА' : 'MESH-СЕТЬ ЗАПУСКАЕТСЯ',
-                  style: AppTextStyles.cardTitle,
-                ),
-                Text(
-                  'Автономная P2P-связь для города',
-                  style: AppTextStyles.bodyMuted.copyWith(fontSize: 11),
-                ),
-              ],
+          child: Center(
+            child: Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: PulseColors.primary, width: 3),
+                boxShadow: [
+                  BoxShadow(
+                    color: PulseColors.primary.withOpacity(0.6),
+                    blurRadius: 8,
+                    spreadRadius: 3,
+                  ),
+                ],
+              ),
             ),
           ),
-          AppStatusBadge(
-            label: _meshActive ? 'ONLINE' : 'INIT',
-            color: _meshActive ? PulseColors.success : PulseColors.warning,
+        ),
+      ),
+    );
+
+    for (final peer in peers) {
+      final latVal = peer['lat'];
+      final lngVal = peer['lng'];
+      if (latVal != null && lngVal != null) {
+        final point = LatLng((latVal as num).toDouble(), (lngVal as num).toDouble());
+        final signal = peer['signal'] as double? ?? 0.5;
+        
+        Color signalColor = PulseColors.success;
+        if (signal < 0.4) {
+          signalColor = PulseColors.negative;
+        } else if (signal < 0.7) {
+          signalColor = PulseColors.warning;
+        }
+
+        markers.add(
+          Marker(
+            point: point,
+            width: 40,
+            height: 40,
+            child: Tooltip(
+              message: peer['name'] ?? 'Узел',
+              child: Container(
+                decoration: BoxDecoration(
+                  color: signalColor.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: signalColor,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: signalColor.withOpacity(0.4),
+                          blurRadius: 6,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-        ],
+        );
+      }
+    }
+
+    return AppPanel(
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(
+          height: 220,
+          child: FlutterMap(
+            mapController: _mapController,
+            options: const MapOptions(
+              initialCenter: LatLng(60.940, 76.570),
+              initialZoom: 13.5,
+              minZoom: 11,
+              maxZoom: 17,
+              interactionOptions: InteractionOptions(
+                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+              ),
+            ),
+            children: [
+              OfflineTilesService.instance.getTileLayer(MapConfig.tileUrl),
+              MarkerLayer(markers: markers),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildNetworkInfo() {
+  Widget _buildRadarCard(bool isConnected) {
+    return AppPanel(
+      child: Container(
+        height: 160,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: AppRadii.md,
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            if (isConnected)
+              AnimatedBuilder(
+                animation: _radarController,
+                builder: (context, child) {
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: List.generate(3, (index) {
+                      final progress = (_radarController.value + index / 3) % 1.0;
+                      return Container(
+                        width: 150 * progress,
+                        height: 150 * progress,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: PulseColors.primary.withOpacity((1.0 - progress) * 0.4),
+                            width: 2.0,
+                          ),
+                        ),
+                      );
+                    }),
+                  );
+                },
+              ),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  isConnected ? Icons.wifi_tethering : Icons.portable_wifi_off_rounded,
+                  color: isConnected ? PulseColors.primary : PulseColors.textTertiary,
+                  size: 48,
+                ).animate(
+                  target: isConnected ? 1.0 : 0.0,
+                  onPlay: (controller) => controller.repeat(reverse: true),
+                ).scale(
+                  begin: const Offset(1.0, 1.0),
+                  end: const Offset(1.15, 1.15),
+                  duration: const Duration(seconds: 2),
+                  curve: Curves.easeInOut,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  isConnected ? 'ИДЕТ ПОИСК УСТРОЙСТВ' : 'MESH-СЕТЬ ВЫКЛЮЧЕНА',
+                  style: AppTextStyles.cardTitle.copyWith(
+                    letterSpacing: 1.2,
+                    color: isConnected ? PulseColors.textPrimary : PulseColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  isConnected 
+                      ? 'Обнаружение P2P узлов в радиусе 100 метров' 
+                      : 'Включите mesh для автономного обмена сообщениями',
+                  style: AppTextStyles.bodyMuted.copyWith(fontSize: 11),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToggleButton(bool isConnected) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: FilledButton.icon(
+        onPressed: _toggleMesh,
+        icon: Icon(
+          isConnected ? Icons.power_settings_new_rounded : Icons.sensors_rounded,
+          color: Colors.white,
+        ),
+        label: Text(
+          isConnected ? 'ОТКЛЮЧИТЬ MESH-СВЯЗЬ' : 'ПОДКЛЮЧИТЬ MESH-СВЯЗЬ',
+          style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
+        ),
+        style: FilledButton.styleFrom(
+          backgroundColor: isConnected ? PulseColors.negative : PulseColors.primaryDeep,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: AppRadii.md),
+          elevation: isConnected ? 0 : 8,
+          shadowColor: PulseColors.primary.withOpacity(0.4),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchAndCountSection(int filteredCount, int totalCount) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('ПОИСК УЧАСТНИКОВ', style: AppTextStyles.overline),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: PulseColors.primary.withOpacity(0.1),
+                borderRadius: AppRadii.sm,
+                border: Border.all(color: PulseColors.primary.withOpacity(0.3)),
+              ),
+              child: Text(
+                '$totalCount в сети',
+                style: TextStyle(
+                  color: PulseColors.primary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        TextField(
+          controller: _searchController,
+          onChanged: _meshService.searchPeers,
+          style: TextStyle(color: PulseColors.textPrimary, fontSize: 14),
+          decoration: InputDecoration(
+            hintText: 'Введите имя или ID участника...',
+            hintStyle: TextStyle(color: PulseColors.textTertiary.withOpacity(0.7)),
+            prefixIcon: Icon(Icons.search_rounded, color: PulseColors.textSecondary),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(Icons.clear_rounded, color: PulseColors.textSecondary),
+                    onPressed: () {
+                      _searchController.clear();
+                      _meshService.searchPeers('');
+                      FocusScope.of(context).unfocus();
+                    },
+                  )
+                : null,
+            filled: true,
+            fillColor: PulseColors.surface,
+            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: AppRadii.md,
+              borderSide: BorderSide(color: PulseColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: AppRadii.md,
+              borderSide: const BorderSide(color: PulseColors.primaryDeep),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPeersList(List<Map<String, dynamic>> peers) {
+    if (peers.isEmpty) {
+      return AppPanel(
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          width: double.infinity,
+          alignment: Alignment.center,
+          child: Column(
+            children: [
+              Icon(Icons.people_outline_rounded, color: PulseColors.textTertiary, size: 36),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                _searchController.text.isNotEmpty 
+                    ? 'Никого не найдено по запросу' 
+                    : 'Нет обнаруженных участников',
+                style: AppTextStyles.bodyMuted,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: peers.length,
+      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+      itemBuilder: (context, index) {
+        final peer = peers[index];
+        final name = peer['name'] as String? ?? 'Анонимный узел';
+        final role = peer['role'] as String? ?? 'Узел';
+        final signal = peer['signal'] as double? ?? 0.5;
+        final id = peer['id'] as String? ?? 'ID';
+        
+        Color signalColor = PulseColors.success;
+        if (signal < 0.4) {
+          signalColor = PulseColors.negative;
+        } else if (signal < 0.7) {
+          signalColor = PulseColors.warning;
+        }
+
+        return AppPanel(
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: PulseColors.primary.withOpacity(0.1),
+                child: Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : '?',
+                  style: TextStyle(
+                    color: PulseColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name, style: AppTextStyles.cardTitle),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Text(
+                          role,
+                          style: TextStyle(
+                            color: role.contains('Шлюз') ? PulseColors.accentViolet : PulseColors.textSecondary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'ID: $id',
+                          style: AppTextStyles.bodyMuted.copyWith(fontSize: 10),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.signal_cellular_alt_rounded, color: signalColor, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${(signal * 100).toInt()}%',
+                        style: TextStyle(
+                          color: signalColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Только что',
+                    style: AppTextStyles.bodyMuted.copyWith(fontSize: 9),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1, end: 0);
+      },
+    );
+  }
+
+  Widget _buildNetworkInfo(bool isConnected, int peersCount) {
     return AppPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildInfoRow('Статус', _meshActive ? 'Активна' : 'Инициализация',
-              color: _meshActive ? PulseColors.success : PulseColors.warning),
-          _buildInfoRow('Соседние узлы', '$_peersCount'),
-          _buildInfoRow('Протокол', 'BLE + Wi-Fi Direct'),
-          _buildInfoRow('Шифрование', 'AES-256'),
+          _buildInfoRow('Статус', isConnected ? 'Активна' : 'Отключена',
+              color: isConnected ? PulseColors.success : PulseColors.textTertiary),
+          _buildInfoRow('Участники в сети', '$peersCount чел.'),
+          _buildInfoRow('Используемые каналы', 'Bluetooth P2P + Wi-Fi Direct'),
+          _buildInfoRow('Защита трафика', 'AES-256 (Шифрование сквозное)'),
         ],
       ),
     );
@@ -164,6 +573,7 @@ class _MeshScreenState extends State<MeshScreen> {
             style: TextStyle(
               color: color ?? PulseColors.textPrimary,
               fontWeight: FontWeight.bold,
+              fontSize: 12,
             ),
           ),
         ],
@@ -208,13 +618,190 @@ class _MeshScreenState extends State<MeshScreen> {
                     letterSpacing: 1,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xxs),
+                const SizedBox(height: AppSpacing.xxl),
                 Text(
                   subtitle,
                   style: AppTextStyles.bodyMuted.copyWith(fontSize: 10),
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabSelector() {
+    return Row(
+      children: [
+        Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() => _activeTab = 0),
+            child: Container(
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: _activeTab == 0 ? PulseColors.primary : Colors.transparent,
+                    width: 2.0,
+                  ),
+                ),
+              ),
+              child: Text(
+                'УЗЛЫ СЕТИ',
+                style: TextStyle(
+                  color: _activeTab == 0 ? PulseColors.textPrimary : PulseColors.textSecondary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() => _activeTab = 1),
+            child: Container(
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: _activeTab == 1 ? PulseColors.primary : Colors.transparent,
+                    width: 2.0,
+                  ),
+                ),
+              ),
+              child: Text(
+                'ЧАТ ЧС',
+                style: TextStyle(
+                  color: _activeTab == 1 ? PulseColors.textPrimary : PulseColors.textSecondary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChatSection() {
+    final messages = _meshService.chatMessages;
+    return AppPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('ЛОКАЛЬНЫЙ P2P ЧАТ (ЧС)', style: AppTextStyles.overline),
+          const SizedBox(height: AppSpacing.sm),
+          Container(
+            height: 250,
+            decoration: BoxDecoration(
+              color: PulseColors.surface,
+              borderRadius: AppRadii.md,
+              border: Border.all(color: PulseColors.border),
+            ),
+            child: messages.isEmpty
+                ? const Center(child: Text('Сообщений нет. Начните беседу!'))
+                : ListView.builder(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    itemCount: messages.length,
+                    itemBuilder: (context, index) {
+                      final msg = messages[index];
+                      final isMe = msg['isMe'] == true;
+                      return Align(
+                        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isMe 
+                                ? PulseColors.primaryDeep.withOpacity(0.85)
+                                : PulseColors.surfaceElevated,
+                            borderRadius: BorderRadius.only(
+                              topLeft: const Radius.circular(12),
+                              topRight: const Radius.circular(12),
+                              bottomLeft: Radius.circular(isMe ? 12 : 0),
+                              bottomRight: Radius.circular(isMe ? 0 : 12),
+                            ),
+                            border: Border.all(
+                              color: isMe 
+                                  ? PulseColors.primary.withOpacity(0.3)
+                                  : PulseColors.border,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                            children: [
+                              if (!isMe)
+                                Text(
+                                  msg['sender'] ?? 'Узел',
+                                  style: TextStyle(
+                                    color: PulseColors.accentViolet,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              const SizedBox(height: 2),
+                              Text(
+                                msg['text'] ?? '',
+                                style: const TextStyle(color: Colors.white, fontSize: 12),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                msg['time'] ?? '',
+                                style: const TextStyle(color: Colors.white60, fontSize: 8),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _chatInputController,
+                  style: TextStyle(color: PulseColors.textPrimary, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'Введите сообщение...',
+                    hintStyle: TextStyle(color: PulseColors.textTertiary.withOpacity(0.7)),
+                    filled: true,
+                    fillColor: PulseColors.surface,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: AppRadii.sm,
+                      borderSide: BorderSide(color: PulseColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: AppRadii.sm,
+                      borderSide: const BorderSide(color: PulseColors.primaryDeep),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              IconButton(
+                onPressed: () {
+                  final text = _chatInputController.text.trim();
+                  if (text.isNotEmpty) {
+                    _meshService.sendChatMessage(text);
+                    _chatInputController.clear();
+                    FocusScope.of(context).unfocus();
+                    setState(() {});
+                  }
+                },
+                icon: const Icon(Icons.send_rounded),
+                color: PulseColors.primary,
+              ),
+            ],
           ),
         ],
       ),

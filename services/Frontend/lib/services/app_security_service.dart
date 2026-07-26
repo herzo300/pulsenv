@@ -91,7 +91,7 @@ class AppSecurityService {
 
   static final AppSecurityService instance = AppSecurityService._();
   static const MethodChannel _channel =
-      MethodChannel('com.soobshio.security/runtime');
+      MethodChannel('com.pulse_gorod.security/runtime');
 
   Future<AppSecurityState> evaluate() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {

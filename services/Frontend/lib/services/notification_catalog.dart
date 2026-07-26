@@ -21,90 +21,107 @@ class NotificationCategoryDescriptor {
 class NotificationCatalog {
   NotificationCatalog._();
 
-  static const List<NotificationCategoryDescriptor> _defaults = [
+  static List<NotificationCategoryDescriptor> _defaults = [
+    NotificationCategoryDescriptor(
+      name: 'ЧП',
+      icon: Icons.warning_rounded,
+      color: PulseColors.negative,
+      soundAsset: 'cat_safety.mp3',
+    ),
     NotificationCategoryDescriptor(
       name: 'ЖКХ',
-      icon: Icons.apartment_rounded,
+      icon: Icons.home_work_rounded,
       color: PulseColors.primary,
-      soundAsset: 'cat_zhkh.wav',
-      aliases: ['Водоснабжение и канализация', 'Отопление', 'Лифты и подъезды', 'Бытовой мусор'],
+      soundAsset: 'cat_zhkh.mp3',
+      aliases: ['Водоснабжение и канализация', 'Отопление', 'Лифты и подъезды', 'Бытовой мусор', 'Мусор', 'Газоснабжение'],
     ),
     NotificationCategoryDescriptor(
       name: 'Дороги',
-      icon: Icons.car_repair_rounded,
+      icon: Icons.edit_road_rounded,
       color: PulseColors.negative,
-      soundAsset: 'cat_roads.wav',
+      soundAsset: 'cat_roads.mp3',
     ),
     NotificationCategoryDescriptor(
-      name: 'Благоустройство',
-      icon: Icons.park_rounded,
-      color: Color(0xFF8BC34A),
-      soundAsset: 'cat_garden.wav',
-      aliases: ['Парки и скверы', 'Детские площадки', 'Спортивные площадки'],
+      name: 'Освещение',
+      icon: Icons.lightbulb_rounded,
+      color: const Color(0xFFFDE047),
+      soundAsset: 'cat_light.mp3',
     ),
     NotificationCategoryDescriptor(
       name: 'Транспорт',
       icon: Icons.directions_bus_rounded,
-      color: Color(0xFF60A5FA),
-      soundAsset: 'cat_transport.wav',
+      color: const Color(0xFF60A5FA),
+      soundAsset: 'cat_transport.mp3',
     ),
     NotificationCategoryDescriptor(
       name: 'Экология',
       icon: Icons.eco_rounded,
       color: PulseColors.success,
-      soundAsset: 'cat_ecology.wav',
+      soundAsset: 'cat_ecology.mp3',
     ),
     NotificationCategoryDescriptor(
       name: 'Безопасность',
-      icon: Icons.shield_outlined,
+      icon: Icons.shield_rounded,
       color: PulseColors.warning,
-      soundAsset: 'cat_safety.wav',
-      aliases: ['ЧП'],
-    ),
-    NotificationCategoryDescriptor(
-      name: 'Освещение',
-      icon: Icons.lightbulb_outline_rounded,
-      color: Color(0xFFFDE047),
-      soundAsset: 'cat_light.wav',
+      soundAsset: 'cat_safety.mp3',
     ),
     NotificationCategoryDescriptor(
       name: 'Снег/Наледь',
       icon: Icons.ac_unit_rounded,
-      color: Color(0xFF38BDF8),
-      soundAsset: 'cat_snow.wav',
+      color: const Color(0xFF38BDF8),
+      soundAsset: 'cat_snow.mp3',
     ),
     NotificationCategoryDescriptor(
       name: 'Медицина',
-      icon: Icons.local_hospital_outlined,
-      color: Color(0xFFFB7185),
-      soundAsset: 'cat_med.wav',
+      icon: Icons.medical_services_rounded,
+      color: const Color(0xFFFB7185),
+      soundAsset: 'cat_med.mp3',
     ),
     NotificationCategoryDescriptor(
       name: 'Образование',
       icon: Icons.school_rounded,
-      color: Color(0xFF818CF8),
-      soundAsset: 'cat_edu.wav',
+      color: const Color(0xFF818CF8),
+      soundAsset: 'cat_edu.mp3',
     ),
     NotificationCategoryDescriptor(
       name: 'Парковки',
       icon: Icons.local_parking_rounded,
-      color: Color(0xFFD6A36F),
-      soundAsset: 'cat_parking.wav',
+      color: const Color(0xFFD6A36F),
+      soundAsset: 'cat_parking.mp3',
+    ),
+    NotificationCategoryDescriptor(
+      name: 'Строительство',
+      icon: Icons.construction_rounded,
+      color: const Color(0xFFFFC857),
+      soundAsset: 'cat_roads.mp3',
     ),
     NotificationCategoryDescriptor(
       name: 'Животные',
       icon: Icons.pets_rounded,
-      color: Color(0xFFA78BFA),
-      soundAsset: 'cat_other.wav',
+      color: const Color(0xFFA78BFA),
+      soundAsset: 'cat_animals.mp3',
+    ),
+    NotificationCategoryDescriptor(
+      name: 'Вещи',
+      icon: Icons.shopping_bag_rounded,
+      color: const Color(0xFF8B5CF6),
+      soundAsset: 'cat_other.mp3',
+    ),
+    NotificationCategoryDescriptor(
+      name: 'Мероприятие',
+      icon: Icons.local_activity_rounded,
+      color: const Color(0xFFD946EF),
+      soundAsset: 'cat_event.mp3',
     ),
     NotificationCategoryDescriptor(
       name: 'Прочее',
       icon: Icons.more_horiz_rounded,
       color: PulseColors.neutral,
-      soundAsset: 'cat_other.wav',
-      aliases: ['Социальная сфера', 'Торговля', 'Связь', 'Строительство', 'Трудовое право'],
+      soundAsset: 'cat_other.mp3',
+      aliases: ['Социальная сфера', 'Торговля', 'Связь', 'Трудовое право', 'Благоустройство'],
     ),
   ];
+
 
   static final Map<String, NotificationCategoryDescriptor> _lookup = () {
     final map = <String, NotificationCategoryDescriptor>{};
@@ -135,7 +152,7 @@ class NotificationCatalog {
           name: 'Прочее',
           icon: Icons.more_horiz_rounded,
           color: PulseColors.neutral,
-          soundAsset: 'cat_other.wav',
+          soundAsset: 'cat_other.mp3',
         );
   }
 

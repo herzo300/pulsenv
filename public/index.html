@@ -6,34 +6,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#020617">
   <title>Пульс города | Ситуационный контур Нижневартовска</title>
+
+  <!-- Design System Tokens & Components -->
+  <link rel="stylesheet" href="/css/design-tokens.css">
+  <link rel="stylesheet" href="/css/components.css">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700;800&family=IBM+Plex+Sans:wght@500;600;700&family=Manrope:wght@500;600;700;800&display=swap"
     rel="stylesheet">
   <style>
-    :root {
-      --bg: #020617;
-      --bg-raised: #08111f;
-      --surface: rgba(12, 22, 40, 0.9);
-      --surface-strong: rgba(17, 28, 49, 0.82);
-      --surface-soft: rgba(22, 38, 61, 0.72);
-      --text: #e6faff;
-      --text-secondary: #8eafc2;
-      --text-tertiary: #66849a;
-      --primary: #00e5ff;
-      --primary-deep: #0ea5c7;
-      --accent: #ffc857;
-      --success: #00e676;
-      --danger: #ff3d00;
-      --border: rgba(63, 216, 248, 0.16);
-      --border-strong: rgba(63, 216, 248, 0.28);
-      --shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
-      --radius-xl: 30px;
-      --radius-lg: 22px;
-      --radius-md: 18px;
-      --container: 1200px;
-    }
+    /* Page-specific styles only — tokens come from design-tokens.css */
 
     * {
       box-sizing: border-box;
@@ -691,6 +675,7 @@
       </a>
       <nav class="topbar-nav">
         <a href="#routes">Маршруты</a>
+        <a href="lost_found.html">Потеряшки</a>
         <a href="#surfaces">Поверхности</a>
         <a href="#ops">Операции</a>
       </nav>
@@ -744,7 +729,7 @@
           <div class="status-card">
             <div class="status-row">
               <strong>Операционный стек</strong>
-              <span class="status-pill">Soobshio</span>
+              <span class="status-pill">Пульс города</span>
             </div>
             <ul class="stack-list">
               <li><strong>Map + Reports</strong><span>единая точка ситуационной картины</span></li>
@@ -767,7 +752,7 @@
           а не в набор технических страниц с разной стилистикой.
         </p>
       </div>
-      <div class="grid-3">
+      <div class="grid-2">
         <a class="card fade-up" href="map.html">
           <div class="card-label">Live Map</div>
           <h3>Карта сигналов и жалоб</h3>
@@ -786,6 +771,12 @@
           <h3>Ежедневный контур</h3>
           <p>Формат для руководителей и дежурных: короткая картина за день без перегрузки необработанными данными.</p>
           <span class="card-link">Открыть сводку</span>
+        </a>
+        <a class="card fade-up" href="lost_found.html">
+          <div class="card-label">Lost & Found</div>
+          <h3>Потерянные животные и вещи</h3>
+          <p>Раздел объявлений о потерянных и найденных питомцах или личных вещах. Контакты и быстрый поиск без привязки к карте.</p>
+          <span class="card-link">Открыть потеряшки</span>
         </a>
       </div>
     </section>

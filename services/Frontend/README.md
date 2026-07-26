@@ -1,16 +1,27 @@
-# soobshio
+# Пульс города — Flutter
 
-A new Flutter project.
+Мобильное приложение городского ситуационного контура (Нижневартовск).
 
-## Getting Started
+## Запуск
 
-This project is a starting point for a Flutter application.
+```bash
+flutter run --dart-define=PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+```
 
-A few resources to get you started if this is your first Flutter project:
+Продакшен (замените домен на ваш публичный HTTPS URL):
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```bash
+flutter build apk --release \
+  --dart-define=PUBLIC_API_BASE_URL=https://your-domain.com \
+  --dart-define=BACKEND_PUBLIC_FALLBACK=https://your-domain.com
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Опциональные overrides:
+
+```bash
+flutter run \
+  --dart-define=BACKEND_BASE_URL=https://your-domain.com \
+  --dart-define=SATELLITE_TILE_URL=https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}
+```
+
+Конфигурация читается из `lib/map/map_config.dart` через `String.fromEnvironment`.

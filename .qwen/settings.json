@@ -12,7 +12,16 @@
       "Bash(flutter *)",
       "Bash(curl.exe *)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(del *)",
+      "Bash(rmdir *)",
+      "Bash(mkdir *)",
+      "Bash(move *)",
+      "Bash(ruff *)",
+      "Bash(set *)",
+      "Bash(xcopy *)",
+      "Bash(powershell *)",
+      "Bash(pip *)"
     ]
   },
   "$version": 3

@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import '../map/map_config.dart';
 import '../theme/pulse_colors.dart';
 import '../widgets/app_ui.dart';
+import '../widgets/wow_effects.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 /// Gamification screen — XP, level, streak, achievements, quests.
 class GamificationScreen extends StatefulWidget {
@@ -31,10 +33,6 @@ class _GamificationScreenState extends State<GamificationScreen> {
   }
 
   Future<void> _loadAll() async {
-    if (widget.telegramId == 0) {
-      setState(() => _loading = false);
-      return;
-    }
     setState(() => _loading = true);
     try {
       final baseUrl = MapConfig.backendApiBaseUrl;
@@ -81,17 +79,53 @@ class _GamificationScreenState extends State<GamificationScreen> {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          title: Text('🎮 Геймификация', style: AppTextStyles.title.copyWith(fontSize: 22)),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.sports_esports_rounded, color: PulseColors.primary, size: 22),
+              const SizedBox(width: 8),
+              Text('Геймификация', style: AppTextStyles.title.copyWith(fontSize: 22)),
+            ],
+          ),
           actions: [
             IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: _loadAll),
           ],
         ),
         body: _loading
-            ? const Center(child: CircularProgressIndicator(color: PulseColors.primary))
+            ? Center(child: CircularProgressIndicator(color: PulseColors.primary))
             : _profile == null
                 ? _noProfileWidget()
                 : Column(
                     children: [
+                      if (widget.telegramId == 0)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: PulseColors.primary.withOpacity(0.12),
+                              borderRadius: AppRadii.sm,
+                              border: Border.all(color: PulseColors.primary.withOpacity(0.25)),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.info_outline_rounded, size: 16, color: PulseColors.primary),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Демо-режим гостя. Привяжите Telegram для сохранения прогресса.',
+                                    style: AppTextStyles.bodyMuted.copyWith(
+                                      color: PulseColors.primary,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       // XP Level Bar
                       _xpLevelCard(),
                       // Tabs
@@ -132,7 +166,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('🎮', style: TextStyle(fontSize: 48)),
+            Icon(Icons.sports_esports_rounded, size: 48, color: PulseColors.primary),
             const SizedBox(height: AppSpacing.md),
             Text('Войди в систему', style: AppTextStyles.section),
             const SizedBox(height: AppSpacing.xs),
@@ -160,24 +194,44 @@ class _GamificationScreenState extends State<GamificationScreen> {
           children: [
             Row(
               children: [
-                // Avatar + Level
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [
-                        PulseColors.accentViolet,
-                        PulseColors.primary,
-                      ],
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      icon,
-                      style: const TextStyle(fontSize: 28),
-                    ),
+                // Avatar + Level + WOW Radar
+                SizedBox(
+                  width: 72,
+                  height: 72,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      PulseRadarRadar(
+                        radius: 32,
+                        color: PulseColors.accentViolet,
+                      ),
+                      Container(
+                        width: 58,
+                        height: 58,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [
+                              PulseColors.accentViolet,
+                              PulseColors.primary,
+                            ],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: PulseColors.accentViolet.withOpacity(0.5),
+                              blurRadius: 12,
+                              spreadRadius: 2,
+                            )
+                          ]
+                        ),
+                        child: Center(
+                          child: Text(
+                            icon,
+                            style: const TextStyle(fontSize: 26),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
@@ -214,7 +268,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('🔥', style: TextStyle(fontSize: 18)),
+                        const Icon(Icons.local_fire_department_rounded, size: 18, color: PulseColors.warning),
                         const SizedBox(width: 4),
                         Text(
                           '$streak',
@@ -255,10 +309,10 @@ class _GamificationScreenState extends State<GamificationScreen> {
   }
 
   Widget _tabBar() {
-    final tabs = [
-      ('achievements', '🏆', 'Достижения'),
-      ('quests', '📋', 'Квесты'),
-      ('leaderboard', '👑', 'Топ'),
+    final tabs = <(String, IconData, String)>[
+      ('achievements', Icons.emoji_events_rounded, 'Достижения'),
+      ('quests', Icons.checklist_rounded, 'Квесты'),
+      ('leaderboard', Icons.leaderboard_rounded, 'Топ'),
     ];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
@@ -280,7 +334,11 @@ class _GamificationScreenState extends State<GamificationScreen> {
                 ),
                 child: Column(
                   children: [
-                    Text(t.$2, style: const TextStyle(fontSize: 18)),
+                    Icon(
+                      t.$2,
+                      size: 18,
+                      color: selected ? PulseColors.primary : PulseColors.textSecondary,
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       t.$3,
@@ -300,79 +358,90 @@ class _GamificationScreenState extends State<GamificationScreen> {
   }
 
   Widget _achievementsTab() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      itemCount: _achievements.length,
-      itemBuilder: (context, index) {
-        final ach = _achievements[index];
-        final unlocked = ach['unlocked'] ?? false;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-          child: AppPanel(
-            style: PanelStyle.standard,
-            borderColor: unlocked
-                ? PulseColors.success.withOpacity(0.3)
-                : PulseColors.borderStrong,
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: unlocked
-                        ? PulseColors.success.withOpacity(0.15)
-                        : PulseColors.surfaceSoft,
-                  ),
-                  child: Center(
-                    child: Text(
-                      ach['icon'] ?? '❓',
-                      style: TextStyle(
-                        fontSize: 24,
-                        color: unlocked ? null : PulseColors.textTertiary,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        ach['title'] ?? '',
-                        style: AppTextStyles.cardTitle.copyWith(
-                          color: unlocked ? PulseColors.textPrimary : PulseColors.textTertiary,
+    return AnimationLimiter(
+      child: ListView.builder(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        itemCount: _achievements.length,
+        itemBuilder: (context, index) {
+          final ach = _achievements[index];
+          final unlocked = ach['unlocked'] ?? false;
+          return AnimationConfiguration.staggeredList(
+            position: index,
+            duration: const Duration(milliseconds: 375),
+            child: SlideAnimation(
+              verticalOffset: 50.0,
+              child: FadeInAnimation(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: AppPanel(
+                    style: PanelStyle.standard,
+                    borderColor: unlocked
+                        ? PulseColors.success.withOpacity(0.3)
+                        : PulseColors.borderStrong,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: unlocked
+                                ? PulseColors.success.withOpacity(0.15)
+                                : PulseColors.surfaceSoft,
+                          ),
+                          child: Center(
+                            child: Text(
+                              ach['icon'] ?? '❓',
+                              style: TextStyle(
+                                fontSize: 24,
+                                color: unlocked ? null : PulseColors.textTertiary,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        ach['desc'] ?? '',
-                        style: AppTextStyles.bodyMuted,
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: unlocked
-                        ? PulseColors.success.withOpacity(0.15)
-                        : PulseColors.surfaceSoft,
-                    borderRadius: AppRadii.sm,
-                  ),
-                  child: Text(
-                    '+${ach['xp'] ?? 0}',
-                    style: AppTextStyles.mono.copyWith(
-                      color: unlocked ? PulseColors.success : PulseColors.textTertiary,
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                ach['title'] ?? '',
+                                style: AppTextStyles.cardTitle.copyWith(
+                                  color: unlocked ? PulseColors.textPrimary : PulseColors.textTertiary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                ach['desc'] ?? '',
+                                style: AppTextStyles.bodyMuted,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: unlocked
+                                ? PulseColors.success.withOpacity(0.15)
+                                : PulseColors.surfaceSoft,
+                            borderRadius: AppRadii.sm,
+                          ),
+                          child: Text(
+                            '+${ach['xp'] ?? 0}',
+                            style: AppTextStyles.mono.copyWith(
+                              color: unlocked ? PulseColors.success : PulseColors.textTertiary,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -404,7 +473,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
               children: [
                 Row(
                   children: [
-                    Text('📋', style: const TextStyle(fontSize: 20)),
+                    Icon(Icons.checklist_rounded, size: 20, color: PulseColors.primary),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(

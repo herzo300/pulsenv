@@ -39,8 +39,8 @@ def register_handlers(
 
     @client.on(events.NewMessage(chats=monitored_channels))
     async def handler(event):
-        from backend.database import SessionLocal
-        from backend.models import Report
+        from services.data_layer.database import SessionLocal
+        from services.data_layer.models import Report
         from core.geoparse import claude_geoparse
 
         text = event.message.text or ""

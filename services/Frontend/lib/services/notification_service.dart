@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:awesome_notifications/awesome_notifications.dart';
@@ -6,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'notification_catalog.dart';
 import 'notification_message_formatter.dart';
+import 'sound_service.dart';
+import 'city_provider.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._();
@@ -19,22 +22,47 @@ class NotificationService {
       return;
     }
 
-    await AwesomeNotifications().initialize(
-      null,
-      [
+    final channels = <NotificationChannel>[
+      NotificationChannel(
+        channelKey: 'basic_channel',
+        channelName: 'Basic Notifications',
+        channelDescription: 'Уведомления о новых событиях в городе',
+        defaultColor: const Color(0xFF00E5FF),
+        ledColor: Colors.white,
+        importance: NotificationImportance.High,
+        channelShowBadge: true,
+        onlyAlertOnce: true,
+        playSound: true,
+        criticalAlerts: true,
+      ),
+    ];
+
+    for (final descriptor in NotificationCatalog.defaults) {
+      final name = descriptor.name;
+      final sanitizedName = name.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_').toLowerCase();
+      final channelKey = 'channel_${sanitizedName}_v3';
+      final soundName = descriptor.soundAsset.replaceAll('.mp3', '');
+
+      channels.add(
         NotificationChannel(
-          channelKey: 'basic_channel',
-          channelName: 'Basic Notifications',
-          channelDescription: 'Уведомления о новых событиях в городе',
-          defaultColor: const Color(0xFF00E5FF),
+          channelKey: channelKey,
+          channelName: '$name Notifications',
+          channelDescription: 'Уведомления для категории $name',
+          defaultColor: descriptor.color,
           ledColor: Colors.white,
           importance: NotificationImportance.High,
           channelShowBadge: true,
           onlyAlertOnce: true,
           playSound: true,
           criticalAlerts: true,
+          soundSource: 'resource://raw/$soundName',
         ),
-      ],
+      );
+    }
+
+    await AwesomeNotifications().initialize(
+      null,
+      channels,
       debug: false,
     );
 
@@ -53,6 +81,7 @@ class NotificationService {
     String? category,
     Map<String, String?>? payload,
     String channelKey = 'basic_channel',
+    bool forceShow = false,
   }) async {
     await ensureInitialized();
 
@@ -72,19 +101,67 @@ class NotificationService {
       notificationPayload.addAll(payload);
     }
 
-    await AwesomeNotifications().createNotification(
-      content: NotificationContent(
-        id: id,
-        channelKey: channelKey,
-        title: title,
-        body: compactBody,
-        notificationLayout: NotificationLayout.Default,
-        category: NotificationCategory.Message,
-        payload: notificationPayload,
-        backgroundColor: const Color(0xFF0F0F23),
-        color: descriptor.color,
-      ),
-    );
+    // Город из payload — пуш показываем только для активного города.
+    // Мониторинг в фоне идёт для всех, но системное уведомление только для выбранного.
+    final pushCity = payload?['city'];
+    final cityProvider = CityProvider();
+    final isForActiveCity = cityProvider.isActiveCity(pushCity);
+
+    final isResumed = WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+
+    // Deduplication & Date Filter: Never push signals older than 1 day or previously pushed IDs
+    final prefs = await SharedPreferences.getInstance();
+    final seenIds = prefs.getStringList('seen_pushed_notification_ids') ?? [];
+    final idStr = '$id';
+    if (seenIds.contains(idStr)) {
+      return; // Already pushed before, skip duplicate
+    }
+
+    final createdAtStr = payload?['created_at'];
+    if (createdAtStr != null && createdAtStr.isNotEmpty) {
+      try {
+        final dt = DateTime.parse(createdAtStr);
+        if (DateTime.now().difference(dt).inHours > 24) {
+          return; // Older than 24 hours, skip old signal
+        }
+      } catch (_) {}
+    }
+
+    // Mark as seen and limit set size to 500
+    seenIds.add(idStr);
+    if (seenIds.length > 500) seenIds.removeAt(0);
+    await prefs.setStringList('seen_pushed_notification_ids', seenIds);
+
+    if (!isResumed || forceShow) {
+      // Звук и системный пуш — только для активного города
+      if (isForActiveCity) {
+        unawaited(SoundService().playCategorySound(normalizedCategory));
+
+        final voiceEnabled = prefs.getBool('voice_announcements_enabled') ?? false;
+        if (voiceEnabled) {
+          unawaited(SoundService().speak(title));
+        }
+
+        final sanitizedCategoryName = normalizedCategory.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_').toLowerCase();
+        final targetChannelKey = (category != null && category.isNotEmpty)
+            ? 'channel_${sanitizedCategoryName}_v3'
+            : channelKey;
+
+        await AwesomeNotifications().createNotification(
+          content: NotificationContent(
+            id: id,
+            channelKey: targetChannelKey,
+            title: title,
+            body: compactBody,
+            notificationLayout: NotificationLayout.Default,
+            category: NotificationCategory.Message,
+            payload: notificationPayload,
+            backgroundColor: const Color(0xFF0F0F23),
+            color: descriptor.color,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> scheduleReminder({

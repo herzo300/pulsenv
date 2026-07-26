@@ -94,6 +94,14 @@ async def run_watchdog_scan(max_cameras: int = 5) -> Dict[str, Any]:
 async def watchdog_status() -> Dict[str, Any]:
     return await collect_watchdog_status()
 
+@router.post("/auto-heal")
+async def trigger_auto_healing() -> Dict[str, Any]:
+    """Trigger diagnostic sweep & auto-healing across 9 Docker services."""
+    try:
+        from services.auto_healing_engine import auto_healing
+        return await auto_healing.run_diagnostics_and_heal()
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
 
 @router.get("/alerts")
 async def get_alerts(limit: int = 20) -> Dict[str, Any]:

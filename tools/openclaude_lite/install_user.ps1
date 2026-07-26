@@ -11,7 +11,7 @@ New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 Copy-Item -LiteralPath (Join-Path $sourceDir "oclaude.py") -Destination (Join-Path $targetDir "oclaude.py") -Force
 Copy-Item -LiteralPath (Join-Path $sourceDir "README.md") -Destination (Join-Path $targetDir "README.md") -Force
 
-$wrapper = "@echo off`r`n`"%LocalAppData%\Python\bin\python.exe`" `"%USERPROFILE%\tools\openclaude-lite\oclaude.py`" %*"
+$wrapper = "@echo off`r`npython `"%USERPROFILE%\tools\openclaude-lite\oclaude.py`" %*"
 Set-Content -LiteralPath (Join-Path $binDir "oclaude.cmd") -Value $wrapper -Encoding ASCII
 Set-Content -LiteralPath (Join-Path $binDir "openclaude.cmd") -Value $wrapper -Encoding ASCII
 

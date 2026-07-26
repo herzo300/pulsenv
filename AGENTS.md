@@ -322,6 +322,9 @@ Visual iteration gate:
 Continuation:
   Before concluding, confirm: zero pending tasks, all features working, tests passing, zero errors, verification evidence collected. If any item is unchecked, continue working.
 
+Automatic image generation gate:
+- For every city signal (complaint) created or processed, the AI dispatcher must verify that the signal is associated with an individual photo. If no photo is attached by the user, the dispatcher must automatically trigger the background AI image generator (e.g. via Pollinations/OpenRouter) using a detailed category/description-based visual prompt to guarantee every signal is visually represented.
+
 Ralph planning gate:
   If ralph is active, verify PRD + test spec artifacts exist before any implementation work/tool execution. If missing, stay in planning and create them first (ralplan-first).
 </execution_protocols>

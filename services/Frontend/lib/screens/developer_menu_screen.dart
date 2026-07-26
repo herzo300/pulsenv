@@ -15,7 +15,7 @@ class SecretTapDetector extends StatefulWidget {
   const SecretTapDetector({
     super.key,
     required this.child,
-    this.requiredTaps = 10,
+    this.requiredTaps = 10, // kept for API compat, ignored internally
     this.timeout = const Duration(seconds: 3),
     required this.onSecretUnlocked,
   });
@@ -30,25 +30,65 @@ class SecretTapDetector extends StatefulWidget {
 }
 
 class _SecretTapDetectorState extends State<SecretTapDetector> {
+  // Phase 1: 5 quick taps within 2 seconds
+  // Phase 2: wait 2.5–4 seconds, then 2 more taps within 2 seconds
+  int _phase = 0; // 0 = idle, 1 = collecting phase-1 taps, 2 = waiting pause, 3 = collecting phase-2 taps
   int _tapCount = 0;
   Timer? _timer;
+  DateTime? _phase1CompleteTime;
 
   void _handleTap() {
-    _timer?.cancel();
-    setState(() => _tapCount++);
+    switch (_phase) {
+      case 0: // start phase 1
+        _phase = 1;
+        _tapCount = 1;
+        _timer?.cancel();
+        _timer = Timer(const Duration(seconds: 2), _reset);
+        break;
 
-    if (_tapCount >= widget.requiredTaps) {
-      _tapCount = 0;
-      widget.onSecretUnlocked();
-      return;
+      case 1: // collecting phase-1 taps
+        _tapCount++;
+        if (_tapCount >= 5) {
+          // Phase 1 complete → enter pause window
+          _timer?.cancel();
+          _phase = 2;
+          _tapCount = 0;
+          _phase1CompleteTime = DateTime.now();
+          // Auto-reset if no taps within 5 seconds
+          _timer = Timer(const Duration(milliseconds: 4500), _reset);
+        }
+        break;
+
+      case 2: // pause window — check timing
+        final elapsed = DateTime.now().difference(_phase1CompleteTime!);
+        if (elapsed.inMilliseconds >= 2500 && elapsed.inMilliseconds <= 4000) {
+          // Valid pause → enter phase 2
+          _timer?.cancel();
+          _phase = 3;
+          _tapCount = 1;
+          _timer = Timer(const Duration(seconds: 2), _reset);
+        } else if (elapsed.inMilliseconds < 2500) {
+          // Too early — ignore (still in pause)
+        } else {
+          _reset();
+        }
+        break;
+
+      case 3: // collecting phase-2 taps
+        _tapCount++;
+        if (_tapCount >= 2) {
+          _reset();
+          widget.onSecretUnlocked();
+        }
+        break;
     }
+  }
 
-    _timer = Timer(widget.timeout, () {
-      if (!mounted) {
-        return;
-      }
-      setState(() => _tapCount = 0);
-    });
+  void _reset() {
+    _timer?.cancel();
+    _phase = 0;
+    _tapCount = 0;
+    _phase1CompleteTime = null;
   }
 
   @override
@@ -66,6 +106,7 @@ class _SecretTapDetectorState extends State<SecretTapDetector> {
     );
   }
 }
+
 
 class DeveloperMenuScreen extends StatefulWidget {
   const DeveloperMenuScreen({super.key});
@@ -161,7 +202,7 @@ class _DeveloperMenuScreenState extends State<DeveloperMenuScreen> {
           return;
         }
         setState(() {
-          _adminSessionStatus = '2FA не введён';
+          _adminSessionStatus = 'Пароль не введён';
           _notificationStatus = 'Требуется admin session';
           _ingestionStatus = 'Требуется admin session';
         });
@@ -235,8 +276,8 @@ class _DeveloperMenuScreenState extends State<DeveloperMenuScreen> {
       builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: PulseColors.surfaceElevated,
-          title: const Text(
-            '2FA код',
+          title: Text(
+            'Пароль администратора',
             style: TextStyle(
               color: PulseColors.textPrimary,
               fontWeight: FontWeight.w700,
@@ -247,9 +288,9 @@ class _DeveloperMenuScreenState extends State<DeveloperMenuScreen> {
             autofocus: true,
             keyboardType: TextInputType.visiblePassword,
             textInputAction: TextInputAction.done,
-            style: const TextStyle(color: PulseColors.textPrimary),
-            decoration: const InputDecoration(
-              hintText: 'Введите код администратора',
+            style: TextStyle(color: PulseColors.textPrimary),
+            decoration: InputDecoration(
+              hintText: 'Введите пароль администратора',
               hintStyle: TextStyle(color: PulseColors.textSecondary),
             ),
             onSubmitted: (value) =>
@@ -422,7 +463,7 @@ class _DeveloperMenuScreenState extends State<DeveloperMenuScreen> {
                           label: 'Ping',
                           value: _pingResult,
                           accent: PulseColors.primary,
-                          trailing: const Icon(
+                          trailing: Icon(
                             Icons.network_ping_rounded,
                             color: PulseColors.primary,
                           ),

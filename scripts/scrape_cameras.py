@@ -10,13 +10,12 @@ Playwright-парсер камер Нижневартовска с gorod3466.ru 
 
 import asyncio
 import json
-import os
 import re
 import sys
 from pathlib import Path
 
 try:
-    from playwright.async_api import async_playwright, Route
+    from playwright.async_api import Route, async_playwright
 except ImportError:
     print("Установи playwright: pip install playwright && playwright install chromium")
     sys.exit(1)
@@ -95,7 +94,9 @@ async def scrape_dantser(page, discovery: CameraDiscovery):
     await page.route("**/nginx*", handle_route)
 
     try:
-        await page.goto("https://dantser.ru/camera/nv", wait_until="networkidle", timeout=30000)
+        await page.goto(
+            "https://dantser.ru/camera/nv", wait_until="networkidle", timeout=30000
+        )
         await page.wait_for_timeout(3000)
 
         # Scroll to trigger lazy loading
@@ -104,7 +105,9 @@ async def scrape_dantser(page, discovery: CameraDiscovery):
             await page.wait_for_timeout(1500)
 
         # Click on each camera card to trigger stream load
-        cards = await page.query_selector_all(".camera-card, .cam-item, [class*='camera'], [class*='cam']")
+        cards = await page.query_selector_all(
+            ".camera-card, .cam-item, [class*='camera'], [class*='cam']"
+        )
         print(f"  Found {len(cards)} camera elements")
 
         for i, card in enumerate(cards[:50]):
@@ -139,7 +142,9 @@ async def scrape_pride_via_nv86(page, discovery: CameraDiscovery):
     await page.route("**/*", handle_route)
 
     try:
-        await page.goto("https://nv86.ru/cam/", wait_until="domcontentloaded", timeout=20000)
+        await page.goto(
+            "https://nv86.ru/cam/", wait_until="domcontentloaded", timeout=20000
+        )
         await page.wait_for_timeout(2000)
 
         # Get camera links
@@ -148,7 +153,9 @@ async def scrape_pride_via_nv86(page, discovery: CameraDiscovery):
         for link in links[:100]:
             href = await link.get_attribute("href")
             if href:
-                cam_urls.add(href if href.startswith("http") else f"https://nv86.ru{href}")
+                cam_urls.add(
+                    href if href.startswith("http") else f"https://nv86.ru{href}"
+                )
 
         print(f"  Found {len(cam_urls)} camera links")
 
@@ -190,11 +197,15 @@ async def scrape_gorod3466(page, discovery: CameraDiscovery):
     await page.route("**/*", intercept)
 
     try:
-        await page.goto("https://gorod3466.ru/webcam/", wait_until="networkidle", timeout=20000)
+        await page.goto(
+            "https://gorod3466.ru/webcam/", wait_until="networkidle", timeout=20000
+        )
         await page.wait_for_timeout(3000)
 
         # Try to find camera items
-        items = await page.query_selector_all("[class*='webcam'], [class*='camera'], iframe, video")
+        items = await page.query_selector_all(
+            "[class*='webcam'], [class*='camera'], iframe, video"
+        )
         print(f"  Found {len(items)} media elements")
 
         for item in items[:30]:
@@ -216,7 +227,7 @@ async def merge_with_existing(new_cameras: dict) -> list:
     """Merge newly discovered cameras with existing cameras_nv_full.json."""
     existing_path = Path(__file__).parent / "public" / "cameras_nv_full.json"
     if existing_path.exists():
-        with open(existing_path, "r", encoding="utf-8") as f:
+        with open(existing_path, encoding="utf-8") as f:
             existing = json.load(f)
         existing_urls = {c["s"] for c in existing}
     else:

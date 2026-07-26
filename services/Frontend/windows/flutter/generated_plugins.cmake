@@ -3,12 +3,19 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  app_links
   audioplayers_windows
   awesome_notifications
   connectivity_plus
   file_selector_windows
+  flutter_inappwebview_windows
+  flutter_secure_storage_windows
   geolocator_windows
+  isar_community_flutter_libs
+  local_auth_windows
+  objectbox_flutter_libs
   permission_handler_windows
+  printing
   rive_native
   sentry_flutter
   share_plus
@@ -18,7 +25,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
   jni
-  tflite_flutter
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)

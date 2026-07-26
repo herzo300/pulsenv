@@ -29,6 +29,7 @@ class AiScanPanel extends StatelessWidget {
       imageProvider: detectedPreviewBytes != null
           ? MemoryImage(detectedPreviewBytes!)
           : FileImage(selectedImage!),
+      originalImageProvider: detectedPreviewBytes != null ? FileImage(selectedImage!) : null,
       progress: scanProgress,
       idleBorderColor: const Color(0xFF00E5FF).withAlpha(50),
       onRemove: onRemoveImage,

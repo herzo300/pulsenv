@@ -40,6 +40,6 @@ class DeviceIdentityService {
     final random = Random.secure();
     final bytes = List<int>.generate(16, (_) => random.nextInt(256));
     final hex = bytes.map((value) => value.toRadixString(16).padLeft(2, '0')).join();
-    return 'soobshio-$hex';
+    return 'puls-$hex';
   }
 }

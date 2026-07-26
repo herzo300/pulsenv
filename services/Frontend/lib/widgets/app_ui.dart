@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../theme/pulse_colors.dart';
+import 'aura_shader_background.dart';
 
 abstract final class AppSpacing {
   static const double xxs = 4;
@@ -81,7 +82,7 @@ class AppResponsive extends StatelessWidget {
 }
 
 abstract final class AppTextStyles {
-  static final TextStyle overline = GoogleFonts.ibmPlexSans(
+  static TextStyle get overline => GoogleFonts.ibmPlexSans(
     color: PulseColors.textSecondary,
     fontSize: 11,
     fontWeight: FontWeight.w600,
@@ -89,7 +90,7 @@ abstract final class AppTextStyles {
     height: 1.1,
   );
 
-  static final TextStyle title = GoogleFonts.exo2(
+  static TextStyle get title => GoogleFonts.exo2(
     color: PulseColors.textPrimary,
     fontSize: 30,
     fontWeight: FontWeight.w800,
@@ -97,7 +98,7 @@ abstract final class AppTextStyles {
     letterSpacing: -0.72,
   );
 
-  static final TextStyle section = GoogleFonts.exo2(
+  static TextStyle get section => GoogleFonts.exo2(
     color: PulseColors.textPrimary,
     fontSize: 18,
     fontWeight: FontWeight.w700,
@@ -105,28 +106,28 @@ abstract final class AppTextStyles {
     letterSpacing: -0.2,
   );
 
-  static final TextStyle cardTitle = GoogleFonts.exo2(
+  static TextStyle get cardTitle => GoogleFonts.exo2(
     color: PulseColors.textPrimary,
     fontSize: 16,
     fontWeight: FontWeight.w700,
     height: 1.15,
   );
 
-  static final TextStyle body = GoogleFonts.manrope(
+  static TextStyle get body => GoogleFonts.manrope(
     color: PulseColors.textPrimary,
     fontSize: 14,
     height: 1.48,
     fontWeight: FontWeight.w500,
   );
 
-  static final TextStyle bodyMuted = GoogleFonts.manrope(
+  static TextStyle get bodyMuted => GoogleFonts.manrope(
     color: PulseColors.textSecondary,
     fontSize: 13,
     height: 1.46,
     fontWeight: FontWeight.w500,
   );
 
-  static final TextStyle metric = GoogleFonts.exo2(
+  static TextStyle get metric => GoogleFonts.exo2(
     color: PulseColors.textPrimary,
     fontSize: 30,
     fontWeight: FontWeight.w800,
@@ -134,7 +135,7 @@ abstract final class AppTextStyles {
     letterSpacing: -0.8,
   );
 
-  static final TextStyle button = GoogleFonts.manrope(
+  static TextStyle get button => GoogleFonts.manrope(
     color: PulseColors.background,
     fontSize: 15,
     fontWeight: FontWeight.w800,
@@ -142,15 +143,18 @@ abstract final class AppTextStyles {
     letterSpacing: 0.1,
   );
 
-  static final TextStyle mono = GoogleFonts.jetBrainsMono(
-    color: PulseColors.textSecondary,
+  static TextStyle get mono => GoogleFonts.jetBrainsMono(
+    color: PulseColors.textTertiary,
+    fontSize: 13,
+  );
+
+  static TextStyle get caption => GoogleFonts.manrope(
+    color: PulseColors.textTertiary,
     fontSize: 12,
-    fontWeight: FontWeight.w600,
-    height: 1.35,
   );
 
   /// Hero/large title style (replaces Orbitron in infographic)
-  static final TextStyle hero = GoogleFonts.exo2(
+  static TextStyle get hero => GoogleFonts.exo2(
     color: PulseColors.textPrimary,
     fontSize: 38,
     fontWeight: FontWeight.w900,
@@ -159,7 +163,7 @@ abstract final class AppTextStyles {
   );
 
   /// Subtitle style (replaces Inter in infographic)
-  static final TextStyle subtitle = GoogleFonts.manrope(
+  static TextStyle get subtitle => GoogleFonts.manrope(
     color: PulseColors.textSecondary,
     fontSize: 15,
     fontWeight: FontWeight.w600,
@@ -168,46 +172,21 @@ abstract final class AppTextStyles {
 }
 
 class AppScreenBackground extends StatelessWidget {
-  const AppScreenBackground({
+  AppScreenBackground({
     super.key,
     required this.child,
-    this.accent = PulseColors.primary,
+    this.accent,
   });
 
   final Widget child;
-  final Color accent;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: _bgColors(context),
-        ),
-      ),
+    return AuraShaderBackground(
+      pulseIndex: 0.5,
       child: Stack(
         children: [
-          Positioned(
-            top: -120,
-            left: -60,
-            child: _GlowOrb(color: accent.withOpacity(0.14), size: 240),
-          ),
-          Positioned(
-            top: 120,
-            right: -120,
-            child: _GlowOrb(
-              color: PulseColors.accentViolet.withOpacity(0.1),
-              size: 280,
-            ),
-          ),
-          Positioned(
-            right: -80,
-            bottom: 80,
-            child: _GlowOrb(
-                color: PulseColors.warning.withOpacity(0.08), size: 220),
-          ),
           Positioned.fill(
             child: IgnorePointer(
               child: DecoratedBox(
@@ -236,7 +215,7 @@ class AppScreenBackground extends StatelessWidget {
         Color(0xFFF5FAFF),
       ];
     }
-    return const [
+    return [
       PulseColors.background,
       PulseColors.backgroundRaised,
       PulseColors.background,
@@ -296,12 +275,12 @@ class _GlowOrb extends StatelessWidget {
 ///   • aurora    — aurora glow + inner gradient (GlassPanel)
 /// ────────────────────────────────────────────────────────────────
 class AppPanel extends StatelessWidget {
-  const AppPanel({
+  AppPanel({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(AppSpacing.lg),
+    this.padding = const EdgeInsets.all(16),
     this.borderColor,
-    this.backgroundColor = PulseColors.surfaceGlass,
+    this.backgroundColor,
     this.borderRadius,
     this.blurSigma = 22,
     this.style = PanelStyle.standard,
@@ -312,7 +291,7 @@ class AppPanel extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   final Color? borderColor;
-  final Color backgroundColor;
+  final Color? backgroundColor;
   final BorderRadius? borderRadius;
   final double blurSigma;
   final PanelStyle style;
@@ -320,6 +299,7 @@ class AppPanel extends StatelessWidget {
   final bool showAuroraGlow;
 
   BorderRadius get _radius => borderRadius ?? AppRadii.md;
+  Color get _bg => backgroundColor ?? PulseColors.surfaceGlass;
 
   @override
   Widget build(BuildContext context) {
@@ -332,27 +312,33 @@ class AppPanel extends StatelessWidget {
 
   /// Classic glass panel — blur + translucent background + border
   Widget _buildStandard(BuildContext context) {
-    return ClipRRect(
-      borderRadius: _radius,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: _radius,
-            border: Border.all(
-              color: borderColor ?? PulseColors.borderStrong,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.22),
-                blurRadius: 28,
-                offset: const Offset(0, 14),
-              ),
-            ],
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: _radius,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.26),
+            blurRadius: 24,
+            spreadRadius: -4,
+            offset: const Offset(0, 10),
           ),
-          child: child,
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: _radius,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+          child: Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              color: _bg,
+              borderRadius: _radius,
+              border: Border.all(
+                color: borderColor ?? PulseColors.borderStrong,
+              ),
+            ),
+            child: child,
+          ),
         ),
       ),
     );
@@ -392,7 +378,7 @@ class AppPanel extends StatelessWidget {
             filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: backgroundColor,
+                color: _bg,
                 borderRadius: _radius,
               ),
               child: Padding(padding: padding, child: child),
@@ -555,31 +541,32 @@ class AppSectionHeader extends StatelessWidget {
 }
 
 class AppStatusBadge extends StatelessWidget {
-  const AppStatusBadge({
+  AppStatusBadge({
     super.key,
     required this.label,
-    this.color = PulseColors.primary,
+    this.color,
     this.icon,
   });
 
   final String label;
-  final Color color;
+  final Color? color;
   final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
+    final activeColor = color ?? PulseColors.primary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: activeColor.withOpacity(0.12),
         borderRadius: AppRadii.pill,
-        border: Border.all(color: color.withOpacity(0.28)),
+        border: Border.all(color: activeColor.withOpacity(0.28)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 14, color: color),
+            Icon(icon, size: 14, color: activeColor),
             const SizedBox(width: 6),
           ],
           Text(
@@ -597,24 +584,25 @@ class AppStatusBadge extends StatelessWidget {
 }
 
 class AppMetricTile extends StatelessWidget {
-  const AppMetricTile({
+  AppMetricTile({
     super.key,
     required this.label,
     required this.value,
-    this.accent = PulseColors.primary,
+    this.accent,
     this.trailing,
   });
 
   final String label;
   final String value;
-  final Color accent;
+  final Color? accent;
   final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
+    final activeAccent = accent ?? PulseColors.primary;
     return AppPanel(
       padding: const EdgeInsets.all(AppSpacing.md),
-      borderColor: accent.withOpacity(0.18),
+      borderColor: activeAccent.withOpacity(0.18),
       backgroundColor: PulseColors.surfaceSoft,
       child: Row(
         children: [
@@ -625,7 +613,7 @@ class AppMetricTile extends StatelessWidget {
                 Text(label, style: AppTextStyles.bodyMuted),
                 const SizedBox(height: AppSpacing.xs),
                 Text(value,
-                    style: AppTextStyles.metric.copyWith(color: accent)),
+                    style: AppTextStyles.metric.copyWith(color: activeAccent)),
               ],
             ),
           ),
@@ -704,21 +692,22 @@ class AppSecondaryButton extends StatelessWidget {
 }
 
 class AppHintButton extends StatelessWidget {
-  const AppHintButton({
+  AppHintButton({
     super.key,
     required this.title,
     required this.message,
     this.icon = Icons.info_outline_rounded,
-    this.color = PulseColors.textSecondary,
+    this.color,
   });
 
   final String title;
   final String message;
   final IconData icon;
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
+    final activeColor = color ?? PulseColors.primary;
     return IconButton(
       tooltip: title,
       visualDensity: VisualDensity.compact,
@@ -729,7 +718,7 @@ class AppHintButton extends StatelessWidget {
           backgroundColor: PulseColors.surfaceElevated,
           shape: RoundedRectangleBorder(
             borderRadius: AppRadii.md,
-            side: BorderSide(color: color.withOpacity(0.18)),
+            side: BorderSide(color: activeColor.withOpacity(0.18)),
           ),
           title: Text(title, style: AppTextStyles.section),
           content: Text(message, style: AppTextStyles.bodyMuted),

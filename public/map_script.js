@@ -39,7 +39,7 @@ const CATEGORIES = {
   'ЖКХ': { icon: '🏠', color: '#f97316', priority: 2 },
   'Дороги': { icon: '🛣️', color: '#ef4444', priority: 2 },
   'Благоустройство': { icon: '🌳', color: '#22c55e', priority: 3 },
-  'Транспорт': { icon: '🚌', color: '#3b82f6', priority: 3 },
+  'Транспорт': { icon: '🚌', color: '#0EA5C7', priority: 3 },
   'Освещение': { icon: '💡', color: '#eab308', priority: 3 },
 
   // Коммуникации
@@ -52,7 +52,7 @@ const CATEGORIES = {
   'Мусор': { icon: '🗑️', color: '#84cc16', priority: 3 },
   'Бытовой мусор': { icon: '🗑️', color: '#84cc16', priority: 3 },
   'Экология': { icon: '🌿', color: '#00E676', priority: 3 },
-  'Мероприятие': { icon: '🎭', color: '#eab308', priority: 3 },
+  'Мероприятие': { icon: '🎟️', color: '#d946ef', priority: 3 },
   'Камеры': { icon: '📷', color: '#6366f1', priority: 4 },
 
   // Общественные пространства
@@ -121,8 +121,11 @@ const state = {
   eventLayer: null,
   markers: new Map(),
   complaints: [],
+  noAddressEvents: [],
   currentCategoryFilter: 'all',
   currentDayFilter: 'all',
+  currentEventWeekday: null,
+  layerFilters: { problems: true, events: true, cameras: true },
   realtimeSubscription: null,
   isLoading: true,
   savedView: null,
@@ -143,41 +146,52 @@ const state = {
 };
 
 const SPLASH_MESSAGES = [
-  'Подключаем карту...',
-  'Загружаем обращения...',
-  'Включаем live-обновления...',
+  'Связываемся с Самотлором...',
+  'Сканируем камеры набережной Оби...',
+  'Синхронизируем карту Нижневартовска...',
+  'Включаем неоновые огни города...',
   'Почти готово'
 ];
 
 const SPLASH_VARIANTS = [
   {
     key: 'aurora',
-    themeName: 'Aurora Mesh',
-    kicker: 'Live civic signal',
-    title: 'Пульс Города',
-    subtitle: 'Мягкие градиенты, стеклянные слои и спокойный цифровой ритм города.',
+    themeName: 'Самотлорский Неон',
+    kicker: 'Сибирский инди-пульс',
+    title: 'Пульс Нижневартовска',
+    subtitle: 'Мягкие зелено-пурпурные градиенты, стеклянные слои и спокойный цифровой ритм Самотлорских ночей.',
     mode: 'Aurora',
-    icon: '◉',
+    icon: '❄️',
     audio: 'audio/splash-aurora.mp3'
   },
   {
     key: 'grid',
-    themeName: 'Signal Grid',
-    kicker: 'Urban scanline',
-    title: 'Пульс Города',
-    subtitle: 'Контрастная сетка, editorial-графика и острые акценты в духе kinetic UI.',
+    themeName: 'Индустриальный Ритм',
+    kicker: 'Сканлайн нефтяной столицы',
+    title: 'Нижневартовск LIVE',
+    subtitle: 'Контрастная кибер-сетка, строгая геометрия буровых вышек и острые техно-акценты Югры.',
     mode: 'Grid',
-    icon: '▲',
+    icon: '🛢️',
     audio: 'audio/splash-grid.mp3'
   },
   {
     key: 'pulse',
-    themeName: 'Liquid Pulse',
-    kicker: 'Motion chrome',
-    title: 'Пульс Города',
-    subtitle: 'Люминесцентные блики, жидкий металл и динамика современных launch screens.',
+    themeName: 'Жидкое Золото Оби',
+    kicker: 'Хромированный поток Сибири',
+    title: 'Огни Нижневартовска',
+    subtitle: 'Люминесцентное сияние Оби, тепло таежных костров и динамика жидкого золота Югры.',
     mode: 'Pulse',
-    icon: '◌',
+    icon: '🔥',
+    audio: 'audio/splash-pulse.mp3'
+  },
+  {
+    key: 'quantum',
+    themeName: 'Квантовая Сибирь',
+    kicker: 'Цифровой резонанс Югры',
+    title: 'Нижневартовск 2077',
+    subtitle: 'Сверхпроводниковый квантовый поток, глубокое неоновое сияние сибирского космоса и сингулярность климатических данных.',
+    mode: 'Quantum',
+    icon: '🌌',
     audio: 'audio/splash-pulse.mp3'
   }
 ];
@@ -257,6 +271,18 @@ function initMap() {
   state.eventLayer = L.layerGroup().addTo(state.map);
   setSplashStatus('Карта готова', 72);
   console.log('✅ Map OK');
+
+  // Debounce pan/move/zoom events to avoid flooding requests when panning
+  let mapMoveTimeout = null;
+  state.map.on('moveend zoomend', () => {
+    if (mapMoveTimeout) {
+      clearTimeout(mapMoveTimeout);
+    }
+    mapMoveTimeout = setTimeout(() => {
+      console.log('Leaflet map movement/zoom debounced (400ms threshold)');
+    }, 400);
+  });
+
   return true;
 }
 
@@ -314,7 +340,7 @@ function createMarkerIcon(complaint) {
       html: `
         <div class="cyber-pulse-ring"></div>
         <div class="cyber-pulse-ring-inner"></div>
-        <div class="cyber-hexagon">
+        <div class="cyber-circle">
           <div class="cyber-icon">${cat.icon}</div>
         </div>
         ${badge ? `<div style="position:absolute;bottom:-6px;right:-8px;min-width:20px;height:20px;padding:0 4px;border-radius:2px;background:#39FF14;color:#0f172a;font-size:10px;font-weight:900;z-index:10;transform:skewX(-10deg);border:1px solid #020617;">${badge}</div>` : ''}
@@ -395,7 +421,7 @@ function openBottomSheet(complaint) {
   const gallery = document.getElementById('sheet-gallery');
   if (complaint.images && complaint.images.length > 0) {
     gallery.style.display = 'flex';
-    gallery.innerHTML = complaint.images.map(img => `<img src="${img}" alt="Фото проблемы" onclick="window.open('${img}', '_blank')">`).join('');
+    gallery.innerHTML = complaint.images.map(img => `<img src="${escapeHtml(img)}" alt="Фото проблемы" onclick="window.open('${escapeHtml(img)}', '_blank')">`).join('');
   } else {
     gallery.style.display = 'none';
   }
@@ -478,6 +504,68 @@ function initBottomSheet() {
     }
     content.style.transform = '';
   });
+}
+
+function initNoAddressEventsSheet() {
+  const sheet = document.getElementById('no-address-events-sheet');
+  if (!sheet) return;
+  const overlay = document.getElementById('no-address-overlay');
+  const closeBtn = document.getElementById('no-address-close');
+  const btn = document.getElementById('no-address-events-btn');
+
+  if (overlay) overlay.addEventListener('click', closeNoAddressEventsSheet);
+  if (closeBtn) closeBtn.addEventListener('click', closeNoAddressEventsSheet);
+  if (btn) {
+    btn.addEventListener('click', () => {
+      openNoAddressEventsSheet();
+    });
+  }
+
+  const dragHandle = sheet.querySelector('.sheet-drag-handle');
+  const content = document.getElementById('no-address-content');
+  if (dragHandle && content) {
+    let startY, currentY;
+    let isDragging = false;
+
+    dragHandle.addEventListener('touchstart', (e) => {
+      startY = e.touches[0].clientY;
+      isDragging = true;
+      content.style.transition = 'none';
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      currentY = e.touches[0].clientY;
+      const diff = currentY - startY;
+      if (diff > 0) {
+        content.style.transform = `translateY(${diff}px)`;
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+      if (!isDragging) return;
+      isDragging = false;
+      content.style.transition = 'transform 0.4s cubic-bezier(0.32, 0.72, 0, 1)';
+
+      if (currentY - startY > 80) {
+        closeNoAddressEventsSheet();
+      }
+      content.style.transform = '';
+    });
+  }
+}
+
+function openNoAddressEventsSheet() {
+  const sheet = document.getElementById('no-address-events-sheet');
+  if (sheet) {
+    sheet.classList.add('open');
+    renderNoAddressEvents();
+  }
+}
+
+function closeNoAddressEventsSheet() {
+  const sheet = document.getElementById('no-address-events-sheet');
+  if (sheet) sheet.classList.remove('open');
 }
 
 async function loadComments(complaintId) {
@@ -621,7 +709,16 @@ function focusOnNewMarker(marker, complaint) {
   setTimeout(() => {
     openBottomSheet(complaint);
     const isEmergency = complaint.category === 'ЧП';
-    showNotification(`${isEmergency ? '🚨 ЧП: ' : '🆕 '}${complaint.summary || complaint.category}`, isEmergency ? 'emergency' : 'new');
+    showNotification(
+      `${isEmergency ? '🚨 ЧП: ' : '🆕 '}${complaint.summary || complaint.category}`, 
+      isEmergency ? 'emergency' : 'new',
+      () => {
+        if (complaint.lat && complaint.lng) {
+          state.map.flyTo([complaint.lat, complaint.lng], CONFIG.newMarkerZoom);
+        }
+        openBottomSheet(complaint);
+      }
+    );
   }, 1300);
 
   state.autoReturnTimeout = setTimeout(() => {
@@ -679,13 +776,103 @@ function clearMapData() {
 
 function replaceMapData(items) {
   clearMapData();
-  state.complaints = items;
-  items.forEach(item => addMarker(item));
+  
+  const seenEvents = new Set();
+  const filteredItems = [];
+  const noAddressEvents = [];
+  
+  items.forEach(item => {
+    const isEvent = item.category === 'Мероприятие' || item.source_kind === 'event';
+    if (isEvent) {
+      // 1. Check if location/venue is specified at all.
+      const hasCoords = item.lat != null && item.lng != null;
+      const isDefaultCoords = hasCoords && (Math.abs(item.lat - 60.9344) < 0.0001 && Math.abs(item.lng - 76.5531) < 0.0001);
+      const hasAddr = item.address && item.address.trim() !== '';
+      
+      // If no address and either no coordinates or default coordinates -> no location specified, ignore completely
+      if (!hasAddr && (!hasCoords || isDefaultCoords)) {
+        return;
+      }
+      
+      // 2. Deduplicate by title + YYYY-MM-DD date
+      const dateStr = item.created_at || new Date().toISOString();
+      const ymd = dateStr.split('T')[0];
+      const title = (item.summary || item.title || '').trim();
+      const dedupKey = `${title}_${ymd}`;
+      
+      if (seenEvents.has(dedupKey)) {
+        return; // Duplicate event -> skip
+      }
+      seenEvents.add(dedupKey);
+      
+      // 3. Separate addressless events
+      // An event goes to "no address" list if it lacks a concrete address (default coords or no coords or no address)
+      if (isDefaultCoords || !hasAddr || !hasCoords) {
+        noAddressEvents.push(item);
+        return; // Exclude from mapping
+      }
+    }
+    
+    // Normal items or events with concrete address go to the map
+    filteredItems.push(item);
+  });
+  
+  state.complaints = filteredItems;
+  state.noAddressEvents = noAddressEvents;
+  
+  renderNoAddressEvents();
+  
+  filteredItems.forEach(item => addMarker(item));
   calculateStats();
   updateUI();
   applyFilters();
-  return items;
+  return filteredItems;
 }
+
+function renderNoAddressEvents() {
+  const container = document.getElementById('no-address-events-list');
+  if (!container) return;
+  if (!state.noAddressEvents || state.noAddressEvents.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:24px;color:rgba(255,255,255,0.4);font-size:14px;">Мероприятий без точного адреса пока нет</div>';
+    return;
+  }
+  
+  container.innerHTML = state.noAddressEvents.map(item => {
+    const title = escapeHtml(item.summary || item.title || 'Мероприятие');
+    const desc = escapeHtml(item.description || 'Описание отсутствует');
+    const dateStr = item.created_at ? formatDate(item.created_at) : '';
+    const source = escapeHtml(item.source_label || item.source || '');
+    
+    return `
+      <div class="no-address-card" onclick="openNoAddressEventDetail('${item.id}')" style="
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 12px 16px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      " onmouseover="this.style.background='rgba(255, 255, 255, 0.08)'; this.style.borderColor='rgba(255, 255, 255, 0.2)';" onmouseout="this.style.background='rgba(255, 255, 255, 0.05)'; this.style.borderColor='rgba(255, 255, 255, 0.1)';">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+          <h4 style="margin: 0; font-size: 14px; font-weight: 600; color: #fff; line-height: 1.4;">🎉 ${title}</h4>
+          ${dateStr ? `<span style="font-size: 11px; color: rgba(255,255,255,0.4); white-space: nowrap; margin-left: 10px;">${dateStr}</span>` : ''}
+        </div>
+        <p style="margin: 0 0 8px 0; font-size: 12px; color: rgba(255,255,255,0.7); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4;">${desc}</p>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: rgba(255,255,255,0.4);">
+          <span>${source}</span>
+          <span style="color: #eab308; font-weight: 500;">Подробнее →</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+window.openNoAddressEventDetail = function(id) {
+  const item = state.noAddressEvents.find(x => x.id === id);
+  if (item) {
+    closeNoAddressEventsSheet();
+    openBottomSheet(item);
+  }
+};
 
 function normalizeReportMarker(item) {
   if (item.lat == null || item.lng == null) return null;
@@ -749,6 +936,11 @@ const MOCK_EVENTS = [
 ];
 
 function injectMockEvents(markers) {
+  // Disable mock events in production (i.e. if not running on localhost or 127.0.0.1)
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  if (!isLocal) {
+    return markers;
+  }
   const existingIds = new Set(markers.map(m => String(m.id)));
   MOCK_EVENTS.forEach(evt => {
     if (!existingIds.has(String(evt.id))) {
@@ -763,6 +955,7 @@ async function loadComplaints() {
   setSplashStatus('Загружаем обращения...', 82);
 
   let aggregatedMarkers = [];
+  let usedDemoFallback = false;
 
   try {
     const feedMarkers = await fetchBackendMapFeed();
@@ -785,20 +978,57 @@ async function loadComplaints() {
 
   if (aggregatedMarkers.length > 0) {
     console.log(`Loaded ${aggregatedMarkers.length} markers from backend feeds`);
-    return replaceMapData(injectMockEvents(aggregatedMarkers));
+    showMapDataBanner(null);
+    return replaceMapData(aggregatedMarkers);
   }
 
   try {
     const fallbackMarkers = await fetchReportsFallback();
     if (fallbackMarkers.length > 0) {
       console.log(`Loaded ${fallbackMarkers.length} report markers from backend API`);
-      return replaceMapData(injectMockEvents(fallbackMarkers));
+      showMapDataBanner(null);
+      return replaceMapData(fallbackMarkers);
     }
   } catch (error) {
     console.error('Reports API fallback error:', error);
   }
 
+  usedDemoFallback = true;
+  showMapDataBanner(
+    'demo',
+    'Нет связи с сервером — показаны демо-точки. Данные не отражают реальную обстановку.',
+    true
+  );
   return loadDemoComplaints();
+}
+
+function showMapDataBanner(mode, message, withRetry = false) {
+  let el = document.getElementById('map-data-banner');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'map-data-banner';
+    el.className = 'map-data-banner';
+    el.setAttribute('role', 'status');
+    document.body.appendChild(el);
+  }
+  if (!mode) {
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+  el.style.display = 'flex';
+  el.dataset.mode = mode;
+  el.innerHTML = `
+    <span class="map-data-banner-text">${message}</span>
+    ${withRetry ? '<button type="button" class="map-data-banner-retry">Обновить</button>' : ''}
+  `;
+  const retryBtn = el.querySelector('.map-data-banner-retry');
+  if (retryBtn) {
+    retryBtn.onclick = () => {
+      showMapDataBanner(null);
+      loadComplaints().catch(err => console.error('Map refresh error', err));
+    };
+  }
 }
 
 function loadDemoComplaints() {
@@ -877,7 +1107,14 @@ function matchesDayFilter(complaint) {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   if (complaint.category === 'Мероприятие' || complaint.source_kind === 'event') {
-    const targetDate = new Date(created.getFullYear(), created.getMonth(), created.getDate());
+    const eventDate = new Date(complaint.created_at);
+    if (Number.isInteger(state.currentEventWeekday)) {
+      const jsDay = eventDate.getDay();
+      const weekday = jsDay === 0 ? 7 : jsDay;
+      if (weekday !== state.currentEventWeekday) return false;
+    }
+
+    const targetDate = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
     const diffMs = targetDate.getTime() - todayStart.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
@@ -908,7 +1145,15 @@ function matchesDayFilter(complaint) {
 }
 
 function matchesFilters(complaint) {
-  if (state.currentCategoryFilter !== 'all' && complaint.category !== state.currentCategoryFilter) {
+  const isEvent = complaint.category === 'Мероприятие' || complaint.source_kind === 'event';
+  if (isEvent) {
+    return !!state.layerFilters.events;
+  }
+  if (!state.layerFilters.problems) return false;
+  if (
+    state.currentCategoryFilter !== 'all' &&
+    complaint.category !== state.currentCategoryFilter
+  ) {
     return false;
   }
   return matchesDayFilter(complaint);
@@ -919,10 +1164,15 @@ function applyFilters() {
   if (state.cameraLayer) state.cameraLayer.clearLayers();
   if (state.eventLayer) state.eventLayer.clearLayers();
 
-  const isCameraMode = state.currentCategoryFilter === 'Камеры';
+  const showCameras =
+    state.layerFilters.cameras || state.currentCategoryFilter === 'Камеры';
 
-  if (isCameraMode) {
+  if (showCameras) {
     state.cameraMarkers.forEach(cm => cm.marker.addTo(state.cameraLayer));
+  }
+
+  if (!showCameras && state.cameraLayer) {
+    state.cameraLayer.clearLayers();
   }
 
   state.complaints.forEach(complaint => {
@@ -949,10 +1199,22 @@ function initFilters() {
   if (catPanel) {
     catPanel.addEventListener('click', (e) => {
       const btn = e.target.closest('.filter-btn');
-      if (!btn) return;
+      if (!btn || !btn.dataset.filter) return;
 
-      state.currentCategoryFilter = btn.dataset.filter;
-      catPanel.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      const filterType = btn.dataset.filter;
+      if (filterType === 'problems' || filterType === 'events' || filterType === 'cameras') {
+        state.layerFilters[filterType] = !state.layerFilters[filterType];
+        btn.classList.toggle('active', state.layerFilters[filterType]);
+        applyFilters();
+        return;
+      }
+
+      state.currentCategoryFilter = filterType;
+      catPanel.querySelectorAll('.filter-btn[data-filter]').forEach((b) => {
+        if (!['problems', 'events', 'cameras'].includes(b.dataset.filter)) {
+          b.classList.remove('active');
+        }
+      });
       btn.classList.add('active');
       applyFilters();
     });
@@ -964,7 +1226,13 @@ function initFilters() {
       const btn = e.target.closest('.day-btn');
       if (!btn) return;
 
-      state.currentDayFilter = btn.dataset.day;
+      if (btn.dataset.weekday !== undefined) {
+        const raw = btn.dataset.weekday;
+        state.currentEventWeekday = raw === 'all' ? null : Number(raw);
+      } else if (btn.dataset.day) {
+        state.currentDayFilter = btn.dataset.day;
+      }
+
       dayPanel.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       applyFilters();
@@ -982,6 +1250,23 @@ function updateUI() {
   // Update main counter
   const countEl = document.getElementById('complaint-count');
   if (countEl) countEl.textContent = filteredCount;
+
+  // Layer toggle counts (problems / events / cameras)
+  const catPanel = document.getElementById('category-filters');
+  if (catPanel) {
+    const problems = state.complaints.filter(
+      (c) => c.category !== 'Мероприятие' && c.source_kind !== 'event'
+    ).length;
+    const events = state.complaints.filter(
+      (c) => c.category === 'Мероприятие' || c.source_kind === 'event'
+    ).length;
+    const probBtn = catPanel.querySelector('[data-filter="problems"]');
+    const evtBtn = catPanel.querySelector('[data-filter="events"]');
+    const camBtn = catPanel.querySelector('[data-filter="cameras"]');
+    if (probBtn) probBtn.title = `Проблемы (${problems})`;
+    if (evtBtn) evtBtn.title = `Мероприятия (${events})`;
+    if (camBtn) camBtn.title = `Камеры (${state.cameraMarkers.length})`;
+  }
 
   // Update stats counters
   const todayEl = document.getElementById('stat-today');
@@ -1040,7 +1325,7 @@ function initSplashInteractions() {
   }).init();
 }
 
-function showNotification(message, type = 'info') {
+function showNotification(message, type = 'info', onClick = null) {
   const colors = {
     emergency: '#FF3D00',
     new: '#00E676',
@@ -1055,13 +1340,25 @@ function showNotification(message, type = 'info') {
     box-shadow:0 4px 20px rgba(0,0,0,0.15);font-size:13px;font-weight:500;
     color:#0f172a;z-index:9999;border-left:4px solid ${colors[type] || colors.info};
     animation:slideDown 0.3s ease;max-width:90%;text-align:center;
+    ${onClick ? 'cursor:pointer;' : ''}
   `;
   notification.textContent = message;
+  
+  if (onClick) {
+    notification.onclick = (e) => {
+      e.stopPropagation();
+      onClick();
+      notification.remove();
+    };
+  }
+  
   document.body.appendChild(notification);
 
   setTimeout(() => {
-    notification.style.animation = 'slideUp 0.3s ease';
-    setTimeout(() => notification.remove(), 300);
+    if (notification.parentNode) {
+      notification.style.animation = 'slideUp 0.3s ease';
+      setTimeout(() => notification.remove(), 300);
+    }
   }, type === 'emergency' ? 6000 : 4000);
 }
 
@@ -1096,7 +1393,7 @@ function getTimeAgo(dateStr) {
 function formatMarkerTime(item) {
   if (item.category === 'Мероприятие' || item.source_kind === 'event') {
     const dt = new Date(item.created_at);
-    return `🗓 ${dt.toLocaleString('ru-RU', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' })}${item.source_label ? ` · ${item.source_label}` : ''}`;
+    return `🗓 ${dt.toLocaleString('ru-RU', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit', hour12: false })}${item.source_label ? ` · ${item.source_label}` : ''}`;
   }
   return `🕒 ${getTimeAgo(item.created_at)}${item.source_label ? ` · ${item.source_label}` : ''}`;
 }
@@ -1114,10 +1411,24 @@ style.textContent = `
   @keyframes HUDspin { 100% { transform: rotate(405deg); } }
   @keyframes HUDspin-reverse { 100% { transform: rotate(-375deg); } }
   .event-cyber-marker { display:flex; align-items:center; justify-content:center; width:44px; height:44px; position:relative; z-index:1000; }
-  .cyber-pulse-ring { position:absolute; inset:-4px; border:1px dashed #39FF14; border-radius:10%; transform:rotate(45deg); animation:HUDspin 6s linear infinite; mix-blend-mode:screen; }
-  .cyber-pulse-ring-inner { position:absolute; inset:2px; border:2px solid rgba(57,255,20,0.5); border-radius:10%; transform:rotate(-15deg); animation:HUDspin-reverse 8s linear infinite; }
-  .cyber-hexagon { position:relative; width:26px; height:26px; background:#020617; border:2px solid #39FF14; transform:rotate(45deg); display:flex; align-items:center; justify-content:center; box-shadow:0 0 16px rgba(57,255,20,0.6), inset 0 0 8px rgba(57,255,20,0.4); z-index:2; }
-  .cyber-icon { transform:rotate(-45deg); font-size:14px; line-height:1; filter:drop-shadow(0 0 4px #39FF14); }
+  .cyber-pulse-ring { position:absolute; inset:-4px; border:1px dashed #d946ef; border-radius:50%; animation:HUDspin 6s linear infinite; mix-blend-mode:screen; }
+  .cyber-pulse-ring-inner { position:absolute; inset:2px; border:2px solid rgba(217,70,239,0.5); border-radius:50%; animation:HUDspin-reverse 8s linear infinite; }
+  .cyber-circle { position:relative; width:26px; height:26px; background:#020617; border:2px solid #d946ef; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 0 16px rgba(217,70,239,0.6), inset 0 0 8px rgba(217,70,239,0.4); z-index:2; }
+  .cyber-icon { font-size:14px; line-height:1; filter:drop-shadow(0 0 4px #d946ef); }
+  .map-data-banner {
+    position: fixed; top: 72px; left: 50%; transform: translateX(-50%);
+    z-index: 1200; max-width: min(560px, calc(100vw - 24px));
+    display: none; align-items: center; gap: 10px; padding: 10px 14px;
+    border-radius: 12px; background: rgba(15,23,42,0.92); color: #e2e8f0;
+    border: 1px solid rgba(0,229,255,0.35); box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    font-size: 13px; line-height: 1.35;
+  }
+  .map-data-banner[data-mode="demo"] { border-color: rgba(245,158,11,0.55); }
+  .map-data-banner-text { flex: 1; }
+  .map-data-banner-retry {
+    border: 1px solid rgba(0,229,255,0.5); background: rgba(0,229,255,0.12);
+    color: #00e5ff; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 12px;
+  }
 `;
 document.head.appendChild(style);
 
@@ -1143,6 +1454,7 @@ async function init() {
   console.log('🚀 Init...');
   initSplashInteractions();
   initBottomSheet();
+  initNoAddressEventsSheet();
 
   const backendOk = await initBackend();
   if (!backendOk) console.warn('⚠️ Demo mode');
@@ -1155,13 +1467,50 @@ async function init() {
   await loadComplaints();
   initCameraLayer();
   initSecretTrigger();
+  // initSamotlorEventsAndControls(); // Самотлорские ночи удалены
   startCameraAiMonitor();
   startDataRefreshLoop();
 
   setSplashStatus('Готово', 100);
   setTimeout(hideSplash, 550);
+  applyDeepLinkFromUrl();
   console.log('✅ Ready');
 }
+
+function applyDeepLinkFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const reportId = params.get('report');
+  const lat = parseFloat(params.get('lat'));
+  const lon = parseFloat(params.get('lon'));
+
+  if (reportId) {
+    const complaint = state.complaints.find((c) => String(c.id) === String(reportId));
+    if (complaint) {
+      state.map.setView([complaint.lat, complaint.lng], CONFIG.newMarkerZoom);
+      openBottomSheet(complaint);
+      return;
+    }
+  }
+
+  if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
+    state.map.setView([lat, lon], CONFIG.newMarkerZoom);
+    if (params.get('action') === 'complaint') {
+      showNotification('Точка выбрана — заполните форму жалобы', 'info');
+    }
+  }
+}
+
+/** Public helper: open map centered on a report (used after mobile submit). */
+window.openReportOnMap = function openReportOnMap(id, lat, lng) {
+  const url = new URL(window.location.href);
+  url.searchParams.set('report', String(id));
+  if (lat != null && lng != null) {
+    url.searchParams.set('lat', String(lat));
+    url.searchParams.set('lon', String(lng));
+  }
+  window.history.replaceState({}, '', url);
+  applyDeepLinkFromUrl();
+};
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
@@ -1332,7 +1681,7 @@ function initCameraLayer() {
         state.cameraMarkers.push({ marker, id: cam.id, lat: cam.lat, lon: cam.lon, name: cam.name, url: cam.url });
       });
 
-          applyFilters();
+      applyFilters();
     })
     .catch(error => console.error('Camera layer load error', error));
 }
@@ -1423,7 +1772,7 @@ function initSecretTrigger() {
   document.addEventListener('keydown', (e) => {
     buffer += e.key.toLowerCase();
     if (buffer.length > 10) buffer = buffer.substring(1);
-    
+
     if (buffer.includes(SECRET_CODE)) {
       buffer = '';
       if (!state.isSecretUnlocked) {
@@ -1443,7 +1792,7 @@ function initSecretTrigger() {
         promptSecret();
       }, 2000); // 2 seconds long press
     });
-    
+
     logo.addEventListener('touchend', () => {
       clearTimeout(pressTimer);
     });
@@ -1680,97 +2029,290 @@ function startCameraAiMonitor() {
     }
   }, 45000);
 }
-\n
-let activeFilters = {
-  problems: true,
-  events: true,
-  cameras: true
-};
 
-function initFilters() {
-  const catPanel = document.getElementById('category-filters');
-  if (catPanel) {
-    catPanel.addEventListener('click', (e) => {
-      const btn = e.target.closest('.filter-btn');
-      if (!btn) return;
+// ═══════════════════════════════════════════════════════════════════════════════
+// SAMOTLOR NIGHTS FESTIVAL UI — removed (festival ended)
 
-      const filterType = btn.dataset.filter;
-      activeFilters[filterType] = !activeFilters[filterType];
-      
-      if (activeFilters[filterType]) {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
+
+let samotlorProgramData = null;
+let hlsPlayerInstance = null;
+
+function getSystemDate() {
+  const params = new URLSearchParams(window.location.search);
+  const mockDateStr = params.get('mock_date');
+  if (mockDateStr) {
+    const parsed = new Date(mockDateStr);
+    if (!isNaN(parsed.getTime())) {
+      // Set hours to current time so mock date has current time of day
+      const now = new Date();
+      parsed.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+      return parsed;
+    }
+  }
+  return new Date();
+}
+
+function checkAndRenderSamotlorNights() {
+  const currentDate = getSystemDate();
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth() + 1; // 0-indexed
+  const date = currentDate.getDate();
+
+  // Check if we are between June 12, 2026 and June 15, 2026
+  const isFestival = (year === 2026 && month === 6 && date >= 12 && date <= 15);
+
+  const existingBtn = document.getElementById('samotlor-nights-btn');
+
+  if (!isFestival) {
+    if (existingBtn) {
+      existingBtn.remove();
+      console.log('🗑️ Samotlor Nights festival has concluded. Button removed.');
+    }
+    return;
+  }
+
+  // Render the button if it doesn't exist yet
+  if (!existingBtn) {
+    console.log('🎉 Samotlor Nights 2026 is active! Rendering festival entry button.');
+    const btn = document.createElement('button');
+    btn.className = 'samotlor-btn';
+    btn.id = 'samotlor-nights-btn';
+    btn.innerHTML = `<span>🌃</span> Самотлорские Ночи`;
+    document.body.appendChild(btn);
+
+    btn.addEventListener('click', openSamotlorOverlay);
+  }
+}
+
+function openSamotlorOverlay() {
+  const overlay = document.getElementById('samotlor-overlay');
+  if (!overlay) return;
+
+  overlay.classList.add('active');
+  
+  // Close standard bottom sheet if open
+  closeBottomSheet();
+
+  // Load and render program
+  loadSamotlorProgram();
+
+  // Setup video stream player
+  setupEmbankmentCameraPlayer();
+
+  // Update progress bar
+  updateSamotlorProgress();
+}
+
+function closeSamotlorOverlay() {
+  const overlay = document.getElementById('samotlor-overlay');
+  if (overlay) {
+    overlay.classList.remove('active');
+  }
+  // Stop camera player to save bandwidth
+  stopEmbankmentCameraPlayer();
+}
+
+function updateSamotlorProgress() {
+  const current = getSystemDate();
+  const start = new Date('2026-06-12T00:00:00');
+  const end = new Date('2026-06-15T23:59:59');
+
+  const totalDuration = end - start;
+  const elapsed = current - start;
+
+  let percent = 0;
+  if (elapsed >= 0) {
+    percent = Math.min(100, Math.max(0, Math.round((elapsed / totalDuration) * 100)));
+  }
+
+  const fill = document.getElementById('samotlor-progress-fill');
+  const txt = document.getElementById('samotlor-progress-text');
+  if (fill) fill.style.width = `${percent}%`;
+  if (txt) txt.textContent = `${percent}%`;
+}
+
+async function loadSamotlorProgram() {
+  const timelineContainer = document.getElementById('samotlor-timeline');
+  if (!timelineContainer) return;
+
+  if (!samotlorProgramData) {
+    try {
+      const res = await fetch('/samotlor_program.json');
+      if (res.ok) {
+        samotlorProgramData = await res.json();
       }
-      
-      applyFilters();
+    } catch (e) {
+      console.error('Failed to load Samotlor program JSON', e);
+    }
+  }
+
+  if (!samotlorProgramData) {
+    timelineContainer.innerHTML = '<p style="text-align:center; color:#94a3b8;">Не удалось загрузить программу.</p>';
+    return;
+  }
+
+  // Determine which tab date is active
+  const activeTab = document.querySelector('.samotlor-tab.active');
+  if (!activeTab) return;
+
+  const targetDate = activeTab.dataset.tabDate;
+  const dayData = samotlorProgramData.find(d => d.date === targetDate);
+
+  if (!dayData || !dayData.events || dayData.events.length === 0) {
+    timelineContainer.innerHTML = '<p style="text-align:center; color:#94a3b8;">Нет запланированных мероприятий на этот день.</p>';
+    return;
+  }
+
+  // Draw events
+  timelineContainer.innerHTML = '';
+  dayData.events.forEach(evt => {
+    const card = document.createElement('div');
+    card.className = 'samotlor-card';
+    card.innerHTML = `
+      <div class="samotlor-card-header">
+        <h4 class="samotlor-card-title">${evt.title}</h4>
+        <span class="samotlor-card-time">${evt.time}</span>
+      </div>
+      <p class="samotlor-card-desc">${evt.description}</p>
+      <div class="samotlor-card-footer">
+        <span class="samotlor-card-venue">📍 ${evt.venue}</span>
+        <button class="samotlor-card-map-btn" data-lat="${evt.lat}" data-lng="${evt.lng}" data-title="${evt.title}" data-desc="${evt.description}" data-venue="${evt.venue}">Показать на карте</button>
+      </div>
+    `;
+    timelineContainer.appendChild(card);
+  });
+
+  // Attach click listeners to "Show on map" buttons
+  timelineContainer.querySelectorAll('.samotlor-card-map-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const lat = parseFloat(btn.dataset.lat);
+      const lng = parseFloat(btn.dataset.lng);
+      const title = btn.dataset.title;
+      const desc = btn.dataset.desc;
+      const venue = btn.dataset.venue;
+
+      closeSamotlorOverlay();
+
+      if (state.map && !isNaN(lat) && !isNaN(lng)) {
+        state.map.setView([lat, lng], 16);
+        
+        // Open custom popup
+        setTimeout(() => {
+          L.popup()
+            .setLatLng([lat, lng])
+            .setContent(`
+              <div style="font-family:'Inter',sans-serif; padding:5px; color:#1e293b;">
+                <div style="font-size:12px; font-weight:700; color:#8b5cf6; text-transform:uppercase; margin-bottom:4px;">🎭 Фестиваль</div>
+                <h4 style="margin:0 0 6px 0; font-size:14px; font-weight:700; color:#0f172a;">${title}</h4>
+                <p style="margin:0 0 8px 0; font-size:12px; color:#475569; line-height:1.4;">${desc}</p>
+                <div style="font-size:11px; color:#64748b;">📍 Место: ${venue}</div>
+              </div>
+            `)
+            .openOn(state.map);
+        }, 300);
+      }
+    });
+  });
+}
+
+function setupEmbankmentCameraPlayer() {
+  const video = document.getElementById('samotlor-cams-video');
+  if (!video) return;
+
+  // Stop previous HLS if any
+  stopEmbankmentCameraPlayer();
+
+  // Find active button HLS url
+  const activeBtn = document.querySelector('.samotlor-cams-btn.active');
+  if (!activeBtn) return;
+
+  const url = activeBtn.dataset.camUrl;
+  if (!url) return;
+
+  console.log('📹 Initializing HLS stream play for:', url);
+
+  if (window.Hls && Hls.isSupported()) {
+    hlsPlayerInstance = new Hls({
+      maxMaxBufferLength: 10,
+      enableWorker: true
+    });
+    hlsPlayerInstance.loadSource(url);
+    hlsPlayerInstance.attachMedia(video);
+    hlsPlayerInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+      video.play().catch(e => console.warn('Autoplay prevented:', e));
+    });
+    hlsPlayerInstance.on(Hls.Events.ERROR, (event, data) => {
+      if (data.fatal) {
+        switch (data.type) {
+          case Hls.ErrorTypes.NETWORK_ERROR:
+            console.warn('Fatal network error, trying to recover HLS');
+            hlsPlayerInstance.startLoad();
+            break;
+          case Hls.ErrorTypes.MEDIA_ERROR:
+            console.warn('Fatal media error, trying to recover HLS');
+            hlsPlayerInstance.recoverMediaError();
+            break;
+          default:
+            stopEmbankmentCameraPlayer();
+            break;
+        }
+      }
+    });
+  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    // Native support (Safari, iOS)
+    video.src = url;
+    video.addEventListener('loadedmetadata', () => {
+      video.play().catch(e => console.warn('Autoplay prevented:', e));
     });
   }
 }
 
-function applyFilters() {
-  state.markerCluster.clearLayers();
-  
-  // Problems
-  if (activeFilters.problems) {
-    const problems = state.complaints.filter(c => c.category !== 'Мероприятие');
-    problems.forEach(c => {
-      // 100% address check
-      if (c.address && c.address !== 'Неизвестный адрес' && c.address.trim() !== '') {
-        const marker = createMarker(c);
-        if (marker) state.markerCluster.addLayer(marker);
-      }
-    });
+function stopEmbankmentCameraPlayer() {
+  const video = document.getElementById('samotlor-cams-video');
+  if (hlsPlayerInstance) {
+    console.log('Destructing HLS player instance...');
+    try {
+      hlsPlayerInstance.destroy();
+    } catch (e) {}
+    hlsPlayerInstance = null;
   }
-  
-  // Events
-  if (activeFilters.events) {
-    const events = state.complaints.filter(c => c.category === 'Мероприятие');
-    events.forEach(c => {
-      if (c.address && c.address !== 'Неизвестный адрес' && c.address.trim() !== '') {
-        const marker = createMarker(c);
-        if (marker) state.markerCluster.addLayer(marker);
-      }
-    });
+  if (video) {
+    video.pause();
+    video.src = '';
+    video.load();
   }
-  
-  updateStats();
 }
 
-function applyFilters() {
-  state.markerCluster.clearLayers();
-  if (state.cameraLayer) state.cameraLayer.clearLayers();
-  
-  // Problems
-  if (activeFilters.problems) {
-    const problems = state.complaints.filter(c => c.category !== 'Мероприятие');
-    problems.forEach(c => {
-      // 100% address check
-      if (c.address && c.address !== 'Неизвестный адрес' && c.address.trim() !== '') {
-        const marker = createMarker(c);
-        if (marker) state.markerCluster.addLayer(marker);
-      }
-    });
-  }
-  
-  // Events
-  if (activeFilters.events) {
-    const events = state.complaints.filter(c => c.category === 'Мероприятие');
-    events.forEach(c => {
-      if (c.address && c.address !== 'Неизвестный адрес' && c.address.trim() !== '') {
-        const marker = createMarker(c);
-        if (marker) state.markerCluster.addLayer(marker);
-      }
-    });
+function initSamotlorEventsAndControls() {
+  // Close button
+  const closeBtn = document.getElementById('samotlor-close');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', closeSamotlorOverlay);
   }
 
-  // Cameras
-  if (activeFilters.cameras && state.cameraLayer && state.cameraMarkers) {
-    state.cameraMarkers.forEach(cm => {
-      if (cm.secret && !state.isSecretUnlocked) return;
-      cm.marker.addTo(state.cameraLayer);
+  // Day tabs
+  const tabs = document.querySelectorAll('.samotlor-tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      loadSamotlorProgram();
     });
-  }
-  
-  updateStats();
+  });
+
+  // Camera buttons
+  const camBtns = document.querySelectorAll('.samotlor-cams-btn');
+  camBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      camBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      setupEmbankmentCameraPlayer();
+    });
+  });
+
+  // Initial check
+  checkAndRenderSamotlorNights();
+
+  // Run date-checking on data refreshes too
+  setInterval(checkAndRenderSamotlorNights, 10000);
 }

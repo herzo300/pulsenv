@@ -105,6 +105,35 @@ final class AppPageTransitions {
     );
   }
 
+  /// Immersive portal scale-fade with circular expansion transition
+  static CustomTransitionPage portalExpansion({
+    required LocalKey key,
+    required Widget child,
+  }) {
+    return CustomTransitionPage(
+      key: key,
+      transitionDuration: const Duration(milliseconds: 650),
+      child: child,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final scaleCurve = CurvedAnimation(
+          parent: animation,
+          curve: const Interval(0.0, 1.0, curve: Curves.easeOutBack),
+        );
+        final fadeCurve = CurvedAnimation(
+          parent: animation,
+          curve: const Interval(0.0, 0.7, curve: Curves.easeInCubic),
+        );
+        return ScaleTransition(
+          scale: Tween<double>(begin: 0.85, end: 1.0).animate(scaleCurve),
+          child: FadeTransition(
+            opacity: Tween<double>(begin: 0.0, end: 1.0).animate(fadeCurve),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
   /// Shared-element Hero transition wrapper
   static Widget heroWrapper({
     required String tag,

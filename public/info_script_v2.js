@@ -467,6 +467,19 @@ function icon(name, size = 20) {
 // DATA LOADING
 // ══════════════════════════════════════════════════════════
 async function loadData() {
+  let pulseStats = null;
+  try {
+    const pulseRes = await fetch(`${CONFIG.apiBase}/pulse/stats`, {
+      signal: AbortSignal.timeout(CONFIG.timeout)
+    });
+    if (pulseRes.ok) {
+      pulseStats = await pulseRes.json();
+      console.log('[Data] Pulse stats loaded');
+    }
+  } catch (e) {
+    console.warn('[Data] Pulse stats error:', e.message);
+  }
+
   try {
     const res = await fetch(`${CONFIG.apiBase}/infographic`, {
       signal: AbortSignal.timeout(CONFIG.timeout)
@@ -474,7 +487,13 @@ async function loadData() {
     if (res.ok) {
       const data = await res.json();
       if (data?.updated_at) {
+        if (pulseStats?.hero_kpis?.length) {
+          data.hero = data.hero || {};
+          data.hero.kpis = pulseStats.hero_kpis;
+          data.pulse = pulseStats;
+        }
         console.log('[Data] API data loaded');
+        window.__pulseDataSource = 'api';
         return data;
       }
     }
@@ -484,7 +503,13 @@ async function loadData() {
 
   // Fallback demo data
   console.log('[Data] Using demo data');
+  window.__pulseDataSource = 'demo';
   const d = getDemoData();
+  if (pulseStats?.hero_kpis?.length) {
+    d.hero = d.hero || {};
+    d.hero.kpis = pulseStats.hero_kpis;
+    d.pulse = pulseStats;
+  }
 
   // Try to load dynamics data
   try {
@@ -496,6 +521,22 @@ async function loadData() {
   } catch (e) { console.warn('Dynamics load error', e); }
 
   return d;
+}
+
+function showInfographicSourceBanner(message) {
+  let el = document.getElementById('infographic-source-banner');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'infographic-source-banner';
+    el.setAttribute('role', 'status');
+    el.style.cssText =
+      'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9999;' +
+      'max-width:min(520px,calc(100vw - 24px));padding:10px 14px;border-radius:12px;' +
+      'background:rgba(15,23,42,0.92);color:#e2e8f0;border:1px solid rgba(245,158,11,0.5);' +
+      'font-size:13px;text-align:center;';
+    document.body.appendChild(el);
+  }
+  el.textContent = message;
 }
 
 async function loadWeather() {
@@ -1921,18 +1962,6 @@ function donutChart(values, colors, size = 120) {
 // ENHANCED CHART COMPONENTS
 // ══════════════════════════════════════════════════════════
 function lineChart(data, series, options = {}) {
-  const {
-    height = 120,
-    labelKey = 'year',
-    showLegend = true,
-    showValues = false,
-    animate = true
-  } = options;
-
-  if (!data?.length) return '';
-
-  // Generate unique ID for this chart instance
-  const chartId = 'lc-' + Math.random().toString(36).substr(2, 9);
 
   // Find min/max for all series
   let allValues = [];
@@ -2097,6 +2126,128 @@ function analysisBlock(title, text, iconName = 'mdi:chart-timeline-variant') {
   `;
 }
 
+const OPEN_DATA_COLORS = {
+  gold: COLORS.warning,
+  cyan: COLORS.primary,
+  emerald: COLORS.success,
+  blue: COLORS.blue,
+  orange: COLORS.secondary,
+};
+
+function renderOpenDataItem(item) {
+  if (!item) return '';
+
+  if (item.type === 'news_card') {
+    const safeUrl = item.url ? String(item.url).replace(/'/g, '%27') : '#';
+    return `
+      <div class="news-item-card od-news-card" onclick="window.open('${safeUrl}', '_blank')">
+        ${item.img ? `<img src="${item.img}" alt="" loading="lazy">` : ''}
+        <div class="od-news-title">${item.title || ''}</div>
+        <div class="od-news-date">${icon('mdi:calendar', 12)} ${item.date || 'Сегодня'}</div>
+      </div>`;
+  }
+
+  if (item.type === 'line_chart' && item.data?.length) {
+    const key = item.data[0].salary != null ? 'salary' : 'value';
+    const color = OPEN_DATA_COLORS[item.color] || COLORS.warning;
+    return `
+      <div class="od-chart-block">
+        ${cardHeader(ICONS.chart_line, item.title)}
+        ${lineChart(item.data, [{ key, label: item.title, color }], { height: 150, showValues: true })}
+      </div>`;
+  }
+
+  if (item.type === 'dual_chart' && item.data?.length) {
+    const aKey = item.data[0].birth != null ? 'birth' : 'a';
+    const bKey = item.data[0].marriages != null ? 'marriages' : 'b';
+    return `
+      <div class="od-chart-block">
+        ${cardHeader(ICONS.demography, item.title)}
+        ${lineChart(item.data, [
+      { key: aKey, label: item.series_a_label || 'A', color: COLORS.primary },
+      { key: bKey, label: item.series_b_label || 'B', color: COLORS.secondary }
+    ], { height: 150 })}
+      </div>`;
+  }
+
+  if (item.type === 'bar_chart' && item.data?.length) {
+    const color = OPEN_DATA_COLORS[item.color] || COLORS.success;
+    const maxVal = Math.max(...item.data.map(d => d.value || d.gid || 0), 1);
+    return `
+      <div class="od-chart-block">
+        ${cardHeader(ICONS.chart_bar, item.title)}
+        ${barChart(item.data.map(d => ({
+      label: d.year,
+      value: d.value ?? d.gid ?? 0,
+      color
+    })), maxVal)}
+      </div>`;
+  }
+
+  if (item.type === 'grid' && item.values?.length) {
+    return `
+      <div class="od-grid-block">
+        ${cardHeader(ICONS.city, item.title)}
+        <div class="od-stat-grid">
+          ${item.values.map(v => `
+            <div class="od-stat-cell">
+              <div class="od-stat-val">${v.val}</div>
+              <div class="od-stat-label">${v.label}</div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  if (item.type === 'list' && item.values?.length) {
+    return `
+      <div class="od-list-block">
+        ${cardHeader(ICONS.names, item.title)}
+        <div class="od-rank-list">
+          ${item.values.map((v, i) => `
+            <div class="od-rank-row">
+              <span class="od-rank-num">${i + 1}</span>
+              <span class="od-rank-label">${v.label}</span>
+              <span class="od-rank-val">${v.val}</span>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  if (item.type === 'stat') {
+    return `
+      <div class="od-stat-hero">
+        ${bigNumber(item.val, item.title, COLORS.primary)}
+        ${item.sub ? `<div class="od-stat-sub">${item.sub}</div>` : ''}
+      </div>`;
+  }
+
+  if (item.type === 'progress_list' && item.values?.length) {
+    return `
+      <div class="od-progress-block">
+        ${cardHeader(ICONS.city, item.title)}
+        ${item.values.map(v => `
+          <div class="od-progress-row">
+            <div class="od-progress-top"><span>${v.label}</span><span>${v.percent}%</span></div>
+            <div class="od-progress-track"><div class="od-progress-fill" style="width:${Math.min(100, v.percent)}%"></div></div>
+          </div>`).join('')}
+      </div>`;
+  }
+
+  return '';
+}
+
+function renderHeroKpis(hero) {
+  if (!hero?.kpis?.length) return '';
+  return `
+    <div class="hero-kpi-strip">
+      ${hero.kpis.map(k => `
+        <div class="hero-kpi od-accent-${k.accent || 'cyan'}">
+          <div class="hero-kpi-value">${k.value}</div>
+          <div class="hero-kpi-label">${k.label}</div>
+        </div>`).join('')}
+    </div>`;
+}
+
 function timeline(items) {
   if (!items?.length) return '';
 
@@ -2221,8 +2372,10 @@ function renderApp(data, weather) {
         <p class="hero-subtitle">Открытые данные · ХМАО-Югра</p>
         <div class="hero-meta">
           <span class="meta-item">${icon(ICONS.clock, 14)} ${formatDate(data.updated_at)}</span>
-          <span class="meta-item">${icon(ICONS.database, 14)} ${data.datasets_total || 72} датасетов</span>
+          <span class="meta-item">${icon(ICONS.database, 14)} ${data.datasets_total || data.total_datasets || 65} датасетов</span>
+          ${data.datasets_live ? `<span class="meta-item">${icon('mdi:cloud-check-outline', 14)} ${data.datasets_live} с данными</span>` : ''}
         </div>
+        ${renderHeroKpis(data.hero)}
       </div>
     `;
 
@@ -4680,38 +4833,24 @@ function renderApp(data, weather) {
       }
     }
 
-    // --- DYNAMIC BLOCKS (Automated Analysis) ---
+    // --- DYNAMIC BLOCKS (Open Data from portal) ---
     if (data.blocks && data.blocks.length > 0) {
+      html += `<div class="section-title">${icon('mdi:database-sync-outline')} Данные портала · Open Data</div>`;
       data.blocks.forEach(block => {
-        if (show(block.id)) {
-          html += `<div class="section-title">${icon(ICONS[block.id] || ICONS.city)} ${block.title} (Open Data)</div>`;
-
+        if (show(block.id) || currentTab === 'all') {
           let blockContent = '';
           if (block.analysis) {
-            blockContent += analysisBlock('Инфо-анализ', block.analysis, ICONS.info);
+            blockContent += analysisBlock('Анализ ИИ', block.analysis, 'mdi:brain');
           }
-
-          if (block.items && block.items.length > 0) {
+          if (block.items?.length) {
             block.items.forEach(item => {
-              if (item.type === 'news_card') {
-                blockContent += `
-                    <div class="news-item-card" onclick="window.open('${item.url}', '_blank')" style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 12px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
-                      ${item.img ? `<img src="${item.img}" style="width:100%; height:140px; object-fit:cover; border-radius:8px; margin-bottom:12px; border: 1px solid var(--primary-low);">` : ''}
-                      <div style="font-weight:700; color:var(--primary); font-size:14px; margin-bottom:6px; line-height:1.3;">${item.title}</div>
-                      <div style="font-size:11px; color:var(--text-muted); display: flex; align-items:center; gap:4px;">
-                        ${icon('mdi:calendar', 12)} ${item.date || 'Сегодня'}
-                      </div>
-                    </div>
-                  `;
-              } else if (item.type === 'line_chart') {
-                blockContent += `<div style="margin: 15px 0;">${cardHeader(ICONS.chart_line, item.title)}</div>`;
-                // We can't easily render lineChart here without series mapping, 
-                // but we can try to adapt.
-              }
+              blockContent += renderOpenDataItem(item);
             });
           }
-
-          html += card(block.id, true, blockContent);
+          html += card(block.id, true, `
+            ${cardHeader(ICONS[block.id] || ICONS.city, block.title, block.trend || 'live')}
+            ${blockContent}
+          `);
         }
       });
     }
@@ -5223,6 +5362,11 @@ async function init() {
 
     CityPulse.feed(complaints);
     renderApp(data, weather);
+    if (window.__pulseDataSource === 'demo') {
+      showInfographicSourceBanner(
+        'Демо-данные — подключите API для актуальной инфографики'
+      );
+    }
     hideLoader();
 
   } catch (err) {

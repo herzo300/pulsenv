@@ -40,13 +40,13 @@ class SecurityLockScreen extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.verified_user_rounded,
                         size: 52,
                         color: PulseColors.primary,
                       ),
                       const SizedBox(height: 18),
-                      const Text(
+                      Text(
                         'Service unavailable',
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -56,7 +56,7 @@ class SecurityLockScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      const Text(
+                      Text(
                         'This build cannot run in the current device environment.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -67,7 +67,7 @@ class SecurityLockScreen extends StatelessWidget {
                       const SizedBox(height: 16),
                       Text(
                         'Ref: $referenceCode',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: PulseColors.textSecondary,
                           fontSize: 12,
                           letterSpacing: 0.4,

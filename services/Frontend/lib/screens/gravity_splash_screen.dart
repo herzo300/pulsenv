@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'map_screen.dart';
+import '../core/app_router.dart';
 import '../services/sound_service.dart';
 
 /// Splash screen "Digital Gravity".
@@ -15,7 +15,8 @@ import '../services/sound_service.dart';
 /// - Floating glyphs create a zero-gravity data field behind the UI.
 /// - A deep dark canvas and scanline keep the existing cinematic tone.
 class GravitySplashScreen extends StatefulWidget {
-  const GravitySplashScreen({super.key});
+  final VoidCallback? onComplete;
+  const GravitySplashScreen({super.key, this.onComplete});
 
   @override
   State<GravitySplashScreen> createState() => _GravitySplashScreenState();
@@ -87,7 +88,7 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
       ..start();
 
     _simulateLoading();
-    SoundService().playSplash();
+    SoundService().playSplashDesign('gravity');
   }
 
   Future<void> _simulateLoading() async {
@@ -95,6 +96,7 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
     if (!mounted) return;
     setState(() => _ready = true);
     _fadeController.forward();
+    _onEnter();
   }
 
   void _onEnter() {
@@ -106,15 +108,11 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
 
     Future.delayed(const Duration(milliseconds: 600), () {
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder<void>(
-          pageBuilder: (context, anim, secAnim) => const MapScreen(),
-          transitionsBuilder: (context, anim, secAnim, child) {
-            return FadeTransition(opacity: anim, child: child);
-          },
-          transitionDuration: const Duration(milliseconds: 600),
-        ),
-      );
+      if (widget.onComplete != null) {
+        widget.onComplete!();
+      } else {
+        unawaited(AppRouter.navigateAfterSplash(context));
+      }
     });
   }
 
@@ -193,40 +191,70 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
                           return Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Container(
-                                width: 80,
-                                height: 80,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: _cyan.withOpacity(glow),
-                                    width: 1.5,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: _cyan.withOpacity(glow * 0.5),
-                                      blurRadius: 30,
-                                      spreadRadius: 5,
+                              // Outer animated glow ring
+                              SizedBox(
+                                width: 120,
+                                height: 120,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    // Outer pulsing ring
+                                    Container(
+                                      width: 120,
+                                      height: 120,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: _teal.withOpacity(glow * 0.25),
+                                          width: 1.0,
+                                        ),
+                                      ),
+                                    ),
+                                    // Middle ring
+                                    Container(
+                                      width: 105,
+                                      height: 105,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: _cyan.withOpacity(glow * 0.35),
+                                          width: 0.8,
+                                        ),
+                                      ),
+                                    ),
+                                    // Main icon container
+                                    Container(
+                                      width: 88,
+                                      height: 88,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: _cyan.withOpacity(glow),
+                                          width: 1.5,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: _cyan.withOpacity(glow * 0.55),
+                                            blurRadius: 36,
+                                            spreadRadius: 8,
+                                          ),
+                                          BoxShadow(
+                                            color: _teal.withOpacity(glow * 0.2),
+                                            blurRadius: 60,
+                                            spreadRadius: 15,
+                                          ),
+                                        ],
+                                      ),
+                                      child: Icon(
+                                        Icons.radar_rounded,
+                                        color: _cyan.withOpacity(glow),
+                                        size: 48,
+                                      ),
                                     ),
                                   ],
                                 ),
-                                child: Icon(
-                                  Icons.radar_rounded,
-                                  color: _cyan.withOpacity(glow),
-                                  size: 40,
-                                ),
                               ),
-                              const SizedBox(height: 24),
-                              Text(
-                                '\u0426\u0418\u0424\u0420\u041E\u0412\u0410\u042F',
-                                style: GoogleFonts.orbitron(
-                                  color: _cyan.withOpacity(0.6),
-                                  fontSize: 12,
-                                  letterSpacing: 10,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 28),
                               ShaderMask(
                                 shaderCallback: (bounds) =>
                                     const LinearGradient(
@@ -235,36 +263,51 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
                                 ).createShader(bounds),
                                 child: Text(
                                   '\u041D\u0415\u0412\u0415\u0421\u041E\u041C\u041E\u0421\u0422\u042C',
-                                  style: GoogleFonts.orbitron(
+                                  style: GoogleFonts.exo2(
                                     color: Colors.white,
-                                    fontSize: 29,
+                                    fontSize: 34,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 5.5,
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 10),
-                              Text(
-                                '\u0413\u043E\u0440\u043E\u0434\u0441\u043A\u0438\u0435 '
-                                '\u0441\u0438\u0433\u043D\u0430\u043B\u044B '
-                                '\u0441\u0445\u043E\u0434\u044F\u0442\u0441\u044F '
-                                '\u0432 \u0435\u0434\u0438\u043D\u044B\u0439 '
-                                '\u0446\u0438\u0444\u0440\u043E\u0432\u043E\u0439 '
-                                '\u043F\u0443\u043B\u044C\u0441',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.inter(
-                                  color: Colors.white.withOpacity(0.68),
-                                  fontSize: 13,
-                                  height: 1.35,
-                                  fontWeight: FontWeight.w500,
+                              const SizedBox(height: 12),
+                              ShaderMask(
+                                shaderCallback: (bounds) =>
+                                    LinearGradient(
+                                  colors: [
+                                    Colors.white.withOpacity(0.5),
+                                    Colors.white.withOpacity(0.75),
+                                    Colors.white.withOpacity(0.5),
+                                  ],
+                                  stops: [
+                                    (0.3 + math.sin(_time * 0.8) * 0.3).clamp(0.0, 1.0),
+                                    (0.5 + math.sin(_time * 0.8) * 0.2).clamp(0.0, 1.0),
+                                    (0.7 + math.sin(_time * 0.8) * 0.3).clamp(0.0, 1.0),
+                                  ],
+                                ).createShader(bounds),
+                                child: Text(
+                                  '\u0413\u043E\u0440\u043E\u0434\u0441\u043A\u0438\u0435 '
+                                  '\u0441\u0438\u0433\u043D\u0430\u043B\u044B '
+                                  '\u0441\u0445\u043E\u0434\u044F\u0442\u0441\u044F '
+                                  '\u0432 \u0435\u0434\u0438\u043D\u044B\u0439 '
+                                  '\u0446\u0438\u0444\u0440\u043E\u0432\u043E\u0439 '
+                                  '\u043F\u0443\u043B\u044C\u0441',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.manrope(
+                                    color: Colors.white,
+                                    fontSize: 13.5,
+                                    height: 1.4,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 10),
                               Text(
                                 '\u041F\u0423\u041B\u042C\u0421 \u00B7 '
                                 '\u041D\u0418\u0416\u041D\u0415\u0412\u0410\u0420\u0422\u041E\u0412\u0421\u041A',
-                                style: GoogleFonts.inter(
-                                  color: Colors.white.withOpacity(0.3),
+                                style: GoogleFonts.manrope(
+                                  color: Colors.white.withOpacity(0.35),
                                   fontSize: 11,
                                   letterSpacing: 3.2,
                                   fontWeight: FontWeight.w600,
@@ -345,7 +388,7 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
                                 '\u0421\u0418\u0421\u0422\u0415\u041C\u0423',
                                 key: const ValueKey('ready'),
                                 textAlign: TextAlign.center,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   color: Colors.white,
                                   fontSize: 12,
                                   letterSpacing: 3.4,
@@ -357,7 +400,7 @@ class _GravitySplashScreenState extends State<GravitySplashScreen>
                                 '\u0421\u0415\u041D\u0421\u041E\u0420\u041E\u0412...',
                                 key: const ValueKey('loading'),
                                 textAlign: TextAlign.center,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   color: _cyan.withOpacity(0.5),
                                   fontSize: 12,
                                   letterSpacing: 3.0,
@@ -489,7 +532,7 @@ class _FloatingGlyph {
 
   factory _FloatingGlyph.random(math.Random rng) {
     const chars =
-        '01\u0410\u0411\u0412\u2211\u222B\u03BB\u03C0\u0394\u03A9\u2248\u2022\u25E6\u221E\u00D7\u00F7\u24C5\u24CA\u24C1\u24C8';
+        '01\u0410\u0411\u0412\u0413\u0414\u0415\u0416\u0418\u041B\u041F\u0424\u0426\u0428\u042F\u2211\u222B\u221E\u2022\u25E6\u2248';
     return _FloatingGlyph(
       x: rng.nextDouble(),
       y: rng.nextDouble(),

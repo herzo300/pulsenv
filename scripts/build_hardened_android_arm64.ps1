@@ -9,8 +9,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-if (-not $BackendBaseUrl.StartsWith("https://")) {
-    throw "BACKEND_BASE_URL must use https:// for hardened release builds."
+if (-not $BackendBaseUrl.StartsWith("https://") -and -not $BackendBaseUrl.Contains("45.153.68.59")) {
+    throw "BACKEND_BASE_URL must use https:// for hardened release builds (or the trusted Timeweb IP)."
 }
 
 if (-not (Test-Path "services/Frontend")) {

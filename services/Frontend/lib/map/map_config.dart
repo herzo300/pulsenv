@@ -13,19 +13,23 @@ const double kMapMinZoom = 10.0;
 const double kMapMaxZoom = 18.0;
 
 const String kOsmTileUrl =
-    'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const String kOsmUserAgent = 'com.soobshio.app';
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+const String kOsmUserAgent = 'ru.pulsgoroda.app';
 const String kOsmAttributionText = 'OpenStreetMap contributors';
 const String kOsmCopyrightUrl = 'https://www.openstreetmap.org/copyright';
 const String kReportsMediaBucket = 'reports-media';
 const String kSatelliteTileUrlDefault =
-    'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}';
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
 String _backendBaseUrl =
     const String.fromEnvironment('BACKEND_BASE_URL', defaultValue: '');
+const String _publicApiBaseUrl = String.fromEnvironment(
+  'PUBLIC_API_BASE_URL',
+  defaultValue: '',
+);
 const String _defaultPublicBackendBaseUrl = String.fromEnvironment(
   'BACKEND_PUBLIC_FALLBACK',
-  defaultValue: 'http://45.153.68.59',
+  defaultValue: 'https://45-153-68-59.sslip.io',
 );
 String _satelliteTileUrl = const String.fromEnvironment(
   'SATELLITE_TILE_URL',
@@ -41,6 +45,8 @@ const Map<String, String> kCityCamsStreams = {
 };
 
 class MapConfig {
+  static List<Map<String, dynamic>> loadedCameras = [];
+
   static String get tileUrl => kOsmTileUrl;
   static String get defaultPublicBackendBaseUrl =>
       _defaultPublicBackendBaseUrl.trim();
@@ -55,14 +61,29 @@ class MapConfig {
   static String get satelliteUrl => satelliteTileUrl;
 
   static String get backendBaseUrl {
+    final fromPublic = _normalizeBackendBaseUrl(_publicApiBaseUrl);
+    if (fromPublic.isNotEmpty) {
+      return fromPublic;
+    }
     final configured = _backendBaseUrl.trim();
     if (configured.isNotEmpty) {
-      return configured;
+      return _normalizeBackendBaseUrl(configured);
     }
     if (kIsWeb && Uri.base.hasAuthority) {
       return Uri.base.origin;
     }
-    return _defaultPublicBackendBaseUrl;
+    return _normalizeBackendBaseUrl(_defaultPublicBackendBaseUrl);
+  }
+
+  static String _normalizeBackendBaseUrl(String raw) {
+    var normalized = raw.trim();
+    if (normalized.endsWith('/')) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
+    if (normalized.endsWith('/api')) {
+      normalized = normalized.substring(0, normalized.length - 4);
+    }
+    return normalized;
   }
 
   static String get backendApiBaseUrl => '$backendBaseUrl/api';
@@ -72,6 +93,45 @@ class MapConfig {
   static String get opendataSummariesApiUrl =>
       '$backendApiBaseUrl/opendata_summaries';
   static Map<String, String> get cityCams => kCityCamsStreams;
+
+  /// HLS playback URL for map cameras.
+  /// Streams from pride-net.ru and dantser.org require Referer headers that
+  /// the Android video_player plugin cannot inject per-segment. We route them
+  /// through the backend proxy which adds the correct headers and rewrites the
+  /// m3u8 playlist so all .ts segment URLs also go through the proxy.
+  static String cameraPlaybackUrl(String rawUrl) {
+    final trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final lower = trimmed.toLowerCase();
+    if (lower.contains('pride-net.ru') || lower.contains('dantser.org')) {
+      return '$backendApiBaseUrl/cameras/proxy?url=${Uri.encodeComponent(trimmed)}';
+    }
+    return trimmed;
+  }
+
+  static String normalizeCameraStreamUrl(String rawUrl) {
+    var normalized = rawUrl.trim();
+    if (normalized.isEmpty) return normalized;
+    final lower = normalized.toLowerCase();
+    if (lower.contains('pride-net.ru') && !lower.contains('.m3u8')) {
+      normalized = '${normalized.replaceAll(RegExp(r'/+$'), '')}/index.m3u8';
+    }
+    return normalized;
+  }
+
+  /// Raw HLS URL for server-side frame capture (unwraps /cameras/proxy?url=...).
+  static String cameraAnalysisUrl(String playbackOrRawUrl) {
+    final trimmed = playbackOrRawUrl.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final uri = Uri.tryParse(trimmed);
+    if (uri != null && uri.path.contains('cameras/proxy')) {
+      final inner = uri.queryParameters['url'];
+      if (inner != null && inner.isNotEmpty) {
+        return normalizeCameraStreamUrl(inner);
+      }
+    }
+    return normalizeCameraStreamUrl(trimmed);
+  }
 
   static bool get hasBackendConfig {
     if (_backendBaseUrl.trim().isNotEmpty) {

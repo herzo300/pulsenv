@@ -3,7 +3,6 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
-from backend.database import get_db
 from services.agent_memory import (
     get_thread_or_none,
     list_jobs,
@@ -20,7 +19,9 @@ from services.agent_schemas import (
     AgentRunResponse,
     AgentThreadResponse,
 )
+from services.agent_worker import AgentEvent, AgentEventResponse, handle_event
 from services.Backend.security import require_admin_api_token
+from services.data_layer.database import get_db
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -72,4 +73,19 @@ def get_agent_thread_messages(
     thread = get_thread_or_none(db, thread_id)
     if thread is None:
         raise HTTPException(status_code=404, detail="Agent thread not found")
-    return [serialize_message(message) for message in list_thread_messages(db, thread_id)]
+    return [
+        serialize_message(message) for message in list_thread_messages(db, thread_id)
+    ]
+
+
+@router.post("/event", response_model=AgentEventResponse)
+async def receive_event(
+    event: AgentEvent,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Accept an external event (Frigate, monitoring, scheduled) and route it
+    through the agent runtime.
+    """
+    _require_admin(request)
+    return await handle_event(event, db)

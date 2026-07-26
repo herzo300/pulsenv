@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from backend.database import get_db
-from backend.models import Report, User, VipSubscription
+from services.data_layer.database import get_db
+from services.data_layer.models import Report, User, VipSubscription
 
 logger = logging.getLogger(__name__)
 
@@ -14,15 +14,7 @@ router = APIRouter(prefix="/api/profile", tags=["profile"])
 
 
 def _tier_name(sub: VipSubscription | None) -> str:
-    if not sub:
-        return "Базовый"
-    if sub.tier == "vip_admin":
-        return "VIP Admin"
-    if sub.tier == "vip":
-        return "VIP"
-    if sub.tier == "standard":
-        return "Активист"
-    return sub.tier or "Базовый"
+    return "Бесплатный"
 
 
 @router.get("/{telegram_id}")
@@ -38,7 +30,9 @@ async def get_user_profile(telegram_id: int, db: Session = Depends(get_db)):
 
         reports_query = db.query(Report).filter(Report.user_id == user.id)
         reports_count = reports_query.count()
-        reports_on_map = reports_query.filter(Report.lat.isnot(None), Report.lng.isnot(None)).count()
+        reports_on_map = reports_query.filter(
+            Report.lat.isnot(None), Report.lng.isnot(None)
+        ).count()
         reports_resolved = reports_query.filter(Report.status == "resolved").count()
 
         # Simple rank by number of submitted reports.
@@ -55,28 +49,30 @@ async def get_user_profile(telegram_id: int, db: Session = Depends(get_db)):
                 activity_rank = index
                 break
 
-        sub = db.query(VipSubscription).filter(VipSubscription.telegram_id == telegram_id).first()
-        is_vip = False
-        ai_minutes_total = 0
+        vip_sub = db.query(VipSubscription).filter(VipSubscription.telegram_id == user.telegram_id).first()
+        is_vip = vip_sub is not None and vip_sub.tier == "vip"
+        
+        from datetime import datetime
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        
+        if user.ai_tasks_last_reset != today_str:
+            if is_vip:
+                user.ai_tasks_remaining += 10
+            else:
+                user.ai_tasks_remaining = 3
+            user.ai_tasks_last_reset = today_str
+            db.commit()
+            
+        ai_minutes_total = 10 if is_vip else 3
         ai_minutes_used = 0
-        ai_minutes_remaining = 0
-        is_track_active = False
-        tariff_expiry = None
-        searches_limit = 0
-        searches_used = 0
-
-        if sub:
-            ai_minutes_total = int(sub.ai_minutes_total or 0)
-            ai_minutes_used = int(sub.ai_minutes_used or 0)
-            ai_minutes_remaining = max(0, ai_minutes_total - ai_minutes_used)
-            is_track_active = bool(sub.is_track_active)
-            searches_limit = int(sub.searches_limit or 0)
-            searches_used = int(sub.searches_used or 0)
-            tariff_expiry = sub.expires_at.isoformat() if sub.expires_at else None
-            if sub.tier in {"vip", "vip_admin"} and sub.expires_at and sub.expires_at > datetime.utcnow():
-                is_vip = True
+        ai_minutes_remaining = user.ai_tasks_remaining
+        is_track_active = vip_sub.is_track_active if vip_sub else False
+        tariff_expiry = "2030-01-01T00:00:00" if is_vip else None
+        searches_limit = vip_sub.searches_limit if vip_sub else 3
+        searches_used = vip_sub.searches_used if vip_sub else 0
 
         monitoring_hours_left = round(ai_minutes_remaining / 60.0, 1)
+
 
         general_features = [
             {
@@ -103,23 +99,18 @@ async def get_user_profile(telegram_id: int, db: Session = Depends(get_db)):
 
         vip_features = [
             {
-                "name": "AI-сканирование камер",
-                "description": "Фоновый AI-мониторинг камер с расходом минут и тревожными событиями.",
+                "name": "Расширенный доступ к камерам",
+                "description": "Каталог городских камер, проверка доступности потоков и приоритетная поддержка.",
                 "available": is_vip or ai_minutes_remaining > 0,
             },
             {
-                "name": "Visual Search",
-                "description": "Поиск по камерам и изображениям с приоритетной квотой.",
-                "available": is_vip,
-            },
-            {
                 "name": "Приоритетная обработка",
-                "description": "Быстрый путь для AI-аналитики, VIP-поиска и мониторингов.",
+                "description": "Быстрый путь для AI-аналитики и обработки обращений.",
                 "available": is_vip,
             },
             {
                 "name": "Скрытые и служебные камеры",
-                "description": "Расширенный каталог камер и служебные наблюдательные сценарии.",
+                "description": "Расширенный каталог камер и служебные настройки доступа.",
                 "available": is_vip,
             },
         ]
