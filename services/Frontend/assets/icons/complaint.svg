@@ -1,0 +1,6 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- City Pulse brand icon set: единая обводка 2px, скруглённые концы -->
+  <!-- complaint: флаг-сигнал -->
+  <path d="M5 21V4M5 4L18 4L15 9L18 14H5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="5" cy="4" r="1.5" fill="currentColor"/>
+</svg>

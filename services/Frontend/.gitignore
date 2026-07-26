@@ -47,3 +47,6 @@ app.*.map.json
 # WebP-conversion backups (scripts/optimize_png_to_webp.py)
 # .png.bak сохраняются локально для отката; коммитить их не нужно.
 *.png.bak
+
+# Stale build artifacts
+build_old_temp/

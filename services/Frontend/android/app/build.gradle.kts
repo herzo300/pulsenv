@@ -99,16 +99,15 @@ android {
     }
 
     splits {
-        // Разделяем APK по ABI для уменьшения размера при прямой дистрибуции.
-        // Для Google Play предпочтительнее `flutter build appbundle` —
-        // тогда Play сам раздаёт нужный ABI каждому устройству.
+        // ABI splits отключены: несовместимы с `flutter build appbundle`.
+        // Google Play сам раздаёт нужный ABI из AAB.
+        // Для прямой APK-дистрибуции используйте:
+        //   flutter build apk --split-per-abi --release
         abi {
-            isEnable = true
+            isEnable = false
             reset()
-            // Современные устройства (99%+): arm64-v8a.
-            // armeabi-v7a оставлен для старых 32-битных устройств (Android < 7).
             include("armeabi-v7a", "arm64-v8a")
-            isUniversalApk = true
+            isUniversalApk = false
         }
     }
 

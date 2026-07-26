@@ -1364,21 +1364,21 @@ class ApiClient {
 String _getMemePath(String category) {
   final lower = category.toLowerCase();
   if (lower.contains('дорог') || lower.contains('яма') || lower.contains('асфальт')) {
-    return 'assets/3d_icons/dorogi_3d.png';
+    return 'assets/3d_icons/dorogi_3d.webp';
   } else if (lower.contains('жкх') || lower.contains('ук') || lower.contains('вод') || lower.contains('отоплен') || lower.contains('дом')) {
-    return 'assets/3d_icons/construction_3d.png';
+    return 'assets/3d_icons/construction_3d.webp';
   } else if (lower.contains('свет') || lower.contains('освещен') || lower.contains('фонар')) {
-    return 'assets/3d_icons/lighting_3d.png';
+    return 'assets/3d_icons/lighting_3d.webp';
   } else if (lower.contains('эколог') || lower.contains('мусор') || lower.contains('свалк')) {
-    return 'assets/3d_icons/ecology_3d.png';
+    return 'assets/3d_icons/ecology_3d.webp';
   } else if (lower.contains('животн') || lower.contains('собак') || lower.contains('кот') || lower.contains('питом')) {
-    return 'assets/3d_icons/animals_3d.png';
+    return 'assets/3d_icons/animals_3d.webp';
   } else if (lower.contains('снег') || lower.contains('лед') || lower.contains('наледь')) {
-    return 'assets/3d_icons/snow_3d.png';
+    return 'assets/3d_icons/snow_3d.webp';
   } else if (lower.contains('чп') || lower.contains('авари') || lower.contains('пожар')) {
-    return 'assets/3d_icons/chp_3d.png';
+    return 'assets/3d_icons/chp_3d.webp';
   } else {
-    return 'assets/3d_icons/transport_3d.png';
+    return 'assets/3d_icons/transport_3d.webp';
   }
 }
 

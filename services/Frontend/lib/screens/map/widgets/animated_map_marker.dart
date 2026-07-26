@@ -267,59 +267,59 @@ class AnimatedMapMarker extends StatelessWidget {
     final scale = highlighted ? (1.05 + wave * 0.08) : (0.96 + wave * 0.04);
     
     // Choose 3D pin asset
-    String assetPath = 'assets/3d_pin_red.png';
+    String assetPath = 'assets/3d_pin_red.webp';
     bool isCustom3d = true;
     
     if (custom3dAsset != null) {
       assetPath = custom3dAsset!;
     } else if (icon == Icons.smartphone_rounded || icon == Icons.phone_android_rounded || icon == Icons.phone_iphone_rounded) {
-      assetPath = 'assets/3d_icons/smartphone_3d.png';
+      assetPath = 'assets/3d_icons/smartphone_3d.webp';
     } else if (icon == Icons.warning_rounded || icon == Icons.local_fire_department_rounded || icon == Icons.fire_extinguisher_rounded) {
-      assetPath = 'assets/3d_icons/chp_3d.png';
+      assetPath = 'assets/3d_icons/chp_3d.webp';
     } else if (icon == Icons.plumbing_rounded || icon == Icons.home_work_rounded) {
-      assetPath = 'assets/3d_icons/gkh_3d.png';
+      assetPath = 'assets/3d_icons/gkh_3d.webp';
     } else if (icon == Icons.edit_road_rounded) {
-      assetPath = 'assets/3d_icons/dorogi_3d.png';
+      assetPath = 'assets/3d_icons/dorogi_3d.webp';
     } else if (icon == Icons.lightbulb_rounded || icon == Icons.lightbulb_outline_rounded) {
       assetPath = 'assets/3d_icons/light_3d.png';
     } else if (icon == Icons.commute_rounded || icon == Icons.directions_bus_rounded) {
-      assetPath = 'assets/3d_icons/transport_3d.png';
+      assetPath = 'assets/3d_icons/transport_3d.webp';
     } else if (icon == Icons.eco_rounded) {
-      assetPath = 'assets/3d_icons/ecology_3d.png';
+      assetPath = 'assets/3d_icons/ecology_3d.webp';
     } else if (icon == Icons.shield_rounded) {
-      assetPath = 'assets/3d_icons/security_3d.png';
+      assetPath = 'assets/3d_icons/security_3d.webp';
     } else if (icon == Icons.ac_unit_rounded) {
-      assetPath = 'assets/3d_icons/snow_3d.png';
+      assetPath = 'assets/3d_icons/snow_3d.webp';
     } else if (icon == Icons.medical_services_rounded) {
-      assetPath = 'assets/3d_icons/medicine_3d.png';
+      assetPath = 'assets/3d_icons/medicine_3d.webp';
     } else if (icon == Icons.school_rounded) {
-      assetPath = 'assets/3d_icons/education_3d.png';
+      assetPath = 'assets/3d_icons/education_3d.webp';
     } else if (icon == Icons.local_parking_rounded || icon == Icons.car_crash_rounded || icon == Icons.directions_car_rounded) {
-      assetPath = 'assets/3d_icons/parking_3d.png';
+      assetPath = 'assets/3d_icons/parking_3d.webp';
     } else if (icon == Icons.engineering_rounded) {
-      assetPath = 'assets/3d_icons/construction_3d.png';
+      assetPath = 'assets/3d_icons/construction_3d.webp';
     } else if (icon == Icons.pets_rounded) {
-      assetPath = 'assets/3d_icons/animals_3d.png';
+      assetPath = 'assets/3d_icons/animals_3d.webp';
     } else if (icon == Icons.shopping_bag_rounded || icon == Icons.inventory_2_outlined || icon == Icons.inventory_2_rounded) {
-      assetPath = 'assets/3d_icons/items_3d.png';
+      assetPath = 'assets/3d_icons/items_3d.webp';
     } else if (icon == Icons.celebration_rounded || icon == Icons.local_activity_rounded || icon == Icons.event_rounded) {
-      assetPath = 'assets/3d_icons/event_3d.png';
+      assetPath = 'assets/3d_icons/event_3d.webp';
     } else if (icon == Icons.more_horiz_rounded || icon == Icons.info_rounded || icon == Icons.info_outline_rounded || icon == Icons.info) {
-      assetPath = 'assets/3d_icons/other_3d.png';
+      assetPath = 'assets/3d_icons/other_3d.webp';
     } else if (icon == Icons.videocam_rounded || icon == Icons.star_rounded) {
-      assetPath = 'assets/3d_icons/other_3d.png';
+      assetPath = 'assets/3d_icons/other_3d.webp';
     } else if (icon == Icons.warning_amber_rounded) {
-      assetPath = 'assets/3d_icons/chp_3d.png';
+      assetPath = 'assets/3d_icons/chp_3d.webp';
     } else if (icon == Icons.local_gas_station_rounded) {
       assetPath = 'assets/3d_icons/gas_station_3d.png';
     } else if (icon == Icons.delete_sweep_rounded || icon == Icons.delete_outline_rounded || icon == Icons.delete_rounded) {
-      assetPath = 'assets/3d_icons/garbage_3d.png';
+      assetPath = 'assets/3d_icons/garbage_3d.webp';
     } else {
       isCustom3d = false;
       if (color.red < 100 && color.green > 150 && color.blue < 150) {
-        assetPath = 'assets/3d_pin_green.png';
+        assetPath = 'assets/3d_pin_green.webp';
       } else if (color == const Color(0xFF8B5CF6) || color.blue > 200 && color.red < 100) {
-        assetPath = 'assets/3d_pin_blue.png';
+        assetPath = 'assets/3d_pin_blue.webp';
       }
     }
 

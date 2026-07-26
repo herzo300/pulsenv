@@ -143,7 +143,6 @@ flutter:
     - assets/3d_icons/
     - assets/weather_3d/
     - assets/icons/
-    - assets/memes/
     - assets/infographic_data.json
     - assets/icon.png
     - assets/cameras_nv.json

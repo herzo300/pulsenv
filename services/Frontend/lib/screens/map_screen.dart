@@ -1978,11 +1978,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       color = const Color(0xFFF59E0B);
       icon = Icons.pets_rounded;
       if (text.contains('кот') || text.contains('кошк') || text.contains('котенок')) {
-        customAsset = 'assets/3d_icons/lost_cat_3d.png';
+        customAsset = 'assets/3d_icons/lost_cat_3d.webp';
       } else if (text.contains('собак') || text.contains('пес') || text.contains('щенок') || text.contains('хаски')) {
-        customAsset = 'assets/3d_icons/lost_dog_3d.png';
+        customAsset = 'assets/3d_icons/lost_dog_3d.webp';
       } else {
-        customAsset = 'assets/3d_icons/animals_3d.png';
+        customAsset = 'assets/3d_icons/animals_3d.webp';
       }
     } else {
       color = const Color(0xFF10B981);
@@ -1992,21 +1992,21 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       } else if (text.contains('кошел') || text.contains('бумажн') || text.contains('портмоне') || text.contains('карт')) {
         customAsset = 'assets/3d_icons/lost_wallet_3d.png';
       } else if (text.contains('рюкзак') || text.contains('сумк') || text.contains('портфе') || text.contains('пакет')) {
-        customAsset = 'assets/3d_icons/lost_backpack_3d.png';
+        customAsset = 'assets/3d_icons/lost_backpack_3d.webp';
       } else if (text.contains('документ') || text.contains('паспорт') || text.contains('прав') || text.contains('снилс')) {
         customAsset = 'assets/3d_icons/lost_passport_3d.png';
       } else if (text.contains('наушник') || text.contains('airpods')) {
-        customAsset = 'assets/3d_icons/items_3d.png';
+        customAsset = 'assets/3d_icons/items_3d.webp';
       } else if (text.contains('велосипед') || text.contains('самокат')) {
-        customAsset = 'assets/3d_icons/items_3d.png';
+        customAsset = 'assets/3d_icons/items_3d.webp';
       } else if (text.contains('очк')) {
-        customAsset = 'assets/3d_icons/items_3d.png';
+        customAsset = 'assets/3d_icons/items_3d.webp';
       } else if (text.contains('час')) {
-        customAsset = 'assets/3d_icons/items_3d.png';
+        customAsset = 'assets/3d_icons/items_3d.webp';
       } else if (text.contains('игрушк') || text.contains('мишк') || text.contains('кукл')) {
-        customAsset = 'assets/3d_icons/items_3d.png';
+        customAsset = 'assets/3d_icons/items_3d.webp';
       } else {
-        customAsset = 'assets/3d_icons/items_3d.png';
+        customAsset = 'assets/3d_icons/items_3d.webp';
       }
     }
 
@@ -2594,7 +2594,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           isDayMode: !_isNightMode,
           shell: markerShell,
           highlighted: _focusedComplaint != null && _focusedComplaint!['id'] == complaint['id'],
-          custom3dAsset: isEvent ? 'assets/3d_icons/event_3d.png' : null,
+          custom3dAsset: isEvent ? 'assets/3d_icons/event_3d.webp' : null,
         ),
       ),
     );
