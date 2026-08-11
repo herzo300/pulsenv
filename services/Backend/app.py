@@ -57,6 +57,11 @@ from services.Backend.routers.passkeys import router as passkeys_router
 from services.Backend.routers.pmtiles_server import router as pmtiles_server_router
 from services.Backend.routers.predictive_maintenance import router as predictive_maintenance_router
 from services.Backend.routers.watchdog import router as watchdog_router
+from services.Backend.routers.geo_subscriptions import router as geo_subscriptions_router
+from services.Backend.routers.jkh_outages import router as jkh_outages_router
+from services.Backend.routers.petitions import router as petitions_router
+from services.Backend.routers import parking_monitor
+from services.Backend.routers import openworker_bridge
 from services.Backend.security import parse_cors_origins
 
 logger = logging.getLogger(__name__)
@@ -131,6 +136,13 @@ async def lifespan(app: FastAPI):
         clean_old_cache(max_age_seconds=600)
     except Exception as exc:
         logger.warning("Failed to clean up camera frame cache on startup: %s", exc)
+
+    # Start parking monitor background task
+    try:
+        parking_task = asyncio.create_task(parking_monitor.parking_monitor_background_task())
+        app.state.parking_task = parking_task
+    except Exception as exc:
+        logger.warning("Failed to start parking monitor task: %s", exc)
 
     # Ensure DB tables exist (dev fallback; production should use alembic upgrade head)
     if os.getenv("PRODUCTION", "").lower() in ("1", "true", "yes"):
@@ -250,6 +262,14 @@ async def lifespan(app: FastAPI):
         alerts_task.cancel()
         try:
             await alerts_task
+        except asyncio.CancelledError:
+            pass
+            
+    parking_task = getattr(app.state, "parking_task", None)
+    if parking_task:
+        parking_task.cancel()
+        try:
+            await parking_task
         except asyncio.CancelledError:
             pass
 
@@ -402,6 +422,16 @@ app.include_router(pmtiles_server_router)  # /api/v1/pmtiles/*
 app.include_router(pmtiles_server_router, prefix="/api/pmtiles")  # /api/pmtiles/*
 app.include_router(predictive_maintenance_router)  # /api/v1/predictive/risk-map
 app.include_router(watchdog_router)  # /api/watchdog/*
+app.include_router(geo_subscriptions_router)  # /api/geo-subscriptions
+app.include_router(petitions_router)  # /api/v1/petitions/list, /api/v1/petitions/create
+
+from services.Backend.routers import flood_monitor, edds_integration, house_community, parking_monitor, openworker_bridge
+app.include_router(parking_monitor.router)
+app.include_router(house_community.router)
+app.include_router(pmtiles_server_router)
+app.include_router(openworker_bridge.router)
+app.include_router(flood_monitor.router)
+app.include_router(edds_integration.router)
 
 
 @app.middleware("http")
@@ -662,6 +692,30 @@ try:
     (public_dir / "uploads" / "pdf_claims").mkdir(parents=True, exist_ok=True)
 except Exception as e:
     logger.warning("Directory creation skipped or read-only: %s", e)
+
+from fastapi.responses import Response
+
+@app.get("/static/uploads/pdf_claims/{filename}")
+async def serve_pdf_claim(filename: str):
+    target = static_dir / "uploads" / "pdf_claims" / filename
+    if target.exists() and target.stat().st_size > 100:
+        return FileResponse(target, media_type="application/pdf")
+    
+    try:
+        from services.business.pdf_generator import generate_custom_pdf
+        pdf_buf = generate_custom_pdf(
+            "Официальное юридическое обращение (ФЗ-59)",
+            f"Официальное муниципальное заявление граждан.\n\nЗарегистрировано под номером {filename.replace('.pdf', '')}.\n"
+            "Настоящий документ сформирован ИИ-Помощником сервиса «Пульс Города» и подготовлен для подачи в органы власти в соответствии с ФЗ-59 РФ."
+        )
+        return Response(
+            content=pdf_buf.getvalue(),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"inline; filename={filename}"}
+        )
+    except Exception as err:
+        logger.error(f"Error serving fallback PDF {filename}: {err}")
+        raise HTTPException(status_code=404, detail="PDF document not found.")
 
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 app.mount("/public", StaticFiles(directory=str(public_dir)), name="public")
