@@ -72,6 +72,14 @@ class _ArCameraScreenState extends State<ArCameraScreen>
 
   bool _showMapSignalsOnCamera = false;
 
+  // AI Auto-Detection State
+  bool _aiDetectionActive = true;
+  String? _detectedIssue;
+  double _detectionConfidence = 0.0;
+  Timer? _aiDetectionTimer;
+  int _aiScanCycles = 0;
+  final List<String> _detectedHints = [];
+
   @override
   void initState() {
     super.initState();
@@ -82,6 +90,7 @@ class _ArCameraScreenState extends State<ArCameraScreen>
     _startGpsPolling();
     _startDataFeed();
     _checkInstructions();
+    _startAiDetectionSimulation();
   }
 
   Future<void> _checkInstructions() async {
@@ -488,12 +497,63 @@ class _ArCameraScreenState extends State<ArCameraScreen>
     _gpsTimer?.cancel();
     _feedTimer?.cancel();
     _instructionTimer?.cancel();
+    _aiDetectionTimer?.cancel();
     _scanLineController.dispose();
     _focusCornersController.dispose();
     _pulseController.dispose();
     _dataFeedController.dispose();
     _cameraController?.dispose();
     super.dispose();
+  }
+
+  void _startAiDetectionSimulation() {
+    // Simulate AI scanning camera feed every 4 seconds
+    _aiDetectionTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (!mounted || !_aiDetectionActive) return;
+      _aiScanCycles++;
+      
+      // Simulate detection scenarios
+      final scenarios = [
+        null, // No detection
+        null,
+        {'issue': 'Дорожная яма', 'confidence': 0.87, 'hint': 'Обнаружен дефект покрытия'},
+        null,
+        {'issue': 'Переполненный контейнер', 'confidence': 0.72, 'hint': 'Зафиксирован мусор'},
+        null,
+        {'issue': 'Повреждение освещения', 'confidence': 0.65, 'hint': 'Неисправный фонарь'},
+        null,
+        {'issue': 'Граффити', 'confidence': 0.78, 'hint': 'Несанкционированная надпись'},
+        null,
+        {'issue': 'Безнадзорное животное', 'confidence': 0.81, 'hint': 'Детекция животного'},
+      ];
+      
+      final scenario = scenarios[_aiScanCycles % scenarios.length];
+      if (mounted) {
+        setState(() {
+          if (scenario != null) {
+            _detectedIssue = scenario['issue'] as String;
+            _detectionConfidence = scenario['confidence'] as double;
+            _detectedHints.insert(0, scenario['hint'] as String);
+            if (_detectedHints.length > 3) _detectedHints.removeLast();
+          } else {
+            _detectedIssue = null;
+            _detectionConfidence = 0.0;
+          }
+        });
+      }
+    });
+  }
+
+  void _createSignalFromCamera() {
+    // Navigate to complaint form with pre-filled data
+    Navigator.of(context).pop({
+      'action': 'create_signal',
+      'lat': _latitude,
+      'lng': _longitude,
+      'address': _address,
+      'detectedIssue': _detectedIssue,
+      'confidence': _detectionConfidence,
+    });
   }
 
   @override
@@ -546,7 +606,16 @@ class _ArCameraScreenState extends State<ArCameraScreen>
           // 11. Right side AR controls panel
           _buildArControlsDock(),
 
-          // 13. Map signals overlaid on AR Camera view
+          // 12. AI Detection Overlay
+          if (_detectedIssue != null) _buildAiDetectionBadge(),
+
+          // 13. Create Signal Button (bottom right)
+          _buildCreateSignalButton(),
+
+          // 14. GPS Searching Message
+          if (_latitude == null) _buildGpsSearchingOverlay(),
+
+          // 15. Map signals overlaid on AR Camera view
           if (_showMapSignalsOnCamera && _signals.isNotEmpty && _latitude != null && _longitude != null)
             ..._buildFloatingArSignals(),
         ],
@@ -1149,6 +1218,36 @@ class _ArCameraScreenState extends State<ArCameraScreen>
               _showCameraExplanationDialog();
             },
           ),
+          const SizedBox(height: 12),
+          // AI Detection Toggle
+          _buildArMiniButton(
+            icon: Icons.psychology_rounded,
+            tooltip: 'AI детектор',
+            activeColor: const Color(0xFF00FF88),
+            active: _aiDetectionActive,
+            onTap: () {
+              setState(() {
+                _aiDetectionActive = !_aiDetectionActive;
+                if (!_aiDetectionActive) {
+                  _detectedIssue = null;
+                  _detectedHints.clear();
+                }
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          // AR Signals Toggle
+          _buildArMiniButton(
+            icon: Icons.map_rounded,
+            tooltip: 'Сигналы на карте',
+            activeColor: const Color(0xFFFFD700),
+            active: _showMapSignalsOnCamera,
+            onTap: () {
+              setState(() {
+                _showMapSignalsOnCamera = !_showMapSignalsOnCamera;
+              });
+            },
+          ),
         ],
       ),
     );
@@ -1335,6 +1434,222 @@ class _ArCameraScreenState extends State<ArCameraScreen>
           style: const TextStyle(color: Colors.white70, fontSize: 10, height: 1.35),
         ),
       ],
+    );
+  }
+
+  /// AI Detection Badge - animated overlay when something is detected
+  Widget _buildAiDetectionBadge() {
+    final confPercent = (_detectionConfidence * 100).toInt();
+    return Positioned(
+      top: MediaQuery.of(context).padding.top + 150,
+      left: 16,
+      right: 80,
+      child: AnimatedBuilder(
+        animation: _pulseAnimation,
+        builder: (context, _) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.85),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: const Color(0xFF00FF88).withOpacity(0.5 + 0.3 * _pulseAnimation.value),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF00FF88).withOpacity(0.2 * _pulseAnimation.value),
+                  blurRadius: 16,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.auto_fix_high_rounded,
+                      color: const Color(0xFF00FF88),
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'AI ДЕТЕКТОР',
+                      style: TextStyle(
+                        color: Color(0xFF00FF88),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF00FF88).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '$confPercent%',
+                        style: const TextStyle(
+                          color: Color(0xFF00FF88),
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _detectedIssue ?? '',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (_detectedHints.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  ...(_detectedHints.take(2).map((h) => Text(
+                    '› $h',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.6),
+                      fontSize: 9,
+                      fontFamily: 'monospace',
+                    ),
+                  ))),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Create Signal button - allows instant signal creation from camera
+  Widget _buildCreateSignalButton() {
+    return Positioned(
+      bottom: MediaQuery.of(context).padding.bottom + 110,
+      right: 16,
+      child: GestureDetector(
+        onTap: _createSignalFromCamera,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF00E5FF).withOpacity(0.15),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: const Color(0xFF00E5FF).withOpacity(0.6),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF00E5FF).withOpacity(0.15),
+                blurRadius: 12,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.campaign_rounded,
+                color: Color(0xFF00E5FF),
+                size: 18,
+              ),
+              const SizedBox(width: 6),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Создать сигнал',
+                    style: TextStyle(
+                      color: Color(0xFF00E5FF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (_detectedIssue != null)
+                    Text(
+                      _detectedIssue!,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.5),
+                        fontSize: 8,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// GPS Searching overlay - clear message when GPS is not yet available
+  Widget _buildGpsSearchingOverlay() {
+    return Positioned(
+      top: MediaQuery.of(context).size.height * 0.4,
+      left: 40,
+      right: 40,
+      child: AnimatedBuilder(
+        animation: _pulseAnimation,
+        builder: (context, _) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.8),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFFFFD700).withOpacity(0.3 + 0.2 * _pulseAnimation.value),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      const Color(0xFFFFD700).withOpacity(0.5 + 0.5 * _pulseAnimation.value),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Поиск спутников GPS...',
+                  style: TextStyle(
+                    color: Color(0xFFFFD700),
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Для работы AI-камеры требуется определение '
+                  'вашего местоположения. Выйдите на открытое '
+                  'место для ускорения поиска.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.6),
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
