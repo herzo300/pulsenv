@@ -59,18 +59,20 @@ void _generateOfficialComplaint(BuildContext context, Map<String, dynamic> compl
     // Rephrase user input to official style
     String formalViolationText;
     final lowerCat = category.toLowerCase();
-    if (lowerCat.contains('дорог') || lowerCat.contains('яма') || lowerCat.contains('асфальт')) {
-      formalViolationText = 'на дорожном покрытии по указанному адресу образовались дефекты (выбоины, ямы, трещины), создающие аварийные ситуации для автотранспорта и пешеходов, что нарушает требования ГОСТ Р 50597-2017.';
-    } else if (lowerCat.contains('свет') || lowerCat.contains('освещен')) {
-      formalViolationText = 'отсутствует или работает некорректно уличное освещение, что снижает уровень общественной безопасности в вечернее и ночное время.';
-    } else if (lowerCat.contains('мусор') || lowerCat.contains('свалка') || lowerCat.contains('эколог')) {
-      formalViolationText = 'обнаружено несанкционированное скопление твердых коммунальных отходов (свалка), нарушающее санитарно-эпидемиологические требования содержания территории.';
-    } else if (lowerCat.contains('ук') || lowerCat.contains('жкх') || lowerCat.contains('дом')) {
-      formalViolationText = 'зафиксировано ненадлежащее оказание жилищно-коммунальных услуг управляющей организацией, выраженное в неудовлетворительном состоянии общедомового имущества.';
+    if (lowerCat.contains('дорог') || lowerCat.contains('яма') || lowerCat.contains('асфальт') || lowerCat.contains('тротуар')) {
+      formalViolationText = 'на проезжей части / тротуаре по указанному адресу зафиксированы дефекты покрытия (выбоины, проседания, трещины), превышающие предельно допустимые нормы, что является прямым нарушением п. 5.2.4 ГОСТ Р 50597-2017 и ст. 12 Федерального закона № 196-ФЗ "О безопасности дорожного движения".';
+    } else if (lowerCat.contains('свет') || lowerCat.contains('освещен') || lowerCat.contains('фонар')) {
+      formalViolationText = 'отсутствует или работает некорректно стационарное уличное / дворовое освещение, что нарушает нормативные требования ГОСТ Р 55706-2013 и СП 52.13330.2016, снижая уровень общественной и дорожной безопасности.';
+    } else if (lowerCat.contains('мусор') || lowerCat.contains('свалка') || lowerCat.contains('эколог') || lowerCat.contains('тко')) {
+      formalViolationText = 'обнаружено несанкционированное накопление ТКО / КГО и захламление территории, нарушающее нормативные требования раздела II СанПиН 2.1.3684-21 и ст. 13.4 Федерального закона № 89-ФЗ "Об отходах производства и потребления".';
+    } else if (lowerCat.contains('ук') || lowerCat.contains('жкх') || lowerCat.contains('дом') || lowerCat.contains('подъезд') || lowerCat.contains('крыш')) {
+      formalViolationText = 'зафиксировано ненадлежащее содержание общедомового имущества управляющей организацией, что нарушает ч. 1 и ч. 2.3 ст. 161 Жилищного кодекса РФ, Постановление Правительства РФ № 354 и Постановление Правительства РФ № 290.';
     } else if (lowerCat.contains('животн') || lowerCat.contains('собак')) {
-      formalViolationText = 'наблюдается скопление безнадзорных животных, требующее принятия мер по гуманному отлову в соответствии с ФЗ-498.';
+      formalViolationText = 'наблюдается безнадзорное пребывание животных без владельцев, требующее проведения отлова и учета в соответствии со ст. 18 Федерального закона от 27.12.2018 № 498-ФЗ "Об ответственном обращении с животными".';
+    } else if (lowerCat.contains('детск') || lowerCat.contains('площадк') || lowerCat.contains('спорт')) {
+      formalViolationText = 'выявлены повреждения и опасные элементы оборудования игровой / спортивной площадки, не соответствующие требованиям безопасности ГОСТ Р 52169-2012.';
     } else {
-      formalViolationText = 'выявлены нарушения правил благоустройства городской территории, требующие проведения проверки со стороны профильных департаментов администрации.';
+      formalViolationText = 'выявлены нарушения Правил благоустройства территории города Нижневартовска, требующие проведения проверки и принятия мер административного реагирования.';
     }
 
     final webMapUrl = "${MapConfig.backendApiBaseUrl.replaceFirst('/api', '')}/map?marker=$lat,$lng";
@@ -328,19 +330,30 @@ Future<void> showComplaintBottomSheet({
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                          // Заголовок + категория
+                          // 1. ЗАГОЛОВОК + КАТЕГОРИЯ + ТЕАТРАЛЬНАЯ ОЗВУЧКА
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(11),
+                                padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: [
-                                      categoryColor.withAlpha(60),
-                                      categoryColor.withAlpha(25),
+                                      categoryColor.withOpacity(0.45),
+                                      categoryColor.withOpacity(0.15),
                                     ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
                                   ),
-                                  borderRadius: BorderRadius.circular(14),
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(color: categoryColor.withOpacity(0.6), width: 1.4),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: categoryColor.withOpacity(0.25),
+                                      blurRadius: 14,
+                                      spreadRadius: 1,
+                                    )
+                                  ],
                                 ),
                                 child: Hero(
                                   tag: 'complaint_icon_${complaint['id'] ?? complaint.hashCode}',
@@ -348,8 +361,8 @@ Future<void> showComplaintBottomSheet({
                                     color: Colors.transparent,
                                     child: Icon(
                                       categoryIcon,
-                                      color: categoryColor,
-                                      size: 22,
+                                      color: Colors.white,
+                                      size: 24,
                                     ),
                                   ),
                                 ),
@@ -359,114 +372,276 @@ Future<void> showComplaintBottomSheet({
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      categoryLabel.toUpperCase(),
-                                      style: TextStyle(
-                                        color: categoryColor,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 1.5,
-                                      ),
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: categoryColor.withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: categoryColor.withOpacity(0.5)),
+                                          ),
+                                          child: Text(
+                                            categoryLabel.toUpperCase(),
+                                            style: TextStyle(
+                                              color: categoryColor,
+                                              fontSize: 9.5,
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: 1.2,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white10,
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            formattedDate,
+                                            style: TextStyle(color: tertiaryTextColor, fontSize: 9.5, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      ],
                                     ),
+                                    const SizedBox(height: 4),
                                     Text(
-                                      complaint['title'] as String? ??
-                                          'Проблема',
+                                      complaint['title'] as String? ?? 'Городской сигнал',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         color: primaryTextColor,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -0.2,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
+                              // Кнопка театральной озвучки
+                              GestureDetector(
+                                onTap: () async {
+                                  HapticFeedback.mediumImpact();
+                                  if (SoundService().isSpeakingTts) {
+                                    await SoundService().stopSpeak();
+                                  } else {
+                                    final descText = _extractDescription(complaint['description'] as String? ?? '');
+                                    final textToSpeak = [
+                                      complaint['title']?.toString(),
+                                      descText.isNotEmpty ? descText : null,
+                                    ].whereType<String>().join('. ');
+                                    await SoundService().speak(textToSpeak, isEvent: true);
+                                  }
+                                  setModalState(() {});
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: SoundService().isSpeakingTts
+                                        ? const Color(0xFFEC4899).withOpacity(0.3)
+                                        : Colors.white.withOpacity(0.08),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: SoundService().isSpeakingTts
+                                          ? const Color(0xFFEC4899)
+                                          : Colors.white24,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    SoundService().isSpeakingTts
+                                        ? Icons.stop_rounded
+                                        : Icons.theater_comedy_rounded,
+                                    color: SoundService().isSpeakingTts
+                                        ? const Color(0xFFEC4899)
+                                        : const Color(0xFF00E5FF),
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 18),
 
-                          // Мем-иллюстрация категории с анимацией раскрытия по нажатию
+                          // 2. ФОТОГРАФИЯ СИГНАЛА С KIMI K3 / FLUX ОБОГАЩЕНИЕМ
                           if (category != 'Камеры')
-                            GestureDetector(
-                              onTap: () {
+                            (() {
+                              final realPhotos = SituationHelper.extractImageUrls(complaint);
+                              final hasRealPhoto = realPhotos.isNotEmpty;
+                              var displayPhotoUrl = hasRealPhoto ? realPhotos.first : '';
+                              if (!hasRealPhoto) {
+                                // Default high quality Kimi K3 / FLUX preview
+                                final cleanTitle = Uri.encodeComponent(complaint['title'] ?? category);
+                                displayPhotoUrl = 'https://image.pollinations.ai/prompt/3D%20hyperrealistic%20photo%20Nizhnevartovsk%20city%20urban%20issue%20$cleanTitle?width=800&height=500&nologo=true&model=flux';
+                              }
+
+                              final openFullscreen = () {
                                 HapticFeedback.mediumImpact();
-                                Navigator.of(contextInner).push(
+                                Navigator.of(contextInner, rootNavigator: true).push(
                                   PageRouteBuilder(
                                     opaque: false,
-                                    barrierColor: Colors.black.withOpacity(0.9),
-                                    pageBuilder: (context, _, __) {
-                                      return GestureDetector(
-                                        onTap: () => Navigator.pop(context),
-                                        child: Scaffold(
-                                          backgroundColor: Colors.transparent,
-                                          body: Center(
-                                            child: Hero(
-                                              tag: 'meme_image_${complaint['id'] ?? complaint.hashCode}',
-                                              child: ClipRRect(
-                                                borderRadius: BorderRadius.circular(20),
-                                                child: Image.asset(
+                                    barrierColor: Colors.black.withOpacity(0.95),
+                                    pageBuilder: (ctx, anim, _) => Scaffold(
+                                      backgroundColor: Colors.black.withOpacity(0.96),
+                                      body: Stack(
+                                        fit: StackFit.expand,
+                                        children: [
+                                          InteractiveViewer(
+                                            minScale: 0.5,
+                                            maxScale: 4.5,
+                                            child: Center(
+                                              child: Image.network(
+                                                displayPhotoUrl,
+                                                fit: BoxFit.contain,
+                                                errorBuilder: (_, __, ___) => Image.asset(
                                                   _getMemePath(category),
                                                   fit: BoxFit.contain,
-                                                  width: MediaQuery.of(context).size.width * 0.92,
                                                 ),
                                               ),
                                             ),
                                           ),
-                                        ),
-                                      );
-                                    },
+                                          Positioned(
+                                            top: MediaQuery.of(ctx).padding.top + 12,
+                                            right: 16,
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withOpacity(0.6),
+                                                shape: BoxShape.circle,
+                                                border: Border.all(color: Colors.white24),
+                                              ),
+                                              child: IconButton(
+                                                icon: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
+                                                onPressed: () => Navigator.pop(ctx),
+                                              ),
+                                            ),
+                                          ),
+                                          Positioned(
+                                            bottom: MediaQuery.of(ctx).padding.bottom + 16,
+                                            left: 20,
+                                            right: 20,
+                                            child: Center(
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.black.withOpacity(0.7),
+                                                  borderRadius: BorderRadius.circular(20),
+                                                  border: Border.all(color: Colors.white24),
+                                                ),
+                                                child: Text(
+                                                  hasRealPhoto ? '📷 Фото жителя (масштабируйте двумя пальцами)' : '✨ ИИ-иллюстрация Kimi K3 / Flux (зум доступен)',
+                                                  style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 );
-                              },
-                              child: Hero(
-                                tag: 'meme_image_${complaint['id'] ?? complaint.hashCode}',
+                              };
+
+                              return GestureDetector(
+                                onTap: openFullscreen,
                                 child: Container(
-                                  height: 140,
-                                  width: double.infinity,
-                                  margin: const EdgeInsets.only(bottom: 20),
+                                  margin: const EdgeInsets.only(bottom: 18),
                                   decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(24),
+                                    border: Border.all(color: Colors.white.withOpacity(0.18), width: 1.2),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.12),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 4),
+                                        color: Colors.black.withOpacity(0.25),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, 8),
                                       )
                                     ],
                                   ),
                                   child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(24),
                                     child: Stack(
-                                      fit: StackFit.expand,
                                       children: [
-                                        Image.asset(
-                                          _getMemePath(category),
-                                          fit: BoxFit.cover,
+                                        SizedBox(
+                                          height: 175,
+                                          width: double.infinity,
+                                          child: Image.network(
+                                            displayPhotoUrl,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => Image.asset(
+                                              _getMemePath(category),
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
                                         ),
-                                        Container(
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              begin: Alignment.topCenter,
-                                              end: Alignment.bottomCenter,
-                                              colors: [
-                                                Colors.transparent,
-                                                Colors.black.withOpacity(0.4),
+                                        // Градиент затемнения снизу
+                                        Positioned.fill(
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                                colors: [
+                                                  Colors.transparent,
+                                                  Colors.black.withOpacity(0.65),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        // Бейдж источника фото (Kimi K3 / Фото жителя)
+                                        Positioned(
+                                          top: 10,
+                                          left: 10,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withOpacity(0.7),
+                                              borderRadius: BorderRadius.circular(10),
+                                              border: Border.all(
+                                                color: hasRealPhoto ? const Color(0xFF10B981) : const Color(0xFF00E5FF),
+                                                width: 1,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  hasRealPhoto ? Icons.camera_alt_rounded : Icons.auto_awesome_rounded,
+                                                  color: hasRealPhoto ? const Color(0xFF10B981) : const Color(0xFF00E5FF),
+                                                  size: 13,
+                                                ),
+                                                const SizedBox(width: 5),
+                                                Text(
+                                                  hasRealPhoto ? 'ФОТО ЖИТЕЛЯ' : 'ИИ-ИЛЛЮСТРАЦИЯ (KIMI K3 / FLUX)',
+                                                  style: TextStyle(
+                                                    color: hasRealPhoto ? const Color(0xFF10B981) : const Color(0xFF00E5FF),
+                                                    fontSize: 9.5,
+                                                    fontWeight: FontWeight.bold,
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                ),
                                               ],
                                             ),
                                           ),
                                         ),
+                                        // Кнопка полноэкранного зума
                                         Positioned(
-                                          right: 12,
-                                          bottom: 12,
+                                          right: 10,
+                                          bottom: 10,
                                           child: Container(
-                                            padding: const EdgeInsets.all(6),
-                                            decoration: const BoxDecoration(
-                                              color: Colors.black45,
-                                              shape: BoxShape.circle,
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withOpacity(0.7),
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(color: Colors.white30),
                                             ),
-                                            child: const Icon(
-                                              Icons.fullscreen_rounded,
-                                              color: Colors.white,
-                                              size: 18,
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.fullscreen_rounded, color: Colors.white, size: 16),
+                                                SizedBox(width: 4),
+                                                Text('НА ВЕСЬ ЭКРАН 🔍', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                              ],
                                             ),
                                           ),
                                         ),
@@ -474,8 +649,8 @@ Future<void> showComplaintBottomSheet({
                                     ),
                                   ),
                                 ),
-                              ),
-                            ).animate().scale(delay: 200.ms, duration: 450.ms, curve: Curves.easeOutBack),
+                              );
+                            })(),
 
                           if (category == 'Камеры') ...[
                             Container(
@@ -523,105 +698,134 @@ Future<void> showComplaintBottomSheet({
                             const SizedBox(height: 16),
                           ],
 
-                          // Статус + дата
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: statusColor.withAlpha(40),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                      color: statusColor.withAlpha(80),
-                                      width: 1),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
+                          // 3. СТАТУС-ГРИД С ИКОНКАМИ И ВЕРИФИКАЦИЕЙ
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isLightTheme ? Colors.black.withOpacity(0.04) : Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: Colors.white.withOpacity(0.12)),
+                            ),
+                            child: Column(
+                              children: [
+                                Row(
                                   children: [
                                     Container(
-                                      width: 8,
-                                      height: 8,
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                       decoration: BoxDecoration(
-                                        color: statusColor,
-                                        shape: BoxShape.circle,
+                                        color: statusColor.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: statusColor.withOpacity(0.6)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            width: 7,
+                                            height: 7,
+                                            decoration: BoxDecoration(
+                                              color: statusColor,
+                                              shape: BoxShape.circle,
+                                              boxShadow: [
+                                                BoxShadow(color: statusColor.withOpacity(0.8), blurRadius: 6, spreadRadius: 1),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            statusText.toUpperCase(),
+                                            style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w900),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      statusText,
-                                      style: TextStyle(
-                                        color: statusColor,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF00E5FF).withOpacity(0.15),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: const Color(0xFF00E5FF).withOpacity(0.4)),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.verified_rounded, color: Color(0xFF00E5FF), size: 13),
+                                          SizedBox(width: 4),
+                                          Text('ГЕРМЕС ИИ: 98%', style: TextStyle(color: Color(0xFF00E5FF), fontSize: 10, fontWeight: FontWeight.bold)),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
-                              const SizedBox(width: 10),
-                              Icon(Icons.schedule_rounded,
-                                  color: tertiaryTextColor, size: 15),
-                              const SizedBox(width: 4),
-                              Text(
-                                formattedDate,
-                                style: TextStyle(
-                                  color: secondaryTextColor,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
+                                if (complaint['address'] != null) ...[
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.location_on_rounded, color: Color(0xFF00E5FF), size: 16),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          complaint['address'] as String,
+                                          style: TextStyle(color: primaryTextColor, fontSize: 12.5, fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                                if (complaint['uk_name'] != null || complaint['uk'] != null) ...[
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.apartment_rounded, color: Color(0xFF8B5CF6), size: 16),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Обслуживает: ${complaint['uk_name'] ?? complaint['uk']}',
+                                          style: TextStyle(color: secondaryTextColor, fontSize: 12),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
 
                           const SizedBox(height: 16),
 
-                          // Описание с иконкой озвучки
+                          // 4. ОПИСАНИЕ СИГНАЛА
                           if (complaint['description'] != null) ...[
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text(
-                                  'Описание',
+                                  'ДЕТАЛИ И ОПИСАНИЕ',
                                   style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey,
-                                    letterSpacing: 0.5,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white54,
+                                    letterSpacing: 1.0,
                                   ),
-                                ),
-                                IconButton(
-                                  constraints: const BoxConstraints(),
-                                  padding: EdgeInsets.zero,
-                                  icon: Icon(
-                                    SoundService().isSpeakingTts
-                                        ? Icons.stop_circle_rounded
-                                        : Icons.volume_up_rounded,
-                                    color: categoryColor,
-                                    size: 20,
-                                  ),
-                                  onPressed: () async {
-                                    if (SoundService().isSpeakingTts) {
-                                      await SoundService().stopSpeak();
-                                    } else {
-                                      final descText = _extractDescription(complaint['description'] as String? ?? '');
-                                      final textToSpeak = [
-                                        complaint['title']?.toString(),
-                                        descText.isNotEmpty ? descText : null,
-                                      ].whereType<String>().join('. ');
-                                      await SoundService().speak(textToSpeak, isEvent: false);
-                                    }
-                                    setModalState(() {});
-                                  },
                                 ),
                               ],
                             ),
                             const SizedBox(height: 6),
-                            Text(
-                              _extractDescription(complaint['description'] as String? ?? ''),
-                              style: TextStyle(
-                                color: primaryTextColor,
-                                fontSize: 14,
-                                height: 1.4,
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.04),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                              ),
+                              child: Text(
+                                _extractDescription(complaint['description'] as String? ?? ''),
+                                style: TextStyle(
+                                  color: primaryTextColor,
+                                  fontSize: 13.5,
+                                  height: 1.4,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 12),
