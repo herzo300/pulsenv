@@ -1,0 +1,22 @@
+Created At: 2026-06-23T09:54:24Z
+Completed At: 2026-06-23T09:54:24Z
+File Path: `file:///C:/Users/%D1%80%D1%81/.gemini/antigravity/brain/aed93f9b-cd64-4600-9659-275a143be7fc/task.md`
+Total Lines: 14
+Total Bytes: 1517
+Showing lines 1 to 14
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Задачи
+2: 
+3: - [x] Настройка рекомендаций для метеочувствительных людей в `weather_overlay_panel.dart`
+4:   - [x] Обновить заголовок на «Рекомендации метеозависимым»
+5:   - [x] Полностью переписать `_weatherAnalysisSummary` с выводом четких советов на основе давления, геомагнитной активности, частоты/амплитуды Шумана, ультрафиолета, температуры, влажности и ветра
+6: - [x] Настройка таймера и анимации сводки в `map_screen.dart`
+7:   - [x] Добавить переменную `_bottomHudTimer` и отменять её в `dispose()`
+8:   - [x] Создать метод `_toggleBottomHud(bool show)` с логикой автозапуска 10-секундного таймера
+9:   - [x] Настроить автозапуск таймера в `initState()` для начального отображения
+10:   - [x] Переписать отображение сводки с использованием `AnimatedPositioned` и `AnimatedOpacity` для выдвижения снизу
+11:   - [x] Подключить `_toggleBottomHud` к кнопкам вызова сводки
+12: - [/] Верификация изменений
+13:   - [/] Запустить `flutter test` для подтверждения отсутствия поломок в тестах
+14: 
+The above content shows the entire, complete file contents of the requested file.

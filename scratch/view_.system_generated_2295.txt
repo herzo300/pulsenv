@@ -1,0 +1,98 @@
+Created At: 2026-06-23T05:18:26Z
+Completed At: 2026-06-23T05:18:26Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1703
+Total Bytes: 73325
+Showing lines 981 to 1070
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+981:                           const SizedBox(height: 12),
+982:                           
+983:                           TiltWidget(
+984:                             child: _buildGlassCard(
+985:                               child: Column(
+986:                                 crossAxisAlignment: CrossAxisAlignment.start,
+987:                                 children: [
+988:                                   Text(
+989:                                     'Параметры атмосферы и космоса',
+990:                                     style: TextStyle(
+991:                                       color: widget.isNightMode
+992:                                           ? Colors.white70
+993:                                           : Colors.black54,
+994:                                       fontSize: 12,
+995:                                       fontWeight: FontWeight.w700,
+996:                                     ),
+997:                                   ),
+998:                                   const SizedBox(height: 12),
+999:                                   Row(
+1000:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1001:                                     children: [
+1002:                                       _spaceParam(
+1003:                                         Icons.compress_rounded,
+1004:                                         'Давление',
+1005:                                         _displayPressure != null ? '${_displayPressure!.round()} мм рт. ст.' : '—',
+1006:                                         _explainPressure,
+1007:                                       ),
+1008:                                       _spaceParam(
+1009:                                         Icons.wb_sunny_rounded,
+1010:                                         'Вспышки',
+1011:                                         _displaySolarFlare != null ? 'Класс $_displaySolarFlare' : '—',
+1012:                                         _explainSolarFlare,
+1013:                                       ),
+1014:                                     ],
+1015:                                   ),
+1016:                                   const Divider(height: 24, color: Colors.white10),
+1017:                                   Row(
+1018:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1019:                                     children: [
+1020:                                       _spaceParam(
+1021:                                         Icons.waves_rounded,
+1022:                                         'Резонанс Шумана',
+1023:                                         _displaySchumannFreq != null
+1024:                                             ? '$_displaySchumannFreq Гц'
+1025:                                             : '—',
+1026:                                         _explainSchumannFreq,
+1027:                                       ),
+1028:                                       _spaceParam(
+1029:                                         Icons.flash_on_rounded,
+1030:                                         'Амплитуда',
+1031:                                         _displaySchumannAmp != null
+1032:                                             ? '$_displaySchumannAmp pT'
+1033:                                             : '—',
+1034:                                         _explainSchumannAmp,
+1035:                                       ),
+1036:                                     ],
+1037:                                   ),
+1038:                                   const Divider(height: 24, color: Colors.white10),
+1039:                                   Row(
+1040:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1041:                                     children: [
+1042:                                       _spaceParam(
+1043:                                         Icons.air_rounded,
+1044:                                         'Ветер',
+1045:                                         _displayWindSpeed != null
+1046:                                             ? '${_displayWindSpeed!.toStringAsFixed(0)} м/с'
+1047:                                             : '—',
+1048:                                         _explainWind,
+1049:                                       ),
+1050:                                       const Expanded(child: SizedBox.shrink()),
+1051:                                     ],
+1052:                                   ),
+1053:                                 ],
+1054:                               ),
+1055:                             ),
+1056:                           ),
+1057:                           if (_hasAnomaly) ...[
+1058:                             const SizedBox(height: 16),
+1059:                             Text(
+1060:                               'Погодные предупреждения',
+1061:                               style: TextStyle(
+1062:                                 fontSize: 12,
+1063:                                 fontWeight: FontWeight.w700,
+1064:                                 color: widget.isNightMode ? Colors.white60 : Colors.black54,
+1065:                               ),
+1066:                             ),
+1067:                             const SizedBox(height: 8),
+1068:                             TiltWidget(
+1069:                               child: Column(
+1070:                                 children: _buildAnomalyWarnings(),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

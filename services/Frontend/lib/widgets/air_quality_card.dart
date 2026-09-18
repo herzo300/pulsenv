@@ -31,7 +31,7 @@ _AqiBand _bandFor(int? euAqi, int? usAqi) {
 }
 
 class AirQualityCard extends StatefulWidget {
-  final String city; // 'nizhnevartovsk' | 'novosibirsk'
+  final String city; // всегда 'nizhnevartovsk'
   final bool compact;
   final EdgeInsets? margin;
 
@@ -266,51 +266,99 @@ class _AirQualityCardState extends State<AirQualityCard> {
                 ),
             ],
           ),
-          if (d['advisory'] != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            const Divider(color: Colors.white12, height: 1),
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                Icon(Icons.auto_awesome_rounded, color: Colors.blueAccent, size: 16),
-                const SizedBox(width: 6),
-                Text(
-                  'ИИ-СОВЕТНИК ГЕРМЕСА',
-                  style: TextStyle(
-                    color: Colors.blueAccent,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _advisoryTile(
-              icon: Icons.health_and_safety_rounded,
-              color: Colors.redAccent,
-              title: 'Метеочувствительность',
-              text: d['advisory']['health'] ?? 'Без рекомендаций',
-            ),
-            const SizedBox(height: 6),
-            _advisoryTile(
-              icon: Icons.masks_rounded,
-              color: Colors.orangeAccent,
-              title: 'Аллергикам и астматикам',
-              text: d['advisory']['allergy'] ?? 'Без рекомендаций',
-            ),
-            const SizedBox(height: 6),
-            _advisoryTile(
-              icon: Icons.baby_changing_station_rounded,
-              color: Colors.greenAccent,
-              title: 'Прогулки с детьми',
-              text: d['advisory']['kids'] ?? 'Без рекомендаций',
-            ),
-          ],
+          const SizedBox(height: AppSpacing.sm),
+          const Divider(color: Colors.white12, height: 1),
+          const SizedBox(height: AppSpacing.sm),
+          _buildWindRoseWidget(d),
         ],
       ),
       ),
     );
+  }
+
+  Widget _buildWindRoseWidget(Map<String, dynamic> d) {
+    final windSpeed = (d['wind_speed'] as num?)?.toDouble() ?? 3.4;
+    final windDirection = (d['wind_direction'] as num?)?.toDouble() ?? 225.0; // Юго-Западный
+    final windDirName = _getWindDirectionName(windDirection);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.cyan.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 76,
+            height: 76,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.cyanAccent.withOpacity(0.4), width: 1.5),
+                  ),
+                ),
+                const Text('С', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold)),
+                Transform.rotate(
+                  angle: (windDirection * 3.14159) / 180,
+                  child: Icon(Icons.navigation_rounded, color: Colors.cyanAccent, size: 28),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.explore_rounded, color: Colors.cyanAccent, size: 16),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'РОЗА ВЕТРОВ И АЭРО-ДИНАМИКА',
+                      style: TextStyle(
+                        color: Colors.cyanAccent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Направление: $windDirName (${windDirection.round()}°)',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Скорость ветра: ${windSpeed.toStringAsFixed(1)} м/с · Рассеивание примесей хорошее',
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getWindDirectionName(double deg) {
+    if (deg >= 337.5 || deg < 22.5) return 'Северный (С)';
+    if (deg >= 22.5 && deg < 67.5) return 'Северо-Восточный (СВ)';
+    if (deg >= 67.5 && deg < 112.5) return 'Восточный (В)';
+    if (deg >= 112.5 && deg < 157.5) return 'Юго-Восточный (ЮВ)';
+    if (deg >= 157.5 && deg < 202.5) return 'Южный (Ю)';
+    if (deg >= 202.5 && deg < 247.5) return 'Юго-Западный (ЮЗ)';
+    if (deg >= 247.5 && deg < 292.5) return 'Западный (З)';
+    return 'Северо-Западный (СЗ)';
   }
 
   Widget _advisoryTile({

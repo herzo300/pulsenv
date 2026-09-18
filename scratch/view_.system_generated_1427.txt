@@ -1,0 +1,49 @@
+Created At: 2026-06-24T07:03:59Z
+Completed At: 2026-06-24T07:03:59Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1886
+Total Bytes: 82013
+Showing lines 1080 to 1120
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1080:                                         Icons.wb_sunny_rounded,
+1081:                                         'Вспышки',
+1082:                                         _displaySolarFlare != null ? 'Класс $_displaySolarFlare' : '—',
+1083:                                         _explainSolarFlare,
+1084:                                       ),
+1085:                                     ],
+1086:                                   ),
+1087:                                   const Divider(height: 24, color: Colors.white10),
+1088:                                   Row(
+1089:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1090:                                     children: [
+1091:                                       _spaceParam(
+1092:                                         Icons.waves_rounded,
+1093:                                         'Резонанс Шумана',
+1094: class _WeatherAmbientPainter extends CustomPainter {
+1095:   _WeatherAmbientPainter({
+1096:     required this.kind,
+1097:     required this.progress,
+1098:     required this.isNight,
+1099:     required this.accent,
+1100:   });
+1101: 
+1102:   final String kind;
+1103:   final double progress;
+1104:   final bool isNight;
+1105:   final Color accent;
+1106: 
+1107:   @override
+1108:   void paint(Canvas canvas, Size size) {
+1109:     final List<Color> colors;
+1110:     if (isNight) {
+1111:       switch (kind) {
+1112:         case 'clear':
+1113:           colors = [const Color(0xFF02040A), const Color(0xFF090D16), const Color(0xFF0F172A)];
+1114:           break;
+1115:         case 'rain':
+1116:         case 'storm':
+1117:           colors = [const Color(0xFF05070C), const Color(0xFF0A0F1D)];
+1118:           break;
+1119:         case 'snow':
+1120:           colors = [const Color(0xFF080C14), const Color(0xFF131A26)];
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

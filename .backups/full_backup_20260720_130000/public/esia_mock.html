@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Госуслуги — Единая система идентификации и аутентификации (ЕСИА)</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f6fa;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 400px;
+            padding: 32px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #0d4cd3;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+        .logo-flag {
+            width: 24px;
+            height: 16px;
+            background: linear-gradient(to bottom, #fff 33%, #0039a6 33%, #0039a6 66%, #d52b1e 66%);
+            border: 1px solid #ddd;
+        }
+        h2 {
+            font-size: 20px;
+            color: #1a1a1a;
+            margin-bottom: 24px;
+            font-weight: 600;
+        }
+        .input-group {
+            margin-bottom: 16px;
+            text-align: left;
+        }
+        label {
+            font-size: 13px;
+            color: #666666;
+            display: block;
+            margin-bottom: 6px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 15px;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input:focus {
+            border-color: #0d4cd3;
+        }
+        .btn-submit {
+            background-color: #0d4cd3;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 16px;
+        }
+        .btn-submit:hover {
+            background-color: #0a3bb5;
+        }
+        .footer {
+            margin-top: 24px;
+            font-size: 12px;
+            color: #888888;
+        }
+        /* Loading/Success Screen */
+        .hidden {
+            display: none;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0d4cd3;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .success-icon {
+            font-size: 48px;
+            color: #2e7d32;
+            margin-bottom: 16px;
+        }
+        .success-title {
+            color: #2e7d32;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+        .detail-item {
+            text-align: left;
+            background-color: #f1f8e9;
+            border-left: 4px solid #4caf50;
+            padding: 12px;
+            margin-top: 16px;
+            border-radius: 0 4px 4px 0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="login-panel">
+    <div class="logo">
+        <div class="logo-flag"></div>
+        госуслуги
+    </div>
+    <h2>Вход в личный кабинет (ЕСИА)</h2>
+    
+    <form id="login-form" onsubmit="handleLogin(event)">
+        <div class="input-group">
+            <label for="username">Телефон / Email / СНИЛС</label>
+            <input type="text" id="username" placeholder="Введите данные" required value="+7 (922) 123-45-67">
+        </div>
+        <div class="input-group">
+            <label for="password">Пароль</label>
+            <input type="password" id="password" placeholder="Введите пароль" required value="••••••••••••">
+        </div>
+        <button type="submit" class="btn-submit">Войти</button>
+    </form>
+    
+    <div class="footer">
+        Безопасное соединение. Данные передаются в шифрованном виде.
+    </div>
+</div>
+
+<div class="container hidden" id="processing-panel">
+    <div class="logo">
+        <div class="logo-flag"></div>
+        госуслуги
+    </div>
+    <h2>Авторизация пройдена</h2>
+    <div class="spinner"></div>
+    <p id="status-text" style="color: #555; font-size: 15px;">Загрузка цифровой подписи пользователя...</p>
+</div>
+
+<div class="container hidden" id="success-panel">
+    <div class="success-icon">✓</div>
+    <div class="success-title">Отправлено в ГИС ЖКХ</div>
+    <p style="color: #333; font-size: 15px; margin-bottom: 20px;">
+        Ваше заявление успешно сгенерировано ИИ City Pulse и направлено в ведомство.
+    </p>
+    
+    <div class="detail-item">
+        <strong>Получатель:</strong> Администрация г. Нижневартовска<br>
+        <strong>Рег. номер:</strong> №RU-86-291837<br>
+        <strong>Статус:</strong> Принято к рассмотрению<br>
+        <strong>Срок ответа:</strong> до 30 дней (по 59-ФЗ РФ)
+    </div>
+    
+    <button class="btn-submit" onclick="closeWebView()" style="background-color: #2e7d32; margin-top: 24px;">Вернуться в приложение</button>
+</div>
+
+<script>
+    function handleLogin(event) {
+        event.preventDefault();
+        document.getElementById('login-panel').classList.add('hidden');
+        document.getElementById('processing-panel').classList.remove('hidden');
+        
+        // Simulating the submission pipeline steps
+        const steps = [
+            { text: "Авторизация ЕСИА завершена успешно...", delay: 1000 },
+            { text: "Загрузка заявления PDF от City Pulse AI...", delay: 2000 },
+            { text: "Верификация цифрового бланка ведомством...", delay: 3200 },
+            { text: "Регистрация инцидента в ГИС ЖКХ ХМАО...", delay: 4500 }
+        ];
+        
+        steps.forEach(step => {
+            setTimeout(() => {
+                document.getElementById('status-text').innerText = step.text;
+            }, step.delay);
+        });
+        
+        setTimeout(() => {
+            document.getElementById('processing-panel').classList.add('hidden');
+            document.getElementById('success-panel').classList.remove('hidden');
+        }, 5800);
+    }
+    
+    function closeWebView() {
+        // Communicating back to Flutter app
+        if (window.flutter_inappwebview) {
+            window.flutter_inappwebview.callHandler('closeWebView', { success: true });
+        } else if (window.parent && window.parent.postMessage) {
+            window.parent.postMessage({ action: 'close' }, '*');
+        } else {
+            alert('Заявление отправлено! Вы можете закрыть это окно.');
+        }
+    }
+</script>
+
+</body>
+</html>

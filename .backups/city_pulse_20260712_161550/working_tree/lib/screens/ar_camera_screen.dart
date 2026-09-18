@@ -1,0 +1,1380 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
+
+import 'package:camera/camera.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+
+import '../map/map_config.dart';
+import '../theme/pulse_colors.dart';
+import '../widgets/native_3d_engine.dart';
+import 'package:flutter_3d_controller/flutter_3d_controller.dart';
+
+/// AR-стиль Live Camera с адресным оверлеем «как в кино».
+///
+/// Показывает:
+/// - Live preview камеры
+/// - Адрес по GPS (reverse geocoding)
+/// - Координаты
+/// - Сканирующую линию
+/// - Уголки фокуса (анимация)
+/// - Кнопку съёмки
+///
+/// Возвращает XFile (снимок) при нажатии кнопки фото.
+class ArCameraScreen extends StatefulWidget {
+  const ArCameraScreen({super.key});
+
+  @override
+  State<ArCameraScreen> createState() => _ArCameraScreenState();
+}
+
+class _ArCameraScreenState extends State<ArCameraScreen>
+    with TickerProviderStateMixin {
+  CameraController? _cameraController;
+  bool _isCameraReady = false;
+  bool _isTakingPicture = false;
+
+  // GPS & Address
+  double? _latitude;
+  double? _longitude;
+  double? _altitude;
+  double? _accuracy;
+  String? _address;
+  bool _loadingAddress = false;
+  Timer? _gpsTimer;
+
+  // Animations
+  late AnimationController _scanLineController;
+  late AnimationController _focusCornersController;
+  late AnimationController _pulseController;
+  late AnimationController _dataFeedController;
+  late Animation<double> _scanLineAnimation;
+  late Animation<double> _focusCornersAnimation;
+  late Animation<double> _pulseAnimation;
+
+  // Data feed simulation
+  final List<String> _dataFeedLines = [];
+  int _feedLineIndex = 0;
+  Timer? _feedTimer;
+
+  // AI Camera Signals Distance
+  List<Map<String, dynamic>> _signals = [];
+  double? _distanceToNearestSignal;
+
+  bool _showInstructions = false;
+  Timer? _instructionTimer;
+
+  bool _is3dOverlayEnabled = false;
+  bool _showMapSignalsOnCamera = false;
+  String? _generated3dModelPath;
+  final Flutter3DController _threeDController = Flutter3DController();
+
+  @override
+  void initState() {
+    super.initState();
+    _initAnimations();
+    _initCamera();
+    _fetchGps();
+    _loadSignals();
+    _startGpsPolling();
+    _startDataFeed();
+    _checkInstructions();
+  }
+
+  Future<void> _checkInstructions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasOpened = prefs.getBool('has_opened_ar_camera') ?? false;
+    if (!hasOpened) {
+      if (mounted) {
+        setState(() {
+          _showInstructions = true;
+        });
+      }
+      await prefs.setBool('has_opened_ar_camera', true);
+      _instructionTimer = Timer(const Duration(seconds: 30), () {
+        if (mounted) {
+          setState(() {
+            _showInstructions = false;
+          });
+        }
+      });
+    }
+  }
+
+  void _initAnimations() {
+    _scanLineController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3000),
+    )..repeat();
+    _scanLineAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _scanLineController, curve: Curves.easeInOut),
+    );
+
+    _focusCornersController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+    _focusCornersAnimation = Tween<double>(begin: 0.92, end: 1.0).animate(
+      CurvedAnimation(
+          parent: _focusCornersController, curve: Curves.easeInOut),
+    );
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    _dataFeedController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+  }
+
+  Future<void> _initCamera() async {
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) return;
+
+      final backCamera = cameras.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first,
+      );
+
+      _cameraController = CameraController(
+        backCamera,
+        ResolutionPreset.high,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.jpeg,
+      );
+
+      await _cameraController!.initialize();
+      if (!mounted) return;
+      setState(() => _isCameraReady = true);
+    } catch (e) {
+      debugPrint('Camera init error: $e');
+    }
+  }
+
+  void _startGpsPolling() {
+    _gpsTimer = Timer.periodic(const Duration(seconds: 5), (_) => _fetchGps());
+  }
+
+  Future<void> _fetchGps() async {
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 5),
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _latitude = pos.latitude;
+        _longitude = pos.longitude;
+        _altitude = pos.altitude;
+        _accuracy = pos.accuracy;
+      });
+      _calculateDistanceToNearestSignal();
+      _fetchAddress();
+    } catch (e) {
+      debugPrint('GPS error: $e');
+    }
+  }
+
+  Future<void> _fetchAddress() async {
+    if (_latitude == null || _longitude == null || _loadingAddress) return;
+    _loadingAddress = true;
+    try {
+      final url = Uri.parse(
+          '${MapConfig.backendApiBaseUrl}/geo/reverse?lat=$_latitude&lon=$_longitude');
+      final r = await http.get(url).timeout(const Duration(seconds: 6));
+      if (r.statusCode == 200 && mounted) {
+        final data = jsonDecode(r.body) as Map<String, dynamic>;
+        final addr = data['address'] as String?;
+        if (addr != null && addr.isNotEmpty) {
+          setState(() => _address = addr);
+        }
+      }
+    } catch (_) {}
+    _loadingAddress = false;
+  }
+
+  Future<void> _loadSignals() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${MapConfig.backendApiBaseUrl}/map/feed?limit=80'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final payload = jsonDecode(utf8.decode(response.bodyBytes));
+        final markers = payload is Map<String, dynamic>
+            ? (payload['markers'] as List<dynamic>? ?? const [])
+            : const [];
+        if (mounted) {
+          setState(() {
+            _signals = markers.whereType<Map<String, dynamic>>().toList();
+            _calculateDistanceToNearestSignal();
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading signals in AI Camera: $e');
+    }
+  }
+
+  void _calculateDistanceToNearestSignal() {
+    if (_latitude == null || _longitude == null || _signals.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _distanceToNearestSignal = null;
+        });
+      }
+      return;
+    }
+    double minDistance = double.infinity;
+    for (final s in _signals) {
+      final lat = s['lat'] ?? s['latitude'];
+      final lng = s['lng'] ?? s['longitude'];
+      if (lat is num && lng is num) {
+        final dist = Geolocator.distanceBetween(
+          _latitude!,
+          _longitude!,
+          lat.toDouble(),
+          lng.toDouble(),
+        );
+        if (dist < minDistance) {
+          minDistance = dist;
+        }
+      }
+    }
+    if (mounted) {
+      setState(() {
+        if (minDistance != double.infinity) {
+          _distanceToNearestSignal = minDistance;
+        } else {
+          _distanceToNearestSignal = null;
+        }
+      });
+    }
+  }
+
+  void _startDataFeed() {
+    const lines = [
+      'СИСТЕМА: Инициализация AI-модуля...',
+      'GPS: Захват спутников... OK',
+      'VISION: TFLite модель загружена',
+      'OCR: Google ML Kit ready',
+      'NET: Сервер api.soobshio.ru... OK',
+      'AI: Z.AI GLM-5 Vision доступен',
+      'SCAN: Ожидание команды...',
+    ];
+    _feedTimer = Timer.periodic(const Duration(milliseconds: 800), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_feedLineIndex < lines.length) {
+        setState(() {
+          _dataFeedLines.add(lines[_feedLineIndex]);
+          _feedLineIndex++;
+        });
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  Future<void> _takePicture() async {
+    if (_cameraController == null || _isTakingPicture) return;
+    setState(() => _isTakingPicture = true);
+    HapticFeedback.heavyImpact();
+    try {
+      final file = await _cameraController!.takePicture();
+      if (!mounted) return;
+      Navigator.of(context).pop(file);
+    } catch (e) {
+      debugPrint('Take picture error: $e');
+      if (mounted) setState(() => _isTakingPicture = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _gpsTimer?.cancel();
+    _feedTimer?.cancel();
+    _instructionTimer?.cancel();
+    _scanLineController.dispose();
+    _focusCornersController.dispose();
+    _pulseController.dispose();
+    _dataFeedController.dispose();
+    _cameraController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 1. Camera preview
+          if (_isCameraReady && _cameraController != null)
+            Center(
+              child: AspectRatio(
+                aspectRatio: _cameraController!.value.aspectRatio,
+                child: CameraPreview(_cameraController!),
+              ),
+            )
+          else
+            const Center(
+              child: CircularProgressIndicator(color: Color(0xFF00E5FF)),
+            ),
+
+          // 2. Scanning line
+          if (_isCameraReady) _buildScanLine(),
+
+          // 3. Focus corners
+          if (_isCameraReady) _buildFocusCorners(),
+
+          // 4. Top-left: Coordinates + satellite info
+          _buildTopLeftHud(),
+
+          // 5. Top-right: Address card
+          _buildTopRightAddress(),
+
+          // 6. Bottom-left: Data feed (cinematic terminal)
+          _buildDataFeed(),
+
+          // 7. Bottom-right: Capture button
+          _buildCaptureButton(),
+
+          // 8. Top bar overlay
+          _buildTopBar(),
+
+          // 9. Grid overlay
+          if (_isCameraReady) _buildGridOverlay(),
+
+          // 10. AI Camera Usage Instructions (first-time only, disappears after 30s)
+          if (_showInstructions) _buildInstructionsOverlay(),
+
+          // 11. Right side AR controls panel
+          _buildArControlsDock(),
+
+          // 12. AI 3D Model or fallback Native3D Overlay
+          if (_is3dOverlayEnabled && _generated3dModelPath != null)
+            Positioned(
+              bottom: 120,
+              left: 30,
+              right: 30,
+              height: 280,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.5), width: 1.5),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Stack(
+                    children: [
+                      Flutter3DViewer(
+                        src: _generated3dModelPath!,
+                        controller: _threeDController,
+                      ),
+                      Positioned(
+                        top: 10,
+                        left: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.black87,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            '🔄 Вращайте и масштабируйте жестами',
+                            style: TextStyle(color: Colors.white70, fontSize: 10),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _generated3dModelPath = null;
+                              _is3dOverlayEnabled = false;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Colors.black87,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else if (_is3dOverlayEnabled && _generated3dModelPath == null)
+            Center(
+              child: SizedBox(
+                width: 200,
+                height: 200,
+                child: Native3DEngine(
+                  shape: PracticeShape.torus,
+                  size: 0.9,
+                  color: const Color(0xFF00E5FF),
+                ),
+              ),
+            ),
+
+          // 13. Map signals overlaid on AR Camera view
+          if (_showMapSignalsOnCamera && _signals.isNotEmpty && _latitude != null && _longitude != null)
+            ..._buildFloatingArSignals(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInstructionsOverlay() {
+    return Positioned(
+      bottom: MediaQuery.of(context).padding.bottom + 120,
+      left: 16,
+      right: 16,
+      child: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 450),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.85),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFF00E5FF).withOpacity(0.5),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF00E5FF).withOpacity(0.15),
+                blurRadius: 20,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF00E5FF).withOpacity(0.1),
+                ),
+                child: const Icon(
+                  Icons.info_outline_rounded,
+                  color: Color(0xFF00E5FF),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Инструкция использования',
+                      style: TextStyle(
+                        color: Color(0xFF00E5FF),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Наведите камеру на объект или дорогу. Нажмите круглую кнопку затвора внизу, чтобы сделать снимок. ИИ автоматически распознает ямы, мусор, животных или другие дорожные события.',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () {
+                  _instructionTimer?.cancel();
+                  setState(() {
+                    _showInstructions = false;
+                  });
+                },
+                child: Icon(
+                  Icons.close_rounded,
+                  color: Colors.white.withOpacity(0.5),
+                  size: 18,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar() {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: EdgeInsets.only(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 16,
+            right: 16,
+            bottom: 12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.black.withAlpha(180),
+              Colors.black.withAlpha(0),
+            ],
+          ),
+        ),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(20),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: const Color(0xFF00E5FF).withAlpha(60)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.arrow_back_ios_new,
+                        color: Color(0xFF00E5FF), size: 16),
+                    SizedBox(width: 4),
+                    Text('НАЗАД',
+                        style: TextStyle(
+                            color: Color(0xFF00E5FF),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.5)),
+                  ],
+                ),
+              ),
+            ),
+            const Spacer(),
+            AnimatedBuilder(
+              animation: _pulseAnimation,
+              builder: (_, __) => Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.red.withAlpha(
+                      (40 * _pulseAnimation.value).toInt()),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.red
+                        .withAlpha((120 * _pulseAnimation.value).toInt()),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.red
+                            .withAlpha((255 * _pulseAnimation.value).toInt()),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Text('AI SCAN',
+                        style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScanLine() {
+    return AnimatedBuilder(
+      animation: _scanLineAnimation,
+      builder: (context, _) {
+        final height = MediaQuery.of(context).size.height;
+        return Positioned(
+          top: _scanLineAnimation.value * height,
+          left: 0,
+          right: 0,
+          child: Container(
+            height: 2,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  const Color(0xFF00E5FF).withAlpha(120),
+                  const Color(0xFF00E5FF).withAlpha(200),
+                  const Color(0xFF00E5FF).withAlpha(120),
+                  Colors.transparent,
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF00E5FF).withAlpha(60),
+                  blurRadius: 12,
+                  spreadRadius: 4,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFocusCorners() {
+    return AnimatedBuilder(
+      animation: _focusCornersAnimation,
+      builder: (context, _) {
+        final size = MediaQuery.of(context).size;
+        final centerW = size.width * 0.65;
+        final centerH = size.height * 0.40;
+        final scale = _focusCornersAnimation.value;
+        final left = (size.width - centerW * scale) / 2;
+        final top = (size.height - centerH * scale) / 2;
+
+        return Positioned(
+          left: left,
+          top: top,
+          width: centerW * scale,
+          height: centerH * scale,
+          child: CustomPaint(
+            painter: _FocusCornersPainter(
+              color: const Color(0xFF00E5FF).withAlpha(160),
+              cornerLength: 30,
+              strokeWidth: 2.5,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTopLeftHud() {
+    final lat = _latitude?.toStringAsFixed(6) ?? '---.------';
+    final lng = _longitude?.toStringAsFixed(6) ?? '---.------';
+    final alt =
+        _altitude != null ? '${_altitude!.toStringAsFixed(1)}m' : '---m';
+    final acc =
+        _accuracy != null ? '±${_accuracy!.toStringAsFixed(1)}m' : '±---m';
+    final now = DateTime.now();
+    final time =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+
+    return Positioned(
+      left: 16,
+      top: MediaQuery.of(context).padding.top + 60,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.black.withAlpha(140),
+          borderRadius: BorderRadius.circular(10),
+          border:
+              Border.all(color: const Color(0xFF00E5FF).withAlpha(40)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _hudLabel('LAT', lat),
+            const SizedBox(height: 2),
+            _hudLabel('LNG', lng),
+            const SizedBox(height: 2),
+            _hudLabel('ALT', alt),
+            const SizedBox(height: 2),
+            _hudLabel('ACC', acc),
+            const SizedBox(height: 4),
+            Text(
+              time,
+              style: TextStyle(
+                color: const Color(0xFF00E5FF).withAlpha(200),
+                fontSize: 11,
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _hudLabel(String key, String value) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$key: ',
+          style: TextStyle(
+            color: const Color(0xFF00E5FF).withAlpha(120),
+            fontSize: 10,
+            fontFamily: 'monospace',
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Color(0xFF00E5FF),
+            fontSize: 10,
+            fontFamily: 'monospace',
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTopRightAddress() {
+    return Positioned(
+      right: 16,
+      top: MediaQuery.of(context).padding.top + 60,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 200),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black.withAlpha(160),
+          borderRadius: BorderRadius.circular(12),
+          border:
+              Border.all(color: const Color(0xFF00E5FF).withAlpha(60)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF00E5FF).withAlpha(20),
+              blurRadius: 12,
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.location_on,
+                    color: const Color(0xFF00E5FF).withAlpha(200),
+                    size: 14),
+                const SizedBox(width: 4),
+                const Text(
+                  'АДРЕС',
+                  style: TextStyle(
+                    color: Color(0xFF00E5FF),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _address ?? 'Определяем...',
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+              ),
+            ),
+            if (_address != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Нижневартовск',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: Colors.white.withAlpha(120),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDataFeed() {
+    return Positioned(
+      left: 16,
+      bottom: MediaQuery.of(context).padding.bottom + 100,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 260, maxHeight: 120),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.black.withAlpha(120),
+          borderRadius: BorderRadius.circular(8),
+          border:
+              Border.all(color: const Color(0xFF00FF88).withAlpha(30)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = math.max(0, _dataFeedLines.length - 5);
+                i < _dataFeedLines.length;
+                i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Text(
+                  '> ${_dataFeedLines[i]}',
+                  style: TextStyle(
+                    color: const Color(0xFF00FF88).withAlpha(180),
+                    fontSize: 9,
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            if (_feedLineIndex >= 7)
+              AnimatedBuilder(
+                animation: _pulseAnimation,
+                builder: (_, __) => Text(
+                  '> █',
+                  style: TextStyle(
+                    color: const Color(0xFF00FF88)
+                        .withAlpha((200 * _pulseAnimation.value).toInt()),
+                    fontSize: 9,
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCaptureButton() {
+    return Positioned(
+      bottom: MediaQuery.of(context).padding.bottom + 30,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: GestureDetector(
+          onTap: _isTakingPicture ? null : _takePicture,
+          child: AnimatedBuilder(
+            animation: _pulseAnimation,
+            builder: (_, __) {
+              final scale = 0.95 + 0.05 * _pulseAnimation.value;
+              return Transform.scale(
+                scale: _isTakingPicture ? 0.85 : scale,
+                child: Container(
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF00E5FF),
+                      width: 3,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF00E5FF).withAlpha(
+                            (60 * _pulseAnimation.value).toInt()),
+                        blurRadius: 20,
+                        spreadRadius: 4,
+                      ),
+                    ],
+                  ),
+                  child: Container(
+                    margin: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          Colors.white.withAlpha(_isTakingPicture ? 100 : 230),
+                          Colors.white.withAlpha(_isTakingPicture ? 60 : 180),
+                        ],
+                      ),
+                    ),
+                    child: _isTakingPicture
+                        ? const Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFF00E5FF)),
+                            ),
+                          )
+                        : const Icon(Icons.psychology_outlined,
+                            color: Color(0xFF0A2540), size: 38),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGridOverlay() {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: CustomPaint(
+          painter: _GridOverlayPainter(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildArControlsDock() {
+    return Positioned(
+      right: 16,
+      top: MediaQuery.of(context).padding.top + 220,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 3D Toggle — opens AI model creator dialog
+          _buildArMiniButton(
+            icon: Icons.view_in_ar_rounded,
+            tooltip: 'ИИ 3D Моделирование',
+            activeColor: const Color(0xFFFFD700),
+            active: _is3dOverlayEnabled,
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              if (_is3dOverlayEnabled) {
+                setState(() {
+                  _is3dOverlayEnabled = false;
+                  _generated3dModelPath = null;
+                });
+              } else {
+                _open3dCreatorDialog();
+              }
+            },
+          ),
+          const SizedBox(height: 12),
+          // Signals Toggle
+          _buildArMiniButton(
+            icon: Icons.radar_rounded,
+            tooltip: 'Сигналы ЖКХ',
+            activeColor: const Color(0xFF00FF88),
+            active: _showMapSignalsOnCamera,
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              setState(() {
+                _showMapSignalsOnCamera = !_showMapSignalsOnCamera;
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          // Blender/Tripo3D Info Button
+          _buildArMiniButton(
+            icon: Icons.help_outline_rounded,
+            tooltip: 'Справка Blender/Tripo3D',
+            activeColor: const Color(0xFF00E5FF),
+            active: false,
+            onTap: () {
+              _showBlenderApiExplanationDialog();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildArMiniButton({
+    required IconData icon,
+    required String tooltip,
+    required Color activeColor,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Tooltip(
+        message: tooltip,
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.75),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: active ? activeColor : const Color(0xFF00E5FF).withOpacity(0.3),
+              width: active ? 1.5 : 1.0,
+            ),
+            boxShadow: active
+                ? [
+                    BoxShadow(
+                      color: activeColor.withOpacity(0.4),
+                      blurRadius: 10,
+                      spreadRadius: 1,
+                    )
+                  ]
+                : [],
+          ),
+          child: Icon(
+            icon,
+            color: active ? activeColor : Colors.white70,
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildFloatingArSignals() {
+    final widgets = <Widget>[];
+    final size = MediaQuery.of(context).size;
+    final centerW = size.width / 2;
+    final centerH = size.height / 2;
+
+    int idx = 0;
+    for (final sig in _signals) {
+      final sLat = sig['lat'] ?? sig['latitude'];
+      final sLng = sig['lng'] ?? sig['longitude'];
+      if (sLat is num && sLng is num) {
+        final dist = Geolocator.distanceBetween(_latitude ?? 60.938, _longitude ?? 76.561, sLat.toDouble(), sLng.toDouble());
+        if (dist < 2000) { // Show signals within 2km
+          final double deltaLat = sLat.toDouble() - (_latitude ?? 60.938);
+          final double deltaLng = sLng.toDouble() - (_longitude ?? 76.561);
+          
+          final posX = (centerW + deltaLng * 12000.0).clamp(24.0, size.width - 160.0);
+          final posY = (centerH - deltaLat * 12000.0).clamp(120.0, size.height - 240.0);
+
+          final title = sig['title']?.toString() ?? 'Сигнал';
+          final category = sig['category']?.toString() ?? 'Прочее';
+          final color = PulseColors.primary;
+
+          widgets.add(
+            Positioned(
+              left: posX,
+              top: posY,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.85),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF00FF88).withOpacity(0.7), width: 1.2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF00FF88).withOpacity(0.15),
+                      blurRadius: 6,
+                    )
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Color(0xFF00FF88), size: 12),
+                    const SizedBox(width: 5),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          title.length > 18 ? '${title.substring(0, 15)}...' : title,
+                          style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          '${dist.toStringAsFixed(0)} м | $category',
+                          style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 8),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+          
+          idx++;
+          if (idx >= 5) break;
+        }
+      }
+    }
+    return widgets;
+  }
+
+  void _open3dCreatorDialog() {
+    final textController = TextEditingController(text: 'Уличный фонарь в стиле модерн');
+    showDialog(
+      context: context,
+      builder: (context) {
+        bool loading = false;
+        String? error;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF0F172A).withOpacity(0.95),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('ИИ 3D Моделирование', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!loading) ...[
+                    const Text(
+                      'Введите промпт для генерации 3D-модели. Модель отобразится прямо поверх камеры:',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: textController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Например: Скамья с урной',
+                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                        filled: true,
+                        fillColor: Colors.black.withOpacity(0.3),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 20),
+                    const CircularProgressIndicator(color: Colors.amber),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'ИИ-Помощник запускает Blender...\nГенерация полигонов и текстур',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                  if (error != null) ...[
+                    const SizedBox(height: 12),
+                    Text(error!, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+                  ]
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Отмена', style: TextStyle(color: Colors.white70)),
+                ),
+                if (!loading)
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
+                    onPressed: () async {
+                      setDialogState(() {
+                        loading = true;
+                        error = null;
+                      });
+                      try {
+                        final resp = await http.post(
+                          Uri.parse('${MapConfig.backendApiBaseUrl}/ai/generate-cad'),
+                          headers: {'Content-Type': 'application/json'},
+                          body: jsonEncode({'prompt': textController.text}),
+                        ).timeout(const Duration(seconds: 25));
+
+                        if (resp.statusCode == 200) {
+                          final data = jsonDecode(utf8.decode(resp.bodyBytes));
+                          Navigator.pop(context);
+                          setState(() {
+                            _generated3dModelPath = data['model_path'] ?? 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb';
+                            _is3dOverlayEnabled = true;
+                          });
+                        } else {
+                          setDialogState(() {
+                            loading = false;
+                            error = 'Ошибка: Код ${resp.statusCode}';
+                          });
+                        }
+                      } catch (e) {
+                        setDialogState(() {
+                          loading = false;
+                          error = 'Ошибка соединения: $e';
+                        });
+                      }
+                    },
+                    child: const Text('Создать 3D', style: TextStyle(color: Colors.black)),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showBlenderApiExplanationDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0F172A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Color(0xFF00E5FF), width: 1.5),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.threed_rotation_rounded, color: Color(0xFF00E5FF)),
+              SizedBox(width: 10),
+              Text(
+                'Интеграция 3D (API)',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Опция отображает интерактивные 3D-объекты поверх кадра камеры. Для внедрения полноценного динамического моделирования на сервере используются следующие решения:',
+                  style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
+                ),
+                const SizedBox(height: 12),
+                _buildBulletPoint('Blender Headless Server', 'Запуск Blender на сервере с флагом `--background` и выполнение скрипта Python для импорта метаданных обнаружения и рендеринга трехмерных сеток в форматы `.gltf`/`.glb`.'),
+                const SizedBox(height: 8),
+                _buildBulletPoint('Tripo3D API', 'Отправка POST-запросов на `https://api.tripo3d.ai/v1/task` с текстовым описанием проблемы (например, "разбитый фонарь") для быстрой генерации полигональной модели на основе ИИ.'),
+                const SizedBox(height: 8),
+                _buildBulletPoint('Hermes / Three.js', 'Встраивание движка отрисовки на базе WebGL/OpenGLES в Flutter для интерактивного вращения и позиционирования сгенерированных мешей.'),
+                const SizedBox(height: 12),
+                const Text(
+                  'В отсутствие сетевого подключения приложение использует быстрый локальный рендерер Native3DEngine для аппроксимации форм.',
+                  style: TextStyle(color: Colors.white54, fontSize: 10, fontStyle: FontStyle.italic, height: 1.3),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('ЗАКРЫТЬ', style: TextStyle(color: Color(0xFF00E5FF), fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildBulletPoint(String title, String description) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '• $title:',
+          style: const TextStyle(color: Color(0xFFFFD700), fontSize: 11, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          description,
+          style: const TextStyle(color: Colors.white70, fontSize: 10, height: 1.3),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Custom Painters ───
+
+class _FocusCornersPainter extends CustomPainter {
+  final Color color;
+  final double cornerLength;
+  final double strokeWidth;
+
+  _FocusCornersPainter({
+    required this.color,
+    required this.cornerLength,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final w = size.width;
+    final h = size.height;
+    final cl = cornerLength;
+
+    // Top-left
+    canvas.drawLine(Offset.zero, Offset(cl, 0), paint);
+    canvas.drawLine(Offset.zero, Offset(0, cl), paint);
+
+    // Top-right
+    canvas.drawLine(Offset(w, 0), Offset(w - cl, 0), paint);
+    canvas.drawLine(Offset(w, 0), Offset(w, cl), paint);
+
+    // Bottom-left
+    canvas.drawLine(Offset(0, h), Offset(cl, h), paint);
+    canvas.drawLine(Offset(0, h), Offset(0, h - cl), paint);
+
+    // Bottom-right
+    canvas.drawLine(Offset(w, h), Offset(w - cl, h), paint);
+    canvas.drawLine(Offset(w, h), Offset(w, h - cl), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FocusCornersPainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+class _GridOverlayPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF00E5FF).withAlpha(15)
+      ..strokeWidth = 0.5;
+
+    // Vertical thirds
+    for (var i = 1; i < 3; i++) {
+      final x = size.width * i / 3;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+
+    // Horizontal thirds
+    for (var i = 1; i < 3; i++) {
+      final y = size.height * i / 3;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}

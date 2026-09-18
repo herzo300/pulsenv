@@ -1,0 +1,54 @@
+Created At: 2026-06-23T05:19:11Z
+Completed At: 2026-06-23T05:19:11Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1800
+Total Bytes: 78167
+Showing lines 1670 to 1715
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1670:       } else if (hasCrime) {
+1671:         bg = const Color(0xDD8B5CF6); // Purple for crime/police
+1672:         border = const Color(0xFFDDD6FE);
+1673:         leadingIcon = Icons.local_police_rounded;
+1674:       }
+1675:     }
+1676: 
+1677:     bg = Colors.white.withOpacity(0.92); // White color for marquee block
+1678:     border = Colors.black.withOpacity(0.12); // Subtle border
+1679: 
+1680:     text = text.trim();
+1681:     if (text.isEmpty) return const SizedBox.shrink();
+1682: 
+1683:     return ClipRRect(
+1684:       borderRadius: BorderRadius.circular(14),
+1685:       child: Container(
+1686:         height: 38,
+1687:         decoration: BoxDecoration(
+1688:           color: bg,
+1689:           border: Border.all(
+1690:             color: border,
+1691:           ),
+1692:         ),
+1693:         child: Row(
+1694:           children: [
+1695:             Container(
+1696:               width: 38,
+1697:               alignment: Alignment.center,
+1698:               color: Colors.black.withOpacity(0.05),
+1699:               child: AnimatedBuilder(
+1700:                 animation: _scroll,
+1701:                 builder: (context, _) {
+1702:                   final double angle = _scroll.value * 2 * math.pi;
+1703:                   final double scale = 1.0 + 0.15 * math.sin(_scroll.value * 2 * math.pi * 4);
+1704:                   return Transform.scale(
+1705:                     scale: scale,
+1706:                     child: Transform.rotate(
+1707:                       angle: angle,
+1708:                       child: Icon(
+1709:                         leadingIcon,
+1710:                         color: const Color(0xFF1E293B),
+1711:                         size: 18,
+1712:                       ),
+1713:                     ),
+1714:                   );
+1715:                 },
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

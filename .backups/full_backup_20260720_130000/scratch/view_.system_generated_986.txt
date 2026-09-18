@@ -1,0 +1,24 @@
+Created At: 2026-06-23T03:30:52Z
+Completed At: 2026-06-23T03:30:52Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1799
+Total Bytes: 74911
+Showing lines 30 to 45
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+30:     with SingleTickerProviderStateMixin {
+31:   late final AnimationController _controller;
+32:   int _activeTab = 0;
+33: 
+34:   // Selected weather kind and simulated stats
+35:   late String _selectedKind;
+36:   late int? _displayTemp;
+37:   late int? _displayFeels;
+38:   late String _displayCondition;
+39:   late String _displayAqiLevel;
+40:   late String _displayAqiSummary;
+41:   late num? _displayAqiValue;
+42:   late double? _displayWindSpeed;
+43:   late double? _displayWindGusts;
+44:   late int? _displayHumidity;
+45:   late double? _displayPressure;
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,408 @@
+Created At: 2026-06-21T19:34:25Z
+Completed At: 2026-06-21T19:34:25Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1587
+Total Bytes: 62310
+Showing lines 1 to 400
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: import 'dart:math' as math;
+2: 
+3: import 'package:flutter/material.dart';
+4: import 'package:flutter/services.dart';
+5: 
+6: import '../../../services/city_weather_service.dart';
+7: 
+8: /// Full-screen weather card with ambient animation for the map.
+9: class WeatherOverlayPanel extends StatefulWidget {
+10:   const WeatherOverlayPanel({
+11:     super.key,
+12:     required this.weather,
+13:     required this.alerts,
+14:     required this.onClose,
+15:     required this.isNightMode,
+16:     required this.accent,
+17:   });
+18: 
+19:   final CityWeatherSnapshot weather;
+20:   final CityAlertTickerData alerts;
+21:   final VoidCallback onClose;
+22:   final bool isNightMode;
+23:   final Color accent;
+24: 
+25:   @override
+26:   State<WeatherOverlayPanel> createState() => _WeatherOverlayPanelState();
+27: }
+28: 
+29: class _WeatherOverlayPanelState extends State<WeatherOverlayPanel>
+30:     with SingleTickerProviderStateMixin {
+31:   late final AnimationController _controller;
+32:   int _activeTab = 0;
+33: 
+34:   // Selected weather kind and simulated stats
+35:   late String _selectedKind;
+36:   late int? _displayTemp;
+37:   late int? _displayFeels;
+38:   late String _displayCondition;
+39:   late String _displayAqiLevel;
+40:   late String _displayAqiSummary;
+41:   late num? _displayAqiValue;
+42:   late double? _displayWindSpeed;
+43:   late double? _displayWindGusts;
+44:   late int? _displayHumidity;
+45:   late double? _displayPressure;
+46:   late String? _displaySolarFlare;
+47:   late double? _displaySchumannFreq;
+48:   late double? _displaySchumannAmp;
+49: 
+50:   final List<Map<String, dynamic>> _demoConditions = [
+51:     {
+52:       'kind': 'clear',
+53:       'label': 'Ясно',
+54:       'icon': Icons.wb_sunny_rounded,
+55:       'nightIcon': Icons.nightlight_round,
+56:       'temp': 22,
+57:       'feels': 21,
+58:       'conditionText': 'Ясно',
+59:       'aqi': 25,
+60:       'aqiText': 'ОТЛИЧНО',
+61:       'aqiSummary': 'Индекс качества воздуха в норме. Идеальное время для прогулок и спорта на открытом воздухе.',
+62:       'wind': 3.0,
+63:       'gusts': 5.0,
+64:       'humidity': 45,
+65:       'pressure': 762.0,
+66:       'flare': 'C1.2',
+67:       'schumannFreq': 7.83,
+68:       'schumannAmp': 14.2,
+69:     },
+70:     {
+71:       'kind': 'cloudy',
+72:       'label': 'Облачно',
+73:       'icon': Icons.cloud_rounded,
+74:       'nightIcon': Icons.cloud_rounded,
+75:       'temp': 17,
+76:       'feels': 16,
+77:       'conditionText': 'Пасмурно',
+78:       'aqi': 35,
+79:       'aqiText': 'ХОРОШО',
+80:       'aqiSummary': 'Качество воздуха хорошее. Загрязнение атмосферы минимальное, риски отсутствуют.',
+81:       'wind': 4.5,
+82:       'gusts': 8.0,
+83:       'humidity': 60,
+84:       'pressure': 754.0,
+85:       'flare': null,
+86:       'schumannFreq': 7.83,
+87:       'schumannAmp': 11.5,
+88:     },
+89:     {
+90:       'kind': 'rain',
+91:       'label': 'Дождь',
+92:       'icon': Icons.grain_rounded,
+93:       'nightIcon': Icons.grain_rounded,
+94:       'temp': 12,
+95:       'feels': 10,
+96:       'conditionText': 'Умеренный дождь',
+97:       'aqi': 15,
+98:       'aqiText': 'ОТЛИЧНО',
+99:       'aqiSummary': 'Осадки очистили воздух от пыли и взвешенных частиц. Дышится легко.',
+100:       'wind': 5.5,
+101:       'gusts': 11.0,
+102:       'humidity': 88,
+103:       'pressure': 748.0,
+104:       'flare': null,
+105:       'schumannFreq': 7.85,
+106:       'schumannAmp': 12.8,
+107:     },
+108:     {
+109:       'kind': 'storm',
+110:       'label': 'Гроза',
+111:       'icon': Icons.thunderstorm_rounded,
+112:       'nightIcon': Icons.thunderstorm_rounded,
+113:       'temp': 15,
+114:       'feels': 13,
+115:       'conditionText': 'Гроза с ливнем',
+116:       'aqi': 18,
+117:       'aqiText': 'ОТЛИЧНО',
+118:       'aqiSummary': 'Возможна повышенная концентрация озона во время разрядов молний. Будьте осторожны.',
+119:       'wind': 9.0,
+120:       'gusts': 18.0,
+121:       'humidity': 95,
+122:       'pressure': 742.0,
+123:       'flare': 'M3.4',
+124:       'schumannFreq': 8.12,
+125:       'schumannAmp': 24.5,
+126:     },
+127:     {
+128:       'kind': 'snow',
+129:       'label': 'Снег',
+130:       'icon': Icons.ac_unit_rounded,
+131:       'nightIcon': Icons.ac_unit_rounded,
+132:       'temp': -4,
+133:       'feels': -9,
+134:       'conditionText': 'Снегопад',
+135:       'aqi': 20,
+136:       'aqiText': 'ОТЛИЧНО',
+137:       'aqiSummary': 'Свежий снегопад. Воздух кристально чистый, оседание выхлопных газов.',
+138:       'wind': 6.0,
+139:       'gusts': 12.0,
+140:       'humidity': 85,
+141:       'pressure': 750.0,
+142:       'flare': null,
+143:       'schumannFreq': 7.83,
+144:       'schumannAmp': 9.8,
+145:     },
+146:     {
+147:       'kind': 'wind',
+148:       'label': 'Ветер',
+149:       'icon': Icons.air_rounded,
+150:       'nightIcon': Icons.air_rounded,
+151:       'temp': 14,
+152:       'feels': 11,
+153:       'conditionText': 'Штормовой ветер',
+154:       'aqi': 55,
+155:       'aqiText': 'УМЕРЕННО',
+156:       'aqiSummary': 'Сильный ветер поднимает пыль с земли. Людям с аллергией рекомендуется носить маски.',
+157:       'wind': 12.0,
+158:       'gusts': 22.0,
+159:       'humidity': 50,
+160:       'pressure': 745.0,
+161:       'flare': 'C2.1',
+162:       'schumannFreq': 7.92,
+163:       'schumannAmp': 16.4,
+164:     },
+165:     {
+166:       'kind': 'fog',
+167:       'label': 'Туман',
+168:       'icon': Icons.blur_on_rounded,
+169:       'nightIcon': Icons.blur_on_rounded,
+170:       'temp': 8,
+171:       'feels': 7,
+172:       'conditionText': 'Густой туман',
+173:       'aqi': 75,
+174:       'aqiText': 'ЗАГРЯЗНЕНИЕ',
+175:       'aqiSummary': 'Высокая влажность способствует накоплению вредных примесей у поверхности земли.',
+176:       'wind': 1.5,
+177:       'gusts': 3.0,
+178:       'humidity': 98,
+179:       'pressure': 756.0,
+180:       'flare': null,
+181:       'schumannFreq': 7.83,
+182:       'schumannAmp': 10.2,
+183:     },
+184:   ];
+185: 
+186:   @override
+187:   void initState() {
+188:     super.initState();
+189:     _controller = AnimationController(
+190:       vsync: this,
+191:       duration: const Duration(seconds: 6),
+192:     )..repeat();
+193:     _initDisplayData();
+194:   }
+195: 
+196:   void _initDisplayData() {
+197:     _selectedKind = widget.weather.kind;
+198:     _displayTemp = widget.weather.temperatureC?.round();
+199:     _displayFeels = widget.weather.feelsLikeC?.round();
+200:     _displayCondition = widget.weather.condition;
+201:     _displayAqiLevel = widget.weather.airQualityLevel;
+202:     _displayAqiSummary = widget.weather.airQualitySummary;
+203:     _displayAqiValue = widget.weather.europeanAqi;
+204:     _displayWindSpeed = widget.weather.windSpeedMs;
+205:     _displayWindGusts = widget.weather.windGustsMs;
+206:     _displayHumidity = widget.weather.humidityPct;
+207:     _displayPressure = widget.weather.pressureMmHg;
+208:     _displaySolarFlare = widget.weather.solarFlare;
+209:     _displaySchumannFreq = widget.weather.schumannFreqHz;
+210:     _displaySchumannAmp = widget.weather.schumannAmpPt;
+211: 
+212:     // If API returned empty/missing, assign defaults of current kind
+213:     if (!widget.weather.available || _displayTemp == null) {
+214:       _selectCondition(_selectedKind, updateState: false);
+215:     }
+216: 
+217:     // Play alert sound if anomaly exists on load
+218:     WidgetsBinding.instance.addPostFrameCallback((_) {
+219:       if (_hasAnomaly) {
+220:         _playAlertSound();
+221:       }
+222:     });
+223:   }
+224: 
+225:   @override
+226:   void didUpdateWidget(WeatherOverlayPanel oldWidget) {
+227:     super.didUpdateWidget(oldWidget);
+228:     if (oldWidget.weather.kind != widget.weather.kind ||
+229:         oldWidget.weather.temperatureC != widget.weather.temperatureC) {
+230:       _initDisplayData();
+231:     }
+232:   }
+233: 
+234:   bool get _hasAnomaly {
+235:     if (_displaySchumannFreq != null && (_displaySchumannFreq! < 7.7 || _displaySchumannFreq! > 8.0)) return true;
+236:     if (_displayPressure != null && (_displayPressure! < 748 || _displayPressure! > 768)) return true;
+237:     if (_displaySolarFlare != null && (_displaySolarFlare!.startsWith('M') || _displaySolarFlare!.startsWith('X') || _displaySolarFlare!.startsWith('C'))) return true;
+238:     if (_displaySchumannAmp != null && _displaySchumannAmp! > 15.0) return true;
+239:     if (_displayWindSpeed != null && _displayWindSpeed! > 10.0) return true;
+240:     return false;
+241:   }
+242: 
+243: 
+244: 
+245:   void _playAlertSound() {
+246:     SystemSound.play(SystemSoundType.click);
+247:     Future.delayed(const Duration(milliseconds: 150), () {
+248:       SystemSound.play(SystemSoundType.click);
+249:     });
+250:     Future.delayed(const Duration(milliseconds: 300), () {
+251:       SystemSound.play(SystemSoundType.click);
+252:     });
+253:   }
+254: 
+255:   void _selectCondition(String kind, {bool updateState = true}) {
+256:     final demo = _demoConditions.firstWhere(
+257:       (e) => e['kind'] == kind,
+258:       orElse: () => _demoConditions.first,
+259:     );
+260:     void newState() {
+261:       _selectedKind = kind;
+262:       _displayTemp = demo['temp'];
+263:       _displayFeels = demo['feels'];
+264:       _displayCondition = demo['conditionText'];
+265:       _displayAqiLevel = demo['aqiText'];
+266:       _displayAqiSummary = demo['aqiSummary'];
+267:       _displayAqiValue = demo['aqi'];
+268:       _displayWindSpeed = demo['wind'];
+269:       _displayWindGusts = demo['gusts'];
+270:       _displayHumidity = demo['humidity'];
+271:       _displayPressure = demo['pressure'];
+272:       _displaySolarFlare = demo['flare'];
+273:       _displaySchumannFreq = demo['schumannFreq'];
+274:       _displaySchumannAmp = demo['schumannAmp'];
+275:     }
+276: 
+277:     if (updateState) {
+278:       setState(newState);
+279:       if (_hasAnomaly) {
+280:         _playAlertSound();
+281:       }
+282:     } else {
+283:       newState();
+284:     }
+285:   }
+286: 
+287:   @override
+288:   void dispose() {
+289:     _controller.dispose();
+290:     super.dispose();
+291:   }
+292: 
+293:   Widget _spaceParam(IconData icon, String label, String value) {
+294:     return Expanded(
+295:       child: Row(
+296:         children: [
+297:           Icon(icon, size: 20, color: widget.accent),
+298:           const SizedBox(width: 8),
+299:           Expanded(
+300:             child: Column(
+301:               crossAxisAlignment: CrossAxisAlignment.start,
+302:               children: [
+303:                 Text(
+304:                   label,
+305:                   style: TextStyle(
+306:                     color: widget.isNightMode ? Colors.white54 : Colors.black45,
+307:                     fontSize: 11,
+308:                   ),
+309:                 ),
+310:                 Text(
+311:                   value,
+312:                   style: TextStyle(
+313:                     color: widget.isNightMode ? Colors.white : Colors.black87,
+314:                     fontSize: 13,
+315:                     fontWeight: FontWeight.w700,
+316:                   ),
+317:                 ),
+318:               ],
+319:             ),
+320:           ),
+321:         ],
+322:       ),
+323:     );
+324:   }
+325: 
+326:   Widget _buildConditionSelector() {
+327:     final themeBg = widget.isNightMode
+328:         ? Colors.white.withAlpha(20)
+329:         : Colors.black.withAlpha(12);
+330: 
+331:     return Container(
+332:       height: 72,
+333:       width: double.infinity,
+334:       decoration: BoxDecoration(
+335:         color: themeBg,
+336:         borderRadius: BorderRadius.circular(20),
+337:         border: Border.all(
+338:           color: widget.accent.withAlpha(60),
+339:         ),
+340:       ),
+341:       child: ClipRRect(
+342:         borderRadius: BorderRadius.circular(20),
+343:         child: ListView.builder(
+344:           scrollDirection: Axis.horizontal,
+345:           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+346:           itemCount: _demoConditions.length,
+347:           itemBuilder: (context, index) {
+348:             final item = _demoConditions[index];
+349:             final kind = item['kind'] as String;
+350:             final label = item['label'] as String;
+351:             final isSelected = _selectedKind == kind;
+352:             final icon = (widget.isNightMode ? item['nightIcon'] : item['icon']) as IconData;
+353: 
+354:             final activeBg = isSelected
+355:                 ? widget.accent.withAlpha(70)
+356:                 : Colors.transparent;
+357: 
+358:             final activeBorder = isSelected
+359:                 ? widget.accent.withAlpha(140)
+360:                 : Colors.transparent;
+361: 
+362:             final scale = isSelected ? 1.08 : 1.0;
+363: 
+364:             return GestureDetector(
+365:               onTap: () => _selectCondition(kind),
+366:               child: AnimatedScale(
+367:                 scale: scale,
+368:                 duration: const Duration(milliseconds: 200),
+369:                 curve: Curves.easeOutBack,
+370:                 child: AnimatedContainer(
+371:                   duration: const Duration(milliseconds: 200),
+372:                   margin: const EdgeInsets.symmetric(horizontal: 4),
+373:                   padding: const EdgeInsets.symmetric(horizontal: 14),
+374:                   decoration: BoxDecoration(
+375:                     color: activeBg,
+376:                     borderRadius: BorderRadius.circular(14),
+377:                     border: Border.all(color: activeBorder, width: 1.5),
+378:                   ),
+379:                   child: Column(
+380:                     mainAxisAlignment: MainAxisAlignment.center,
+381:                     children: [
+382:                       Icon(
+383:                         icon,
+384:                         size: 24,
+385:                         color: isSelected
+386:                             ? Colors.white
+387:                             : (widget.isNightMode ? Colors.white60 : Colors.black54),
+388:                       ),
+389:                       const SizedBox(height: 4),
+390:                       Text(
+391:                         label,
+392:                         style: TextStyle(
+393:                           fontSize: 11,
+394:                           fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+395:                           color: isSelected
+396:                               ? Colors.white
+397:                               : (widget.isNightMode ? Colors.white70 : Colors.black87),
+398:                         ),
+399:                       ),
+400:                     ],
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

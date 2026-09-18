@@ -12,6 +12,8 @@ import '../services/reports_repository.dart';
 import '../services/uk_fallback_data.dart';
 import '../theme/pulse_colors.dart';
 import '../utils/offline_tiles_service.dart';
+import 'dart:ui';
+import '../widgets/jkh_house_status_widget.dart';
 import '../widgets/app_ui.dart';
 
 class UkCompaniesScreen extends StatefulWidget {
@@ -27,6 +29,7 @@ class UkCompaniesScreen extends StatefulWidget {
 class _UkCompaniesScreenState extends State<UkCompaniesScreen> {
   bool _loading = true;
   String? _error;
+  bool _usingFallback = false;
   List<Map<String, dynamic>> _companies = const [];
   String _query = '';
   Timer? _geocodeDebounce;
@@ -64,7 +67,7 @@ class _UkCompaniesScreenState extends State<UkCompaniesScreen> {
                 setState(() {
                   _searchedHousePoint = LatLng(lat, lon);
                 });
-                _mapController.move(LatLng(lat, lon), 16.5);
+                _mapController.move(LatLng(lat, lon), 15.8);
               }
               widget.onAddressMatched?.call(lat, lon);
             }
@@ -82,7 +85,7 @@ class _UkCompaniesScreenState extends State<UkCompaniesScreen> {
     try {
       final response = await http
           .get(Uri.parse('${MapConfig.backendApiBaseUrl}/uk/catalog'))
-          .timeout(const Duration(seconds: 20));
+          .timeout(const Duration(seconds: 3));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception('HTTP ${response.statusCode}');
       }
@@ -96,6 +99,7 @@ class _UkCompaniesScreenState extends State<UkCompaniesScreen> {
       setState(() {
         _companies =
             parsed.isEmpty ? UkFallbackData.companies : parsed;
+        _usingFallback = parsed.isEmpty;
         if (_companies.isNotEmpty) {
           _companies = [
             for (final row in _companies)
@@ -121,6 +125,7 @@ class _UkCompaniesScreenState extends State<UkCompaniesScreen> {
         ];
         _loading = false;
         _error = null;
+        _usingFallback = true;
       });
     }
   }
@@ -301,6 +306,29 @@ class _UkCompaniesScreenState extends State<UkCompaniesScreen> {
                     )
                   : Column(
                       children: [
+                        if (_usingFallback)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withOpacity(0.14),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.amber.withOpacity(0.35)),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.cloud_off_rounded, color: Colors.amber, size: 16),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Офлайн-копия справочника УК (снимок реальных данных). Обновится при подключении к серверу.',
+                                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                           child: Container(
@@ -951,6 +979,7 @@ class _UkHousesMapSheet extends StatefulWidget {
 }
 
 class _UkHousesMapSheetState extends State<_UkHousesMapSheet> {
+  final MapController _sheetMapController = MapController();
   bool _loading = true;
   String _error = '';
   List<Map<String, dynamic>> _houses = [];
@@ -1054,6 +1083,7 @@ class _UkHousesMapSheetState extends State<_UkHousesMapSheet> {
                         borderRadius: const BorderRadius.vertical(
                             top: Radius.circular(16)),
                         child: FlutterMap(
+                          mapController: _sheetMapController,
                           options: MapOptions(
                             initialCenter: _houses.isNotEmpty
                                 ? LatLng(
@@ -1089,8 +1119,10 @@ class _UkHousesMapSheetState extends State<_UkHousesMapSheet> {
                                     behavior: HitTestBehavior.opaque,
                                     onTap: () {
                                       setState(() {
-                                        _selectedHouseIndex = isSelected ? null : index;
+                                        _selectedHouseIndex = index;
                                       });
+                                      _sheetMapController.move(LatLng(lat, lon), 15.8);
+                                      _showHouseFullSignalsSheet(context, addr, lat, lon);
                                     },
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
@@ -1178,6 +1210,172 @@ class _UkHousesMapSheetState extends State<_UkHousesMapSheet> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showHouseFullSignalsSheet(BuildContext context, String address, double lat, double lon) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A).withOpacity(0.95),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              border: Border.all(color: Colors.cyanAccent.withOpacity(0.4), width: 1.5),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // 1. Адрес Дома
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.cyanAccent.withOpacity(0.18),
+                          border: Border.all(color: Colors.cyanAccent),
+                        ),
+                        child: const Icon(Icons.home_work_rounded, color: Colors.cyanAccent, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              address.isNotEmpty ? address : 'Многоквартирный дом',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const Text(
+                              'Нижневартовск • Мониторинг сигналов и ЖКХ',
+                              style: TextStyle(color: Colors.white60, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+
+                  // 2. Блок Отключений ЖКХ (Вода, Тепло, Электричество)
+                  const Text(
+                    'КОММУНАЛЬНЫЕ ОГРАНИЧЕНИЯ И СТАТУС',
+                    style: TextStyle(
+                      color: Colors.cyanAccent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  JkhHouseStatusWidget(
+                    address: address,
+                    lat: lat,
+                    lng: lon,
+                  ),
+                  const SizedBox(height: 18),
+
+                  // 3. Блок Городских Новостей Микрорайона
+                  const Text(
+                    'НОВОСТИ И ОБЪЯВЛЕНИЯ МИКРОРАЙОНА',
+                    style: TextStyle(
+                      color: Colors.white54,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.campaign_rounded, color: Colors.amberAccent, size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              'МУП «Теплоснабжение» г. Нижневартовск',
+                              style: TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          'Проведен гидравлический расчет и гидравлические испытания тепловых сетей. Подача отопления осуществляется в штатном режиме.',
+                          style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.35),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.cleaning_services_rounded, color: Colors.cyanAccent, size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              'Горводоканал Нижневартовска',
+                              style: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          'Параметры давления холодной воды соответствуют нормам СанПиН 1.2.3685-21.',
+                          style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.35),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

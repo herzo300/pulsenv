@@ -577,7 +577,11 @@
   <div class="glow"></div>
   <div class="container" id="main-content">
     <div class="header">
-      <div class="badge">AI GENERATED REPORT</div>
+      <div style="display:flex;justify-content:center;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+        <div class="badge">AI GENERATED REPORT</div>
+        <button class="badge" id="open-tutorial-btn" style="cursor:pointer;background:rgba(139,92,246,0.15);border-color:rgba(139,92,246,0.4);color:#a78bfa;">✨ Инструкция / О дайджесте</button>
+        <a href="/app-arm64-v8a-release.apk" download class="badge" style="cursor:pointer;background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.4);color:#10b981;text-decoration:none;">📱 Скачать APK (ARM64)</a>
+      </div>
       <h1>Пульс Ночи — Нижневартовск</h1>
       <p class="date" id="report-date"></p>
     </div>
@@ -807,7 +811,142 @@
     }
 
     loadReport();
+
+    // ── AI Digest Tutorial Logic ──────────────────────────────
+    const TUTORIAL_KEY = 'pulse_ai_digest_tutorial_seen';
+    const tutModal = document.getElementById('ai-digest-tutorial-modal');
+    const tutStepBadge = document.getElementById('tut-step-badge');
+    const tutIcon = document.getElementById('tut-icon');
+    const tutTitle = document.getElementById('tut-title');
+    const tutDesc = document.getElementById('tut-desc');
+    const tutPrevBtn = document.getElementById('tut-prev-btn');
+    const tutNextBtn = document.getElementById('tut-next-btn');
+    const tutCloseBtn = document.getElementById('tut-close-btn');
+    const openTutBtn = document.getElementById('open-tutorial-btn');
+    const tutDots = document.querySelectorAll('.tut-dot');
+
+    let currentTutStep = 0;
+
+    const tutSteps = [
+      {
+        badge: 'Обучение · Шаг 1 из 3',
+        icon: '🤖',
+        title: 'Умный AI-Анализ Города',
+        desc: 'Искусственный интеллект City Pulse непрерывно анализирует обращения жителей, видеопотоки камер и оперативные сводки, формируя ежесуточный цифровой дайджест Нижневартовска.'
+      },
+      {
+        badge: 'Обучение · Шаг 2 из 3',
+        icon: '📊',
+        title: 'Ритм и Настроение Города',
+        desc: 'Отслеживайте атмосферу Нижневартовска в режиме реального времени. Наглядные шкалы показывают динамику ЖКХ, аварии, погодные риски и прогноз событий на завтра.'
+      },
+      {
+        badge: 'Обучение · Шаг 3 из 3',
+        icon: '📱',
+        title: 'Мобильное приложение (ARM64 APK)',
+        desc: 'Установите официальный APK-клиент City Pulse для Android (ARM64-v8a) с работающими офлайн-картами и локальными push-уведомлениями по вашему микрорайону!<br><br><a href="/app-arm64-v8a-release.apk" download style="display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:#10b981;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:13px;box-shadow:0 4px 15px rgba(16,185,129,0.3);">📥 Скачать APK для Android (arm64-v8a)</a>'
+      }
+    ];
+
+    function renderTutStep(index) {
+      currentTutStep = index;
+      const s = tutSteps[index];
+      tutStepBadge.textContent = s.badge;
+      tutIcon.textContent = s.icon;
+      tutTitle.textContent = s.title;
+      tutDesc.innerHTML = s.desc;
+
+      tutDots.forEach((dot, idx) => {
+        if (idx === index) {
+          dot.style.background = '#8b5cf6';
+          dot.style.width = '24px';
+          dot.style.borderRadius = '10px';
+        } else {
+          dot.style.background = 'rgba(255,255,255,0.2)';
+          dot.style.width = '10px';
+          dot.style.borderRadius = '50%';
+        }
+      });
+
+      if (index === 0) {
+        tutPrevBtn.style.display = 'none';
+      } else {
+        tutPrevBtn.style.display = 'inline-block';
+      }
+
+      if (index === tutSteps.length - 1) {
+        tutNextBtn.textContent = 'Понятно! Начать';
+        tutNextBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+      } else {
+        tutNextBtn.textContent = 'Далее →';
+        tutNextBtn.style.background = 'linear-gradient(135deg, #3b82f6, #8b5cf6)';
+      }
+    }
+
+    function openTutorial() {
+      renderTutStep(0);
+      tutModal.style.display = 'flex';
+    }
+
+    function closeTutorial() {
+      tutModal.style.display = 'none';
+      try { localStorage.setItem(TUTORIAL_KEY, 'true'); } catch (e) {}
+    }
+
+    tutNextBtn.addEventListener('click', () => {
+      if (currentTutStep < tutSteps.length - 1) {
+        renderTutStep(currentTutStep + 1);
+      } else {
+        closeTutorial();
+      }
+    });
+
+    tutPrevBtn.addEventListener('click', () => {
+      if (currentTutStep > 0) {
+        renderTutStep(currentTutStep - 1);
+      }
+    });
+
+    tutCloseBtn.addEventListener('click', closeTutorial);
+    if (openTutBtn) openTutBtn.addEventListener('click', openTutorial);
+
+    // Auto open on first visit
+    if (localStorage.getItem(TUTORIAL_KEY) !== 'true') {
+      setTimeout(openTutorial, 600);
+    }
   </script>
+
+  <!-- AI Digest Tutorial Onboarding Modal -->
+  <div id="ai-digest-tutorial-modal" class="no-print" style="display:none;position:fixed;inset:0;background:rgba(3,7,18,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+    <div class="tutorial-card" style="background:#0a0f1e;border:1px solid rgba(139,92,246,0.35);border-radius:24px;max-width:480px;width:100%;padding:32px;box-shadow:0 25px 60px rgba(0,0,0,0.85);color:#f8fafc;position:relative;overflow:hidden;font-family:'Inter',sans-serif;">
+      <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#3b82f6,#8b5cf6,#10b981);"></div>
+      
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <span id="tut-step-badge" style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#a78bfa;background:rgba(139,92,246,0.15);padding:4px 12px;border-radius:20px;border:1px solid rgba(139,92,246,0.3);">Обучение · Шаг 1 из 3</span>
+        <button id="tut-close-btn" style="background:none;border:none;color:#64748b;font-size:22px;cursor:pointer;line-height:1;">✕</button>
+      </div>
+
+      <div id="tut-content" style="min-height:210px;display:flex;flex-direction:column;justify-content:center;">
+        <div id="tut-icon" style="font-size:48px;margin-bottom:16px;line-height:1;">🤖</div>
+        <h2 id="tut-title" style="font-size:22px;font-weight:800;margin-bottom:12px;color:#fff;line-height:1.2;">AI Итоги дня и Пульс города</h2>
+        <div id="tut-desc" style="font-size:14px;color:#94a3b8;line-height:1.6;margin-bottom:16px;">Искусственный интеллект City Pulse ежедневно анализирует обращения жителей, данные ЖКХ и городские паблики, создавая единый цифровой дайджест.</div>
+      </div>
+
+      <!-- Dots Indicator -->
+      <div style="display:flex;justify-content:center;gap:8px;margin-bottom:24px;">
+        <span class="tut-dot" style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;transition:all 0.3s;"></span>
+        <span class="tut-dot" style="width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.2);transition:all 0.3s;"></span>
+        <span class="tut-dot" style="width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.2);transition:all 0.3s;"></span>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+        <button id="tut-prev-btn" style="padding:10px 18px;border-radius:12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;cursor:pointer;font-size:13px;font-weight:600;display:none;">← Назад</button>
+        <div style="flex:1;"></div>
+        <button id="tut-next-btn" style="padding:12px 24px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border:none;color:#fff;cursor:pointer;font-size:14px;font-weight:700;box-shadow:0 8px 20px rgba(59,130,246,0.3);">Далее →</button>
+      </div>
+    </div>
+  </div>
 </body>
 
 </html>

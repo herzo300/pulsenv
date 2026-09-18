@@ -1,0 +1,119 @@
+Created At: 2026-06-23T15:20:37Z
+Completed At: 2026-06-23T15:20:38Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1888
+Total Bytes: 84967
+Showing lines 1640 to 1750
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1640:         }
+1641:       }
+1642:     });
+1643:     _scroll.forward();
+1644:   }
+1645: 
+1646:   @override
+1647:   void didUpdateWidget(covariant CityAlertTicker oldWidget) {
+1648:     super.didUpdateWidget(oldWidget);
+1649:     if (oldWidget.data.marquee != widget.data.marquee ||
+1650:         oldWidget.selectedCategory != widget.selectedCategory ||
+1651:         oldWidget.customWarningText != widget.customWarningText) {
+1652:       setState(() {
+1653:         _visible = true;
+1654:       });
+1655:       _scroll.reset();
+1656:       _scroll.forward();
+1657:     }
+1658:   }
+1659: 
+1660:   @override
+1661:   void dispose() {
+1662:     _scroll.dispose();
+1663:     super.dispose();
+1664:   }
+1665: 
+1666:   bool _isEmergencyAlert(Map<String, dynamic> item) {
+1667:     final cat = (item['category'] ?? '').toString().toLowerCase();
+1668:     final txt = (item['text'] ?? '').toString().toLowerCase();
+1669:     final hasEmergency = cat.contains('чп') || cat.contains('чрезвыч') || txt.contains('чп') || txt.contains('чрезвыч') || txt.contains('пожар') || txt.contains('взрыв');
+1670:     final hasAccident = cat.contains('авари') || cat.contains('дтп') || txt.contains('авари') || txt.contains('дтп') || txt.contains('столкн');
+1671:     final hasCrime = cat.contains('кримин') || cat.contains('преступ') || txt.contains('кримин') || txt.contains('преступ') || txt.contains('краж') || txt.contains('драка') || txt.contains('убий');
+1672:     return hasEmergency || hasAccident || hasCrime;
+1673:   }
+1674: 
+1675:   @override
+1676:   Widget build(BuildContext context) {
+1677:     String text = '';
+1678:     IconData leadingIcon = Icons.campaign_rounded;
+1679:     Color bg = widget.isNightMode ? const Color(0xB30A101C) : const Color(0xDDF0F8FF);
+1680:     Color border = widget.accent.withAlpha(90);
+1681: 
+1682:     if (widget.customWarningText != null && widget.customWarningText!.isNotEmpty) {
+1683:       text = widget.customWarningText!;
+1684:       leadingIcon = Icons.warning_amber_rounded;
+1685:       bg = const Color(0xDDF97316); // Amber/Orange warning
+1686:       border = const Color(0xFFFED7AA);
+1687:     } else if (widget.useWeatherOnly) {
+1688:       text = widget.data.weatherMarquee;
+1689:       leadingIcon = Icons.wb_cloudy_rounded;
+1690:     } else if (widget.useCityOnly) {
+1691:       final List<Map<String, dynamic>> itemsToProcess = widget.selectedCategory != null
+1692:           ? widget.data.items.where((i) {
+1693:               if (i['type'] != 'channel') return false;
+1694:               final cat = (i['category'] ?? 'Прочее').toString().trim().toLowerCase();
+1695:               final sel = widget.selectedCategory!.trim().toLowerCase();
+1696:               return cat == sel;
+1697:             }).toList()
+1698:           : widget.data.items;
+1699: 
+1700:       // Filter to only include ЧП (emergencies), accidents (аварии), and crimes (преступления)
+1701:       final filtered = itemsToProcess.where(_isEmergencyAlert).toList();
+1702: 
+1703:       if (filtered.isEmpty) {
+1704:         return const SizedBox.shrink(); // Hide the ticker block completely
+1705:       }
+1706: 
+1707:       text = filtered.map((i) => i['text'].toString()).join('   •   ');
+1708: 
+1709:       // Determine category-specific color & icon
+1710:       final hasSeriousEmergency = filtered.any((i) =>
+1711:           i['severity'].toString().toLowerCase() == 'high' &&
+1712:           (i['category'].toString().toLowerCase().contains('чп') ||
+1713:            i['text'].toString().toLowerCase().contains('чп') ||
+1714:            i['text'].toString().toLowerCase().contains('пожар') ||
+1715:            i['text'].toString().toLowerCase().contains('взрыв')));
+1716: 
+1717:       final hasEmergency = filtered.any((i) =>
+1718:           i['category'].toString().toLowerCase().contains('чп') ||
+1719:           i['text'].toString().toLowerCase().contains('чп') ||
+1720:           i['text'].toString().toLowerCase().contains('пожар') ||
+1721:           i['text'].toString().toLowerCase().contains('взрыв'));
+1722: 
+1723:       final hasAccident = filtered.any((i) =>
+1724:           i['category'].toString().toLowerCase().contains('авари') ||
+1725:           i['category'].toString().toLowerCase().contains('дтп') ||
+1726:           i['text'].toString().toLowerCase().contains('авари') ||
+1727:           i['text'].toString().toLowerCase().contains('дтп') ||
+1728:           i['text'].toString().toLowerCase().contains('столкн'));
+1729: 
+1730:       final hasCrime = filtered.any((i) =>
+1731:           i['category'].toString().toLowerCase().contains('кримин') ||
+1732:           i['category'].toString().toLowerCase().contains('преступ') ||
+1733:           i['text'].toString().toLowerCase().contains('кримин') ||
+1734:           i['text'].toString().toLowerCase().contains('преступ') ||
+1735:           i['text'].toString().toLowerCase().contains('краж') ||
+1736:           i['text'].toString().toLowerCase().contains('драка') ||
+1737:           i['text'].toString().toLowerCase().contains('убий'));
+1738: 
+1739:       if (hasSeriousEmergency) {
+1740:         bg = const Color(0xDDEB3B3B); // Red for serious ЧП
+1741:         border = const Color(0xFFFCA5A5);
+1742:         leadingIcon = Icons.error_outline_rounded;
+1743:       } else if (hasEmergency) {
+1744:         bg = const Color(0xDDFF7D1A); // Orange/Amber for medium/low ЧП
+1745:         border = const Color(0xFFFED7AA);
+1746:         leadingIcon = Icons.warning_amber_rounded;
+1747:       } else if (hasAccident) {
+1748:         bg = const Color(0xDDEAB308); // Yellow/Gold for accidents
+1749:         border = const Color(0xFFFEF08A);
+1750:         leadingIcon = Icons.car_crash_rounded;
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

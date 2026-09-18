@@ -1,0 +1,28 @@
+{
+  "success": true,
+  "report": "📷 60 лет Октября, 10\n🕒 06.06.2026 16:05\n\n• Освещение: сумерки или облачно (яркость 115/255)\n• Активность: высокая активность (много контуров — транспорт, люди, движение)\n• Качество кадра: кадр чёткий\n• Видимость: ясные условия, хорошая видимость\n• Погода (Yandex): +25°, Ясно (Ветер: 6 м/с, Влажность: 43%)\n\n🤖 YOLO — детектор объектов:\nдвижение:100%\n  • Люди: 0\n  • Машины: 0\n  • Животные: 0",
+  "yolo": {
+    "used": true,
+    "summary": "движение:100%",
+    "counts": {
+      "people": 0,
+      "vehicles": 0,
+      "animals": 0
+    },
+    "detections_count": 0,
+    "reason": "high_motion_100%"
+  },
+  "metrics": {
+    "width": 2688,
+    "height": 1520,
+    "brightness": 114.5,
+    "contrast": 63.2,
+    "sharpness": 3368.6,
+    "edge_ratio": 0.214,
+    "saturation": 83.7
+  },
+  "provider": "opencv_free",
+  "camera_name": "60 лет Октября, 10",
+  "camera_url": "https://stream3.dantser.org/NV_60Let_10/tracks-v1/mono.ts.m3u8",
+  "has_frame": true
+}

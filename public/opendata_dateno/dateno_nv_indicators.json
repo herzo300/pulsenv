@@ -1,0 +1,14 @@
+[
+  {
+    "indicator": "Индекс качества городской среды Нижневартовска",
+    "value": "208 баллов (благоприятная городская среда)",
+    "rank_in_region": "3 из 22 городов",
+    "data_source": "Dateno Urban Statistics"
+  },
+  {
+    "indicator": "Уровень озеленения микрорайонов",
+    "value": "34.2%",
+    "status": "Выше среднего по ХМАО",
+    "data_source": "Dateno Spatial Data"
+  }
+]

@@ -1,0 +1,39 @@
+Created At: 2026-06-23T05:17:16Z
+Completed At: 2026-06-23T05:17:16Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1590
+Total Bytes: 65733
+Showing lines 190 to 220
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+190:       duration: const Duration(seconds: 6),
+191:     )..repeat();
+192:     _initDisplayData();
+193:   }
+194: 
+195:   void _initDisplayData() {
+196:     _selectedKind = widget.weather.kind;
+197:     _displayTemp = widget.weather.temperatureC?.round();
+198:     _displayFeels = widget.weather.feelsLikeC?.round();
+199:     _displayCondition = widget.weather.condition;
+200:     _displayAqiLevel = widget.weather.airQualityLevel;
+201:     _displayAqiSummary = widget.weather.airQualitySummary;
+202:     _displayAqiValue = widget.weather.europeanAqi;
+203:     _displayWindSpeed = widget.weather.windSpeedMs;
+204:     _displayWindGusts = widget.weather.windGustsMs;
+205:     _displayHumidity = widget.weather.humidityPct;
+206:     _displayPressure = widget.weather.pressureMmHg;
+207:     _displaySolarFlare = widget.weather.solarFlare;
+208:     _displaySchumannFreq = widget.weather.schumannFreqHz;
+209:     _displaySchumannAmp = widget.weather.schumannAmpPt;
+210: 
+211:     // If API returned empty/missing, assign defaults of current kind
+212:     if (!widget.weather.available || _displayTemp == null) {
+213:       _selectCondition(_selectedKind, updateState: false);
+214:     }
+215: 
+216:     // Play alert sound if anomaly exists on load
+217:     WidgetsBinding.instance.addPostFrameCallback((_) {
+218:       if (_hasAnomaly) {
+219:         _playAlertSound();
+220:       }
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

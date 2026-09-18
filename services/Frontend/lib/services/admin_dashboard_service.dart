@@ -10,7 +10,7 @@ class AdminDashboardService {
   static final AdminDashboardService instance = AdminDashboardService._();
 
   final BackendApiService _backendApi = BackendApiService.instance;
-  String? _adminToken = 'dev_bypass_token';
+  String? _adminToken;
   String? _lastTwoFactorCode;
 
   bool get hasSession => (_adminToken ?? '').isNotEmpty;
@@ -22,7 +22,7 @@ class AdminDashboardService {
 
     final code = (twoFactorCode ?? _lastTwoFactorCode ?? '').trim();
     if (code.isEmpty) {
-      throw Exception('2FA code is required');
+      throw Exception('Требуется код администратора (2FA)');
     }
 
     final response = await _backendApi.postJson(
@@ -30,29 +30,24 @@ class AdminDashboardService {
       <String, dynamic>{
         'two_factor_code': code,
       },
-      timeout: const Duration(seconds: 8),
+      timeout: const Duration(seconds: 3),
     );
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception(_parseError(response));
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final payload = jsonDecode(response.body);
+      final token = payload is Map ? payload['token']?.toString().trim() : null;
+      if (token != null && token.isNotEmpty) {
+        _adminToken = token;
+        _lastTwoFactorCode = code;
+        return;
+      }
     }
-
-    final payload = jsonDecode(response.body);
-    if (payload is! Map<String, dynamic>) {
-      throw Exception('Unexpected admin session payload');
-    }
-
-    final token = payload['token']?.toString().trim() ?? '';
-    if (token.isEmpty) {
-      throw Exception('Admin token is missing');
-    }
-
-    _adminToken = token;
-    _lastTwoFactorCode = code;
+    // Без валидного 2FA сессия не выдаётся — фейковых фолбэков нет.
+    throw Exception('Неверный код администратора или сессия недоступна');
   }
 
-  void ensureVipSession() {
-    _adminToken = 'vip_bypass_token';
+  void clearSession() {
+    _adminToken = null;
   }
 
   Future<Map<String, dynamic>> fetchMetrics({String? twoFactorCode}) async {
@@ -60,20 +55,15 @@ class AdminDashboardService {
     final response = await _backendApi.get(
       '/api/admin/metrics',
       headers: _authHeaders,
-      timeout: const Duration(seconds: 10),
+      timeout: const Duration(seconds: 4),
     );
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      if (response.statusCode == 401 || response.statusCode == 403) {
-        _adminToken = 'dev_bypass_token';
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final payload = jsonDecode(response.body);
+      if (payload is Map<String, dynamic>) {
+        return payload;
       }
-      throw Exception(_parseError(response));
     }
-
-    final payload = jsonDecode(response.body);
-    if (payload is! Map<String, dynamic>) {
-      throw Exception('Unexpected admin metrics payload');
-    }
-    return payload;
+    throw Exception('Не удалось загрузить метрики сервера (${response.statusCode})');
   }
 
   Future<Map<String, dynamic>> fetchNotificationDiagnostics({
@@ -87,7 +77,7 @@ class AdminDashboardService {
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       if (response.statusCode == 401 || response.statusCode == 403) {
-        _adminToken = 'dev_bypass_token';
+        clearSession();
       }
       throw Exception(_parseError(response));
     }
@@ -106,19 +96,13 @@ class AdminDashboardService {
     final response = await _backendApi.get(
       '/api/admin/product-funnel',
       headers: _authHeaders,
-      timeout: const Duration(seconds: 10),
+      timeout: const Duration(seconds: 4),
     );
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      if (response.statusCode == 401 || response.statusCode == 403) {
-        _adminToken = null;
-      }
-      throw Exception(_parseError(response));
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final payload = jsonDecode(response.body);
+      if (payload is Map<String, dynamic>) return payload;
     }
-    final payload = jsonDecode(response.body);
-    if (payload is! Map<String, dynamic>) {
-      throw Exception('Unexpected product funnel payload');
-    }
-    return payload;
+    throw Exception('Не удалось загрузить продуктовую воронку (${response.statusCode})');
   }
 
   Future<Map<String, dynamic>> fetchIngestionQuality({
@@ -128,19 +112,13 @@ class AdminDashboardService {
     final response = await _backendApi.get(
       '/api/admin/ingestion-quality',
       headers: _authHeaders,
-      timeout: const Duration(seconds: 10),
+      timeout: const Duration(seconds: 4),
     );
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      if (response.statusCode == 401 || response.statusCode == 403) {
-        _adminToken = null;
-      }
-      throw Exception(_parseError(response));
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final payload = jsonDecode(response.body);
+      if (payload is Map<String, dynamic>) return payload;
     }
-    final payload = jsonDecode(response.body);
-    if (payload is! Map<String, dynamic>) {
-      throw Exception('Unexpected ingestion quality payload');
-    }
-    return payload;
+    throw Exception('Не удалось загрузить качество инжеста (${response.statusCode})');
   }
 
   Future<Map<String, dynamic>> updateDevicePolicy({

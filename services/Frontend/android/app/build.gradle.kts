@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.soobshio.app"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     val keystoreProperties = Properties()
@@ -44,10 +44,6 @@ android {
             ?: "false")
             .trim()
             .equals("true", ignoreCase = true)
-    // val isReleaseTaskRequested =
-    //     gradle.startParameter.taskNames.any { taskName ->
-    //         taskName.contains("Release", ignoreCase = true)
-    //     }
     val hasReleaseSigning =
         releaseStoreFile.isNotEmpty() &&
             releaseStorePassword.isNotEmpty() &&
@@ -66,10 +62,8 @@ android {
 
     defaultConfig {
         applicationId = "com.soobshio.app"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -79,6 +73,10 @@ android {
     }
 
     signingConfigs {
+        getByName("debug") {
+            enableV1Signing = true
+            enableV2Signing = true
+        }
         if (hasReleaseSigning) {
             create("release") {
                 storeFile = file(releaseStoreFile)
@@ -94,27 +92,14 @@ android {
     }
 
     androidResources {
-        // noCompress для "tflite" убран: нативные ML-модели больше не bundle'ятся
-        // в assets (используется google_mlkit_* который тянет модели из Play Services).
-    }
-
-    splits {
-        // ABI splits отключены: несовместимы с `flutter build appbundle`.
-        // Google Play сам раздаёт нужный ABI из AAB.
-        // Для прямой APK-дистрибуции используйте:
-        //   flutter build apk --split-per-abi --release
-        abi {
-            isEnable = false
-            reset()
-            include("armeabi-v7a", "arm64-v8a")
-            isUniversalApk = false
-        }
     }
 
     lint {
         checkReleaseBuilds = false
         abortOnError = false
     }
+
+
 
     buildTypes {
         release {

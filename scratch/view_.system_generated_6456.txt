@@ -1,0 +1,808 @@
+Created At: 2026-06-23T09:39:38Z
+Completed At: 2026-06-23T09:39:38Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1807
+Total Bytes: 78527
+Showing lines 1 to 800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: import 'dart:math' as math;
+2: 
+3: import 'package:flutter/material.dart';
+4: import 'package:flutter/services.dart';
+5: 
+6: import '../../../services/city_weather_service.dart';
+7: 
+8: /// Full-screen weather card with ambient animation for the map.
+9: class WeatherOverlayPanel extends StatefulWidget {
+10:   const WeatherOverlayPanel({
+11:     super.key,
+12:     required this.weather,
+13:     required this.alerts,
+14:     required this.onClose,
+15:     required this.isNightMode,
+16:     required this.accent,
+17:   });
+18: 
+19:   final CityWeatherSnapshot weather;
+20:   final CityAlertTickerData alerts;
+21:   final VoidCallback onClose;
+22:   final bool isNightMode;
+23:   final Color accent;
+24: 
+25:   @override
+26:   State<WeatherOverlayPanel> createState() => _WeatherOverlayPanelState();
+27: }
+28: 
+29: class _WeatherOverlayPanelState extends State<WeatherOverlayPanel>
+30:     with SingleTickerProviderStateMixin {
+31:   late final AnimationController _controller;
+32: 
+33:   // Selected weather kind and simulated stats
+34:   late String _selectedKind;
+35:   late int? _displayTemp;
+36:   late int? _displayFeels;
+37:   late String _displayCondition;
+38:   late String _displayAqiLevel;
+39:   late String _displayAqiSummary;
+40:   late num? _displayAqiValue;
+41:   late double? _displayWindSpeed;
+42:   late double? _displayWindGusts;
+43:   late int? _displayHumidity;
+44:   late double? _displayPressure;
+45:   late String? _displaySolarFlare;
+46:   late double? _displaySchumannFreq;
+47:   late double? _displaySchumannAmp;
+48:   late double? _displaySeismicMagnitude;
+49:   late String? _displaySeismicDescription;
+50:   late double? _displayKpIndex;
+51:   late double? _displayUvIndex;
+52:   late double? _displayVisibilityM;
+53: 
+54:   final List<Map<String, dynamic>> _demoConditions = [
+55:     {
+56:       'kind': 'clear',
+57:       'label': 'Ясно',
+58:       'icon': Icons.wb_sunny_rounded,
+59:       'nightIcon': Icons.nightlight_round,
+60:       'temp': 22,
+61:       'feels': 21,
+62:       'conditionText': 'Ясно',
+63:       'aqi': 25,
+64:       'aqiText': 'ОТЛИЧНО',
+65:       'aqiSummary': 'Индекс качества воздуха в норме. Идеальное время для прогулок и спорта на открытом воздухе.',
+66:       'wind': 3.0,
+67:       'gusts': 5.0,
+68:       'humidity': 45,
+69:       'pressure': 762.0,
+70:       'flare': 'C1.2',
+71:       'schumannFreq': 7.83,
+72:       'schumannAmp': 14.2,
+73:     },
+74:     {
+75:       'kind': 'cloudy',
+76:       'label': 'Облачно',
+77:       'icon': Icons.cloud_rounded,
+78:       'nightIcon': Icons.cloud_rounded,
+79:       'temp': 17,
+80:       'feels': 16,
+81:       'conditionText': 'Пасмурно',
+82:       'aqi': 35,
+83:       'aqiText': 'ХОРОШО',
+84:       'aqiSummary': 'Качество воздуха хорошее. Загрязнение атмосферы минимальное, риски отсутствуют.',
+85:       'wind': 4.5,
+86:       'gusts': 8.0,
+87:       'humidity': 60,
+88:       'pressure': 754.0,
+89:       'flare': null,
+90:       'schumannFreq': 7.83,
+91:       'schumannAmp': 11.5,
+92:     },
+93:     {
+94:       'kind': 'rain',
+95:       'label': 'Дождь',
+96:       'icon': Icons.grain_rounded,
+97:       'nightIcon': Icons.grain_rounded,
+98:       'temp': 12,
+99:       'feels': 10,
+100:       'conditionText': 'Умеренный дождь',
+101:       'aqi': 15,
+102:       'aqiText': 'ОТЛИЧНО',
+103:       'aqiSummary': 'Осадки очистили воздух от пыли и взвешенных частиц. Дышится легко.',
+104:       'wind': 5.5,
+105:       'gusts': 11.0,
+106:       'humidity': 88,
+107:       'pressure': 748.0,
+108:       'flare': null,
+109:       'schumannFreq': 7.85,
+110:       'schumannAmp': 12.8,
+111:     },
+112:     {
+113:       'kind': 'storm',
+114:       'label': 'Гроза',
+115:       'icon': Icons.thunderstorm_rounded,
+116:       'nightIcon': Icons.thunderstorm_rounded,
+117:       'temp': 15,
+118:       'feels': 13,
+119:       'conditionText': 'Гроза с ливнем',
+120:       'aqi': 18,
+121:       'aqiText': 'ОТЛИЧНО',
+122:       'aqiSummary': 'Возможна повышенная концентрация озона во время разрядов молний. Будьте осторожны.',
+123:       'wind': 9.0,
+124:       'gusts': 18.0,
+125:       'humidity': 95,
+126:       'pressure': 742.0,
+127:       'flare': 'M3.4',
+128:       'schumannFreq': 8.12,
+129:       'schumannAmp': 24.5,
+130:     },
+131:     {
+132:       'kind': 'snow',
+133:       'label': 'Снег',
+134:       'icon': Icons.ac_unit_rounded,
+135:       'nightIcon': Icons.ac_unit_rounded,
+136:       'temp': -4,
+137:       'feels': -9,
+138:       'conditionText': 'Снегопад',
+139:       'aqi': 20,
+140:       'aqiText': 'ОТЛИЧНО',
+141:       'aqiSummary': 'Свежий снегопад. Воздух кристально чистый, оседание выхлопных газов.',
+142:       'wind': 6.0,
+143:       'gusts': 12.0,
+144:       'humidity': 85,
+145:       'pressure': 750.0,
+146:       'flare': null,
+147:       'schumannFreq': 7.83,
+148:       'schumannAmp': 9.8,
+149:     },
+150:     {
+151:       'kind': 'wind',
+152:       'label': 'Ветер',
+153:       'icon': Icons.air_rounded,
+154:       'nightIcon': Icons.air_rounded,
+155:       'temp': 14,
+156:       'feels': 11,
+157:       'conditionText': 'Штормовой ветер',
+158:       'aqi': 55,
+159:       'aqiText': 'УМЕРЕННО',
+160:       'aqiSummary': 'Сильный ветер поднимает пыль с земли. Людям с аллергией рекомендуется носить маски.',
+161:       'wind': 12.0,
+162:       'gusts': 22.0,
+163:       'humidity': 50,
+164:       'pressure': 745.0,
+165:       'flare': 'C2.1',
+166:       'schumannFreq': 7.92,
+167:       'schumannAmp': 16.4,
+168:     },
+169:     {
+170:       'kind': 'fog',
+171:       'label': 'Туман',
+172:       'icon': Icons.blur_on_rounded,
+173:       'nightIcon': Icons.blur_on_rounded,
+174:       'temp': 8,
+175:       'feels': 7,
+176:       'conditionText': 'Густой туман',
+177:       'aqi': 75,
+178:       'aqiText': 'ЗАГРЯЗНЕНИЕ',
+179:       'aqiSummary': 'Высокая влажность способствует накоплению вредных примесей у поверхности земли.',
+180:       'wind': 1.5,
+181:       'gusts': 3.0,
+182:       'humidity': 98,
+183:       'pressure': 756.0,
+184:       'flare': null,
+185:       'schumannFreq': 7.83,
+186:       'schumannAmp': 10.2,
+187:     },
+188:   ];
+189: 
+190:   @override
+191:   void initState() {
+192:     super.initState();
+193:     _controller = AnimationController(
+194:       vsync: this,
+195:       duration: const Duration(seconds: 6),
+196:     )..repeat();
+197:     _initDisplayData();
+198:   }
+199: 
+200:   void _initDisplayData() {
+201:     _selectedKind = widget.weather.kind;
+202:     _displayTemp = widget.weather.temperatureC?.round();
+203:     _displayFeels = widget.weather.feelsLikeC?.round();
+204:     _displayCondition = widget.weather.condition;
+205:     _displayAqiLevel = widget.weather.airQualityLevel;
+206:     _displayAqiSummary = widget.weather.airQualitySummary;
+207:     _displayAqiValue = widget.weather.europeanAqi;
+208:     _displayWindSpeed = widget.weather.windSpeedMs;
+209:     _displayWindGusts = widget.weather.windGustsMs;
+210:     _displayHumidity = widget.weather.humidityPct;
+211:     _displayPressure = widget.weather.pressureMmHg;
+212:     _displaySolarFlare = widget.weather.solarFlare;
+213:     _displaySchumannFreq = widget.weather.schumannFreqHz;
+214:     _displaySchumannAmp = widget.weather.schumannAmpPt;
+215:     _displaySeismicMagnitude = widget.weather.seismicMagnitude;
+216:     _displaySeismicDescription = widget.weather.seismicDescription;
+217:     _displayKpIndex = widget.weather.kpIndex;
+218:     _displayUvIndex = widget.weather.uvIndex;
+219:     _displayVisibilityM = widget.weather.visibilityM;
+220: 
+221:     // If API returned empty/missing, assign defaults of current kind
+222:     if (!widget.weather.available || _displayTemp == null) {
+223:       _selectCondition(_selectedKind, updateState: false);
+224:     }
+225: 
+226:     // Play alert sound if anomaly exists on load
+227:     WidgetsBinding.instance.addPostFrameCallback((_) {
+228:       if (_hasAnomaly) {
+229:         _playAlertSound();
+230:       }
+231:     });
+232:   }
+233: 
+234:   @override
+235:   void didUpdateWidget(WeatherOverlayPanel oldWidget) {
+236:     super.didUpdateWidget(oldWidget);
+237:     if (oldWidget.weather.kind != widget.weather.kind ||
+238:         oldWidget.weather.temperatureC != widget.weather.temperatureC) {
+239:       _initDisplayData();
+240:     }
+241:   }
+242: 
+243:   bool get _hasAnomaly {
+244:     if (_displaySchumannFreq != null && (_displaySchumannFreq! < 7.7 || _displaySchumannFreq! > 8.0)) return true;
+245:     if (_displayPressure != null && (_displayPressure! < 748 || _displayPressure! > 768)) return true;
+246:     if (_displaySolarFlare != null && (_displaySolarFlare!.startsWith('M') || _displaySolarFlare!.startsWith('X') || _displaySolarFlare!.startsWith('C'))) return true;
+247:     if (_displaySchumannAmp != null && _displaySchumannAmp! > 15.0) return true;
+248:     if (_displayWindSpeed != null && _displayWindSpeed! > 10.0) return true;
+249:     return false;
+250:   }
+251: 
+252: 
+253: 
+254:   void _playAlertSound() {
+255:     SystemSound.play(SystemSoundType.click);
+256:     Future.delayed(const Duration(milliseconds: 150), () {
+257:       SystemSound.play(SystemSoundType.click);
+258:     });
+259:     Future.delayed(const Duration(milliseconds: 300), () {
+260:       SystemSound.play(SystemSoundType.click);
+261:     });
+262:   }
+263: 
+264:   void _selectCondition(String kind, {bool updateState = true}) {
+265:     final demo = _demoConditions.firstWhere(
+266:       (e) => e['kind'] == kind,
+267:       orElse: () => _demoConditions.first,
+268:     );
+269:     void newState() {
+270:       _selectedKind = kind;
+271:       _displayTemp = demo['temp'];
+272:       _displayFeels = demo['feels'];
+273:       _displayCondition = demo['conditionText'];
+274:       _displayAqiLevel = demo['aqiText'];
+275:       _displayAqiSummary = demo['aqiSummary'];
+276:       _displayAqiValue = demo['aqi'];
+277:       _displayWindSpeed = demo['wind'];
+278:       _displayWindGusts = demo['gusts'];
+279:       _displayHumidity = demo['humidity'];
+280:       _displayPressure = demo['pressure'];
+281:       _displaySolarFlare = demo['flare'];
+282:       _displaySchumannFreq = demo['schumannFreq'];
+283:       _displaySchumannAmp = demo['schumannAmp'];
+284:       _displaySeismicMagnitude = 0.0;
+285:       _displaySeismicDescription = 'Сейсмическая активность в норме (нет событий)';
+286:       _displayKpIndex = 1.0;
+287:       _displayUvIndex = 1.0;
+288:       _displayVisibilityM = 10000.0;
+289:     }
+290: 
+291:     if (updateState) {
+292:       setState(newState);
+293:       if (_hasAnomaly) {
+294:         _playAlertSound();
+295:       }
+296:     } else {
+297:       newState();
+298:     }
+299:   }
+300: 
+301:   @override
+302:   void dispose() {
+303:     _controller.dispose();
+304:     super.dispose();
+305:   }
+306: 
+307:   Widget _spaceParam(IconData icon, String label, String value, VoidCallback onTap) {
+308:     return Expanded(
+309:       child: Material(
+310:         color: Colors.transparent,
+311:         child: InkWell(
+312:           onTap: onTap,
+313:           borderRadius: BorderRadius.circular(12),
+314:           child: Padding(
+315:             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+316:             child: Row(
+317:               children: [
+318:                 Icon(icon, size: 20, color: widget.accent),
+319:                 const SizedBox(width: 8),
+320:                 Expanded(
+321:                   child: Column(
+322:                     crossAxisAlignment: CrossAxisAlignment.start,
+323:                     children: [
+324:                       Text(
+325:                         label,
+326:                         style: TextStyle(
+327:                           color: widget.isNightMode ? Colors.white54 : Colors.black45,
+328:                           fontSize: 11,
+329:                         ),
+330:                       ),
+331:                       Text(
+332:                         value,
+333:                         style: TextStyle(
+334:                           color: widget.isNightMode ? Colors.white : Colors.black87,
+335:                           fontSize: 13,
+336:                           fontWeight: FontWeight.w700,
+337:                         ),
+338:                       ),
+339:                     ],
+340:                   ),
+341:                 ),
+342:               ],
+343:             ),
+344:           ),
+345:         ),
+346:       ),
+347:     );
+348:   }
+349: 
+350:   void _showParamExplanation(String title, String currentText, String explanation) {
+351:     showModalBottomSheet<void>(
+352:       context: context,
+353:       isScrollControlled: true,
+354:       backgroundColor: Colors.transparent,
+355:       builder: (context) {
+356:         final isDark = widget.isNightMode;
+357:         final bgColor = isDark ? const Color(0xFF0F172A) : Colors.white;
+358:         final titleColor = isDark ? Colors.white : const Color(0xFF0F2742);
+359:         final textColor = isDark ? Colors.white70 : Colors.black87;
+360:         
+361:         return Container(
+362:           decoration: BoxDecoration(
+363:             color: bgColor,
+364:             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+365:             boxShadow: [
+366:               BoxShadow(
+367:                 color: Colors.black.withOpacity(0.3),
+368:                 blurRadius: 16,
+369:                 spreadRadius: 2,
+370:               )
+371:             ],
+372:           ),
+373:           padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+374:           child: Column(
+375:             mainAxisSize: MainAxisSize.min,
+376:             crossAxisAlignment: CrossAxisAlignment.start,
+377:             children: [
+378:               Center(
+379:                 child: Container(
+380:                   width: 36,
+381:                   height: 4,
+382:                   decoration: BoxDecoration(
+383:                     color: (isDark ? Colors.white24 : Colors.black12),
+384:                     borderRadius: BorderRadius.circular(2),
+385:                   ),
+386:                 ),
+387:               ),
+388:               const SizedBox(height: 20),
+389:               Text(
+390:                 title,
+391:                 style: TextStyle(
+392:                   fontSize: 20,
+393:                   fontWeight: FontWeight.w800,
+394:                   color: titleColor,
+395:                   letterSpacing: 0.3,
+396:                 ),
+397:               ),
+398:               const SizedBox(height: 8),
+399:               Container(
+400:                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+401:                 decoration: BoxDecoration(
+402:                   color: widget.accent.withOpacity(0.1),
+403:                   borderRadius: BorderRadius.circular(10),
+404:                   border: Border.all(color: widget.accent.withOpacity(0.2)),
+405:                 ),
+406:                 child: Text(
+407:                   'Текущее значение: $currentText',
+408:                   style: TextStyle(
+409:                     fontSize: 13,
+410:                     fontWeight: FontWeight.bold,
+411:                     color: widget.accent,
+412:                   ),
+413:                 ),
+414:               ),
+415:               const SizedBox(height: 16),
+416:               Text(
+417:                 explanation,
+418:                 style: TextStyle(
+419:                   fontSize: 14.5,
+420:                   height: 1.5,
+421:                   color: textColor,
+422:                 ),
+423:               ),
+424:               const SizedBox(height: 24),
+425:               SizedBox(
+426:                 width: double.infinity,
+427:                 child: TextButton(
+428:                   onPressed: () => Navigator.pop(context),
+429:                   style: TextButton.styleFrom(
+430:                     backgroundColor: widget.accent.withOpacity(isDark ? 0.2 : 0.1),
+431:                     padding: const EdgeInsets.symmetric(vertical: 14),
+432:                     shape: RoundedRectangleBorder(
+433:                       borderRadius: BorderRadius.circular(16),
+434:                     ),
+435:                   ),
+436:                   child: Text(
+437:                     'Понятно',
+438:                     style: TextStyle(
+439:                       color: isDark ? Colors.white : widget.accent,
+440:                       fontSize: 14,
+441:                       fontWeight: FontWeight.bold,
+442:                     ),
+443:                   ),
+444:                 ),
+445:               ),
+446:             ],
+447:           ),
+448:         );
+449:       },
+450:     );
+451:   }
+452: 
+453:   void _explainPressure() {
+454:     final pressure = _displayPressure?.round();
+455:     String text = '';
+456:     if (pressure == null) {
+457:       text = 'Данные временно отсутствуют.';
+458:     } else if (pressure < 748) {
+459:       text = 'Атмосферное давление понижено ($pressure мм рт. ст. при норме 748–768). Это может вызывать гипоксию, сонливость, головокружение или снижение тонуса сосудов у метеозависимых людей. Полезно пить чистую воду и избегать резких физических нагрузок.';
+460:     } else if (pressure > 768) {
+461:       text = 'Атмосферное давление повышено ($pressure мм рт. ст. при норме 748–768). Это может приводить к увеличению артериального давления, головной боли или общему недомоганию. Метеозависимым людям рекомендуется контролировать давление и избегать переутомления.';
+462:     } else {
+463:       text = 'Атмосферное давление находится в пределах нормы ($pressure мм рт. ст., норма 748–768). Это комфортные условия для большинства людей, влияние на самочувствие отсутствует.';
+464:     }
+465:     _showParamExplanation('Атмосферное давление', pressure != null ? '$pressure мм рт. ст.' : '—', text);
+466:   }
+467: 
+468:   void _explainSolarFlare() {
+469:     final flare = _displaySolarFlare;
+470:     String text = '';
+471:     if (flare == null || flare.isEmpty || flare == '—') {
+472:       text = 'Крупных солнечных вспышек не обнаружено. Космический фон в пределах нормы, рисков для техники или здоровья людей нет.';
+473:     } else if (flare.startsWith('X')) {
+474:       text = 'Солнечная вспышка критического класса $flare. Высокая вероятность мощных геомагнитных бурь, возможных сбоев в радиосвязи, спутниковой навигации и сетях электропередач. Людям с сердечно-сосудистыми заболеваниями следует быть осторожнее.';
+475:     } else if (flare.startsWith('M')) {
+476:       text = 'Солнечная вспышка умеренного класса $flare. Возможны кратковременные перебои в полярной радиосвязи и умеренное влияние геомагнитного поля на метеочувствительных людей.';
+477:     } else {
+478:       text = 'Слабая солнечная вспышка класса $flare. Влияние на земную инфраструктуру и самочувствие людей отсутствует, магнитный фон стабилен.';
+479:     }
+480:     _showParamExplanation('Солнечные вспышки', flare != null && flare.isNotEmpty && flare != '—' ? 'Класс $flare' : 'отсутствуют', text);
+481:   }
+482: 
+483:   void _explainSchumannFreq() {
+484:     final freq = _displaySchumannFreq;
+485:     String text = '';
+486:     if (freq == null) {
+487:       text = 'Данные о частоте Шумана временно недоступны.';
+488:     } else if (freq < 7.7 || freq > 8.0) {
+489:       text = 'Базовая частота Шумана составляет $freq Гц (норма 7.83 Гц). Отклонения от нормы могут возникать из-за грозовой активности в атмосфере Земли или изменений в ионосфере. Метеозависимые люди могут отмечать изменения сна или уровня тревожности.';
+490:     } else {
+491:       text = 'Базовая частота Шумана стабильна и составляет $freq Гц, что соответствует норме (7.83 Гц). Ионосфера Земли спокойна, естественные электромагнитные колебания планеты сбалансированы.';
+492:     }
+493:     _showParamExplanation('Резонанс Шумана', freq != null ? '$freq Гц' : '—', text);
+494:   }
+495: 
+496:   void _explainSchumannAmp() {
+497:     final amp = _displaySchumannAmp;
+498:     String text = '';
+499:     if (amp == null) {
+500:       text = 'Данные об амплитуде Шумана временно недоступны.';
+501:     } else if (amp > 15.0) {
+502:       text = 'Зарегистрирован всплеск амплитуды резонанса Шумана до $amp pT (норма <= 15.0). Такие пики часто связаны с сильными грозовыми фронтами или геомагнитным воздействием. Может вызывать повышенную возбудимость нервной системы или перепады тонуса.';
+503:     } else {
+504:       text = 'Амплитуда колебаний Шумана находится в спокойном состоянии ($amp pT при норме <= 15.0). Геомагнитный фон Земли находится в состоянии покоя, дополнительной нагрузки на нервную систему нет.';
+505:     }
+506:     _showParamExplanation('Амплитуда Шумана', amp != null ? '$amp pT' : '—', text);
+507:   }
+508: 
+509:   void _explainWind() {
+510:     final wind = _displayWindSpeed;
+511:     String text = '';
+512:     if (wind == null) {
+513:       text = 'Данные о ветре временно недоступны.';
+514:     } else if (wind > 10.0) {
+515:       text = 'Наблюдается сильный, порывистый ветер (${wind.toStringAsFixed(1)} м/с). Рекомендуется обходить шаткие конструкции, рекламные щиты, старые деревья и не парковать под ними транспорт.';
+516:     } else if (wind > 5.0) {
+517:       text = 'Наблюдается умеренный ветер (${wind.toStringAsFixed(1)} м/с). На открытых участках ощущается прохлада, рекомендуется надевать ветрозащитную одежду.';
+518:     } else {
+519:       text = 'Слабый, приятный ветер (${wind.toStringAsFixed(1)} м/с). Комфортные условия для прогулок и активного отдыха на свежем воздухе.';
+520:     }
+521:     _showParamExplanation('Ветер', wind != null ? '${wind.toStringAsFixed(1)} м/с' : '—', text);
+522:   }
+523: 
+524:   void _explainSeismic() {
+525:     final mag = _displaySeismicMagnitude;
+526:     final desc = _displaySeismicDescription ?? 'Сейсмическая активность в норме (нет событий)';
+527:     String text = '';
+528:     if (mag == null || mag == 0.0) {
+529:       text = 'Сейсмическая обстановка в регионе Нижневартовска спокойная. Магнитуда 0.0, тектонических сдвигов или землетрясений не зафиксировано.';
+530:     } else if (mag < 4.0) {
+531:       text = 'Зафиксировано слабое сейсмическое событие ($desc). Такие колебания обычно не ощущаются людьми и фиксируются только специальными приборами. Угрозы нет.';
+532:     } else {
+533:       text = 'Зафиксировано ощутимое сейсмическое событие ($desc). Возможны незначительные колебания земной поверхности. Будьте внимательны к оповещениям.';
+534:     }
+535:     _showParamExplanation('Сейсмическая активность', mag != null && mag > 0 ? '${mag.toStringAsFixed(1)} M' : 'Норма (0.0 M)', text);
+536:   }
+537: 
+538:   void _explainKpIndex() {
+539:     final kp = _displayKpIndex;
+540:     String text = '';
+541:     if (kp == null) {
+542:       text = 'Данные о Kp-индексе временно отсутствуют.';
+543:     } else if (kp < 4.0) {
+544:       text = 'Магнитное поле Земли спокойное ($kp Kp при норме < 4.0). Геомагнитная обстановка стабильна, метеозависимые люди могут чувствовать себя комфортно.';
+545:     } else if (kp < 5.0) {
+546:       text = 'Наблюдается слабое возмущение геомагнитного поля ($kp Kp). Чувствительные люди могут испытывать легкую головную боль или утомляемость.';
+547:     } else {
+548:       text = 'Зарегистрирована геомагнитная буря ($kp Kp). Возможны сбои в работе точной электроники, радиосвязи, а метеочувствительным людям рекомендуется ограничить физическую нагрузку и следить за давлением.';
+549:     }
+550:     _showParamExplanation('Геомагнитная активность (Kp)', kp != null ? '${kp.toStringAsFixed(1)} Kp' : '—', text);
+551:   }
+552: 
+553:   void _explainUvIndex() {
+554:     final uv = _displayUvIndex;
+555:     String text = '';
+556:     if (uv == null) {
+557:       text = 'Данные об УФ-индексе временно отсутствуют.';
+558:     } else if (uv <= 2.0) {
+559:       text = 'Низкий уровень ультрафиолетового излучения ($uv). Безопасно для нахождения на улице, защитные средства не требуются.';
+560:     } else if (uv <= 5.0) {
+561:       text = 'Умеренный уровень излучения ($uv). В полуденные часы рекомендуется находиться в тени, надевать головной убор и использовать солнцезащитный крем SPF 15+.';
+562:     } else {
+563:       text = 'Высокий уровень ультрафиолетового излучения ($uv). Ограничьте пребывание на солнце. Используйте защитную одежду, очки, головной убор и солнцезащитный крем SPF 30+.';
+564:     }
+565:     _showParamExplanation('Индекс ультрафиолета (UV)', uv != null ? '${uv.toStringAsFixed(1)}' : '—', text);
+566:   }
+567: 
+568:   void _explainVisibility() {
+569:     final vis = _displayVisibilityM;
+570:     String text = '';
+571:     if (vis == null) {
+572:       text = 'Данные о видимости временно недоступны.';
+573:     } else {
+574:       final visKm = vis / 1000.0;
+575:       if (visKm >= 10.0) {
+576:         text = 'Отличная горизонтальная видимость (${visKm.toStringAsFixed(1)} км). Атмосфера чистая, препятствий для дорожного движения и авиации нет.';
+577:       } else if (visKm >= 5.0) {
+578:         text = 'Хорошая видимость (${visKm.toStringAsFixed(1)} км). Наблюдается легкая дымка, будьте внимательны при вождении.';
+579:       } else {
+580:         text = 'Сниженная видимость (${visKm.toStringAsFixed(1)} км) из-за тумана или осадков. Водителям следует соблюдать дистанцию и скоростной режим, включить противотуманные фары.';
+581:       }
+582:     }
+583:     _showParamExplanation('Горизонтальная видимость', vis != null ? '${(vis / 1000).toStringAsFixed(1)} км' : '—', text);
+584:   }
+585: 
+586:   Widget _buildConditionSelector() {
+587:     final themeBg = widget.isNightMode
+588:         ? Colors.white.withAlpha(20)
+589:         : Colors.black.withAlpha(12);
+590: 
+591:     return Container(
+592:       height: 72,
+593:       width: double.infinity,
+594:       decoration: BoxDecoration(
+595:         color: themeBg,
+596:         borderRadius: BorderRadius.circular(20),
+597:         border: Border.all(
+598:           color: widget.accent.withAlpha(60),
+599:         ),
+600:       ),
+601:       child: ClipRRect(
+602:         borderRadius: BorderRadius.circular(20),
+603:         child: ListView.builder(
+604:           scrollDirection: Axis.horizontal,
+605:           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+606:           itemCount: _demoConditions.length,
+607:           itemBuilder: (context, index) {
+608:             final item = _demoConditions[index];
+609:             final kind = item['kind'] as String;
+610:             final label = item['label'] as String;
+611:             final isSelected = _selectedKind == kind;
+612:             final icon = (widget.isNightMode ? item['nightIcon'] : item['icon']) as IconData;
+613: 
+614:             final activeBg = isSelected
+615:                 ? widget.accent.withAlpha(70)
+616:                 : Colors.transparent;
+617: 
+618:             final activeBorder = isSelected
+619:                 ? widget.accent.withAlpha(140)
+620:                 : Colors.transparent;
+621: 
+622:             final scale = isSelected ? 1.08 : 1.0;
+623: 
+624:             return GestureDetector(
+625:               onTap: () => _selectCondition(kind),
+626:               child: AnimatedScale(
+627:                 scale: scale,
+628:                 duration: const Duration(milliseconds: 200),
+629:                 curve: Curves.easeOutBack,
+630:                 child: AnimatedContainer(
+631:                   duration: const Duration(milliseconds: 200),
+632:                   margin: const EdgeInsets.symmetric(horizontal: 4),
+633:                   padding: const EdgeInsets.symmetric(horizontal: 14),
+634:                   decoration: BoxDecoration(
+635:                     color: activeBg,
+636:                     borderRadius: BorderRadius.circular(14),
+637:                     border: Border.all(color: activeBorder, width: 1.5),
+638:                   ),
+639:                   child: Column(
+640:                     mainAxisAlignment: MainAxisAlignment.center,
+641:                     children: [
+642:                       Icon(
+643:                         icon,
+644:                         size: 24,
+645:                         color: isSelected
+646:                             ? Colors.white
+647:                             : (widget.isNightMode ? Colors.white60 : Colors.black54),
+648:                       ),
+649:                       const SizedBox(height: 4),
+650:                       Text(
+651:                         label,
+652:                         style: TextStyle(
+653:                           fontSize: 11,
+654:                           fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+655:                           color: isSelected
+656:                               ? Colors.white
+657:                               : (widget.isNightMode ? Colors.white70 : Colors.black87),
+658:                         ),
+659:                       ),
+660:                     ],
+661:                   ),
+662:                 ),
+663:               ),
+664:             );
+665:           },
+666:         ),
+667:       ),
+668:     );
+669:   }
+670: 
+671:   Widget _buildGlassCard({required Widget child}) {
+672:     return ClipRRect(
+673:       borderRadius: BorderRadius.circular(24),
+674:       child: Container(
+675:         width: double.infinity,
+676:         padding: const EdgeInsets.all(16),
+677:         decoration: BoxDecoration(
+678:           color: widget.isNightMode
+679:               ? Colors.white.withOpacity(0.06)
+680:               : Colors.black.withOpacity(0.04),
+681:           borderRadius: BorderRadius.circular(24),
+682:           border: Border.all(
+683:             color: widget.isNightMode
+684:               ? Colors.white.withOpacity(0.12)
+685:               : Colors.black.withOpacity(0.08),
+686:             width: 1.5,
+687:           ),
+688:         ),
+689:         child: child,
+690:       ),
+691:     );
+692:   }
+693: 
+694: 
+695: 
+696:   List<Widget> _buildAnomalyWarnings() {
+697:     final List<Widget> warnings = [];
+698:     if (_displayPressure != null && (_displayPressure! < 748 || _displayPressure! > 768)) {
+699:       warnings.add(_buildWarningCard(
+700:         Icons.compress_rounded,
+701:         'Атмосферное давление',
+702:         'Атмосферное давление составляет ${_displayPressure!.round()} мм рт. ст. (норма 748-768). Рекомендуется соблюдать спокойный режим при повышенной чувствительности к перепадам давления.',
+703:       ));
+704:     }
+705:     if (_displaySolarFlare != null && (_displaySolarFlare!.startsWith('M') || _displaySolarFlare!.startsWith('X') || _displaySolarFlare!.startsWith('C'))) {
+706:       warnings.add(_buildWarningCard(
+707:         Icons.wb_sunny_rounded,
+708:         'Повышенная солнечная активность',
+709:         'Зафиксирована солнечная вспышка класса $_displaySolarFlare. Постарайтесь избегать чрезмерных нагрузок, пить достаточно чистой воды и планировать день размеренно.',
+710:       ));
+711:     }
+712:     if (_displaySchumannFreq != null && (_displaySchumannFreq! < 7.7 || _displaySchumannFreq! > 8.0)) {
+713:       warnings.add(_buildWarningCard(
+714:         Icons.waves_rounded,
+715:         'Колебания частоты Шумана',
+716:         'Базовая частота резонанса Шумана сместилась до $_displaySchumannFreq Гц (норма 7.83 Гц). Возможны кратковременные изменения естественного электромагнитного фона планеты.',
+717:       ));
+718:     }
+719:     if (_displaySchumannAmp != null && _displaySchumannAmp! > 15.0) {
+720:       warnings.add(_buildWarningCard(
+721:         Icons.flash_on_rounded,
+722:         'Всплеск амплитуды Шумана',
+723:         'Зарегистрировано кратковременное повышение амплитуды Шумана до $_displaySchumannAmp pT (норма <=15.0). Рекомендуется уделить внимание отдыху и спокойной деятельности.',
+724:       ));
+725:     }
+726:     if (_displayWindSpeed != null && _displayWindSpeed! > 10.0) {
+727:       warnings.add(_buildWarningCard(
+728:         Icons.air_rounded,
+729:         'Штормовой ветер',
+730:         'Скорость ветра достигает ${_displayWindSpeed!.toStringAsFixed(0)} м/с. Не находитесь вблизи рекламных щитов, старых деревьев и легких конструкций.',
+731:       ));
+732:     }
+733:     return warnings;
+734:   }
+735: 
+736:   Widget _buildWarningCard(IconData icon, String title, String body) {
+737:     return Container(
+738:       margin: const EdgeInsets.only(bottom: 12),
+739:       padding: const EdgeInsets.all(16),
+740:       decoration: BoxDecoration(
+741:         color: const Color(0xFFF97316).withOpacity(widget.isNightMode ? 0.15 : 0.08),
+742:         borderRadius: BorderRadius.circular(16),
+743:         border: Border.all(
+744:           color: const Color(0xFFF97316).withOpacity(0.3),
+745:         ),
+746:       ),
+747:       child: Row(
+748:         crossAxisAlignment: CrossAxisAlignment.start,
+749:         children: [
+750:           Icon(icon, color: const Color(0xFFF97316), size: 24),
+751:           const SizedBox(width: 12),
+752:           Expanded(
+753:             child: Column(
+754:               crossAxisAlignment: CrossAxisAlignment.start,
+755:               children: [
+756:                 Text(
+757:                   title,
+758:                   style: const TextStyle(
+759:                     fontSize: 14,
+760:                     fontWeight: FontWeight.w700,
+761:                     color: Color(0xFFF97316),
+762:                   ),
+763:                 ),
+764:                 const SizedBox(height: 4),
+765:                 Text(
+766:                   body,
+767:                   style: TextStyle(
+768:                     fontSize: 12,
+769:                     height: 1.4,
+770:                     color: widget.isNightMode ? Colors.white.withOpacity(0.87) : Colors.black87,
+771:                   ),
+772:                 ),
+773:               ],
+774:             ),
+775:           ),
+776:         ],
+777:       ),
+778:     );
+779:   }
+780: 
+781: 
+782: 
+783:   String get _weatherAnalysisSummary {
+784:     final temp = _displayTemp ?? 0;
+785:     final cond = _displayCondition;
+786:     final wind = _displayWindSpeed ?? 0.0;
+787:     final uv = _displayUvIndex ?? 0.0;
+788:     final kp = _displayKpIndex ?? 0.0;
+789:     final aqi = _displayAqiValue ?? 30;
+790: 
+791:     final List<String> sections = [];
+792:     sections.add('В Нижневартовске сейчас $cond, температура воздуха составляет $temp°C.');
+793:     
+794:     if (wind > 8.0) {
+795:       sections.add('Наблюдается сильный, порывистый ветер (${wind.toStringAsFixed(1)} м/с), соблюдайте осторожность.');
+796:     } else {
+797:       sections.add('Ветер слабый и спокойный (${wind.toStringAsFixed(1)} м/с).');
+798:     }
+799:     
+800:     if (kp >= 4.0) {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

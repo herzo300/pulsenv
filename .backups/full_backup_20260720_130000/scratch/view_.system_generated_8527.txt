@@ -1,0 +1,79 @@
+Created At: 2026-06-23T15:28:38Z
+Completed At: 2026-06-23T15:28:38Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1886
+Total Bytes: 84587
+Showing lines 1180 to 1250
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1180:                             const SizedBox(height: 16),
+1181:                             Text(
+1182:                               'Погодные предупреждения',
+1183:                               style: TextStyle(
+1184:                                 fontSize: 12,
+1185:                                 fontWeight: FontWeight.w700,
+1186:                                 color: widget.isNightMode ? Colors.white60 : Colors.black54,
+1187:                               ),
+1188:                             ),
+1189:                             const SizedBox(height: 8),
+1190:                             TiltWidget(
+1191:                               child: Column(
+1192:                                 children: _buildAnomalyWarnings(),
+1193:                               ),
+1194:                             ),
+1195:                             const SizedBox(height: 16),
+1196:                             TiltWidget(
+1197:                               child: _buildGlassCard(
+1198:                                 child: Column(
+1199:                                   crossAxisAlignment: CrossAxisAlignment.start,
+1200:                                   children: [
+1201:                                     Text(
+1202:                                       'Рекомендации метеозависимым (Анализ погоды)',
+1203:                                       style: TextStyle(
+1204:                                         color: widget.isNightMode
+1205:                                             ? Colors.white70
+1206:                                             : Colors.black54,
+1207:                                         fontSize: 12,
+1208:                                         fontWeight: FontWeight.w700,
+1209:                                       ),
+1210:                                     ),
+1211:                                     const SizedBox(height: 8),
+1212:                                     Text(
+1213:                                       _weatherAnalysisSummary,
+1214:                                       style: TextStyle(
+1215:                                         color: widget.isNightMode
+1216:                                             ? Colors.white
+1217:                                             : const Color(0xFF0F2742),
+1218:                                         fontSize: 13.5,
+1219:                                         height: 1.45,
+1220:                                       ),
+1221:                                     ),
+1222:                                   ],
+1223:                                 ),
+1224:                               ),
+1225:                             ),
+1226:                           ],
+1227:                         ],
+1228:                       ),
+1229:                     ),
+1230:                   ),
+1231:                 ],
+1232:               ),
+1233:             ),
+1234:           ),
+1235:         ],
+1236:       ),
+1237:     );
+1238:   }
+1239: 
+1240:   Color _aqColor(num? aqi) {
+1241:     if (aqi == null) return widget.accent;
+1242:     if (aqi <= 40) return const Color(0xFF34D399);
+1243:     if (aqi <= 60) return const Color(0xFFFBBF24);
+1244:     if (aqi <= 80) return const Color(0xFFFB923C);
+1245:     return const Color(0xFFEF4444);
+1246:   }
+1247: 
+1248: 
+1249: }
+1250: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

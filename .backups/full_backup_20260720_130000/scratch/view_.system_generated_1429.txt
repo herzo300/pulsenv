@@ -1,0 +1,59 @@
+Created At: 2026-06-24T07:04:01Z
+Completed At: 2026-06-24T07:04:01Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1886
+Total Bytes: 82013
+Showing lines 1010 to 1060
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1010:                             child: _buildGlassCard(
+1011:                               child: Column(
+1012:                                 crossAxisAlignment: CrossAxisAlignment.start,
+1013:                                 children: [
+1014:                                   Text(
+1015:                                     'Качество воздуха',
+1016:                                     style: TextStyle(
+1017:                                       color: widget.isNightMode
+1018:                                           ? Colors.white70
+1019:                                           : Colors.black54,
+1020:                                       fontSize: 12,
+1021:                                       fontWeight: FontWeight.w700,
+1022:                                     ),
+1023:                                   ),
+1024:                                   const SizedBox(height: 6),
+1025:                                   Text(
+1026:                                     _displayAqiLevel.toUpperCase(),
+1027:                                     style: TextStyle(
+1028:                                       color: _aqColor(_displayAqiValue),
+1029:                                       fontSize: 26,
+1030:                                       fontWeight: FontWeight.w800,
+1031:                                     ),
+1032:                                   ),
+1033:                                   if (_displayAqiSummary.isNotEmpty)
+1034:                                     Padding(
+1035:                                       padding: const EdgeInsets.only(top: 6),
+1036:                                       child: Text(
+1037:                                         _displayAqiSummary,
+1038:                                         style: TextStyle(
+1039:                                           color: widget.isNightMode
+1040:                                               ? Colors.white60
+1041:                                               : Colors.black54,
+1042:                                           fontSize: 12,
+1043:                                           height: 1.4,
+1044:                                         ),
+1045:                                       ),
+1046:                                     ),
+1047:                                 ],
+1048:                               ),
+1049:                             ),
+1050:                           ),
+1051:                           
+1052:                           const SizedBox(height: 12),
+1053:                           
+1054:                           TiltWidget(
+1055:                             child: _buildGlassCard(
+1056:                               child: Column(
+1057:                                 crossAxisAlignment: CrossAxisAlignment.start,
+1058:                                 children: [
+1059:                                   Text(
+1060:                                     'Параметры атмосферы и космоса',
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

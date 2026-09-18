@@ -3,23 +3,54 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
-from services.agent_memory import (
-    get_thread_or_none,
-    list_jobs,
-    list_thread_messages,
-    serialize_job,
-    serialize_message,
-    serialize_thread,
-)
-from services.agent_runtime import run_agent_task
-from services.agent_schemas import (
-    AgentJobResponse,
-    AgentMessageResponse,
-    AgentRunRequest,
-    AgentRunResponse,
-    AgentThreadResponse,
-)
-from services.agent_worker import AgentEvent, AgentEventResponse, handle_event
+try:
+    from services.agent_memory import (
+        get_thread_or_none,
+        list_jobs,
+        list_thread_messages,
+        serialize_job,
+        serialize_message,
+        serialize_thread,
+    )
+except ImportError:
+    from services.data_layer.agent_memory import (
+        get_thread_or_none,
+        list_jobs,
+        list_thread_messages,
+        serialize_job,
+        serialize_message,
+        serialize_thread,
+    )
+
+try:
+    from services.agent_runtime import run_agent_task
+except ImportError:
+    from services.ai.agent_runtime import run_agent_task
+
+try:
+    from services.agent_schemas import (
+        AgentJobResponse,
+        AgentMessageResponse,
+        AgentRunRequest,
+        AgentRunResponse,
+        AgentThreadResponse,
+    )
+except ImportError:
+    from services.ai.agent_schemas import (
+        AgentJobResponse,
+        AgentMessageResponse,
+        AgentRunRequest,
+        AgentRunResponse,
+        AgentThreadResponse,
+    )
+
+try:
+    from services.agent_worker import AgentEvent, AgentEventResponse, handle_event
+except Exception:
+    AgentEvent = None
+    AgentEventResponse = None
+    handle_event = None
+
 from services.Backend.security import require_admin_api_token
 from services.data_layer.database import get_db
 
@@ -88,4 +119,6 @@ async def receive_event(
     through the agent runtime.
     """
     _require_admin(request)
-    return await handle_event(event, db)
+    if handle_event is None:
+        raise HTTPException(status_code=503, detail="Agent event handler not available")
+    return await handle_event(db, event)

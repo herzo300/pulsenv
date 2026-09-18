@@ -1,0 +1,92 @@
+Created At: 2026-06-23T05:34:13Z
+Completed At: 2026-06-23T05:34:14Z
+File Path: `file:///C:/Users/%D1%80%D1%81/.gemini/antigravity/brain/aed93f9b-cd64-4600-9659-275a143be7fc/implementation_plan.md`
+Total Lines: 84
+Total Bytes: 5614
+Showing lines 1 to 84
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Implementation Plan - City Pulse Upgrades & Fixes
+2: 
+3: This plan implements:
+4: 1. **Fixing Semaphore Indentation in Backend Geocoding:** Ensure the HTTP request in `_request_json` of `geo_service.py` is executed inside the Semaphore block.
+5: 2. **Fixing House Coordinate Loading in Frontend:** Change the direct `http.get` in `uk_companies_screen.dart` to use the fallback-capable `ReportsRepository` client.
+6: 3. **Weather Screen Consolidation & New Telemetry:**
+7:    - Retrieve UV index, visibility (Open-Meteo), seismic activity (USGS within 500km), and Kp Planetary Index (NOAA Space Weather Prediction Center) in `weather_service.py`.
+8:    - Update `CityWeatherSnapshot` in `city_weather_service.dart` and the UI grid card in `weather_overlay_panel.dart` to display and explain these parameters.
+9:    - Hide the condition simulation selector completely, show only actual telemetry, and add a dynamic Russian language general analysis summary at the top.
+10: 4. **Information Channels Filtering:** Remove non-weather telegram/vk news alerts from the weather warnings block.
+11: 5. **Full-Width sliding Marquee Ticker:**
+12:    - Reposition `CityAlertTicker` to the absolute bottom (`bottom: 0`, `left: 0`, `right: 0`) and remove its rounded corners.
+13:    - Stop infinite looping of the ticker. Slide it down off-screen via `AnimatedSlide` when the text scrolls through.
+14: 6. **Auto-open Camera on Push Notification:**
+15:    - Store the fetched cameras in a state list.
+16:    - When a push notification is clicked, calculate distance to the closest working camera. If within 150m, auto-open its stream after a short transition delay.
+17: 7. **Deployment & Release Compilation:** Run the deployment script to sync all Python updates to the VPS, and compile a release Android APK for ARM64 onto the Desktop.
+18: 
+19: ## Proposed Changes
+20: 
+21: ### 1. Backend Geocoding Rate-Limiting Correction
+22: #### [MODIFY] [geo_service.py](file:///c:/Soobshio_project/services/business/geo_service.py)
+23: - Indent the `for attempt in range(GEO_MAX_RETRIES + 1):` block in `_request_json` inside the `async with _geo_semaphore:` context.
+24: 
+25: ---
+26: 
+27: ### 2. Frontend Houses Coordinate Client Correction
+28: #### [MODIFY] [uk_companies_screen.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/uk_companies_screen.dart)
+29: - Replace direct `http.get` to `backendApiBaseUrl` inside `_fetchCoordinates()` with `ReportsRepository.instance.fetchUkHousesCoordinates(widget.ukName)` to inherit headers, failovers, and candidate configurations.
+30: 
+31: ---
+32: 
+33: ### 3. Weather Service & Telemetry parameters
+34: #### [MODIFY] [weather_service.py](file:///c:/Soobshio_project/services/business/weather_service.py)
+35: - Include `uv_index` and `visibility` in Open-Meteo's `current` query parameter list.
+36: - Fetch latest planetary K-index from `https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json`.
+37: - Fetch seismic activity from `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&latitude=60.93&longitude=76.55&maxradiuskm=500&limit=1`.
+38: - Return `seismic_magnitude`, `seismic_description`, `kp_index`, `uv_index`, and `visibility_m` in the response payload.
+39: 
+40: #### [MODIFY] [city_weather_service.dart](file:///c:/Soobshio_project/services/Frontend/lib/services/city_weather_service.dart)
+41: - Expose the new fields (`seismicMagnitude`, `seismicDescription`, `kpIndex`, `uvIndex`, `visibilityM`) in `CityWeatherSnapshot` with JSON mapping and fallback defaults.
+42: 
+43: #### [MODIFY] [weather_overlay_panel.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart)
+44: - Remove `_buildConditionSelector()` from the layout entirely.
+45: - Render a dynamic text block "Общий анализ погоды" at the top based on current metrics.
+46: - Extend the space parameters grid to display UV Index, Kp-Index, Visibility, and Seismic Activity.
+47: - Implement click handlers (`_explainUvIndex`, `_explainKpIndex`, `_explainVisibility`, `_explainSeismic`) presenting detail modal sheets with health recommendations.
+48: - Filter out Telegram/VK news feeds from the warnings card list.
+49: 
+50: ---
+51: 
+52: ### 4. Marquee Placement & Slide-Down Transition
+53: #### [MODIFY] [map_screen.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map_screen.dart)
+54: - Position `CityAlertTicker` at `bottom: 0`, `left: 0`, `right: 0`.
+55: 
+56: #### [MODIFY] [weather_overlay_panel.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart)
+57: - Change `borderRadius` in `CityAlertTicker` to `BorderRadius.zero`.
+58: - Change `_scroll` loop mode from `repeat()` to `forward()`.
+59: - Add a status listener on `_scroll` that sets `_visible = false` when status equals `completed`.
+60: - Wrap ticker container in `AnimatedSlide` using `Offset.zero` or `Offset(0.0, 1.2)`.
+61: 
+62: ---
+63: 
+64: ### 5. Camera Proximity Action on Push Notifications
+65: #### [MODIFY] [map_screen.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map_screen.dart)
+66: - Store loaded camera entities inside state variable `_camerasList`.
+67: - Add a helper `_checkAndOpenNearestCamera(double lat, double lng)` calculating distance to the nearest working camera using `Distance.as`.
+68: - Call `_checkAndOpenNearestCamera` when applying notification focus.
+69: 
+70: ---
+71: 
+72: ### 6. Deployment & Compilation
+73: - Run `_deploy_now.py` to deploy files to `/opt/soobshio` on VPS (`45.153.68.59`).
+74: - Compile hardened ARM64 release APK directly to `C:\Users\рс\Desktop`.
+75: 
+76: ## Verification Plan
+77: 
+78: ### Automated Tests
+79: - Run `flutter test` to ensure all 13 widget/unit tests remain green.
+80: 
+81: ### Manual Verification
+82: - Verify `/api/weather/current` endpoint payload.
+83: - Verify `/api/uk/{uk}/houses_coordinates` geocodes address coordinates.
+84: 
+The above content shows the entire, complete file contents of the requested file.

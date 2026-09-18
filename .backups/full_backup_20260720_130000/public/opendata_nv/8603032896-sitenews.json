@@ -1,0 +1,20 @@
+{
+  "status": 404,
+  "request": {
+    "rows": null,
+    "page": null,
+    "SORT": null,
+    "ORDER": null,
+    "FIELD": null,
+    "q": null
+  },
+  "meta": {
+    "current": null,
+    "rowCount": null,
+    "total": 0
+  },
+  "rows": [],
+  "total": 0,
+  "rowCount": 0,
+  "current": 0
+}

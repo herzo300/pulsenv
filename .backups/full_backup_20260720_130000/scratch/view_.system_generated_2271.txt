@@ -1,0 +1,36 @@
+Created At: 2026-06-23T05:17:32Z
+Completed At: 2026-06-23T05:17:32Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1590
+Total Bytes: 65733
+Showing lines 28 to 55
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+28: 
+29: class _WeatherOverlayPanelState extends State<WeatherOverlayPanel>
+30:     with SingleTickerProviderStateMixin {
+31:   late final AnimationController _controller;
+32: 
+33:   // Selected weather kind and simulated stats
+34:   late String _selectedKind;
+35:   late int? _displayTemp;
+36:   late int? _displayFeels;
+37:   late String _displayCondition;
+38:   late String _displayAqiLevel;
+39:   late String _displayAqiSummary;
+40:   late num? _displayAqiValue;
+41:   late double? _displayWindSpeed;
+42:   late double? _displayWindGusts;
+43:   late int? _displayHumidity;
+44:   late double? _displayPressure;
+45:   late String? _displaySolarFlare;
+46:   late double? _displaySchumannFreq;
+47:   late double? _displaySchumannAmp;
+48: 
+49:   final List<Map<String, dynamic>> _demoConditions = [
+50:     {
+51:       'kind': 'clear',
+52:       'label': 'Ясно',
+53:       'icon': Icons.wb_sunny_rounded,
+54:       'nightIcon': Icons.nightlight_round,
+55:       'temp': 22,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,48 @@
+Created At: 2026-06-24T05:11:34Z
+Completed At: 2026-06-24T05:11:34Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1886
+Total Bytes: 84525
+Showing lines 1711 to 1750
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1711:            i['text'].toString().toLowerCase().contains('чп') ||
+1712:            i['text'].toString().toLowerCase().contains('пожар') ||
+1713:            i['text'].toString().toLowerCase().contains('взрыв')));
+1714: 
+1715:       final hasEmergency = filtered.any((i) =>
+1716:           i['category'].toString().toLowerCase().contains('чп') ||
+1717:           i['text'].toString().toLowerCase().contains('чп') ||
+1718:           i['text'].toString().toLowerCase().contains('пожар') ||
+1719:           i['text'].toString().toLowerCase().contains('взрыв'));
+1720: 
+1721:       final hasAccident = filtered.any((i) =>
+1722:           i['category'].toString().toLowerCase().contains('авари') ||
+1723:           i['category'].toString().toLowerCase().contains('дтп') ||
+1724:           i['text'].toString().toLowerCase().contains('авари') ||
+1725:           i['text'].toString().toLowerCase().contains('дтп') ||
+1726:           i['text'].toString().toLowerCase().contains('столкн'));
+1727: 
+1728:       final hasCrime = filtered.any((i) =>
+1729:           i['category'].toString().toLowerCase().contains('кримин') ||
+1730:           i['category'].toString().toLowerCase().contains('преступ') ||
+1731:           i['text'].toString().toLowerCase().contains('кримин') ||
+1732:           i['text'].toString().toLowerCase().contains('преступ') ||
+1733:           i['text'].toString().toLowerCase().contains('краж') ||
+1734:           i['text'].toString().toLowerCase().contains('драка') ||
+1735:           i['text'].toString().toLowerCase().contains('убий'));
+1736: 
+1737:       if (hasSeriousEmergency) {
+1738:         bg = const Color(0xDDEB3B3B); // Red for serious ЧП
+1739:         border = const Color(0xFFFCA5A5);
+1740:         leadingIcon = Icons.error_outline_rounded;
+1741:       } else if (hasEmergency) {
+1742:         bg = const Color(0xDDFF7D1A); // Orange/Amber for medium/low ЧП
+1743:         border = const Color(0xFFFED7AA);
+1744:         leadingIcon = Icons.warning_amber_rounded;
+1745:       } else if (hasAccident) {
+1746:         bg = const Color(0xDDEAB308); // Yellow/Gold for accidents
+1747:         border = const Color(0xFFFEF08A);
+1748:         leadingIcon = Icons.car_crash_rounded;
+1749:       } else if (hasCrime) {
+1750:         bg = const Color(0xDD8B5CF6); // Purple for crime/police
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

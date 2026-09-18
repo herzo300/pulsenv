@@ -1,0 +1,167 @@
+{
+  "$schema": "https://github.com/design-tokens/community-group/blob/main/schema.json",
+  "name": "City Pulse Spacing & Layout Tokens",
+  "version": "1.0.0",
+  
+  "spacing": {
+    "xxs": {
+      "value": "4",
+      "unit": "px",
+      "description": "Минимальный отступ"
+    },
+    "xs": {
+      "value": "8",
+      "unit": "px",
+      "description": "Малый отступ"
+    },
+    "sm": {
+      "value": "12",
+      "unit": "px",
+      "description": "Средне-малый отступ"
+    },
+    "md": {
+      "value": "16",
+      "unit": "px",
+      "description": "Стандартный отступ"
+    },
+    "lg": {
+      "value": "20",
+      "unit": "px",
+      "description": "Большой отступ"
+    },
+    "xl": {
+      "value": "24",
+      "unit": "px",
+      "description": "Очень большой отступ"
+    },
+    "xxl": {
+      "value": "32",
+      "unit": "px",
+      "description": "Максимальный отступ"
+    }
+  },
+
+  "radii": {
+    "sm": {
+      "value": "12",
+      "unit": "px",
+      "description": "Малый радиус скругления"
+    },
+    "md": {
+      "value": "18",
+      "unit": "px",
+      "description": "Средний радиус скругления"
+    },
+    "lg": {
+      "value": "24",
+      "unit": "px",
+      "description": "Большой радиус скругления"
+    },
+    "xl": {
+      "value": "30",
+      "unit": "px",
+      "description": "Очень большой радиус (HTML pages)"
+    },
+    "pill": {
+      "value": "999",
+      "unit": "px",
+      "description": "Полное скругление (pill/badge)"
+    }
+  },
+
+  "shadows": {
+    "sm": {
+      "value": "0 4px 12px rgba(0, 0, 0, 0.15)",
+      "description": "Малая тень"
+    },
+    "md": {
+      "value": "0 8px 24px rgba(0, 0, 0, 0.25)",
+      "description": "Средняя тень"
+    },
+    "lg": {
+      "value": "0 24px 80px rgba(0, 0, 0, 0.42)",
+      "description": "Большая тень (карточки)"
+    },
+    "glass": {
+      "value": "0 24px 80px rgba(0, 0, 0, 0.42), 0 0 30px rgba(0, 229, 255, 0.08)",
+      "description": "Тень для glass-панелей"
+    }
+  },
+
+  "breakpoints": {
+    "phone": {
+      "value": "600",
+      "unit": "px",
+      "description": "Мобильные устройства"
+    },
+    "tablet": {
+      "value": "900",
+      "unit": "px",
+      "description": "Планшеты"
+    },
+    "desktop": {
+      "value": "1200",
+      "unit": "px",
+      "description": "Десктоп"
+    },
+    "wide": {
+      "value": "1440",
+      "unit": "px",
+      "description": "Широкие экраны"
+    }
+  },
+
+  "containers": {
+    "narrow": {
+      "value": "800",
+      "unit": "px",
+      "description": "Узкий контейнер (текст)"
+    },
+    "default": {
+      "value": "1200",
+      "unit": "px",
+      "description": "Стандартный контейнер"
+    },
+    "wide": {
+      "value": "1400",
+      "unit": "px",
+      "description": "Широкий контейнер (дашборды)"
+    }
+  },
+
+  "blur": {
+    "sm": {
+      "value": "8",
+      "description": "Малое размытие"
+    },
+    "md": {
+      "value": "16",
+      "description": "Среднее размытие (glass)"
+    },
+    "lg": {
+      "value": "22",
+      "description": "Большое размытие (glass panels)"
+    }
+  },
+
+  "transitions": {
+    "fast": {
+      "value": "150",
+      "unit": "ms",
+      "easing": "ease-out",
+      "description": "Быстрая анимация (hover)"
+    },
+    "normal": {
+      "value": "250",
+      "unit": "ms",
+      "easing": "ease-in-out",
+      "description": "Стандартная анимация"
+    },
+    "slow": {
+      "value": "400",
+      "unit": "ms",
+      "easing": "ease-in-out",
+      "description": "Медленная анимация (появление)"
+    }
+  }
+}

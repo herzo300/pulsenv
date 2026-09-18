@@ -109,3 +109,6 @@ optimize_*.py
 # Temporary JSON files
 test_request.json
 *_test*.json
+
+# ML weights (large binaries)
+*.pt

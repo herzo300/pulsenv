@@ -1,0 +1,49 @@
+Created At: 2026-06-24T07:03:56Z
+Completed At: 2026-06-24T07:03:56Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1886
+Total Bytes: 82013
+Showing lines 1060 to 1100
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1060:                                     'Параметры атмосферы и космоса',
+1061:                                     style: TextStyle(
+1062:                                       color: widget.isNightMode
+1063:                                           ? Colors.white70
+1064:                                           : Colors.black54,
+1065:                                       fontSize: 12,
+1066:                                       fontWeight: FontWeight.w700,
+1067:                                     ),
+1068:                                   ),
+1069:                                   const SizedBox(height: 12),
+1070:                                   Row(
+1071:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1072:                                     children: [
+1073:                                       _spaceParam(
+1074:                                         Icons.compress_rounded,
+1075:                                         'Давление',
+1076:                                         _displayPressure != null ? '${_displayPressure!.round()} мм рт. ст.' : '—',
+1077:                                         _explainPressure,
+1078:                                       ),
+1079:                                       _spaceParam(
+1080:                                         Icons.wb_sunny_rounded,
+1081:                                         'Вспышки',
+1082:                                         _displaySolarFlare != null ? 'Класс $_displaySolarFlare' : '—',
+1083:                                         _explainSolarFlare,
+1084:                                       ),
+1085:                                     ],
+1086:                                   ),
+1087:                                   const Divider(height: 24, color: Colors.white10),
+1088:                                   Row(
+1089:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1090:                                     children: [
+1091:                                       _spaceParam(
+1092:                                         Icons.waves_rounded,
+1093:                                         'Резонанс Шумана',
+1094: class _WeatherAmbientPainter extends CustomPainter {
+1095:   _WeatherAmbientPainter({
+1096:     required this.kind,
+1097:     required this.progress,
+1098:     required this.isNight,
+1099:     required this.accent,
+1100:   });
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

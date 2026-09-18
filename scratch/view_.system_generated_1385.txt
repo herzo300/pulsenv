@@ -1,0 +1,59 @@
+Created At: 2026-06-24T07:02:30Z
+Completed At: 2026-06-24T07:02:30Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1886
+Total Bytes: 82013
+Showing lines 710 to 760
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+710:               : Colors.black.withOpacity(0.08),
+711:             width: 1.5,
+712:           ),
+713:         ),
+714:         child: child,
+715:       ),
+716:     );
+717:   }
+718: 
+719: 
+720: 
+721:   List<Widget> _buildAnomalyWarnings() {
+722:     final List<Widget> warnings = [];
+723:     if (_displayPressure != null && (_displayPressure! < 748 || _displayPressure! > 768)) {
+724:       warnings.add(_buildWarningCard(
+725:         Icons.compress_rounded,
+726:         'Атмосферное давление',
+727:         'Атмосферное давление составляет ${_displayPressure!.round()} мм рт. ст. (норма 748-768). Рекомендуется соблюдать спокойный режим при повышенной чувствительности к перепадам давления.',
+728:       ));
+729:     }
+730:     if (_displaySolarFlare != null && (_displaySolarFlare!.startsWith('M') || _displaySolarFlare!.startsWith('X'))) {
+731:       warnings.add(_buildWarningCard(
+732:         Icons.wb_sunny_rounded,
+733:         'Повышенная солнечная активность',
+734:         'Зафиксирована солнечная вспышка класса $_displaySolarFlare. Постарайтесь избегать чрезмерных нагрузок, пить достаточно чистой воды и планировать день размеренно.',
+735:       ));
+736:     }
+737:     if (_displaySchumannFreq != null && (_displaySchumannFreq! < 7.7 || _displaySchumannFreq! > 8.0)) {
+738:       warnings.add(_buildWarningCard(
+739:         Icons.waves_rounded,
+740:         'Колебания частоты Шумана',
+741:         'Базовая частота резонанса Шумана сместилась до $_displaySchumannFreq Гц (норма 7.83 Гц). Возможны кратковременные изменения естественного электромагнитного фона планеты.',
+742:       ));
+743:     }
+744:     if (_displaySchumannAmp != null && _displaySchumannAmp! > 15.0) {
+745:       warnings.add(_buildWarningCard(
+746:         Icons.flash_on_rounded,
+747:         'Всплеск амплитуды Шумана',
+748:         'Зарегистрировано кратковременное повышение амплитуды Шумана до $_displaySchumannAmp pT (норма <=15.0). Рекомендуется уделить внимание отдыху и спокойной деятельности.',
+749:       ));
+750:     }
+751:     if (_displayWindSpeed != null && _displayWindSpeed! > 10.0) {
+752:       warnings.add(_buildWarningCard(
+753:         Icons.air_rounded,
+754:         'Штормовой ветер',
+755:         'Скорость ветра достигает ${_displayWindSpeed!.toStringAsFixed(0)} м/с. Не находитесь вблизи рекламных щитов, старых деревьев и легких конструкций.',
+756:       ));
+757:     }
+758:     return warnings;
+759:   }
+760: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

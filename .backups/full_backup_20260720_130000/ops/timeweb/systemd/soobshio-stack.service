@@ -1,0 +1,15 @@
+[Unit]
+Description=Soobshio Timeweb Stack
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/soobshio
+ExecStart=/usr/bin/docker compose --env-file /opt/soobshio/.env.production up -d --build
+ExecStop=/usr/bin/docker compose --env-file /opt/soobshio/.env.production down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

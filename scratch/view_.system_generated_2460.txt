@@ -1,0 +1,30 @@
+Created At: 2026-06-23T05:34:12Z
+Completed At: 2026-06-23T05:34:12Z
+File Path: `file:///C:/Users/%D1%80%D1%81/.gemini/antigravity/brain/aed93f9b-cd64-4600-9659-275a143be7fc/task.md`
+Total Lines: 22
+Total Bytes: 1477
+Showing lines 1 to 22
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Tasks
+2: 
+3: - [ ] Geocoding bugs & client corrections
+4:   - [ ] Fix Semaphore indentation in `geo_service.py`
+5:   - [ ] Replace direct `http.get` with `ReportsRepository` client in `uk_companies_screen.dart`
+6: - [ ] Weather Service & Telemetry updates
+7:   - [ ] Update `weather_service.py` to retrieve Kp-index, UV-index, visibility, and USGS seismic data
+8:   - [ ] Expose new telemetry fields in `CityWeatherSnapshot` in `city_weather_service.dart`
+9:   - [ ] Remove condition selector and show dynamic general analysis in `weather_overlay_panel.dart`
+10:   - [ ] Display UV-index, Kp-index, visibility, and seismic parameters in `weather_overlay_panel.dart` grid
+11:   - [ ] Implement parameter detail bottom sheet modals in `weather_overlay_panel.dart`
+12:   - [ ] Remove VK/Telegram feed warnings from weather alert section in `city_alerts_service.py` or frontend
+13: - [ ] Marquee Banner Layout & Transition
+14:   - [ ] Make bottom marquee flat full-width at `bottom: 0` in `map_screen.dart`
+15:   - [ ] Implement one-pass scroll and auto-dismiss slide down transition in `weather_overlay_panel.dart`
+16: - [ ] Camera Auto-Open Action on Push Notifications
+17:   - [ ] Save cameras list to `_camerasList` state variable in `map_screen.dart`
+18:   - [ ] Calculate proximity to nearest camera and auto-open stream if within 150m in `map_screen.dart`
+19: - [ ] Deploy & Compile
+20:   - [ ] Run deployment script `_deploy_now.py` to upload backend changes to VPS
+21:   - [ ] Build release Android APK for ARM64 and output it to the Desktop
+22: 
+The above content shows the entire, complete file contents of the requested file.

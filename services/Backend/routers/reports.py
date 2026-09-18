@@ -45,6 +45,7 @@ def apply_reports_filters(
     id_filter: str | None = None,
     lat_filter: str | None = None,
     lng_filter: str | None = None,
+    city: str | None = None,
 ):
     """Apply filters to SQLAlchemy query for Reports."""
     if category:
@@ -55,6 +56,8 @@ def apply_reports_filters(
         _, status_value = parse_filter_op_val(status)
         if status_value:
             query = query.filter(Report.status == status_value)
+    if city:
+        query = query.filter(Report.city == city)
     if id_filter:
         _, id_value = parse_filter_op_val(id_filter)
         if id_value and str(id_value).isdigit():
@@ -99,52 +102,52 @@ def _ensure_today_reports(db: Session):
         if today_count < 5:
             sample_today_reports = [
                 {
-                    "title": "Затопление дворового проезда после дождя",
-                    "description": "Большая лужа затрудняет проход пешеходов и выезд автомобилей из двора. Требуется откачка воды и прочистка ливневой канализации.",
+                    "title": "Затопление внутридворового проезда и отсутствие стока талых вод",
+                    "description": "В результате скопления талых вод и забитого водоприемного колодца полностью затоплен внутридворовой проезд и пешеходная дорожка между домами ул. Мира 42 и 44. Пешеходы вынуждены обходить лужу по газону, автомобили поднимают волну на припаркованный транспорт. Требуется механизированная откачка воды ассенизатором и прочистка ливневой канализации управляющей компанией.",
                     "category": "ЖКХ",
-                    "lat": 60.9432,
-                    "lng": 76.5612,
-                    "address": "ул. Мира 42, Нижневартовск",
+                    "lat": 60.9382,
+                    "lng": 76.5870,
+                    "address": "ул. Мира, 42, Нижневартовск",
                     "status": "open",
                     "source": "live_city_sensor",
                 },
                 {
-                    "title": "Неработающий уличный фонарь возле школы №14",
-                    "description": "В вечернее время участок тротуара не освещается. Просим заменить перегоревшую лампу на опоре освещения.",
+                    "title": "Неработающее уличное освещение на пешеходном переходе возле МБОУ «СШ №14»",
+                    "description": "На участке тротуара и нерегулируемом пешеходном переходе вдоль ул. Интернациональная рядом со школой №14 не работают три опоры наружного освещения. В утренние и вечерние часы школьники переходят дорогу в условиях ограниченной видимости. Требуется оперативная замена ламп и проверка кабельной линии МБУ «Управление по дорожному хозяйству и благоустройству г. Нижневартовска».",
                     "category": "Благоустройство",
-                    "lat": 60.9385,
-                    "lng": 76.5540,
-                    "address": "ул. Омская 12, Нижневартовск",
+                    "lat": 60.9485,
+                    "lng": 76.5680,
+                    "address": "ул. Интернациональная, 20б, Нижневартовск",
                     "status": "open",
                     "source": "live_city_sensor",
                 },
                 {
-                    "title": "Яма на проезжей части на перекрестке",
-                    "description": "Глубокая выбоина на асфальте создает риск повреждения колес и подвески автомобилей.",
+                    "title": "Глубокая выбоина на полосе движения перед перекрестком ул. Ленина и пр. Победы",
+                    "description": "На проезжей части по ул. Ленина в районе дома №17 образовалась просадка дорожного полотна и выбоина глубиной более 8 см с острыми краями арматуры. Создается аварийная ситуация, водители совершают резкие маневры с выездом на встречную полосу для объезда. Необходим срочный ямочный ремонт литым асфальтобетоном.",
                     "category": "Дороги",
-                    "lat": 60.9410,
-                    "lng": 76.5480,
-                    "address": "ул. Ленина 17, Нижневартовск",
+                    "lat": 60.9391,
+                    "lng": 76.5602,
+                    "address": "ул. Ленина, 17, Нижневартовск",
                     "status": "open",
                     "source": "live_city_sensor",
                 },
                 {
-                    "title": "Скопление мусора около контейнерной площадки",
-                    "description": "Крупногабаритный мусор переполнил площадку. Необходим вывоз регоператором.",
+                    "title": "Переполнение контейнерной площадки и навал крупногабаритного мусора",
+                    "description": "На контейнерной площадке во дворе дома по проспекту Победы, 3 скопился строительный мусор, старая мебель и переполнены баки для ТКО. Отходы разносятся ветром по придомовой территории детского сада №10 «Белочка». Требуется внеплановый рейс регионального оператора АО «Югра-Экология» и уборка прилегающей территории управляющей компанией.",
                     "category": "Экология",
-                    "lat": 60.9360,
-                    "lng": 76.5720,
-                    "address": "пр. Победы 20, Нижневартовск",
+                    "lat": 60.9327,
+                    "lng": 76.5551,
+                    "address": "проспект Победы, 3, Нижневартовск",
                     "status": "open",
                     "source": "live_city_sensor",
                 },
                 {
-                    "title": "Отсутствует люк на смотровом колодце",
-                    "description": "Смещена крышка смотрового колодца на газоне. Опасность для прохожих и детей.",
+                    "title": "Сдвинута крышка смотрового колодца на газоне рядом с ДС «Светлячок»",
+                    "description": "На пешеходной зоне и газоне вблизи дома ул. Героев Самотлора, 22а частично открыт чугунный люк инженерных сетей водоканала (НКС). В темное время суток существует прямая угроза падения людей и домашних животных. Требуется немедленная установка крышки колодца и ограждение аварийного участка.",
                     "category": "Безопасность",
-                    "lat": 60.9460,
-                    "lng": 76.5670,
-                    "address": "ул. Ханты-Мансийская 25, Нижневартовск",
+                    "lat": 60.9515,
+                    "lng": 76.6230,
+                    "address": "ул. Героев Самотлора, 22а, Нижневартовск",
                     "status": "open",
                     "source": "live_city_sensor",
                 },
@@ -156,8 +159,6 @@ def _ensure_today_reports(db: Session):
                     category=data["category"],
                     lat=data["lat"],
                     lng=data["lng"],
-                    latitude=data["lat"],
-                    longitude=data["lng"],
                     address=data["address"],
                     status=data["status"],
                     source=data["source"],
@@ -177,6 +178,7 @@ async def get_reports(
     request: Request,
     category: str | None = None,
     status: str | None = None,
+    city: str | None = None,
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
@@ -197,6 +199,7 @@ async def get_reports(
             id_filter=id_filter,
             lat_filter=lat_filter,
             lng_filter=lng_filter,
+            city=city,
         )
         query = apply_reports_ordering(query, order)
         reports = query.limit(limit).all()
@@ -284,21 +287,18 @@ async def create_report(
         address = await resolve_address_from_coords(float(lat), float(lng), existing=address)
 
     description = (payload.description or "").strip()
-    if payload.images:
-        for img in payload.images:
-            if img and img.strip():
-                description += f"\n\nФото: {img.strip()}"
-    elif "Фото:" not in description:
+    photo_urls: list[str] = [img.strip() for img in payload.images if img and img.strip()]
+    if not photo_urls and "Фото:" not in description:
         import urllib.parse, time, random
         category_name = (payload.category or "городской сигнал").strip()
         title_name = (payload.title or "сигнал ЖКХ").strip()
         addr_str = (address or "Нижневартовск").strip()
         desc_snippet = description[:100].replace('\n', ' ').strip()
-        prompt_str = f"ultra-realistic documentary photo of municipal incident: {title_name}, {category_name}, location {addr_str}, {desc_snippet}, street perspective, high detail, 8k"
+        prompt_str = f"Authentic documentary municipal photograph in Nizhnevartovsk: {title_name}, {category_name}, location {addr_str}, {desc_snippet}, street perspective, high detail, concrete buildings, overcast daylight, shot on Sony Alpha 35mm lens, 8k"
         encoded_prompt = urllib.parse.quote(prompt_str)
         unique_seed = int(time.time() * 1000) % 100000 + random.randint(100, 99999)
-        ai_photo_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=768&seed={unique_seed}&nologo=true"
-        description += f"\n\nФото: {ai_photo_url}"
+        ai_photo_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=768&seed={unique_seed}&nologo=true&model=flux-realism"
+        photo_urls.append(ai_photo_url)
 
     # --- Advanced Multi-Source Duplicate Protection (NLP & Location Matching) ---
     if lat is not None and lng is not None:
@@ -364,6 +364,7 @@ async def create_report(
         status=(payload.status or "open").strip(),
         source=(payload.source or "mobile_app").strip(),
         user_id=user_id,
+        photo_urls=photo_urls or None,
         likes_count=max(payload.likes_count, 0),
         dislikes_count=max(payload.dislikes_count, 0),
         supporters=max(payload.supporters, 0),
@@ -513,16 +514,23 @@ async def generate_legal_claim(
     system_prompt = (
         "Ты — нейросеть-диспетчер и высококвалифицированный юрист «Гермес» по ЖКХ и градостроительству г. Нижневартовска.\n"
         "ВАЖНОЕ ПРАВИЛО: Ты полностью умеешь и готов создавать официальные юридические PDF-обращения, претензии и отчеты по любому сигналу или адресу дома по первому запросу пользователя!\n\n"
-        "Твоя задача — составить официальную, юридически безупречную претензию (досудебную жалобу) "
-        "в Управляющую компанию (или ТСЖ) на основе деталей инцидента.\n\n"
+        "Твоя задача — составить официальную, юридически безупречную претензию (досудебную жалобу в рамках ФЗ-59) "
+        "в Управляющую компанию или профильный Департамент Администрации г. Нижневартовска на основе деталей инцидента.\n\n"
+        "Обязательная привязка нормативной базы в зависимости от категории:\n"
+        " - Дороги / Ямы / Асфальт: ГОСТ Р 50597-2017 (п. 5.2.4 - требования к отсутствию выбоин и срокам ликвидации) + ст. 12 ФЗ № 196-ФЗ 'О безопасности дорожного движения'.\n"
+        " - Мусор / ТКО / Экология: СанПиН 2.1.3684-21 (раздел II - требования к периодичности вывоза ТКО и содержанию площадок) + ст. 13.4 ФЗ № 89-ФЗ 'Об отходах производства и потребления'.\n"
+        " - ЖКХ / УК / Дом / Подъезд: ст. 161 Жилищного кодекса РФ + Постановление Правительства РФ № 354 + Постановление Правительства РФ № 290.\n"
+        " - Животные / Собаки: ст. 18 ФЗ № 498-ФЗ 'Об ответственном обращении с животными'.\n"
+        " - Освещение / Фонари: ГОСТ Р 55706-2013 + СП 52.13330.2016 'Естественное и искусственное освещение'.\n"
+        " - Детские площадки / Благоустройство: ГОСТ Р 52169-2012 'Оборудование и покрытия детских игровых площадок. Безопасность конструкции'.\n\n"
         "Правила оформления:\n"
         "1. Структура документа:\n"
-        "   - ШАПКА: 'В Управляющую компанию / Руководителю ТСЖ', 'От: ФИО (пропуск)', 'Адрес заявителя: (указать адрес инцидента)'.\n"
-        "   - НАЗВАНИЕ: 'ПРЕТЕНЗИЯ (Досудебная жалоба)'.\n"
-        "   - ОПИСАНИЕ: Четкое изложение фактов нарушения с датой.\n"
-        "   - ЗАКОНОДАТЕЛЬНОЕ ОБОСНОВАНИЕ: Сошлись на Жилищный кодекс РФ (ст. 161 - обязанности УК), Постановление Правительства РФ № 354, ГОСТ Р 50597-2017 (если дороги/снег), СанПиН 2.1.3684-21 (если мусор/животные).\n"
-        "   - ТРЕБОВАНИЕ: Устранить нарушение в течение установленного законом срока (например, протечка - 24 часа, яма - 10 дней, мусор - 1 день) и произвести перерасчет платы (при необходимости).\n"
-        "   - ПРЕДУПРЕЖДЕНИЕ: О намерении обратиться в Государственную жилищную инспекцию (ГЖИ ХМАО-Югры), Роспотребнадзор, Прокуратуру и суд с требованием штрафа 50% по ЗоЗПП.\n"
+        "   - ШАПКА: 'Главе Администрации города Нижневартовска / Руководителю Управляющей компании', 'От: Гражданина РФ (ФИО заполняется отправителем)'.\n"
+        "   - НАЗВАНИЕ: 'ОФИЦИАЛЬНОЕ ЗАЯВЛЕНИЕ / ПРЕТЕНЗИЯ (в порядке ФЗ-59 от 02.05.2006 № 59-ФЗ)'.\n"
+        "   - ОПИСАНИЕ И ФАКТЫ: Четкое изложение фактов нарушения с адресом и деталями.\n"
+        "   - НОРМАТИВНО-ПРАВОВОЕ ОБОСНОВАНИЕ: Прямые ссылки на соответствующий ГОСТ / СанПиН / Статью ФЗ из списка выше.\n"
+        "   - ТРЕБОВАНИЯ: Зарегистрировать заявление в течение 3 дней; Провести проверку и устранить нарушение в установленный законом срок; Направить официальный мотивированный ответ в 30-дневный срок.\n"
+        "   - ПРЕДУПРЕЖДЕНИЕ: О направлении копий обращения в Государственную жилищную инспекцию (ГЖИ ХМАО-Югры), Роспотребнадзор и Прокуратуру г. Нижневартовска в случае бездействия.\n"
         "   - ДАТА И ПОДПИСЬ.\n"
         "2. Пиши строго в деловом и юридическом стиле. Не выдумывай вымышленных людей, используй прочерки '_____' для личных данных заявителя."
     )
@@ -879,18 +887,14 @@ async def get_soprano_tts(text: str, category: str = "ЧП"):
 
 @router.get("/emergency-tts")
 async def get_emergency_tts(text: str):
-    """
-    Generate Soprano TTS voice specifically for Emergency (ЧП) signals.
-    """
-    return await get_soprano_tts(text, category="ЧП")
+    """Generate high quality TTS voice for Emergency (ЧП) signals."""
+    return await get_lost_found_tts(text)
 
 
 @router.get("/event-tts")
 async def get_event_tts(text: str):
-    """
-    Generate Soprano TTS voice for Events (Мероприятия) signals.
-    """
-    return await get_soprano_tts(text, category="Мероприятия")
+    """Generate high quality TTS voice for Events (Мероприятия) signals."""
+    return await get_lost_found_tts(text)
 
 
 class MemeRequest(BaseModel):
@@ -1195,9 +1199,10 @@ async def clean_and_crawl_task(db_session_factory, days: int = 3):
                                     logger.error(f"Failed to download TG photo: {photo_err}")
                         
                         summary = analysis.get("description") or analysis.get("summary", text[:100])
-                        if uploaded_urls:
-                            summary = f"{summary}\n" + "\n".join(f"Фото: {url}" for url in uploaded_urls)
-                        else:
+                        # Реальные фото — сразу в photo_urls (JSON-колонка),
+                        # не вклеиваем URL в текст description
+                        photo_urls = list(uploaded_urls)
+                        if not photo_urls:
                             # Auto-generate individual 3D image using black-forest-labs/flux-1-schnell for text-only signals
                             try:
                                 from services.ai.flux_image_service import generate_signal_image_flux
@@ -1205,10 +1210,10 @@ async def clean_and_crawl_task(db_session_factory, days: int = 3):
                                 ttl = analysis.get("title") or analysis.get("summary", text[:40])
                                 generated_img = await generate_signal_image_flux(ttl, cat, text[:150])
                                 if generated_img:
-                                    summary = f"{summary}\nФото: {generated_img}"
+                                    photo_urls.append(generated_img)
                             except Exception as gen_err:
                                 logger.warning(f"FLUX image generation error: {gen_err}")
-                        
+
                         await process_complaint(
                             client=None,
                             text=text,
@@ -1222,7 +1227,8 @@ async def clean_and_crawl_task(db_session_factory, days: int = 3):
                             msg_id=msg_id,
                             location_hints=analysis.get("location_hints"),
                             title=analysis.get("title") or analysis.get("summary", text[:40]),
-                            created_at=post_dt
+                            created_at=post_dt,
+                            photo_urls=photo_urls or None,
                         )
                         await asyncio.sleep(0.5)
             except Exception as tg_err:
@@ -1346,7 +1352,7 @@ async def get_official_pdf_ticket(report_id: int, db: Session = Depends(get_db))
     <body>
         <div class="header">
             <div class="title">Официальное Обращение в Администрацию / ЖКХ</div>
-            <div class="sub">Система муниципалистического мониторинга «City Pulse / СообщиО»</div>
+            <div class="sub">Система муниципалистического мониторинга «City Pulse / Пульс Города»</div>
         </div>
         <div class="field"><span class="label">Регистрационный номер:</span> №CP-{report.id:06d}</div>
         <div class="field"><span class="label">Дата и время фиксации:</span> {date_str}</div>

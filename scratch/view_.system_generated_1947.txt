@@ -1,0 +1,49 @@
+Created At: 2026-06-23T05:11:02Z
+Completed At: 2026-06-23T05:11:02Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1590
+Total Bytes: 65733
+Showing lines 1520 to 1560
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1520:                         return Transform.translate(
+1521:                           offset: Offset(xOffset, 0),
+1522:                           child: Text(
+1523:                             text,
+1524:                             maxLines: 1,
+1525:                             overflow: TextOverflow.visible,
+1526:                             style: const TextStyle(
+1527:                               color: Color(0xFF1E293B),
+1528:                               fontSize: 12.5,
+1529:                               fontWeight: FontWeight.w600,
+1530:                             ),
+1531:                           ),
+1532:                         );
+1533:                       },
+1534:                     ),
+1535:                   );
+1536:                 },
+1537:               ),
+1538:             ),
+1539:           ],
+1540:         ),
+1541:       ),
+1542:     );
+1543:   }
+1544: }
+1545: 
+1546: /// A custom widget that applies a 3D perspective tilt effect on drag/pan gestures.
+1547: class TiltWidget extends StatefulWidget {
+1548:   const TiltWidget({super.key, required this.child});
+1549:   final Widget child;
+1550: 
+1551:   @override
+1552:   State<TiltWidget> createState() => _TiltWidgetState();
+1553: }
+1554: 
+1555: class _TiltWidgetState extends State<TiltWidget> {
+1556:   double _xAngle = 0.0;
+1557:   double _yAngle = 0.0;
+1558: 
+1559:   @override
+1560:   Widget build(BuildContext context) {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

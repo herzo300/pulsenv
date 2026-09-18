@@ -1,0 +1,57 @@
+Created At: 2026-06-23T05:04:11Z
+Completed At: 2026-06-23T05:04:11Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1590
+Total Bytes: 65733
+Showing lines 292 to 340
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+292:   Widget _spaceParam(IconData icon, String label, String value, VoidCallback onTap) {
+293:     return Expanded(
+294:       child: Material(
+295:         color: Colors.transparent,
+296:         child: InkWell(
+297:           onTap: onTap,
+298:           borderRadius: BorderRadius.circular(12),
+299:           child: Padding(
+300:             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+301:             child: Row(
+302:               children: [
+303:                 Icon(icon, size: 20, color: widget.accent),
+304:                 const SizedBox(width: 8),
+305:                 Expanded(
+306:                   child: Column(
+307:                     crossAxisAlignment: CrossAxisAlignment.start,
+308:                     children: [
+309:                       Text(
+310:                         label,
+311:                         style: TextStyle(
+312:                           color: widget.isNightMode ? Colors.white54 : Colors.black45,
+313:                           fontSize: 11,
+314:                         ),
+315:                       ),
+316:                       Text(
+317:                         value,
+318:                         style: TextStyle(
+319:                           color: widget.isNightMode ? Colors.white : Colors.black87,
+320:                           fontSize: 13,
+321:                           fontWeight: FontWeight.w700,
+322:                         ),
+323:                       ),
+324:                     ],
+325:                   ),
+326:                 ),
+327:               ],
+328:             ),
+329:           ),
+330:         ),
+331:       ),
+332:     );
+333:   }
+334: 
+335:   void _showParamExplanation(String title, String currentText, String explanation) {
+336:     showModalBottomSheet<void>(
+337:       context: context,
+338:       isScrollControlled: true,
+339:       backgroundColor: Colors.transparent,
+340:       builder: (context) {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

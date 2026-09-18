@@ -6,6 +6,8 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../config/api_defaults.dart';
+
 const LatLng kMapCenterDefault = LatLng(60.9344, 76.5531);
 
 const double kMapInitialZoom = 13.0;
@@ -20,6 +22,12 @@ const String kOsmCopyrightUrl = 'https://www.openstreetmap.org/copyright';
 const String kReportsMediaBucket = 'reports-media';
 const String kSatelliteTileUrlDefault =
     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const String kGoogleRoadsTileUrl =
+    'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
+const String kGoogleHybridRoadsTileUrl =
+    'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+const String kCartoVoyagerRoadsTileUrl =
+    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
 
 String _backendBaseUrl =
     const String.fromEnvironment('BACKEND_BASE_URL', defaultValue: '');
@@ -29,7 +37,7 @@ const String _publicApiBaseUrl = String.fromEnvironment(
 );
 const String _defaultPublicBackendBaseUrl = String.fromEnvironment(
   'BACKEND_PUBLIC_FALLBACK',
-  defaultValue: 'https://45-153-68-59.sslip.io',
+  defaultValue: kDefaultBackendHost,
 );
 String _satelliteTileUrl = const String.fromEnvironment(
   'SATELLITE_TILE_URL',
@@ -48,6 +56,11 @@ class MapConfig {
   static List<Map<String, dynamic>> loadedCameras = [];
 
   static String get tileUrl => kOsmTileUrl;
+  static String get googleRoadsTileUrl => kGoogleRoadsTileUrl;
+  static String get googleHybridTileUrl => kGoogleHybridRoadsTileUrl;
+  static String get cartoRoadsTileUrl => kCartoVoyagerRoadsTileUrl;
+  static const List<String> tileSubdomains = ['a', 'b', 'c', 'd'];
+  static const List<String> googleSubdomains = ['0', '1', '2', '3'];
   static String get defaultPublicBackendBaseUrl =>
       _defaultPublicBackendBaseUrl.trim();
   static String get satelliteTileUrl => _satelliteTileUrl.trim().isNotEmpty

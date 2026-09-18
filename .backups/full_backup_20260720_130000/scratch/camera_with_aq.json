@@ -1,0 +1,22 @@
+{
+  "air_quality": {
+    "european_aqi": 30,
+    "us_aqi": 40,
+    "level": "хорошее",
+    "us_level": "хорошо",
+    "pm25": 4.2,
+    "pm10": 4.6,
+    "no2": 1.5,
+    "o3": 75.0,
+    "so2": 0.7,
+    "co": 122.0,
+    "observed_at": "2026-06-06T21:00",
+    "source": "Open-Meteo",
+    "city": "Нижневартовск",
+    "available": true,
+    "summary": "EU AQI 30 (хорошее), US AQI 40, PM2.5 4.2 µg/m³, PM10 4.6 µg/m³"
+  },
+  "report_lines": [
+    "• Качество воздуха (Open-Meteo): хорошее, EU AQI 30, PM2.5 4.2 µg/m³"
+  ]
+}

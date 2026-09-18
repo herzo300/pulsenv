@@ -53,6 +53,21 @@ class DeviceLocationService {
       return DeviceLocationResult(failure: permissionFailure);
     }
 
+    // 1b. GPS-модуль телефона выключен — сразу ведём в настройки,
+    // иначе getCurrentPosition молча висит до таймаута и кажется, что
+    // «GPS не включается»
+    final svcEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!svcEnabled) {
+      return const DeviceLocationResult(
+        failure: DeviceLocationFailure(
+          code: 'service_disabled',
+          userMessage:
+              'GPS выключен. Сейчас откроем настройки — включите «Местоположение».',
+          openLocationSettings: true,
+        ),
+      );
+    }
+
     // 2. Быстрый опрос кэша (если координаты свежие - до 10 минут)
     if (!forceCurrentGPS) {
       try {

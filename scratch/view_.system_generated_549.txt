@@ -1,0 +1,64 @@
+Created At: 2026-06-23T03:01:07Z
+Completed At: 2026-06-23T03:01:07Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1615
+Total Bytes: 63639
+Showing lines 1515 to 1570
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1515:                 animation: _scroll,
+1516:                 builder: (context, _) {
+1517:                   final double angle = _scroll.value * 2 * math.pi;
+1518:                   final double scale = 1.0 + 0.15 * math.sin(_scroll.value * 2 * math.pi * 4);
+1519:                   return Transform.scale(
+1520:                     scale: scale,
+1521:                     child: Transform.rotate(
+1522:                       angle: angle,
+1523:                       child: Icon(
+1524:                         leadingIcon,
+1525:                         color: Colors.white,
+1526:                         size: 18,
+1527:                       ),
+1528:                     ),
+1529:                   );
+1530:                 },
+1531:               ),
+1532:             ),
+1533:             Expanded(
+1534:               child: LayoutBuilder(
+1535:                 builder: (context, constraints) {
+1536:                   final marqueeWidth = constraints.maxWidth;
+1537:                   final estimatedTextWidth = text.length * 7.5;
+1538:                   final scrollDistance = marqueeWidth + estimatedTextWidth;
+1539:                   
+1540:                   return ClipRect(
+1541:                     child: AnimatedBuilder(
+1542:                       animation: _scroll,
+1543:                       builder: (context, _) {
+1544:                         final xOffset = marqueeWidth - (_scroll.value * scrollDistance);
+1545:                         return Transform.translate(
+1546:                           offset: Offset(xOffset, 0),
+1547:                           child: Text(
+1548:                             text,
+1549:                             maxLines: 1,
+1550:                             overflow: TextOverflow.visible,
+1551:                             style: const TextStyle(
+1552:                               color: Colors.white,
+1553:                               fontSize: 12.5,
+1554:                               fontWeight: FontWeight.w600,
+1555:                             ),
+1556:                           ),
+1557:                         );
+1558:                       },
+1559:                     ),
+1560:                   );
+1561:                 },
+1562:               ),
+1563:             ),
+1564:           ],
+1565:         ),
+1566:       ),
+1567:     );
+1568:   }
+1569: }
+1570: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

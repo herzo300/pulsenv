@@ -1,0 +1,139 @@
+Created At: 2026-06-23T15:28:40Z
+Completed At: 2026-06-23T15:28:40Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1886
+Total Bytes: 84587
+Showing lines 1050 to 1180
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1050:                           ),
+1051:                           
+1052:                           const SizedBox(height: 12),
+1053:                           
+1054:                           TiltWidget(
+1055:                             child: _buildGlassCard(
+1056:                               child: Column(
+1057:                                 crossAxisAlignment: CrossAxisAlignment.start,
+1058:                                 children: [
+1059:                                   Text(
+1060:                                     'Параметры атмосферы и космоса',
+1061:                                     style: TextStyle(
+1062:                                       color: widget.isNightMode
+1063:                                           ? Colors.white70
+1064:                                           : Colors.black54,
+1065:                                       fontSize: 12,
+1066:                                       fontWeight: FontWeight.w700,
+1067:                                     ),
+1068:                                   ),
+1069:                                   const SizedBox(height: 12),
+1070:                                   Row(
+1071:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1072:                                     children: [
+1073:                                       _spaceParam(
+1074:                                         Icons.compress_rounded,
+1075:                                         'Давление',
+1076:                                         _displayPressure != null ? '${_displayPressure!.round()} мм рт. ст.' : '—',
+1077:                                         _explainPressure,
+1078:                                       ),
+1079:                                       _spaceParam(
+1080:                                         Icons.wb_sunny_rounded,
+1081:                                         'Вспышки',
+1082:                                         _displaySolarFlare != null ? 'Класс $_displaySolarFlare' : '—',
+1083:                                         _explainSolarFlare,
+1084:                                       ),
+1085:                                     ],
+1086:                                   ),
+1087:                                   const Divider(height: 24, color: Colors.white10),
+1088:                                   Row(
+1089:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1090:                                     children: [
+1091:                                       _spaceParam(
+1092:                                         Icons.waves_rounded,
+1093:                                         'Резонанс Шумана',
+1094:                                         _displaySchumannFreq != null
+1095:                                             ? '$_displaySchumannFreq Гц'
+1096:                                             : '—',
+1097:                                         _explainSchumannFreq,
+1098:                                       ),
+1099:                                       _spaceParam(
+1100:                                         Icons.flash_on_rounded,
+1101:                                         'Амплитуда',
+1102:                                         _displaySchumannAmp != null
+1103:                                             ? '$_displaySchumannAmp pT'
+1104:                                             : '—',
+1105:                                         _explainSchumannAmp,
+1106:                                       ),
+1107:                                     ],
+1108:                                   ),
+1109:                                   const Divider(height: 24, color: Colors.white10),
+1110:                                   Row(
+1111:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1112:                                     children: [
+1113:                                       _spaceParam(
+1114:                                         Icons.air_rounded,
+1115:                                         'Ветер',
+1116:                                         _displayWindSpeed != null
+1117:                                             ? '${_displayWindSpeed!.toStringAsFixed(0)} м/с'
+1118:                                             : '—',
+1119:                                         _explainWind,
+1120:                                       ),
+1121:                                       _spaceParam(
+1122:                                         Icons.query_stats_rounded,
+1123:                                         'Сейсмоактивность',
+1124:                                         _displaySeismicMagnitude != null && _displaySeismicMagnitude! > 0
+1125:                                             ? '${_displaySeismicMagnitude!.toStringAsFixed(1)} M'
+1126:                                             : 'Норма',
+1127:                                         _explainSeismic,
+1128:                                       ),
+1129:                                     ],
+1130:                                   ),
+1131:                                   const Divider(height: 24, color: Colors.white10),
+1132:                                   Row(
+1133:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1134:                                     children: [
+1135:                                       _spaceParam(
+1136:                                         Icons.flare_rounded,
+1137:                                         'Kp-индекс',
+1138:                                         _displayKpIndex != null
+1139:                                             ? '${_displayKpIndex!.toStringAsFixed(1)} Kp'
+1140:                                             : '—',
+1141:                                         _explainKpIndex,
+1142:                                       ),
+1143:                                       _spaceParam(
+1144:                                         Icons.light_mode_rounded,
+1145:                                         'УФ-индекс',
+1146:                                         _displayUvIndex != null
+1147:                                             ? '${_displayUvIndex!.toStringAsFixed(1)}'
+1148:                                             : '—',
+1149:                                         _explainUvIndex,
+1150:                                       ),
+1151:                                     ],
+1152:                                   ),
+1153:                                   const Divider(height: 24, color: Colors.white10),
+1154:                                   Row(
+1155:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1156:                                     children: [
+1157:                                       _spaceParam(
+1158:                                         Icons.visibility_rounded,
+1159:                                         'Видимость',
+1160:                                         _displayVisibilityM != null
+1161:                                             ? '${(_displayVisibilityM! / 1000).toStringAsFixed(0)} км'
+1162:                                             : '—',
+1163:                                         _explainVisibility,
+1164:                                       ),
+1165:                                       _spaceParam(
+1166:                                         Icons.nightlight_round,
+1167:                                         'Лунный цикл',
+1168:                                         _displayMoonPhaseName != null
+1169:                                             ? '$_displayMoonPhaseName'
+1170:                                             : '—',
+1171:                                         _explainMoon,
+1172:                                       ),
+1173:                                     ],
+1174:                                   ),
+1175:                                 ],
+1176:                               ),
+1177:                             ),
+1178:                           ),
+1179:                           if (_hasAnomaly) ...[
+1180:                             const SizedBox(height: 16),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

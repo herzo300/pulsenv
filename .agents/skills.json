@@ -1,0 +1,23 @@
+{
+  "entries": [
+    { "path": "skills/antigravity-awesome-skills/skills" },
+    { "path": "skills/loopy/skills/loop-library" },
+    { "path": "skills/loopy/skills/loopy" },
+    { "path": "skills/designer-skills/frontend-design" },
+    { "path": "skills/designer-skills/design-brief" },
+    { "path": "skills/designer-skills/design-flow" },
+    { "path": "skills/designer-skills/design-review" },
+    { "path": "skills/designer-skills/design-tokens" },
+    { "path": "skills/designer-skills/information-architecture" },
+    { "path": "skills/fastapi-pro" },
+    { "path": "skills/postgres-best-practices" },
+    { "path": "skills/docker-expert" },
+    { "path": "skills/telegram-bot-builder" },
+    { "path": "skills/llm-prompt-optimizer" },
+    { "path": "skills/security-audit" },
+    { "path": "skills/python-testing" },
+    { "path": "skills/secrets-management" },
+    { "path": "skills/observability-engineer" },
+    { "path": "skills/git-master" }
+  ]
+}

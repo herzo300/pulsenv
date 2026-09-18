@@ -1,0 +1,116 @@
+[
+  {
+    "url": "https://wowza-2.novo-sibirsk.ru/live_km/Gogola_Krasny.stream/playlist.m3u8",
+    "slug": "Gogola_Krasny",
+    "name": "Gogola Krasny",
+    "source": "tv.novo-sibirsk.ru"
+  },
+  {
+    "url": "https://wowza-2.novo-sibirsk.ru/live_km/pl_Truda.stream/playlist.m3u8",
+    "slug": "pl_Truda",
+    "name": "pl Truda",
+    "source": "tv.novo-sibirsk.ru"
+  },
+  {
+    "url": "https://wowza-2.novo-sibirsk.ru/live_km/Sovet_Chas.stream/playlist.m3u8",
+    "slug": "Sovet_Chas",
+    "name": "Sovet Chas",
+    "source": "tv.novo-sibirsk.ru"
+  },
+  {
+    "url": "https://wowza-2.novo-sibirsk.ru/live_km/Lenin_Ordze.stream/playlist.m3u8",
+    "slug": "Lenin_Ordze",
+    "name": "Lenin Ordze",
+    "source": "tv.novo-sibirsk.ru"
+  },
+  {
+    "url": "https://wowza-2.novo-sibirsk.ru/live_km/Krilov_Krasny.stream/playlist.m3u8",
+    "slug": "Krilov_Krasny",
+    "name": "Krilov Krasny",
+    "source": "tv.novo-sibirsk.ru"
+  },
+  {
+    "url": "https://wowza-2.novo-sibirsk.ru/live_km/LDS.stream/playlist.m3u8",
+    "slug": "LDS",
+    "name": "LDS",
+    "source": "tv.novo-sibirsk.ru"
+  },
+  {
+    "url": "https://wowza-2.novo-sibirsk.ru/live_km/pl_pimenova.stream/playlist.m3u8",
+    "slug": "pl_pimenova",
+    "name": "pl pimenova",
+    "source": "tv.novo-sibirsk.ru"
+  },
+  {
+    "url": "https://wowza-2.novo-sibirsk.ru/live/Pervomay_GerRev_NTK.stream/playlist.m3u8",
+    "slug": "Pervomay_GerRev_NTK",
+    "name": "Pervomay GerRev NTK",
+    "source": "tv.novo-sibirsk.ru"
+  },
+  {
+    "url": "https://wowza-2.novo-sibirsk.ru/live_km/pl_Lunencev.stream/playlist.m3u8",
+    "slug": "pl_Lunencev",
+    "name": "pl Lunencev",
+    "source": "tv.novo-sibirsk.ru"
+  },
+  {
+    "url": "https://wowza-2.novo-sibirsk.ru/live_km/Lenina_Kras.stream/playlist.m3u8",
+    "slug": "Lenina_Kras",
+    "name": "Lenina Kras",
+    "source": "tv.novo-sibirsk.ru"
+  },
+  {
+    "url": "https://playerhls.com/tv/video-player.php?url=https://msk3.peers.tv/streaming/cam_lunintsev_sq/16/camv/playlist.m3u8",
+    "slug": "nsk",
+    "name": "nsk",
+    "source": "camrealtime.ru"
+  },
+  {
+    "url": "https://forpost-15.novotelecom.ru:18081/hls/587641255/098987ec2da434f13d63/playlist.m3u8",
+    "slug": "nsk",
+    "name": "nsk",
+    "source": "camrealtime.ru"
+  },
+  {
+    "url": "https://forpost-mincfr-04.novotelecom.ru:18081/hls/587639012/7aaaca0246fc5ca38aee/playlist.m3u8",
+    "slug": "nsk",
+    "name": "nsk",
+    "source": "camrealtime.ru"
+  },
+  {
+    "url": "https://wowza-2.novo-sibirsk.ru/live/monument_2.stream/playlist.m3u8",
+    "slug": "monument_2",
+    "name": "monument 2",
+    "source": "camrealtime.ru"
+  },
+  {
+    "url": "https://anym3u8player.com/tv/video-player.php?url=https://worker-damp-poetry-68b1.1doi3.workers.dev/http://hls.peers.tv/streaming/cam_gogolya-krasny/16/camv/playlist.m3u8",
+    "slug": "nsk",
+    "name": "nsk",
+    "source": "camrealtime.ru"
+  },
+  {
+    "url": "https://forpost-20.novotelecom.ru:18081/hls/538911005/0c5d0ef8c4471919d7d5/playlist.m3u8",
+    "slug": "nsk",
+    "name": "nsk",
+    "source": "camrealtime.ru"
+  },
+  {
+    "url": "https://wowza-1.novo-sibirsk.ru/live/PlPimenova.stream/playlist.m3u8",
+    "slug": "PlPimenova",
+    "name": "PlPimenova",
+    "source": "camrealtime.ru"
+  },
+  {
+    "url": "https://wowza-2.novo-sibirsk.ru/live/monument_1.stream/playlist.m3u8",
+    "slug": "monument_1",
+    "name": "monument 1",
+    "source": "camrealtime.ru"
+  },
+  {
+    "url": "https://wowza-2.novo-sibirsk.ru/live/monument_3.stream/playlist.m3u8",
+    "slug": "monument_3",
+    "name": "monument 3",
+    "source": "camrealtime.ru"
+  }
+]

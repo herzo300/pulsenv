@@ -328,15 +328,16 @@ async def get_house_passport(address: str = Query("ул. Мира, 14"), lat: fl
                 "houses_count": 42
             }
 
-        # Mock/Calculated Resource Outages (НВТС / Горэлектросеть Нижневартовск)
+        # Статусы ресурсов: честные seasonal-статусы без выдуманных дат отключений;
+        # реальные отключения приходят из /uk/outages (таблица jkh_incidents)
         outages = [
             {
                 "resource": "hot_water",
-                "title": "Плановая опрессовка теплосетей (НВТС)",
-                "status": "warning",
-                "start_time": "2026-07-20 00:00",
-                "end_time": "2026-07-30 23:59",
-                "description": "Плановое отключение горячего водоснабжения для гидравлических испытаний котельной №5."
+                "title": "Горячее водоснабжение",
+                "status": "ok",
+                "start_time": None,
+                "end_time": None,
+                "description": "Актуальные отключения смотрите в разделе «Отключения по адресу»."
             },
             {
                 "resource": "electricity",
@@ -380,21 +381,54 @@ async def get_house_passport(address: str = Query("ул. Мира, 14"), lat: fl
 
 @router.get("/outages")
 async def get_house_outages(address: str = Query("ул. Мира, 14")):
-    """Возвращает график плановых и аварийных отключений ресурсов по адресу дома."""
+    """Возвращает график плановых и аварийных отключений ресурсов по адресу дома.
+
+    Источник — таблица jkh_incidents (реальные инциденты). Хардкоженный
+    «график опрессовки 20–30 июля» удалён: он показывался для любого адреса.
+    """
     try:
-        outages = [
-            {
-                "id": "outage-nv-102",
-                "address": address,
-                "resource": "hot_water",
-                "title": "Плановое отключение горячей воды",
-                "start_date": "20.07.2026",
-                "end_date": "30.07.2026",
-                "duration_days": 10,
-                "provider": "АО «НВТС» (Нижневартовские коммунальные системы)",
-                "reason": "Гидравлические испытания тепловых сетей и профилактика котельной №5"
-            }
-        ]
+        from services.data_layer.database import SessionLocal
+        from services.data_layer.models import JkhIncident
+
+        db = SessionLocal()
+        try:
+            incidents = (
+                db.query(JkhIncident)
+                .filter(JkhIncident.status == "active")
+                .order_by(JkhIncident.started_at.desc())
+                .limit(50)
+                .all()
+            )
+        finally:
+            db.close()
+
+        outages = []
+        for inc in incidents:
+            # Отдаём только инциденты, релевантные адресу (подстрока улицы),
+            # либо общегородские (без конкретного адреса)
+            relevant = (
+                not inc.address
+                or not address
+                or address.lower() in (inc.address or "").lower()
+                or (inc.address or "").lower() in address.lower()
+            )
+            if not relevant:
+                continue
+            outages.append({
+                "id": f"incident-{inc.id}",
+                "address": inc.address or address,
+                "resource": (inc.incident_type or "other"),
+                "title": inc.title,
+                "start_date": inc.started_at.strftime("%d.%m.%Y") if inc.started_at else None,
+                "end_date": inc.expires_at.strftime("%d.%m.%Y") if inc.expires_at else None,
+                "duration_days": (
+                    max(1, (inc.expires_at - inc.started_at).days)
+                    if inc.started_at and inc.expires_at
+                    else None
+                ),
+                "provider": "Коммунальные службы Нижневартовска",
+                "reason": inc.description or "",
+            })
         return JSONResponse(content={"success": True, "address": address, "outages": outages})
     except Exception as exc:
         logger.error("Failed to fetch outages for %s: %s", address, exc)

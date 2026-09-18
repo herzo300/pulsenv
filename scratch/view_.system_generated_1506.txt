@@ -1,0 +1,109 @@
+Created At: 2026-06-24T07:07:08Z
+Completed At: 2026-06-24T07:07:08Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1886
+Total Bytes: 82013
+Showing lines 1100 to 1200
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1100:   });
+1101: 
+1102:   final String kind;
+1103:   final double progress;
+1104:   final bool isNight;
+1105:   final Color accent;
+1106: 
+1107:   @override
+1108:   void paint(Canvas canvas, Size size) {
+1109:     final List<Color> colors;
+1110:     if (isNight) {
+1111:       switch (kind) {
+1112:         case 'clear':
+1113:           colors = [const Color(0xFF02040A), const Color(0xFF090D16), const Color(0xFF0F172A)];
+1114:           break;
+1115:         case 'rain':
+1116:         case 'storm':
+1117:           colors = [const Color(0xFF05070C), const Color(0xFF0A0F1D)];
+1118:           break;
+1119:         case 'snow':
+1120:           colors = [const Color(0xFF080C14), const Color(0xFF131A26)];
+1121:           break;
+1122:         case 'wind':
+1123:         case 'fog':
+1124:           colors = [const Color(0xFF010409), const Color(0xFF090E17)];
+1125:           break;
+1126:         default:
+1127:           colors = [const Color(0xFF020617), const Color(0xFF111E2E)];
+1128:       }
+1129:     } else {
+1130:       switch (kind) {
+1131:         case 'clear':
+1132:           colors = [const Color(0xFF0284C7), const Color(0xFF38BDF8), const Color(0xFFBAE6FD)];
+1133:           break;
+1134:         case 'rain':
+1135:         case 'storm':
+1136:           colors = [const Color(0xFF334155), const Color(0xFF1E293B)];
+1137:           break;
+1138:         case 'snow':
+1139:           colors = [const Color(0xFFCBD5E1), const Color(0xFFE2E8F0)];
+1140:           break;
+1141:         case 'wind':
+1142:         case 'fog':
+1143:           colors = [const Color(0xFF64748B), const Color(0xFF94A3B8)];
+1144:           break;
+1145:         default:
+1146:           colors = [const Color(0xFF0EA5E9), const Color(0xFFE2E8F0)];
+1147:       }
+1148:     }
+1149: 
+1150:     final rect = Offset.zero & size;
+1151:     final bgPaint = Paint()
+1152:       ..shader = LinearGradient(
+1153:         begin: Alignment.topCenter,
+1154:         end: Alignment.bottomCenter,
+1155:         colors: colors,
+1156:       ).createShader(rect);
+1157:     canvas.drawRect(rect, bgPaint);
+1158: 
+1159:     // ─── 1. Weather Special Ambient Animations ───
+1160:     if (isNight && kind == 'clear') {
+1161:       _paintAurora(canvas, size);
+1162:       _paintShootingStars(canvas, size);
+1163:       
+1164:       // Twinkling stars with glow aura
+1165:       for (int i = 0; i < 45; i++) {
+1166:         final seed = i * 47.0;
+1167:         final x = (seed * 19) % size.width;
+1168:         final y = (seed * 37) % (size.height * 0.42);
+1169:         final starPulse = 0.3 + 0.7 * math.sin(progress * math.pi * 4 + seed);
+1170:         final starPaint = Paint()..color = Colors.white.withOpacity(0.45 * starPulse);
+1171:         canvas.drawCircle(Offset(x, y), 0.8 + (i % 2) * 0.6, starPaint);
+1172:         if (i % 9 == 0) {
+1173:           canvas.drawCircle(Offset(x, y), 3.5 + (i % 3), Paint()..color = Colors.white.withOpacity(0.08 * starPulse));
+1174:         }
+1175:       }
+1176:     } else if (!isNight && kind == 'clear') {
+1177:       _paintBokeh(canvas, size);
+1178:     }
+1179: 
+1180:     // ─── 2. Storm Flash & Lightning overlay ───
+1181:     double stormFlashIntensity = 0.0;
+1182:     if (kind == 'storm') {
+1183:       final flashVal = math.sin(progress * math.pi * (isNight ? 14 : 18));
+1184:       final limit = isNight ? 0.92 : 0.89;
+1185:       if (flashVal > limit) {
+1186:         stormFlashIntensity = (flashVal - limit) / (1.0 - limit);
+1187:         canvas.drawRect(
+1188:           rect,
+1189:           Paint()..color = (isNight ? accent : Colors.white).withOpacity((isNight ? 0.16 : 0.22) * stormFlashIntensity),
+1190:         );
+1191:         _paintLightningBolt(canvas, size, stormFlashIntensity);
+1192:       }
+1193:     }
+1194: 
+1195:     // ─── 3. Delegate specific elements ───
+1196:     switch (kind) {
+1197:       case 'clear':
+1198:         _paintSunOrMoon(canvas, size);
+1199:         break;
+1200:       case 'rain':
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

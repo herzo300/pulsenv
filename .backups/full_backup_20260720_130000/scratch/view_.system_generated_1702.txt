@@ -1,0 +1,158 @@
+Created At: 2026-06-23T05:02:18Z
+Completed At: 2026-06-23T05:02:19Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1590
+Total Bytes: 65733
+Showing lines 1 to 150
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: import 'dart:math' as math;
+2: 
+3: import 'package:flutter/material.dart';
+4: import 'package:flutter/services.dart';
+5: 
+6: import '../../../services/city_weather_service.dart';
+7: 
+8: /// Full-screen weather card with ambient animation for the map.
+9: class WeatherOverlayPanel extends StatefulWidget {
+10:   const WeatherOverlayPanel({
+11:     super.key,
+12:     required this.weather,
+13:     required this.alerts,
+14:     required this.onClose,
+15:     required this.isNightMode,
+16:     required this.accent,
+17:   });
+18: 
+19:   final CityWeatherSnapshot weather;
+20:   final CityAlertTickerData alerts;
+21:   final VoidCallback onClose;
+22:   final bool isNightMode;
+23:   final Color accent;
+24: 
+25:   @override
+26:   State<WeatherOverlayPanel> createState() => _WeatherOverlayPanelState();
+27: }
+28: 
+29: class _WeatherOverlayPanelState extends State<WeatherOverlayPanel>
+30:     with SingleTickerProviderStateMixin {
+31:   late final AnimationController _controller;
+32: 
+33:   // Selected weather kind and simulated stats
+34:   late String _selectedKind;
+35:   late int? _displayTemp;
+36:   late int? _displayFeels;
+37:   late String _displayCondition;
+38:   late String _displayAqiLevel;
+39:   late String _displayAqiSummary;
+40:   late num? _displayAqiValue;
+41:   late double? _displayWindSpeed;
+42:   late double? _displayWindGusts;
+43:   late int? _displayHumidity;
+44:   late double? _displayPressure;
+45:   late String? _displaySolarFlare;
+46:   late double? _displaySchumannFreq;
+47:   late double? _displaySchumannAmp;
+48: 
+49:   final List<Map<String, dynamic>> _demoConditions = [
+50:     {
+51:       'kind': 'clear',
+52:       'label': 'Ясно',
+53:       'icon': Icons.wb_sunny_rounded,
+54:       'nightIcon': Icons.nightlight_round,
+55:       'temp': 22,
+56:       'feels': 21,
+57:       'conditionText': 'Ясно',
+58:       'aqi': 25,
+59:       'aqiText': 'ОТЛИЧНО',
+60:       'aqiSummary': 'Индекс качества воздуха в норме. Идеальное время для прогулок и спорта на открытом воздухе.',
+61:       'wind': 3.0,
+62:       'gusts': 5.0,
+63:       'humidity': 45,
+64:       'pressure': 762.0,
+65:       'flare': 'C1.2',
+66:       'schumannFreq': 7.83,
+67:       'schumannAmp': 14.2,
+68:     },
+69:     {
+70:       'kind': 'cloudy',
+71:       'label': 'Облачно',
+72:       'icon': Icons.cloud_rounded,
+73:       'nightIcon': Icons.cloud_rounded,
+74:       'temp': 17,
+75:       'feels': 16,
+76:       'conditionText': 'Пасмурно',
+77:       'aqi': 35,
+78:       'aqiText': 'ХОРОШО',
+79:       'aqiSummary': 'Качество воздуха хорошее. Загрязнение атмосферы минимальное, риски отсутствуют.',
+80:       'wind': 4.5,
+81:       'gusts': 8.0,
+82:       'humidity': 60,
+83:       'pressure': 754.0,
+84:       'flare': null,
+85:       'schumannFreq': 7.83,
+86:       'schumannAmp': 11.5,
+87:     },
+88:     {
+89:       'kind': 'rain',
+90:       'label': 'Дождь',
+91:       'icon': Icons.grain_rounded,
+92:       'nightIcon': Icons.grain_rounded,
+93:       'temp': 12,
+94:       'feels': 10,
+95:       'conditionText': 'Умеренный дождь',
+96:       'aqi': 15,
+97:       'aqiText': 'ОТЛИЧНО',
+98:       'aqiSummary': 'Осадки очистили воздух от пыли и взвешенных частиц. Дышится легко.',
+99:       'wind': 5.5,
+100:       'gusts': 11.0,
+101:       'humidity': 88,
+102:       'pressure': 748.0,
+103:       'flare': null,
+104:       'schumannFreq': 7.85,
+105:       'schumannAmp': 12.8,
+106:     },
+107:     {
+108:       'kind': 'storm',
+109:       'label': 'Гроза',
+110:       'icon': Icons.thunderstorm_rounded,
+111:       'nightIcon': Icons.thunderstorm_rounded,
+112:       'temp': 15,
+113:       'feels': 13,
+114:       'conditionText': 'Гроза с ливнем',
+115:       'aqi': 18,
+116:       'aqiText': 'ОТЛИЧНО',
+117:       'aqiSummary': 'Возможна повышенная концентрация озона во время разрядов молний. Будьте осторожны.',
+118:       'wind': 9.0,
+119:       'gusts': 18.0,
+120:       'humidity': 95,
+121:       'pressure': 742.0,
+122:       'flare': 'M3.4',
+123:       'schumannFreq': 8.12,
+124:       'schumannAmp': 24.5,
+125:     },
+126:     {
+127:       'kind': 'snow',
+128:       'label': 'Снег',
+129:       'icon': Icons.ac_unit_rounded,
+130:       'nightIcon': Icons.ac_unit_rounded,
+131:       'temp': -4,
+132:       'feels': -9,
+133:       'conditionText': 'Снегопад',
+134:       'aqi': 20,
+135:       'aqiText': 'ОТЛИЧНО',
+136:       'aqiSummary': 'Свежий снегопад. Воздух кристально чистый, оседание выхлопных газов.',
+137:       'wind': 6.0,
+138:       'gusts': 12.0,
+139:       'humidity': 85,
+140:       'pressure': 750.0,
+141:       'flare': null,
+142:       'schumannFreq': 7.83,
+143:       'schumannAmp': 9.8,
+144:     },
+145:     {
+146:       'kind': 'wind',
+147:       'label': 'Ветер',
+148:       'icon': Icons.air_rounded,
+149:       'nightIcon': Icons.air_rounded,
+150:       'temp': 14,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,216 @@
+Created At: 2026-06-23T09:39:45Z
+Completed At: 2026-06-23T09:39:45Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1807
+Total Bytes: 78527
+Showing lines 1600 to 1807
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1600: 
+1601:     if (widget.customWarningText != null && widget.customWarningText!.isNotEmpty) {
+1602:       text = widget.customWarningText!;
+1603:       leadingIcon = Icons.warning_amber_rounded;
+1604:       bg = const Color(0xDDF97316); // Amber/Orange warning
+1605:       border = const Color(0xFFFED7AA);
+1606:     } else if (widget.useWeatherOnly) {
+1607:       text = widget.data.weatherMarquee;
+1608:       leadingIcon = Icons.wb_cloudy_rounded;
+1609:     } else if (widget.useCityOnly) {
+1610:       final List<Map<String, dynamic>> itemsToProcess = widget.selectedCategory != null
+1611:           ? widget.data.items.where((i) {
+1612:               if (i['type'] != 'channel') return false;
+1613:               final cat = (i['category'] ?? 'Прочее').toString().trim().toLowerCase();
+1614:               final sel = widget.selectedCategory!.trim().toLowerCase();
+1615:               return cat == sel;
+1616:             }).toList()
+1617:           : widget.data.items;
+1618: 
+1619:       // Filter to only include ЧП (emergencies), accidents (аварии), and crimes (преступления)
+1620:       final filtered = itemsToProcess.where(_isEmergencyAlert).toList();
+1621: 
+1622:       if (filtered.isEmpty) {
+1623:         return const SizedBox.shrink(); // Hide the ticker block completely
+1624:       }
+1625: 
+1626:       text = filtered.map((i) => i['text'].toString()).join('   •   ');
+1627: 
+1628:       // Determine category-specific color & icon
+1629:       final hasSeriousEmergency = filtered.any((i) =>
+1630:           i['severity'].toString().toLowerCase() == 'high' &&
+1631:           (i['category'].toString().toLowerCase().contains('чп') ||
+1632:            i['text'].toString().toLowerCase().contains('чп') ||
+1633:            i['text'].toString().toLowerCase().contains('пожар') ||
+1634:            i['text'].toString().toLowerCase().contains('взрыв')));
+1635: 
+1636:       final hasEmergency = filtered.any((i) =>
+1637:           i['category'].toString().toLowerCase().contains('чп') ||
+1638:           i['text'].toString().toLowerCase().contains('чп') ||
+1639:           i['text'].toString().toLowerCase().contains('пожар') ||
+1640:           i['text'].toString().toLowerCase().contains('взрыв'));
+1641: 
+1642:       final hasAccident = filtered.any((i) =>
+1643:           i['category'].toString().toLowerCase().contains('авари') ||
+1644:           i['category'].toString().toLowerCase().contains('дтп') ||
+1645:           i['text'].toString().toLowerCase().contains('авари') ||
+1646:           i['text'].toString().toLowerCase().contains('дтп') ||
+1647:           i['text'].toString().toLowerCase().contains('столкн'));
+1648: 
+1649:       final hasCrime = filtered.any((i) =>
+1650:           i['category'].toString().toLowerCase().contains('кримин') ||
+1651:           i['category'].toString().toLowerCase().contains('преступ') ||
+1652:           i['text'].toString().toLowerCase().contains('кримин') ||
+1653:           i['text'].toString().toLowerCase().contains('преступ') ||
+1654:           i['text'].toString().toLowerCase().contains('краж') ||
+1655:           i['text'].toString().toLowerCase().contains('драка') ||
+1656:           i['text'].toString().toLowerCase().contains('убий'));
+1657: 
+1658:       if (hasSeriousEmergency) {
+1659:         bg = const Color(0xDDEB3B3B); // Red for serious ЧП
+1660:         border = const Color(0xFFFCA5A5);
+1661:         leadingIcon = Icons.error_outline_rounded;
+1662:       } else if (hasEmergency) {
+1663:         bg = const Color(0xDDFF7D1A); // Orange/Amber for medium/low ЧП
+1664:         border = const Color(0xFFFED7AA);
+1665:         leadingIcon = Icons.warning_amber_rounded;
+1666:       } else if (hasAccident) {
+1667:         bg = const Color(0xDDEAB308); // Yellow/Gold for accidents
+1668:         border = const Color(0xFFFEF08A);
+1669:         leadingIcon = Icons.car_crash_rounded;
+1670:       } else if (hasCrime) {
+1671:         bg = const Color(0xDD8B5CF6); // Purple for crime/police
+1672:         border = const Color(0xFFDDD6FE);
+1673:         leadingIcon = Icons.local_police_rounded;
+1674:       }
+1675:     }
+1676: 
+1677:     bg = Colors.white.withOpacity(0.92); // White color for marquee block
+1678:     border = Colors.black.withOpacity(0.12); // Subtle border
+1679: 
+1680:     text = text.trim();
+1681:     if (text.isEmpty) return const SizedBox.shrink();
+1682: 
+1683:     return AnimatedSlide(
+1684:       offset: _visible ? Offset.zero : const Offset(0.0, 1.2),
+1685:       duration: const Duration(milliseconds: 600),
+1686:       curve: Curves.easeIn,
+1687:       child: ClipRRect(
+1688:         borderRadius: BorderRadius.zero,
+1689:         child: Container(
+1690:           height: 38,
+1691:           decoration: BoxDecoration(
+1692:             color: bg,
+1693:             border: Border(
+1694:               top: BorderSide(
+1695:                 color: border,
+1696:               ),
+1697:             ),
+1698:           ),
+1699:           child: Row(
+1700:             children: [
+1701:               Container(
+1702:                 width: 38,
+1703:                 alignment: Alignment.center,
+1704:                 color: Colors.black.withOpacity(0.05),
+1705:                 child: AnimatedBuilder(
+1706:                   animation: _scroll,
+1707:                   builder: (context, _) {
+1708:                     final double angle = _scroll.value * 2 * math.pi;
+1709:                     final double scale = 1.0 + 0.15 * math.sin(_scroll.value * 2 * math.pi * 4);
+1710:                     return Transform.scale(
+1711:                       scale: scale,
+1712:                       child: Transform.rotate(
+1713:                         angle: angle,
+1714:                         child: Icon(
+1715:                           leadingIcon,
+1716:                           color: const Color(0xFF1E293B),
+1717:                           size: 18,
+1718:                         ),
+1719:                       ),
+1720:                     );
+1721:                   },
+1722:                 ),
+1723:               ),
+1724:               Expanded(
+1725:                 child: LayoutBuilder(
+1726:                   builder: (context, constraints) {
+1727:                     final marqueeWidth = constraints.maxWidth;
+1728:                     final estimatedTextWidth = text.length * 7.5;
+1729:                     final scrollDistance = marqueeWidth + estimatedTextWidth;
+1730:                     
+1731:                     return ClipRect(
+1732:                       child: AnimatedBuilder(
+1733:                         animation: _scroll,
+1734:                         builder: (context, _) {
+1735:                           final xOffset = marqueeWidth - (_scroll.value * scrollDistance);
+1736:                           return Transform.translate(
+1737:                             offset: Offset(xOffset, 0),
+1738:                             child: Text(
+1739:                               text,
+1740:                               maxLines: 1,
+1741:                               overflow: TextOverflow.visible,
+1742:                               style: const TextStyle(
+1743:                                 color: Color(0xFF1E293B),
+1744:                                 fontSize: 12.5,
+1745:                                 fontWeight: FontWeight.w600,
+1746:                               ),
+1747:                             ),
+1748:                           );
+1749:                         },
+1750:                       ),
+1751:                     );
+1752:                   },
+1753:                 ),
+1754:               ),
+1755:             ],
+1756:           ),
+1757:         ),
+1758:       ),
+1759:     );
+1760:   }
+1761: }
+1762: 
+1763: /// A custom widget that applies a 3D perspective tilt effect on drag/pan gestures.
+1764: class TiltWidget extends StatefulWidget {
+1765:   const TiltWidget({super.key, required this.child});
+1766:   final Widget child;
+1767: 
+1768:   @override
+1769:   State<TiltWidget> createState() => _TiltWidgetState();
+1770: }
+1771: 
+1772: class _TiltWidgetState extends State<TiltWidget> {
+1773:   double _xAngle = 0.0;
+1774:   double _yAngle = 0.0;
+1775: 
+1776:   @override
+1777:   Widget build(BuildContext context) {
+1778:     return GestureDetector(
+1779:       onPanUpdate: (details) {
+1780:         setState(() {
+1781:           _yAngle += details.delta.dx * 0.002;
+1782:           _xAngle -= details.delta.dy * 0.002;
+1783:           _xAngle = _xAngle.clamp(-0.25, 0.25);
+1784:           _yAngle = _yAngle.clamp(-0.25, 0.25);
+1785:         });
+1786:       },
+1787:       onPanEnd: (_) => _resetTilt(),
+1788:       onPanCancel: () => _resetTilt(),
+1789:       child: Transform(
+1790:         transform: Matrix4.identity()
+1791:           ..setEntry(3, 2, 0.0015) // perspective depth
+1792:           ..rotateX(_xAngle)
+1793:           ..rotateY(_yAngle),
+1794:         alignment: FractionalOffset.center,
+1795:         child: widget.child,
+1796:       ),
+1797:     );
+1798:   }
+1799: 
+1800:   void _resetTilt() {
+1801:     setState(() {
+1802:       _xAngle = 0.0;
+1803:       _yAngle = 0.0;
+1804:     });
+1805:   }
+1806: }
+1807: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

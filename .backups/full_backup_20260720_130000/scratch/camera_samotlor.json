@@ -1,0 +1,28 @@
+{
+  "success": true,
+  "report": "📷 Героев Самотлора, 18\n🕒 06.06.2026 16:05\n\n• Освещение: сумерки или облачно (яркость 103/255)\n• Активность: умеренная активность\n• Качество кадра: кадр чёткий\n• Видимость: погода на кадре не определяется точно\n• Погода (Yandex): +25°, Ясно (Ветер: 6 м/с, Влажность: 43%)\n\n🤖 YOLO — детектор объектов:\nдвижение:100%\n  • Люди: 0\n  • Машины: 0\n  • Животные: 0",
+  "yolo": {
+    "used": true,
+    "summary": "движение:100%",
+    "counts": {
+      "people": 0,
+      "vehicles": 0,
+      "animals": 0
+    },
+    "detections_count": 0,
+    "reason": "high_motion_100%"
+  },
+  "metrics": {
+    "width": 1920,
+    "height": 1080,
+    "brightness": 102.8,
+    "contrast": 36.9,
+    "sharpness": 832.0,
+    "edge_ratio": 0.078,
+    "saturation": 46.8
+  },
+  "provider": "opencv_free",
+  "camera_name": "Героев Самотлора, 18",
+  "camera_url": "https://nginx02.pride-net.ru/geroi18/index.m3u8",
+  "has_frame": true
+}

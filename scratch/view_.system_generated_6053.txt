@@ -1,0 +1,50 @@
+Created At: 2026-06-23T10:20:09Z
+Completed At: 2026-06-23T10:20:10Z
+File Path: `file:///C:/Users/%D1%80%D1%81/.gemini/antigravity/brain/aed93f9b-cd64-4600-9659-275a143be7fc/implementation_plan.md`
+Total Lines: 42
+Total Bytes: 4666
+Showing lines 1 to 42
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Рекомендации метеозависимым, таймер сводки, фаза Луны и влияние на психику
+2: 
+3: Реализация полезных медицинских рекомендаций для метеочувствительных людей вместо общего анализа в погодном дашборде, добавление фазы Луны с оценкой влияния на психологическое состояние, а также настройка плавного выдвижения сводки снизу экрана и её автоматического скрытия через 10 секунд.
+4: 
+5: ## Proposed Changes
+6: 
+7: ### Backend Components
+8: 
+9: #### [MODIFY] [weather_service.py](file:///c:/Soobshio_project/services/business/weather_service.py)
+10: - Добавить алгоритм вычисления текущей фазы Луны на основе синодического месяца (29.53 дня) относительно эталонного новолуния.
+11: - Рассчитать процент её влияния на психическое (психоэмоциональное) состояние человека (пики в Полнолуние и Новолуние).
+12: - Добавить текстовую расшифровку влияния текущей фазы на нервную систему.
+13: - Включить поля `moon_phase`, `moon_phase_name`, `moon_phase_desc` и `moon_influence_pct` в возвращаемый словарь погоды.
+14: 
+15: ### Frontend Components
+16: 
+17: #### [MODIFY] [city_weather_service.dart](file:///c:/Soobshio_project/services/Frontend/lib/services/city_weather_service.dart)
+18: - Добавить поля `moonPhase`, `moonPhaseName`, `moonPhaseDesc` и `moonInfluencePct` в класс `CityWeatherSnapshot`.
+19: - Обновить конструкторы `empty()` и `fromJson()` для парсинга новых лунных параметров.
+20: 
+21: #### [MODIFY] [weather_overlay_panel.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart)
+22: - Заменить логику `_weatherAnalysisSummary` на детальный анализ с выводом конкретных медицинских рекомендаций метеочувствительным людям на основе всех текущих погодных и геофизических факторов (температура, ощущение, влажность, давление, вспышки на Солнце, Kp-индекс геомагнитных бурь, резонанс Шумана, УФ-индекс, качество воздуха).
+23: - Добавить рекомендации по лунной активности в `_weatherAnalysisSummary`.
+24: - Разместить кнопку детальной информации о Луне на месте пустого слота рядом с видимостью ("Параметры атмосферы и космоса").
+25: - Переименовать заголовок погодной карточки с «Общий анализ погоды» на «Рекомендации метеозависимым».
+26: 
+27: #### [MODIFY] [map_screen.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map_screen.dart)
+28: - Добавить `_bottomHudTimer` для отслеживания времени показа сводки.
+29: - Реализовать метод `_toggleBottomHud(bool show)`, запускающий 10-секундный таймер автоматического скрытия при переходе в `true`.
+30: - Вызывать `_toggleBottomHud` при тапе на кнопку «Показать сводку» и на иконку аналитики в правой панели.
+31: - Использовать `AnimatedPositioned` и `AnimatedOpacity` вместо условных блоков `if (_showBottomHud)` для плавной анимации выдвижения плашек статистики (`CityStatsTicker`) и предупреждений (`CityAlertTicker`) снизу экрана (из-за границы экрана при `false` во входящую позицию при `true`).
+32: - В `initState` запускать таймер скрытия для начального состояния (так как `_showBottomHud` изначально `true`).
+33: 
+34: ---
+35: 
+36: ## Verification Plan
+37: 
+38: ### Automated Tests
+39: - Запуск тестов для проверки отсутствия регрессий в интерфейсе и сервисах:
+40:   `flutter test`
+41: 
+42: 
+The above content shows the entire, complete file contents of the requested file.

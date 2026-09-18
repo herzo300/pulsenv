@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- City Pulse brand colors (synced with design-tokens/colors.json) -->
+    <color name="pulse_bg_dark">#FF020617</color>
+    <color name="pulse_bg_raised">#FF08111F</color>
+    <color name="pulse_primary_cyan">#FF00E5FF</color>
+    <color name="pulse_accent_violet">#FF7C4DFF</color>
+    <color name="pulse_text_primary">#FFE6FAFF</color>
+</resources>

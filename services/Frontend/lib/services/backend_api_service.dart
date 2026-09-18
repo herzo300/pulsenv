@@ -4,11 +4,14 @@ import 'package:http/http.dart' as http;
 
 import 'device_identity_service.dart';
 import '../map/map_config.dart';
+import '../config/api_defaults.dart';
 
 class BackendApiService {
   BackendApiService._();
 
   static final BackendApiService instance = BackendApiService._();
+
+  final http.Client _client = http.Client();
 
   static const String _releaseBaseUrl =
       String.fromEnvironment('BACKEND_BASE_URL', defaultValue: '');
@@ -23,34 +26,20 @@ class BackendApiService {
       return false;
     }
     final parsed = Uri.tryParse(normalized);
-    if (parsed == null || !parsed.hasAuthority) {
-      return false;
-    }
-    if (parsed.scheme == 'https') {
-      return true;
-    }
-    final fallback = MapConfig.defaultPublicBackendBaseUrl.trim();
-    return fallback.isNotEmpty && normalized.startsWith(fallback);
+    return parsed != null && parsed.hasAuthority;
   }
 
   Iterable<String> get _candidateUrls sync* {
-    final candidates = kReleaseMode
-        ? <String>[
-            if (_isAllowedReleaseUrl(_releaseBaseUrl))
-              _releaseBaseUrl.trim(),
-            if (_isAllowedReleaseUrl(MapConfig.backendBaseUrl))
-              MapConfig.backendBaseUrl.trim(),
-            if (_isAllowedReleaseUrl(MapConfig.defaultPublicBackendBaseUrl))
-              MapConfig.defaultPublicBackendBaseUrl,
-          ]
-        : _fallbackBaseUrls
-            .split(',')
-            .map((item) => item.trim())
-            .where((item) => item.isNotEmpty)
-            .followedBy(<String>[
-            if (MapConfig.backendBaseUrl.trim().isNotEmpty)
-              MapConfig.backendBaseUrl.trim(),
-          ]).toList();
+    final candidates = <String>[
+      if (MapConfig.backendBaseUrl.trim().isNotEmpty)
+        MapConfig.backendBaseUrl.trim(),
+      kDefaultBackendHost,
+      kDefaultBackendHostWithPort,
+      if (_releaseBaseUrl.trim().isNotEmpty)
+        _releaseBaseUrl.trim(),
+      if (MapConfig.defaultPublicBackendBaseUrl.trim().isNotEmpty)
+        MapConfig.defaultPublicBackendBaseUrl.trim(),
+    ];
 
     final seen = <String>{};
     final uniqueCandidates = <String>[];
@@ -167,7 +156,7 @@ class BackendApiService {
         }
 
         final response = await http.Response.fromStream(
-          await request.send().timeout(timeout),
+          await _client.send(request).timeout(timeout),
         );
 
         if (response.statusCode < 500) {

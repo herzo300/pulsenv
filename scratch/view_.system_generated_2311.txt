@@ -1,0 +1,43 @@
+Created At: 2026-06-23T05:19:16Z
+Completed At: 2026-06-23T05:19:16Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1800
+Total Bytes: 78167
+Showing lines 1716 to 1750
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1716:               ),
+1717:             ),
+1718:             Expanded(
+1719:               child: LayoutBuilder(
+1720:                 builder: (context, constraints) {
+1721:                   final marqueeWidth = constraints.maxWidth;
+1722:                   final estimatedTextWidth = text.length * 7.5;
+1723:                   final scrollDistance = marqueeWidth + estimatedTextWidth;
+1724:                   
+1725:                   return ClipRect(
+1726:                     child: AnimatedBuilder(
+1727:                       animation: _scroll,
+1728:                       builder: (context, _) {
+1729:                         final xOffset = marqueeWidth - (_scroll.value * scrollDistance);
+1730:                         return Transform.translate(
+1731:                           offset: Offset(xOffset, 0),
+1732:                           child: Text(
+1733:                             text,
+1734:                             maxLines: 1,
+1735:                             overflow: TextOverflow.visible,
+1736:                             style: const TextStyle(
+1737:                               color: Color(0xFF1E293B),
+1738:                               fontSize: 12.5,
+1739:                               fontWeight: FontWeight.w600,
+1740:                             ),
+1741:                           ),
+1742:                         );
+1743:                       },
+1744:                     ),
+1745:                   );
+1746:                 },
+1747:               ),
+1748:             ),
+1749:           ],
+1750:         ),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

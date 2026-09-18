@@ -1,0 +1,11 @@
+{
+  "last_learned_at": "2026-08-30 12:55:03",
+  "social_signals_processed": 12,
+  "legal_documents_indexed": 0,
+  "master_plan_zones_indexed": 5,
+  "live_user_reports_trained": 35,
+  "db_available": true,
+  "qa_pairs_in_dataset": 35,
+  "model_target": "nousresearch/hermes-3-llama-3.1-70b",
+  "learning_duration_sec": 0.017
+}

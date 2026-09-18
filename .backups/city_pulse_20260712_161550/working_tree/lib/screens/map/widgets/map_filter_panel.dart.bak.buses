@@ -1,0 +1,532 @@
+import 'package:flutter/material.dart';
+
+import '../../../theme/pulse_categories.dart';
+import '../../../theme/pulse_colors.dart';
+import '../../../data/district_data.dart';
+import 'map_glass_panel.dart';
+
+/// Compact map filter: category dropdown + optional day chips in one bar.
+class MapFilterPanel extends StatefulWidget {
+  final int? selectedDaysFilter;
+  final List<String> selectedCategories;
+  final List<String> selectedDistricts;
+  final int totalComplaints;
+  final Map<String, int> categoryCounts;
+  final Color uiTextPrimary;
+  final Color uiTextSecondary;
+  final Color uiPanelFill;
+  final Color uiGlow;
+  final Color uiAccent;
+  final bool isNightMode;
+  final bool showDaysFilter;
+  final List<DistrictData> districts;
+  final ValueChanged<int?> onDaysFilterChanged;
+  final ValueChanged<List<String>> onCategoriesChanged;
+  final ValueChanged<List<String>> onDistrictsChanged;
+  final List<String> selectedBusRoutes;
+  final ValueChanged<List<String>> onBusRoutesChanged;
+
+  const MapFilterPanel({
+    super.key,
+    required this.selectedDaysFilter,
+    required this.selectedCategories,
+    required this.selectedDistricts,
+    required this.totalComplaints,
+    required this.categoryCounts,
+    required this.uiTextPrimary,
+    required this.uiTextSecondary,
+    required this.uiPanelFill,
+    required this.uiGlow,
+    required this.uiAccent,
+    required this.isNightMode,
+    required this.districts,
+    this.showDaysFilter = true,
+    required this.onDaysFilterChanged,
+    required this.onCategoriesChanged,
+    required this.onDistrictsChanged,
+    required this.selectedBusRoutes,
+    required this.onBusRoutesChanged,
+  });
+
+  @override
+  State<MapFilterPanel> createState() => _MapFilterPanelState();
+}
+
+class _MapFilterPanelState extends State<MapFilterPanel> {
+  bool _isExpanded = false;
+
+  static const _timeFilters = <({int? days, String label})>[
+    (days: null, label: 'Все'),
+    (days: 1, label: '1д'),
+    (days: 7, label: '7д'),
+    (days: 30, label: '30д'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = widget.selectedCategories.isNotEmpty
+        ? widget.uiAccent.withAlpha(widget.isNightMode ? 150 : 110)
+        : widget.uiGlow.withAlpha(widget.isNightMode ? 90 : 60);
+
+    final categories = PulseCategories.mapFilterOptions;
+
+    return MapGlassPanel(
+      borderRadius: BorderRadius.circular(16),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      fillColor: widget.uiPanelFill,
+      blurSigma: 20,
+      borderColors: [
+        borderColor,
+        borderColor.withAlpha(48),
+        Colors.transparent,
+      ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Categories Row / Wrap based on _isExpanded
+          if (!_isExpanded)
+            Row(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildAllButton(),
+                        const SizedBox(width: 8),
+                        ...categories.map((cat) => Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: _buildCategoryButton(cat),
+                            )),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Container(
+                  width: 1,
+                  height: 24,
+                  color: widget.uiGlow.withAlpha(widget.isNightMode ? 40 : 18),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.expand_more_rounded),
+                  iconSize: 20,
+                  color: widget.uiTextSecondary,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  onPressed: () {
+                    setState(() {
+                      _isExpanded = true;
+                    });
+                  },
+                ),
+              ],
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Wrap(
+                      alignment: WrapAlignment.start,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildAllButton(),
+                        ...categories.map(_buildCategoryButton),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.expand_less_rounded),
+                  iconSize: 20,
+                  color: widget.uiTextSecondary,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  onPressed: () {
+                    setState(() {
+                      _isExpanded = false;
+                    });
+                  },
+                ),
+              ],
+            ),
+          if (widget.showDaysFilter) ...[
+            const SizedBox(height: 6),
+            // Divider
+            Container(
+              height: 1,
+              color: widget.uiGlow.withAlpha(widget.isNightMode ? 40 : 18),
+            ),
+            const SizedBox(height: 6),
+            // Row 2: Compact Districts Horizontal Scroll
+            SizedBox(
+              height: 30,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.grid_view_rounded,
+                    size: 14,
+                    color: widget.uiTextSecondary,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        _buildDistrictChip(null, 'Все', 'Весь город'),
+                        const SizedBox(width: 6),
+                        ...widget.districts.map((d) {
+                          final shortName = _getShortDistrictName(d.name);
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 6.0),
+                            child: _buildDistrictChip(d.id, shortName, d.name),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            // Divider
+            Container(
+              height: 1,
+              color: widget.uiGlow.withAlpha(widget.isNightMode ? 40 : 18),
+            ),
+            const SizedBox(height: 6),
+            // Row 3: Time Filters
+            SizedBox(
+              height: 28,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                shrinkWrap: true,
+                itemCount: _timeFilters.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final filter = _timeFilters[index];
+                  return _DaysChip(
+                    days: filter.days,
+                    label: filter.label,
+                    selected: widget.selectedDaysFilter == filter.days,
+                    uiTextPrimary: widget.uiTextPrimary,
+                    uiAccent: widget.uiAccent,
+                    isNightMode: widget.isNightMode,
+                    onSelected: () => widget.onDaysFilterChanged(filter.days),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 6),
+            // Divider
+            Container(
+              height: 1,
+              color: widget.uiGlow.withAlpha(widget.isNightMode ? 40 : 18),
+            ),
+            const SizedBox(height: 6),
+            // Row 4: Bus Routes Multiple Choice
+            SizedBox(
+              height: 30,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.directions_bus_rounded,
+                    size: 14,
+                    color: widget.uiAccent,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        _buildBusRouteChip(null, 'Все автобусы'),
+                        const SizedBox(width: 6),
+                        ...['1', '2', '3', '4', '5', '9', '10', '11', '12', '15', '21', '30'].map((route) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 6.0),
+                            child: _buildBusRouteChip(route, '№$route'),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _getShortDistrictName(String fullName) {
+    final regExp = RegExp(r'\d+');
+    final match = regExp.firstMatch(fullName);
+    if (match != null) {
+      return match.group(0)!;
+    }
+    if (fullName.length > 2) {
+      return fullName.substring(0, 2);
+    }
+    return fullName;
+  }
+
+  Widget _buildBusRouteChip(String? routeId, String label) {
+    final isSelected = routeId == null
+        ? widget.selectedBusRoutes.isEmpty
+        : widget.selectedBusRoutes.contains(routeId);
+
+    final bg = isSelected
+        ? widget.uiAccent.withOpacity(widget.isNightMode ? 0.35 : 0.2)
+        : Colors.transparent;
+    final fg = isSelected ? widget.uiAccent : widget.uiTextSecondary;
+    final border = isSelected ? widget.uiAccent.withOpacity(0.5) : widget.uiTextSecondary.withOpacity(0.2);
+
+    return InkWell(
+      onTap: () {
+        final current = List<String>.from(widget.selectedBusRoutes);
+        if (routeId == null) {
+          current.clear();
+        } else {
+          if (current.contains(routeId)) {
+            current.remove(routeId);
+          } else {
+            current.add(routeId);
+          }
+        }
+        widget.onBusRoutesChanged(current);
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: border),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: fg,
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDistrictChip(String? id, String label, String fullName) {
+    final isSelected = id == null
+        ? widget.selectedDistricts.isEmpty
+        : widget.selectedDistricts.contains(id);
+
+    return Tooltip(
+      message: fullName,
+      child: InkWell(
+        onTap: () {
+          final nextDistricts = List<String>.from(widget.selectedDistricts);
+          if (id == null) {
+            nextDistricts.clear();
+          } else {
+            if (nextDistricts.contains(id)) {
+              nextDistricts.remove(id);
+            } else {
+              nextDistricts.add(id);
+            }
+          }
+          widget.onDistrictsChanged(nextDistricts);
+        },
+        borderRadius: BorderRadius.circular(999),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isSelected
+                ? widget.uiAccent.withOpacity(0.25)
+                : (widget.isNightMode ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.02)),
+            border: Border.all(
+              color: isSelected ? widget.uiAccent : (widget.isNightMode ? Colors.white24 : Colors.black12),
+              width: 1.5,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: widget.uiAccent.withOpacity(0.3),
+                      blurRadius: 4,
+                      spreadRadius: 1,
+                    )
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? widget.uiAccent : widget.uiTextSecondary,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAllButton() {
+    final isSelected = widget.selectedCategories.isEmpty;
+    return Tooltip(
+      message: 'Все категории (${widget.totalComplaints})',
+      child: InkWell(
+        onTap: () => widget.onCategoriesChanged(const []),
+        borderRadius: BorderRadius.circular(999),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isSelected
+                ? widget.uiAccent.withOpacity(0.25)
+                : (widget.isNightMode ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03)),
+            border: Border.all(
+              color: isSelected ? widget.uiAccent : (widget.isNightMode ? Colors.white24 : Colors.black12),
+              width: 1.5,
+            ),
+          ),
+          child: Icon(
+            Icons.all_inclusive_rounded,
+            size: 16,
+            color: isSelected ? widget.uiAccent : widget.uiTextSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryButton((String, IconData, Color) cat) {
+    final name = cat.$1;
+    final icon = cat.$2;
+    final color = cat.$3;
+    final isSelected = widget.selectedCategories.contains(name);
+    final count = widget.categoryCounts[name] ?? 0;
+
+    return Tooltip(
+      message: '$name ($count)',
+      child: InkWell(
+        onTap: () {
+          final nextCategories = List<String>.from(widget.selectedCategories);
+          if (isSelected) {
+            nextCategories.remove(name);
+          } else {
+            nextCategories.add(name);
+          }
+          widget.onCategoriesChanged(nextCategories);
+        },
+        borderRadius: BorderRadius.circular(999),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isSelected
+                ? color.withOpacity(0.25)
+                : (widget.isNightMode ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.02)),
+            border: Border.all(
+              color: isSelected ? color : Colors.transparent,
+              width: 1.5,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: color.withOpacity(0.3),
+                      blurRadius: 4,
+                      spreadRadius: 1,
+                    )
+                  ]
+                : null,
+          ),
+          child: Icon(
+            icon,
+            size: 16,
+            color: isSelected ? color : widget.uiTextSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DaysChip extends StatelessWidget {
+  const _DaysChip({
+    required this.days,
+    required this.label,
+    required this.selected,
+    required this.uiTextPrimary,
+    required this.uiAccent,
+    required this.isNightMode,
+    required this.onSelected,
+  });
+
+  final int? days;
+  final String label;
+  final bool selected;
+  final Color uiTextPrimary;
+  final Color uiAccent;
+  final bool isNightMode;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onSelected,
+        borderRadius: BorderRadius.circular(999),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: selected
+                ? uiAccent
+                : (isNightMode
+                    ? PulseColors.surfaceSoft.withAlpha(180)
+                    : Colors.white.withAlpha(220)),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: selected
+                  ? uiAccent
+                  : (isNightMode
+                      ? Colors.white.withAlpha(80)
+                      : const Color(0xFF7DD3FC).withAlpha(180)),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected
+                  ? (isNightMode ? Colors.black : Colors.white)
+                  : uiTextPrimary,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

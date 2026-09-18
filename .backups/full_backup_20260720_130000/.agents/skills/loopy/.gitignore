@@ -1,0 +1,10 @@
+.DS_Store
+/.herenow/
+loop-library/site/.herenow/state.json
+node_modules/
+.wrangler/
+__pycache__/
+*.py[cod]
+/.playwright-mcp/
+loop-library/worker/.dev.vars
+loop-library/worker/.wrangler/

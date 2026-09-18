@@ -1,0 +1,149 @@
+Created At: 2026-06-23T03:32:13Z
+Completed At: 2026-06-23T03:32:13Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1779
+Total Bytes: 72585
+Showing lines 755 to 895
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+755:             ),
+756:           ),
+757:         ],
+758:       ),
+759:     );
+760:   }
+761: 
+762:   bool _isEmergencyAlert(dynamic item) {
+763:     if (item == null) return false;
+764:     final category = (item['category']?.toString() ?? '').toLowerCase();
+765:     final text = (item['text']?.toString() ?? '').toLowerCase();
+766:     return category.contains('чп') ||
+767:         text.contains('чп') ||
+768:         text.contains('пожар') ||
+769:         text.contains('взрыв') ||
+770:         category.contains('авари') ||
+771:         category.contains('дтп') ||
+772:         text.contains('авари') ||
+773:         text.contains('дтп') ||
+774:         category.contains('преступ') ||
+775:         text.contains('преступ');
+776:   }
+777: 
+778:   List<Widget> _buildChannelWarnings() {
+779:     final List<Widget> cards = [];
+780:     final items = widget.alerts.items;
+781:     
+782:     // Filter to only include ЧП (emergencies), accidents (аварии), and crimes (преступления)
+783:     final filtered = items.where(_isEmergencyAlert).toList();
+784:     
+785:     for (final item in filtered) {
+786:       final category = item['category']?.toString() ?? 'Прочее';
+787:       final text = item['text']?.toString() ?? '';
+788:       
+789:       IconData icon = Icons.info_outline_rounded;
+790:       Color color = widget.accent;
+791:       
+792:       final lowerCat = category.toLowerCase();
+793:       final lowerText = text.toLowerCase();
+794:       
+795:       if (lowerCat.contains('чп') || lowerText.contains('чп') || lowerText.contains('пожар') || lowerText.contains('взрыв')) {
+796:         icon = Icons.error_outline_rounded;
+797:         color = const Color(0xFFEF4444);
+798:       } else if (lowerCat.contains('авари') || lowerCat.contains('дтп') || lowerText.contains('авари') || lowerText.contains('дтп')) {
+799:         icon = Icons.car_crash_rounded;
+800:         color = const Color(0xFFEAB308);
+801:       } else if (lowerCat.contains('кримин') || lowerCat.contains('преступ') || lowerText.contains('драка') || lowerText.contains('краж')) {
+802:         icon = Icons.local_police_rounded;
+803:         color = const Color(0xFF8B5CF6);
+804:       }
+805:       
+806:       cards.add(
+807:         Container(
+808:           margin: const EdgeInsets.only(bottom: 12),
+809:           padding: const EdgeInsets.all(16),
+810:           decoration: BoxDecoration(
+811:             color: color.withOpacity(widget.isNightMode ? 0.08 : 0.04),
+812:             borderRadius: BorderRadius.circular(16),
+813:             border: Border.all(
+814:               color: color.withOpacity(0.2),
+815:             ),
+816:           ),
+817:           child: Row(
+818:             crossAxisAlignment: CrossAxisAlignment.start,
+819:             children: [
+820:               Icon(icon, color: color, size: 24),
+821:               const SizedBox(width: 12),
+822:               Expanded(
+823:                 child: Column(
+824:                   crossAxisAlignment: CrossAxisAlignment.start,
+825:                   children: [
+826:                     Row(
+827:                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+828:                       children: [
+829:                         Text(
+830:                           category,
+831:                           style: TextStyle(
+832:                             fontSize: 12,
+833:                             fontWeight: FontWeight.w800,
+834:                             color: color,
+835:                           ),
+836:                         ),
+837:                         if (item['time'] != null)
+838:                           Text(
+839:                             item['time'].toString(),
+840:                             style: TextStyle(
+841:                               fontSize: 11,
+842:                               color: widget.isNightMode ? Colors.white38 : Colors.black38,
+843:                             ),
+844:                           ),
+845:                       ],
+846:                     ),
+847:                     const SizedBox(height: 6),
+848:                     Text(
+849:                       text,
+850:                       style: TextStyle(
+851:                         fontSize: 12.5,
+852:                         height: 1.4,
+853:                         color: widget.isNightMode ? Colors.white70 : Colors.black87,
+854:                       ),
+855:                     ),
+856:                   ],
+857:                 ),
+858:               ),
+859:             ],
+860:           ),
+861:         ),
+862:       );
+863:     }
+864:     
+865:     if (cards.isEmpty) {
+866:       cards.add(
+867:         Center(
+868:           child: Padding(
+869:             padding: const EdgeInsets.symmetric(vertical: 40),
+870:             child: Column(
+871:               children: [
+872:                 Icon(
+873:                   Icons.check_circle_outline_rounded,
+874:                   size: 48,
+875:                   color: widget.isNightMode ? Colors.white24 : Colors.black26,
+876:                 ),
+877:                 const SizedBox(height: 12),
+878:                 Text(
+879:                   'Активных городских предупреждений нет',
+880:                   style: TextStyle(
+881:                     fontSize: 13,
+882:                     color: widget.isNightMode ? Colors.white38 : Colors.black45,
+883:                   ),
+884:                 ),
+885:               ],
+886:             ),
+887:           ),
+888:         ),
+889:       );
+890:     }
+891:     
+892:     return cards;
+893:   }
+894: 
+895:   @override
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

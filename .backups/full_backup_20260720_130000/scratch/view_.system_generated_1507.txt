@@ -1,0 +1,150 @@
+Created At: 2026-06-24T05:16:35Z
+Completed At: 2026-06-24T05:16:35Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1886
+Total Bytes: 84525
+Showing lines 1451 to 1592
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1451:         canvas.drawArc(
+1452:           Rect.fromCenter(
+1453:             center: Offset(x, y + 16),
+1454:             width: 14 * splashProgress,
+1455:             height: 4 * splashProgress,
+1456:           ),
+1457:           0,
+1458:           math.pi * 2,
+1459:           false,
+1460:           splashPaint,
+1461:         );
+1462:       }
+1463:     }
+1464:   }
+1465: 
+1466:   void _paintSnow(Canvas canvas, Size size) {
+1467:     // Beautiful drifting snowflakes with sine movement
+1468:     final paint = Paint()..color = Colors.white.withOpacity(0.8);
+1469:     for (int i = 0; i < 70; i++) {
+1470:       final seed = i * 31.0;
+1471:       final speedMult = 0.6 + (i % 3) * 0.25;
+1472:       final waveFreq = 2.0 + (i % 2) * 1.5;
+1473:       
+1474:       final y = (seed * 19 + progress * speedMult * size.height * 0.8) % size.height;
+1475:       // Sideways drift
+1476:       final drift = math.sin((y / size.height) * waveFreq * math.pi + progress * math.pi) * 12;
+1477:       final x = (seed * 29 + drift) % size.width;
+1478:       
+1479:       final radius = 1.5 + (i % 4) * 0.8;
+1480:       canvas.drawCircle(Offset(x, y), radius, paint);
+1481:       
+1482:       // Draw larger custom snowflake structure for a few items
+1483:       if (i % 12 == 0) {
+1484:         final linePaint = Paint()
+1485:           ..color = Colors.white.withOpacity(0.4)
+1486:           ..strokeWidth = 0.8;
+1487:         final len = radius * 2.2;
+1488:         canvas.drawLine(Offset(x - len, y), Offset(x + len, y), linePaint);
+1489:         canvas.drawLine(Offset(x, y - len), Offset(x, y + len), linePaint);
+1490:       }
+1491:     }
+1492:   }
+1493: 
+1494:   void _paintWind(Canvas canvas, Size size) {
+1495:     // Flows with colors and particles
+1496:     final paint = Paint()
+1497:       ..color = accent.withOpacity(0.25)
+1498:       ..strokeWidth = 2.5
+1499:       ..style = PaintingStyle.stroke;
+1500:     
+1501:     // Draw wind trails
+1502:     for (int i = 0; i < 15; i++) {
+1503:       final y = size.height * (0.12 + i * 0.055);
+1504:       final path = Path();
+1505:       final seed = i * 13.0;
+1506:       for (double x = 0; x <= size.width; x += 10) {
+1507:         final dy = math.sin((x / 50) + progress * math.pi * 2 + seed) * (8 + (i % 3) * 4);
+1508:         if (x == 0) {
+1509:           path.moveTo(x, y + dy);
+1510:         } else {
+1511:           path.lineTo(x, y + dy);
+1512:         }
+1513:       }
+1514:       canvas.drawPath(path, paint);
+1515:     }
+1516: 
+1517:     // Draw blowing leaf/wind particles
+1518:     final particlePaint = Paint()..color = (isNight ? accent : const Color(0xFF10B981)).withOpacity(0.48);
+1519:     for (int i = 0; i < 12; i++) {
+1520:       final seed = i * 43.0;
+1521:       final speed = 1.2 + (i % 3) * 0.3;
+1522:       final x = (seed * 19 + progress * speed * size.width * 1.4) % size.width;
+1523:       final y = (seed * 27 + math.sin(progress * math.pi * 2 + seed) * 30) % size.height;
+1524:       
+1525:       canvas.save();
+1526:       canvas.translate(x, y);
+1527:       canvas.rotate(progress * math.pi * 2 + seed);
+1528:       
+1529:       // Small leaf shape
+1530:       final path = Path()
+1531:         ..moveTo(-6, 0)
+1532:         ..quadraticBezierTo(0, -3, 6, 0)
+1533:         ..quadraticBezierTo(0, 3, -6, 0);
+1534:       canvas.drawPath(path, particlePaint);
+1535:       canvas.restore();
+1536:     }
+1537:   }
+1538: 
+1539:   void _paintFog(Canvas canvas, Size size) {
+1540:     // Volumetric mist layer effects
+1541:     for (int i = 0; i < 8; i++) {
+1542:       final y = size.height * (0.2 + i * 0.09);
+1543:       final speed = 0.15 + (i % 2) * 0.1;
+1544:       final offset = (progress * speed * size.width) % size.width;
+1545:       
+1546:       final rect = Rect.fromLTWH(
+1547:         -size.width * 0.4 + offset,
+1548:         y + math.sin(progress * math.pi * 2 + i) * 6,
+1549:         size.width * 1.5,
+1550:         32 + (i % 3) * 10,
+1551:       );
+1552:       
+1553:       canvas.drawOval(
+1554:         rect,
+1555:         Paint()
+1556:           ..shader = LinearGradient(
+1557:             colors: [
+1558:               Colors.white.withOpacity(0.0),
+1559:               Colors.white.withOpacity(0.12 + (i % 2) * 0.06),
+1560:               Colors.white.withOpacity(0.0),
+1561:             ],
+1562:           ).createShader(rect),
+1563:       );
+1564:     }
+1565:   }
+1566: 
+1567:   void _paintClouds(Canvas canvas, Size size) {
+1568:     // Multi-layered parallax clouds
+1569:     final cloudCount = 6;
+1570:     for (int i = 0; i < cloudCount; i++) {
+1571:       final speed = 0.2 + (i % 3) * 0.15;
+1572:       final scale = 0.75 + (i % 2) * 0.35;
+1573:       final cx = (size.width * (0.1 + i * 0.18) + progress * speed * 80) % (size.width + 120) - 60;
+1574:       final cy = size.height * (0.15 + (i % 3) * 0.045);
+1575:       
+1576:       final cloudOpacity = isNight ? 0.26 : 0.65;
+1577:       final shadowColor = Colors.black.withOpacity(isNight ? 0.38 : 0.08);
+1578:       
+1579:       // Volumetric cloud drawing
+1580:       final basePaint = Paint()..color = Colors.white.withOpacity(cloudOpacity * (scale > 1.0 ? 1.0 : 0.8));
+1581:       
+1582:       // Draw subtle shadow behind clouds for depth
+1583:       canvas.drawCircle(Offset(cx + 2, cy + 4), 32 * scale, Paint()..color = shadowColor..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+1584:       
+1585:       // Main cloud body circles
+1586:       canvas.drawCircle(Offset(cx, cy), 32 * scale, basePaint);
+1587:       canvas.drawCircle(Offset(cx + 24 * scale, cy + 6 * scale), 24 * scale, basePaint);
+1588:       canvas.drawCircle(Offset(cx - 20 * scale, cy + 8 * scale), 20 * scale, basePaint);
+1589:     }
+1590:   }
+1591: 
+1592:   @override
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

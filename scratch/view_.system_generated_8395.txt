@@ -1,0 +1,24 @@
+Created At: 2026-06-23T15:22:45Z
+Completed At: 2026-06-23T15:22:46Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1888
+Total Bytes: 84967
+Showing lines 1750 to 1765
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1750:         leadingIcon = Icons.car_crash_rounded;
+1751:       } else if (hasCrime) {
+1752:         bg = const Color(0xDD8B5CF6); // Purple for crime/police
+1753:         border = const Color(0xFFDDD6FE);
+1754:         leadingIcon = Icons.local_police_rounded;
+1755:       }
+1756:     }
+1757: 
+1758:     bg = Colors.white.withOpacity(0.92); // White color for marquee block
+1759:     border = Colors.black.withOpacity(0.12); // Subtle border
+1760: 
+1761:     text = text.trim();
+1762:     if (text.isEmpty) return const SizedBox.shrink();
+1763: 
+1764:     return AnimatedSlide(
+1765:       offset: _visible ? Offset.zero : const Offset(0.0, 1.2),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

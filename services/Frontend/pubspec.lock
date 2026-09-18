@@ -25,6 +25,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.0.4"
+  animated_text_kit:
+    dependency: "direct main"
+    description:
+      name: animated_text_kit
+      sha256: "1d41486860885321972dd332179357a535d50d4780fc2ba5e1805bde085c81f2"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.3.0"
   app_links:
     dependency: "direct main"
     description:
@@ -433,6 +441,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.7"
+  dart_webrtc:
+    dependency: transitive
+    description:
+      name: dart_webrtc
+      sha256: f6d615bddea5e458ce180a914f3055c234ffb52fb7397a51b3491e76d6d7edb2
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.8.1"
   dartx:
     dependency: transitive
     description:
@@ -848,6 +864,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_webrtc:
+    dependency: "direct main"
+    description:
+      name: flutter_webrtc
+      sha256: b832dc76c0d1577f14aaf35e9c38d4ed7667cbc89c492b7bf4505d8d5f62e08b
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.12.12+hotfix.1"
   geoclue:
     dependency: transitive
     description:
@@ -1376,6 +1400,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.13.0"
+  mesh_gradient:
+    dependency: "direct main"
+    description:
+      name: mesh_gradient
+      sha256: "3dc7a7195d90f164e69aa805f4dea876eee54aed6b271ee22ae792d7b9c1fedb"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.3.8"
   meta:
     dependency: transitive
     description:
@@ -1737,7 +1769,7 @@ packages:
     source: hosted
     version: "3.1.0"
   provider:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: provider
       sha256: "4e82183fa20e5ca25703ead7e05de9e4cceed1fbd1eadc1ac3cb6f565a09f272"
@@ -2365,6 +2397,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.3"
+  webrtc_interface:
+    dependency: transitive
+    description:
+      name: webrtc_interface
+      sha256: c6f100eac5057d9a817a60473126f9828c796d42884d498af4f339c97b21014f
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.5.1"
   webview_flutter:
     dependency: "direct main"
     description:

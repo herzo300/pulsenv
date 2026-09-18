@@ -1,0 +1,21 @@
+# Starter Viseron config for Soobshio / City Pulse
+# Docs: https://viseron.netlify.app/
+# Face recognition / LPR components intentionally omitted (FZ-152).
+
+logger:
+  default: info
+
+# After first start, finish camera setup in Viseron UI (:8888).
+# Then add webhook component pointing to backend:
+
+webhook:
+  city_pulse:
+    trigger:
+      # Use System Event viewer in Viseron UI to pick exact event names
+      event: nv_60let_10/object_detected
+    url: http://backend:8000/api/nvr/viseron/webhook
+    headers:
+      X-Viseron-Token: "replace-with-VISERON_WEBHOOK_TOKEN"
+    payload: >-
+      {"camera":"nv_60let_10","label":"person","count":1,
+      "description":"Viseron {{ event.type }} on {{ event.camera_identifier }}"}

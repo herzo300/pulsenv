@@ -1,0 +1,44 @@
+Created At: 2026-06-23T09:57:11Z
+Completed At: 2026-06-23T09:57:11Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1881
+Total Bytes: 84571
+Showing lines 1180 to 1215
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1180:                                         _explainUvIndex,
+1181:                                       ),
+1182:                                     ],
+1183:                                   ),
+1184:                                   const Divider(height: 24, color: Colors.white10),
+1185:                                   Row(
+1186:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1187:                                     children: [
+1188:                                       _spaceParam(
+1189:                                         Icons.visibility_rounded,
+1190:                                         'Видимость',
+1191:                                         _displayVisibilityM != null
+1192:                                             ? '${(_displayVisibilityM! / 1000).toStringAsFixed(0)} км'
+1193:                                             : '—',
+1194:                                         _explainVisibility,
+1195:                                       ),
+1196:                                       const Expanded(child: SizedBox.shrink()),
+1197:                                     ],
+1198:                                   ),
+1199:                                 ],
+1200:                               ),
+1201:                             ),
+1202:                           ),
+1203:                           if (_hasAnomaly) ...[
+1204:                             const SizedBox(height: 16),
+1205:                             Text(
+1206:                               'Погодные предупреждения',
+1207:                               style: TextStyle(
+1208:                                 fontSize: 12,
+1209:                                 fontWeight: FontWeight.w700,
+1210:                                 color: widget.isNightMode ? Colors.white60 : Colors.black54,
+1211:                               ),
+1212:                             ),
+1213:                             const SizedBox(height: 8),
+1214:                             TiltWidget(
+1215:                               child: Column(
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

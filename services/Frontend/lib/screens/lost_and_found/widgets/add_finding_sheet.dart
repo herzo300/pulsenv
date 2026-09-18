@@ -179,18 +179,38 @@ class _AddFindingSheetState extends State<AddFindingSheet> {
           subpath: 'lostfound',
         );
       } catch (e) {
+        debugPrint('[AddFinding] Storage upload exception: $e');
         imageUrl = PhotoService.toLocalPath(_photoFile!);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Фото будет загружено позже при улучшении связи')),
+          );
+        }
       }
     }
+
+    final targetAddress = _addressCtrl.text.trim().isEmpty
+        ? (widget.initialCity ?? 'Нижневартовск')
+        : _addressCtrl.text.trim();
+
+    double lat = 60.9385;
+    double lng = 76.5594;
+    try {
+      final loc = await GeocodingService.instance.forwardGeocode(targetAddress);
+      if (loc != null) {
+        lat = loc.lat;
+        lng = loc.lng;
+      }
+    } catch (_) {}
 
     final saved = await _saveLocally(
       category: _category.label,
       title: _titleCtrl.text.trim(),
       description: _descCtrl.text.trim(),
-      address: _addressCtrl.text.trim().isEmpty
-          ? (widget.initialCity ?? 'Нижневартовск')
-          : _addressCtrl.text.trim(),
+      address: targetAddress,
       imageUrl: imageUrl,
+      lat: lat,
+      lng: lng,
     );
 
     if (!mounted) return;
@@ -211,6 +231,8 @@ class _AddFindingSheetState extends State<AddFindingSheet> {
     required String description,
     required String address,
     String? imageUrl,
+    double lat = 60.9385,
+    double lng = 76.5594,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -220,7 +242,7 @@ class _AddFindingSheetState extends State<AddFindingSheet> {
       final int seed = ((DateTime.now().microsecondsSinceEpoch + title.hashCode).abs()) % 10 + 240;
       final String finalImg = (imageUrl != null && imageUrl.isNotEmpty)
           ? imageUrl
-          : '${MapConfig.backendBaseUrl}/static/uploads/ai_generated/signal_${seed}_ai.jpg';
+          : 'https://image.pollinations.ai/prompt/${Uri.encodeComponent('lost and found $category $title, city street, photo realistic')}?width=600&height=400&seed=$seed&nologo=true';
 
       final newItem = <String, dynamic>{
         'id': DateTime.now().millisecondsSinceEpoch,
@@ -228,8 +250,8 @@ class _AddFindingSheetState extends State<AddFindingSheet> {
         'description': description,
         'category': category,
         'address': address,
-        'lat': 60.9385,
-        'lng': 76.5594,
+        'lat': lat,
+        'lng': lng,
         'status': 'open',
         'created_at': DateTime.now().toIso8601String(),
         'image': finalImg,
@@ -254,8 +276,8 @@ class _AddFindingSheetState extends State<AddFindingSheet> {
             'description': '$description\n\nФото: $finalImg',
             'category': category,
             'address': address,
-            'lat': 60.9385,
-            'lng': 76.5594,
+            'lat': lat,
+            'lng': lng,
             'status': 'open',
             'images': [finalImg],
           }),
@@ -280,6 +302,13 @@ class _AddFindingSheetState extends State<AddFindingSheet> {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.9,
       ),
+      // Единый стиль бюро находок (как у карточек деталей): тёмный 0F172A,
+      // cyan-кантик сверху, радиус 28 — форма выглядит частью бюро.
+      decoration: const BoxDecoration(
+        color: Color(0xFF0F172A),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border(top: BorderSide(color: Color(0xFF00E5FF), width: 1.5)),
+      ),
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         child: Stack(
@@ -299,13 +328,11 @@ class _AddFindingSheetState extends State<AddFindingSheet> {
                       interactive: true,
                       showConstellationVeil: false,
                       child: Container(
-                        color: isLightTheme
-                            ? Colors.white.withOpacity(0.55)
-                            : Colors.black.withOpacity(0.45),
+                        color: Colors.black.withOpacity(0.45),
                       ),
                     )
                   : Container(
-                      color: isLightTheme ? const Color(0xFFF3F8FC) : const Color(0xFF0F172A),
+                      color: const Color(0xFF0F172A),
                     ),
             ),
             
@@ -584,9 +611,10 @@ class _AddFindingSheetState extends State<AddFindingSheet> {
                         label: 'Фотография питомца',
                         hint: 'Сфотографируйте или выберите из галереи',
                         subpath: 'lostfound',
-                        onChanged: (file) {
+                        onChanged: (file, url) {
                           setState(() {
                             _photoFile = file;
+                            if (url != null) _photoUrl = url;
                             if (file == null) _photoUrl = null;
                           });
                         },

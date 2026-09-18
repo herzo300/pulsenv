@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
+  <!-- Пульс Города: сигнал (жалоба) — волна пульса над линией горизонта -->
+  <defs>
+    <linearGradient id="pg" x1="6" y1="8" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00E5FF"/>
+      <stop offset="1" stop-color="#00B8D9"/>
+    </linearGradient>
+    <linearGradient id="night" x1="0" y1="0" x2="0" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#0B132B"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="44" height="44" rx="13" fill="url(#night)" stroke="url(#pg)" stroke-opacity="0.35" stroke-width="1.2"/>
+  <!-- здания -->
+  <path d="M10 38V26h4v12h3V20h4v18h3V28h4v10h3V24h4v14h3V30h3v8z" fill="#1E293B"/>
+  <!-- пульс-волна -->
+  <path d="M9 24h7l3-7 4 13 3-6h13" stroke="url(#pg)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="35" cy="24" r="2" fill="#00E5FF"/>
+</svg>

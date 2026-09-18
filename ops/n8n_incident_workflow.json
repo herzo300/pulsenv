@@ -1,0 +1,132 @@
+# ops/n8n_incident_workflow.json
+#
+# n8n Incident Response Loop Template for CityPulse (Soobshio)
+#
+# This n8n workflow automates the following pipeline:
+#   1. Webhook trigger from CityPulse backend when AI confirms a critical event
+#   2. Reverse-geocode coordinates to find the managing company (УК)
+#   3. Generate an official incident report via LLM
+#   4. Send notification to admin Telegram with approve/reject buttons
+#   5. On approve: send email to the managing company
+#
+# Import this into your n8n instance at the Timeweb server
+# or locally via n8n CLI: n8n import:workflow --input=n8n_incident_workflow.json
+{
+  "name": "CityPulse Incident Response",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "incident-trigger",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.backend_url}}/api/geo/reverse?lat={{$json.latitude}}&lon={{$json.longitude}}",
+        "options": {}
+      },
+      "name": "Reverse Geocode",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.backend_url}}/api/uk-companies?lat={{$json.latitude}}&lon={{$json.longitude}}",
+        "options": {}
+      },
+      "name": "Find Managing Company",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "model": "qwen/qwen3.6-plus",
+        "prompt": "Generate a formal incident report letter in Russian. The incident is: {{$json.description}}. Location: {{$json.address}}. Category: {{$json.category}}. Time: {{$json.timestamp}}. The letter should be professional and addressed to the managing company {{$json.company_name}}.",
+        "options": {
+          "maxTokens": 500,
+          "temperature": 0.3
+        }
+      },
+      "name": "Generate Report",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.admin_telegram_id}}",
+        "text": "🚨 *Инцидент подтвержден ИИ*\n\n📍 {{$json.address}}\n📋 {{$json.category}}\n🏢 УК: {{$json.company_name}}\n\n{{$json.generated_report}}\n\n_Нажмите кнопку для отправки жалобы в УК_",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": [
+                {
+                  "text": "✅ Отправить в УК",
+                  "callbackData": "approve_{{$json.incident_id}}"
+                },
+                {
+                  "text": "❌ Отклонить",
+                  "callbackData": "reject_{{$json.incident_id}}"
+                }
+              ]
+            }
+          ]
+        },
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "name": "Notify Admin",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "incidents@soobshio.app",
+        "toEmail": "={{$json.company_email}}",
+        "subject": "Инцидент в зоне обслуживания: {{$json.category}} — {{$json.address}}",
+        "html": "={{$json.generated_report_html}}",
+        "options": {}
+      },
+      "name": "Send to Managing Company",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1250, 200]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [{ "node": "Reverse Geocode", "type": "main", "index": 0 }]
+      ]
+    },
+    "Reverse Geocode": {
+      "main": [
+        [{ "node": "Find Managing Company", "type": "main", "index": 0 }]
+      ]
+    },
+    "Find Managing Company": {
+      "main": [
+        [{ "node": "Generate Report", "type": "main", "index": 0 }]
+      ]
+    },
+    "Generate Report": {
+      "main": [
+        [{ "node": "Notify Admin", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

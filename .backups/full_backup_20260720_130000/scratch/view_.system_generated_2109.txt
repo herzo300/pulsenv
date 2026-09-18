@@ -1,0 +1,80 @@
+Created At: 2026-06-23T05:10:32Z
+Completed At: 2026-06-23T05:10:32Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1590
+Total Bytes: 65733
+Showing lines 509 to 580
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+509:   Widget _buildConditionSelector() {
+510:     final themeBg = widget.isNightMode
+511:         ? Colors.white.withAlpha(20)
+512:         : Colors.black.withAlpha(12);
+513: 
+514:     return Container(
+515:       height: 72,
+516:       width: double.infinity,
+517:       decoration: BoxDecoration(
+518:         color: themeBg,
+519:         borderRadius: BorderRadius.circular(20),
+520:         border: Border.all(
+521:           color: widget.accent.withAlpha(60),
+522:         ),
+523:       ),
+524:       child: ClipRRect(
+525:         borderRadius: BorderRadius.circular(20),
+526:         child: ListView.builder(
+527:           scrollDirection: Axis.horizontal,
+528:           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+529:           itemCount: _demoConditions.length,
+530:           itemBuilder: (context, index) {
+531:             final item = _demoConditions[index];
+532:             final kind = item['kind'] as String;
+533:             final label = item['label'] as String;
+534:             final isSelected = _selectedKind == kind;
+535:             final icon = (widget.isNightMode ? item['nightIcon'] : item['icon']) as IconData;
+536: 
+537:             final activeBg = isSelected
+538:                 ? widget.accent.withAlpha(70)
+539:                 : Colors.transparent;
+540: 
+541:             final activeBorder = isSelected
+542:                 ? widget.accent.withAlpha(140)
+543:                 : Colors.transparent;
+544: 
+545:             final scale = isSelected ? 1.08 : 1.0;
+546: 
+547:             return GestureDetector(
+548:               onTap: () => _selectCondition(kind),
+549:               child: AnimatedScale(
+550:                 scale: scale,
+551:                 duration: const Duration(milliseconds: 200),
+552:                 curve: Curves.easeOutBack,
+553:                 child: AnimatedContainer(
+554:                   duration: const Duration(milliseconds: 200),
+555:                   margin: const EdgeInsets.symmetric(horizontal: 4),
+556:                   padding: const EdgeInsets.symmetric(horizontal: 14),
+557:                   decoration: BoxDecoration(
+558:                     color: activeBg,
+559:                     borderRadius: BorderRadius.circular(14),
+560:                     border: Border.all(color: activeBorder, width: 1.5),
+561:                   ),
+562:                   child: Column(
+563:                     mainAxisAlignment: MainAxisAlignment.center,
+564:                     children: [
+565:                       Icon(
+566:                         icon,
+567:                         size: 24,
+568:                         color: isSelected
+569:                             ? Colors.white
+570:                             : (widget.isNightMode ? Colors.white60 : Colors.black54),
+571:                       ),
+572:                       const SizedBox(height: 4),
+573:                       Text(
+574:                         label,
+575:                         style: TextStyle(
+576:                           fontSize: 11,
+577:                           fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+578:                           color: isSelected
+579:                               ? Colors.white
+580:                               : (widget.isNightMode ? Colors.white70 : Colors.black87),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

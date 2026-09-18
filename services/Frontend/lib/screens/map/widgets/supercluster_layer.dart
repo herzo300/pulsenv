@@ -91,8 +91,8 @@ class OptimizedClusterLayer extends StatelessWidget {
   }
 }
 
-/// Готовый значок кластера — круг с числом маркеров.
-/// Стилизован под палитру City Pulse.
+/// Готовый значок кластера с динамическим упрощением (Point-Cloud LOD).
+/// Стилизован под палитру City Pulse в зависимости от количества точек.
 class ClusterBadge extends StatelessWidget {
   const ClusterBadge({
     super.key,
@@ -107,37 +107,47 @@ class ClusterBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = customColor ??
-        (isNightMode ? const Color(0xFF4FC3F7) : const Color(0xFF00E5FF));
+    // Dynamic LOD Palette & Size calculation
+    final double badgeSize = size >= 100 ? 46.0 : (size >= 15 ? 40.0 : 34.0);
+
+    Color badgeColor;
+    if (customColor != null) {
+      badgeColor = customColor!;
+    } else if (size >= 100) {
+      badgeColor = isNightMode ? const Color(0xFFFF2A85) : const Color(0xFFE91E63); // Magenta Point-Cloud
+    } else if (size >= 15) {
+      badgeColor = isNightMode ? const Color(0xFFFFB300) : const Color(0xFFF57C00); // Amber Cluster
+    } else {
+      badgeColor = isNightMode ? const Color(0xFF00E5FF) : const Color(0xFF0288D1); // Cyan Cluster
+    }
+
     return Container(
-      width: 40,
-      height: 40,
+      width: badgeSize,
+      height: badgeSize,
       decoration: BoxDecoration(
-        color: primary.withOpacity(isNightMode ? 0.85 : 0.78),
+        color: badgeColor.withOpacity(isNightMode ? 0.90 : 0.82),
         shape: BoxShape.circle,
         border: Border.all(
-          color: isNightMode
-              ? Colors.white
-              : Colors.white.withOpacity(0.9),
-          width: 2,
+          color: isNightMode ? Colors.white : Colors.white.withOpacity(0.92),
+          width: size >= 100 ? 2.5 : 2.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: primary.withOpacity(isNightMode ? 0.4 : 0.25),
-            blurRadius: isNightMode ? 10 : 6,
-            spreadRadius: isNightMode ? 2 : 0,
+            color: badgeColor.withOpacity(isNightMode ? 0.5 : 0.3),
+            blurRadius: isNightMode ? 12 : 8,
+            spreadRadius: isNightMode ? 3 : 1,
           ),
         ],
       ),
       child: Center(
         child: Text(
           _formatCount(size),
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-            shadows: [
-              Shadow(color: Colors.black54, blurRadius: 2),
+            fontWeight: FontWeight.w900,
+            fontSize: size >= 100 ? 15 : (size >= 15 ? 13 : 12),
+            shadows: const [
+              Shadow(color: Colors.black87, blurRadius: 3),
             ],
           ),
         ),

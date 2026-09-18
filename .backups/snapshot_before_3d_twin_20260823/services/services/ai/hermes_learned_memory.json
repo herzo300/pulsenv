@@ -1,0 +1,10 @@
+{
+  "last_learned_at": "2026-08-04 15:58:38",
+  "social_signals_processed": 1,
+  "legal_documents_indexed": 4,
+  "master_plan_zones_indexed": 5,
+  "live_user_reports_trained": 18,
+  "model_target": "nousresearch/hermes-3-llama-3.1-70b",
+  "accuracy_score": "98.2%",
+  "learning_duration_sec": 0.943
+}

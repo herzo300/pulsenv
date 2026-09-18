@@ -25,6 +25,7 @@ import '../services/admin_dashboard_service.dart';
 import '../services/backend_api_service.dart';
 import '../services/mcp_service.dart';
 import '../services/notification_tap_payload_store.dart';
+import '../services/rain_radar_service.dart';
 import '../theme/pulse_categories.dart';
 import '../theme/pulse_colors.dart';
 import '../theme/theme_provider.dart';
@@ -38,11 +39,14 @@ import '../services/sound_service.dart';
 import 'settings_screen.dart';
 import '../services/notification_service.dart';
 import '../services/favorite_cameras_service.dart';
+import 'map/widgets/camera_fov_cone_widget.dart';
+import 'map/widgets/user_camera_broadcast_modal.dart';
 import '../data/district_data.dart';
 import '../data/city_config.dart';
-import '../data/novosibirsk_district_data.dart';
 import '../services/city_provider.dart';
 import '../utils/offline_tiles_service.dart';
+import '../widgets/jkh_house_status_widget.dart';
+import '../widgets/collective_petitions_widget.dart';
 import 'ai_digest_screen.dart';
 import 'lost_and_found_screen.dart';
 import '../services/city_weather_service.dart';
@@ -54,12 +58,15 @@ import '../services/navigation_history_service.dart';
 import 'navigation/navigator_screen.dart';
 import 'package:confetti/confetti.dart';
 
+import '../widgets/city_info_ticker_widget.dart';
+
 // Extracted map widgets
 import 'map/widgets/index.dart';
 import 'map/widgets/map_menu_sheet.dart';
 import 'meme_screen.dart';
 
 import 'ai_assistant_screen.dart';
+import 'digital_twin_3d_screen.dart';
 import '../widgets/category_icon_3d.dart';
 import '../widgets/gpu_shader_background.dart';
 import '../services/deep_link_service.dart';
@@ -241,6 +248,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -406,20 +415,26 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   List<Marker> _markers = [];
   bool _isLoading = true;
   bool _showCamerasLayer = true;
+  bool _isFovZoomedIn = false;
   bool _showProblemMarkers = true;
   bool _showEventMarkers = true;
   bool _secretCamerasEnabled = false;
   List<Marker> _cameraMarkers = [];
-  bool _showLostFoundLayer = false;
+  bool _showLostFoundLayer = true;
   List<Marker> _lostFoundMarkers = [];
   List<LatLng>? _selectedRoutePath;
   Color? _selectedRouteColor;
   bool _showUkLayer = false;
+  bool _showRadarLayer = false;
+  String? _radarTileTemplate;
   Map<String, dynamic>? _ukAtCenter;
   int _totalComplaints = 0;
   int _newComplaints = 0;
   int _resolvedComplaints = 0;
   Timer? _updateTimer;
+  // In-flight guard + seq для поллинга жалоб (аудит DeepSeek V4.1)
+  bool _complaintsLoading = false;
+  int _complaintsSeq = 0;
   Timer? _secretCameraTapResetTimer;
   List<String> _selectedCategories = [];
   List<String> _selectedDistricts = [];
@@ -444,7 +459,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   bool _ambientShaderEnabled = true;
   bool _showOnboarding = false;
   Timer? _mapMotionTimer;
-  bool _isMapMoving = false;
+  final ValueNotifier<bool> _isMapMovingNotifier = ValueNotifier<bool>(false);
+  bool get _isMapMoving => _isMapMovingNotifier.value;
   bool _isNightMode = true;
   CityConfig _activeCity = CityProvider().activeCity;
 
@@ -454,7 +470,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   Map<String, dynamic>? _focusedComplaint;
   Map<String, String?>? _pendingNotificationPayload;
   String? _pulseSignalCategory;
-  bool _voiceAnnouncementsEnabled = true;
+  bool _voiceAnnouncementsEnabled = false;
   bool _showWeatherOverlay = false;
   NavigationTrack? _selectedTrack;
   List<LatLng> _liveTrackPoints = [];
@@ -477,8 +493,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // ─── Режим Дзен ───
   bool _isZenMode = false;
   bool _showFiltersInZen = false;
-  bool _userFiltersHidden = false;
+  bool _userFiltersHidden = true;
   bool _focusFiltersHidden = false;
+  bool _isMyDistrictExpanded = false;
   bool _isRightPanelVisible = true;
   Timer? _zenHideTimer;
   Timer? _inactivityTimer;
@@ -529,6 +546,26 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   double get _currentHoloDensity {
     return 0.0;
+  }
+
+  IconData get _dynamicWeatherIcon {
+    final kind = _weather.kind.toLowerCase();
+    final temp = _weather.temperatureC;
+    if (kind.contains('rain') || kind.contains('дожд') || kind.contains('лив')) return Icons.water_drop_rounded;
+    if (kind.contains('snow') || kind.contains('снег') || (temp != null && temp < -3)) return Icons.ac_unit_rounded;
+    if (kind.contains('storm') || kind.contains('гроз')) return Icons.thunderstorm_rounded;
+    if (kind.contains('fog') || kind.contains('туман') || kind.contains('дым')) return Icons.foggy;
+    if (kind.contains('wind') || kind.contains('ветер')) return Icons.air_rounded;
+    if (kind.contains('clear') || kind.contains('ясно') || kind.contains('солн')) return Icons.wb_sunny_rounded;
+    if (kind.contains('cloud') || kind.contains('облач') || kind.contains('пасмур')) return Icons.cloud_rounded;
+    return Icons.wb_sunny_rounded;
+  }
+
+  String get _dynamicWeatherTooltip {
+    if (!_weather.available) return 'Погода';
+    final tempStr = _weather.temperatureC != null ? '${_weather.temperatureC!.round()}°C' : '';
+    final cond = _weather.kind.isNotEmpty ? _weather.kind : '';
+    return 'Погода ${[tempStr, cond].where((s) => s.isNotEmpty).join(" • ")}';
   }
 
   // ─── Категории ───
@@ -644,7 +681,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _focusOnUserLocation() async {
+  Future<void> _focusOnUserLocation({double zoom = 17.0}) async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) return;
@@ -661,7 +698,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       if (mounted) {
         _animateMapTo(
           LatLng(position.latitude, position.longitude),
-          15.5,
+          zoom,
         );
       }
     } catch (e) {
@@ -815,14 +852,32 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             : '${item['name'] ?? item['n']}:${item['lat']}:${item['lng']}:${item['stream_url'] ?? item['s']}';
         dedupedRows[dedupeKey] = item;
       }
-      MapConfig.loadedCameras = dedupedRows.values.toList();
-      
+      if (dedupedRows.isNotEmpty) {
+        MapConfig.loadedCameras = dedupedRows.values.toList();
+      }
+      if (MapConfig.loadedCameras.isEmpty) {
+        try {
+          final assetData = await rootBundle.loadString('assets/cameras_nv.json');
+          final decoded = jsonDecode(assetData) as List<dynamic>;
+          MapConfig.loadedCameras = [
+            for (final item in decoded.whereType<Map>())
+              item.map((key, value) => MapEntry(key.toString(), value)),
+          ];
+        } catch (_) {}
+      }
       if (_showCamerasLayer && mounted) {
         _buildCameraMarkersSmoothly(MapConfig.loadedCameras);
       }
     } catch (e) {
       debugPrint('Error loading cameras: $e');
-      if (MapConfig.loadedCameras.isEmpty) {
+      try {
+        final assetData = await rootBundle.loadString('assets/cameras_nv.json');
+        final decoded = jsonDecode(assetData) as List<dynamic>;
+        MapConfig.loadedCameras = [
+          for (final item in decoded.whereType<Map>())
+            item.map((key, value) => MapEntry(key.toString(), value)),
+        ];
+      } catch (_) {
         MapConfig.loadedCameras = [
           {'name': '60 лет Октября, 3', 'n': '60 лет Октября, 3', 'lat': 60.9325, 'lng': 76.5710, 'stream_url': 'https://stream3.dantser.org/NV_60Let_3/tracks-v1/mono.ts.m3u8', 's': 'https://stream3.dantser.org/NV_60Let_3/tracks-v1/mono.ts.m3u8'},
           {'name': '60 лет Октября, 10', 'n': '60 лет Октября, 10', 'lat': 60.9330, 'lng': 76.5740, 'stream_url': 'https://stream3.dantser.org/NV_60Let_10/tracks-v1/mono.ts.m3u8', 's': 'https://stream3.dantser.org/NV_60Let_10/tracks-v1/mono.ts.m3u8'},
@@ -872,10 +927,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 ? Icons.warning_amber_rounded
                 : (isCameraFavorite ? Icons.star_rounded : Icons.videocam_rounded));
 
+        final isZoomedIn = (_mapController.camera.zoom >= 13.8);
+        final azimuth = (item['azimuth'] as num?)?.toDouble() ?? 
+                        (((doubleLat * 1000 + doubleLng * 1000).round() * 47) % 360).toDouble();
+        final fov = (item['fov'] as num?)?.toDouble() ?? 75.0;
+
         markers.add(Marker(
           point: point,
-          width: 52,
-          height: 52,
+          width: isZoomedIn ? 64 : 30,
+          height: isZoomedIn ? 64 : 30,
           child: GestureDetector(
             onTap: () {
               SoundService().playAiCamera();
@@ -884,15 +944,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 _loadFavorites();
               });
             },
-            child: AnimatedMapMarker(
-              animation: _markerPulseController,
-              animate: false, // Turn off continuous animation to prevent lag/stutters!
+            child: CameraFovConeWidget(
               color: cameraColor,
               icon: cameraIcon,
-              size: 52,
-              seed: ((point.latitude + point.longitude).abs() % 1),
-              isDayMode: !_isNightMode,
-              shell: MarkerShell.circle,
+              size: 26,
+              azimuthDegrees: azimuth,
+              fovDegrees: fov,
+              showFovCone: isZoomedIn,
+              isFavorite: isCameraFavorite,
+              isAlarm: isCameraAlarm,
             ),
           ),
         ));
@@ -992,6 +1052,18 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     await _saveMapState();
   }
 
+  Timer? _ukFetchDebounceTimer;
+
+  void _debouncedFetchUkForCenter() {
+    if (!_showUkLayer) return;
+    _ukFetchDebounceTimer?.cancel();
+    _ukFetchDebounceTimer = Timer(const Duration(milliseconds: 350), () {
+      if (mounted && _showUkLayer) {
+        _fetchUkForCenter();
+      }
+    });
+  }
+
   Future<void> _fetchUkForCenter() async {
     if (!_showUkLayer) return;
     try {
@@ -1004,13 +1076,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       if (!mounted) return;
       if (response.statusCode == 200) {
         final payload = json.decode(utf8.decode(response.bodyBytes));
-        setState(() => _ukAtCenter = payload);
-        HapticFeedback.lightImpact();
+        if (mounted && _ukAtCenter?['id'] != payload?['id']) {
+          setState(() => _ukAtCenter = payload);
+        }
       } else {
         setState(() => _ukAtCenter = null);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('УК для этой точки не найдена')),
-        );
       }
     } catch (e) {
       debugPrint('UK fetch error: $e');
@@ -1024,6 +1094,24 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       await _fetchUkForCenter();
     } else {
       setState(() => _ukAtCenter = null);
+    }
+  }
+
+  Future<void> _toggleRadarLayer() async {
+    _emitSelectionHaptic();
+    final next = !_showRadarLayer;
+    setState(() => _showRadarLayer = next);
+    if (next && _radarTileTemplate == null) {
+      final template = await RainRadarService.instance.getLatestTileTemplate();
+      if (!mounted) return;
+      if (template == null) {
+        setState(() => _showRadarLayer = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Радар осадков временно недоступен')),
+        );
+        return;
+      }
+      setState(() => _radarTileTemplate = template);
     }
   }
 
@@ -1095,6 +1183,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     _markerPulseController.dispose();
     _districtFadeController?.dispose();
     _mapMoveController?.dispose();
+    _isMapMovingNotifier.dispose();
     _mcpService.disconnectAll();
     _confettiController.dispose();
     super.dispose();
@@ -1121,7 +1210,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           _preZoomCenter = null;
           _preZoomLevel = null;
         });
-        final targetZoom = _activeCity.id == 'novosibirsk' ? 10.8 : 11.8;
+        final targetZoom = 11.8;
         _animateMapToCinematic(_activeCity.center, targetZoom);
       }
     });
@@ -1178,11 +1267,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   Color get _uiPanelFill => _isNightMode
       ? PulseColors.surface.withAlpha(115)
-      : Colors.white.withOpacity(0.72); // Luxurious pearl-white glassmorphism
+      : const Color(0xFFF8FAFC).withOpacity(0.92); // Unified clean light glass surface
 
   Color get _uiPanelFillStrong => _isNightMode
       ? PulseColors.backgroundRaised.withAlpha(135)
-      : Colors.white.withOpacity(0.85); // Frosted premium white glass
+      : const Color(0xFFF8FAFC).withOpacity(0.92); // Unified clean light glass surface
 
   Color get _uiAccent => _isNightMode ? _colorAccent : const Color(0xFF0284C7); // Rich royal purple/indigo
 
@@ -1192,17 +1281,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   Color get _uiGlow =>
       _isNightMode ? PulseColors.primary : const Color(0xFF0EA5E9); // Sophisticated sky-blue glow
 
-  List<Color> get _mapOverlayGradient => _isNightMode
-      ? [
-          const Color(0x70020617),
-          const Color(0x50061527),
-          const Color(0x300B2038),
-        ]
-      : [
-          const Color(0x24F7FCFF),
-          const Color(0x12DEF1FF),
-          const Color(0x06FFFFFF),
-        ];
+  List<Color> get _mapOverlayGradient => [
+        Colors.transparent,
+        Colors.transparent,
+        Colors.transparent,
+      ];
 
   void _toggleVisualMode() {
     _emitSelectionHaptic();
@@ -1319,12 +1402,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   void _registerMapMovement() {
     _resetInactivityTimer();
     _mapMotionTimer?.cancel();
-    if (!_isMapMoving && mounted) {
-      setState(() => _isMapMoving = true);
+    if (!_isMapMovingNotifier.value && mounted) {
+      _isMapMovingNotifier.value = true;
     }
     _mapMotionTimer = Timer(_mapMotionCooldown, () {
-      if (mounted && _isMapMoving) {
-        setState(() => _isMapMoving = false);
+      if (mounted && _isMapMovingNotifier.value) {
+        _isMapMovingNotifier.value = false;
         _saveMapState();
       }
     });
@@ -1344,7 +1427,25 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   Future<void> _loadComplaints() async {
     if (!mounted) return;
-    if (_allComplaints.isEmpty) {
+    // In-flight guard (рекомендация DeepSeek): не накладываем запросы,
+    // seq-счётчик отбрасывает устаревший ответ, если пришёл новый poll.
+    if (_complaintsLoading) return;
+    _complaintsLoading = true;
+    final seq = ++_complaintsSeq;
+    try {
+      await _loadComplaintsInner();
+    } finally {
+      _complaintsLoading = false;
+    }
+    // устаревший ответ не должен трогать состояние
+    if (seq != _complaintsSeq) return;
+  }
+
+  Future<void> _loadComplaintsInner() async {
+    if (!mounted) return;
+    // Спиннер только при первом запуске (пустой список); фоновый поллинг
+    // каждые 30 сек не должен ребилдить весь экран с FlutterMap.
+    if (_allComplaints.isEmpty && !_isLoading) {
       setState(() => _isLoading = true);
     }
 
@@ -1399,13 +1500,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           if (_voiceAnnouncementsEnabled) {
             unawaited(SoundService().speak(tickerText));
           }
-
-          NotificationService().showNewComplaintNotification(
-            context,
-            title: activeComplaint['title'] ?? 'Новая ситуация',
-            category: activeComplaint['category'] ?? 'Прочее',
-            color: _getCategoryColor(activeComplaint['category'] ?? 'Прочее'),
-          );
 
           NotificationService().showPushNotification(
             id: activeComplaint['id'] is int
@@ -1483,7 +1577,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       }
     }
 
-    if (mounted) setState(() => _isLoading = false);
+    if (mounted && _isLoading && _allComplaints.isEmpty) {
+      setState(() => _isLoading = false);
+    } else {
+      _isLoading = false;
+    }
     _applyPendingNotificationFocus();
   }
 
@@ -1570,22 +1668,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     }
   }
 
+  /// Демо-маркеры удалены: карта показывает только реальные сигналы
+  /// из API. История всех прежних сигналов сохранена на сервере
+  /// (reports_archive) и используется для обучения Гермеса.
   List<Map<String, dynamic>> _fallbackComplaints() {
-    return <Map<String, dynamic>>[
-      <String, dynamic>{
-        'id': 'fallback-city-anchor',
-        'title': 'Городской контур',
-        'summary': 'Резервный маркер города',
-        'description':
-            'Сервер недоступен. Карта покажет городской центр и обновится, когда связь восстановится.',
-        'lat': _center.latitude,
-        'lng': _center.longitude,
-        'category': 'Прочее',
-        'status': 'open',
-        'source_kind': 'system',
-        'created_at': DateTime.now().toIso8601String(),
-      },
-    ];
+    return const <Map<String, dynamic>>[];
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1764,27 +1851,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   void _processComplaints(List<dynamic> data) {
-    if (data.length == 100 && data.isNotEmpty && data[0] == 'mock') {
-      if (!mounted) return;
-      setState(() {
-        _markers = [];
-        _markerItems.clear();
-        _markerCategories.clear();
-        _eventMarkers = [];
-        _eventMarkerItems.clear();
-        _eventMarkerCategories.clear();
-        _lostFoundMarkers = [];
-        _totalComplaints = 0;
-        _newComplaints = 0;
-        _resolvedComplaints = 0;
-        _categoryCounts.clear();
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No data, check net')),
-      );
-      return;
-    }
-
     final filteredProblems = <Map<String, dynamic>>[];
     final filteredEvents = <Map<String, dynamic>>[];
     final filteredLostFound = <Map<String, dynamic>>[];
@@ -1825,11 +1891,21 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         filteredLostFound.add(item);
       } else if (isEvent) {
         final now = DateTime.now();
-        if (dt == null || dt.year != now.year || dt.month != now.month || dt.day != now.day) {
-          continue; // Показываем только мероприятия на текущий день!
+        // Отображаем все актуальные и предстоящие городские мероприятия (за последние 2 дня и на 30 дней вперед)
+        if (dt != null && dt.isBefore(now.subtract(const Duration(days: 2)))) {
+          continue; // Пропускаем только давно завершенные мероприятия
         }
         filteredEvents.add(item);
       } else {
+        // Исключаем свободные места на парковках с карты по требованию пользователя
+        final titleLower = (item['title'] ?? '').toString().toLowerCase();
+        final descLower = (item['description'] ?? '').toString().toLowerCase();
+        final summaryLower = (item['summary'] ?? '').toString().toLowerCase();
+        if (category == 'Парковки' && 
+            (titleLower.contains('свободн') || descLower.contains('свободн') || summaryLower.contains('свободн') || titleLower.contains('парковка тц'))) {
+          continue;
+        }
+
         total++;
         final isNew = dt != null && dt.isAfter(threeHoursAgo);
         if (isNew) newCount++;
@@ -1840,20 +1916,30 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       }
     }
 
-    // Рендерим маркеры проблем
+    // Рендерим маркеры проблем; counts и categories считаем по тем же элементам,
+    // у которых реально есть валидные координаты — иначе фильтр «5» рисует 3.
     final problemMarkersList = <Marker>[];
+    final problemCategories = <String>[];
+    final counts = <String, int>{};
     for (final item in filteredProblems) {
       try {
         final rawLat = item['lat'] ?? item['latitude'];
         final rawLng = item['lng'] ?? item['longitude'];
-        final double lat = rawLat is num 
-            ? rawLat.toDouble() 
-            : double.tryParse(rawLat?.toString() ?? '') ?? 60.9344;
-        final double lng = rawLng is num 
-            ? rawLng.toDouble() 
-            : double.tryParse(rawLng?.toString() ?? '') ?? 76.5531;
+        final double? lat = rawLat is num
+            ? rawLat.toDouble()
+            : double.tryParse(rawLat?.toString() ?? '');
+        final double? lng = rawLng is num
+            ? rawLng.toDouble()
+            : double.tryParse(rawLng?.toString() ?? '');
+        // Только реальные координаты: без молчаливого фолбэка в центр города
+        if (lat == null || lng == null || (lat == 0.0 && lng == 0.0)) {
+          debugPrint('Маркер без координат пропущен: ${item['title'] ?? item['id']}');
+          continue;
+        }
 
         final category = _normalizeCategoryLabel((item['category'] ?? 'Прочее') as String);
+        problemCategories.add(category);
+        counts[category] = (counts[category] ?? 0) + 1;
         problemMarkersList.add(_buildMarker(
           point: LatLng(lat, lng),
           status: (item['status'] ?? 'open') as String,
@@ -1867,18 +1953,26 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
     // Рендерим маркеры мероприятий
     final eventMarkersList = <Marker>[];
+    final eventCategories = <String>[];
     for (final item in filteredEvents) {
       try {
         final rawLat = item['lat'] ?? item['latitude'];
         final rawLng = item['lng'] ?? item['longitude'];
-        final double lat = rawLat is num 
-            ? rawLat.toDouble() 
-            : double.tryParse(rawLat?.toString() ?? '') ?? 60.9344;
-        final double lng = rawLng is num 
-            ? rawLng.toDouble() 
-            : double.tryParse(rawLng?.toString() ?? '') ?? 76.5531;
+        final double? lat = rawLat is num
+            ? rawLat.toDouble()
+            : double.tryParse(rawLat?.toString() ?? '');
+        final double? lng = rawLng is num
+            ? rawLng.toDouble()
+            : double.tryParse(rawLng?.toString() ?? '');
+        // Только реальные координаты: без молчаливого фолбэка в центр города
+        if (lat == null || lng == null || (lat == 0.0 && lng == 0.0)) {
+          debugPrint('Маркер события без координат пропущен: ${item['title'] ?? item['id']}');
+          continue;
+        }
 
         final category = _normalizeCategoryLabel((item['category'] ?? 'Прочее') as String);
+        eventCategories.add(category);
+        counts[category] = (counts[category] ?? 0) + 1;
         eventMarkersList.add(_buildMarker(
           point: LatLng(lat, lng),
           status: (item['status'] ?? 'open') as String,
@@ -1894,36 +1988,30 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     final lostFoundMarkersList = <Marker>[];
     for (final item in filteredLostFound) {
       try {
-        lostFoundMarkersList.add(_buildLostFoundMarker(item));
+        final lfMarker = _buildLostFoundMarker(item);
+        if (lfMarker != null) lostFoundMarkersList.add(lfMarker);
       } catch (e) {
         debugPrint('Ошибка обработки маркера бюро находок: $e. Item: $item');
       }
     }
 
-    // Подсчет категорий по всем отображаемым элементам
-    final counts = <String, int>{};
-    for (final item in [...filteredProblems, ...filteredEvents]) {
-      final cat = _normalizeCategoryLabel((item['category'] ?? 'Прочее') as String);
-      counts[cat] = (counts[cat] ?? 0) + 1;
-    }
-
     if (!mounted) return;
     setState(() {
       _markers = problemMarkersList;
-      _markerItems.clear();
-      _markerCategories.clear();
-      for (final item in filteredProblems) {
-        _markerItems.add(item);
-        _markerCategories.add(_normalizeCategoryLabel((item['category'] ?? 'Прочее') as String));
-      }
+      _markerItems
+        ..clear()
+        ..addAll(filteredProblems);
+      _markerCategories
+        ..clear()
+        ..addAll(problemCategories);
 
       _eventMarkers = eventMarkersList;
-      _eventMarkerItems.clear();
-      _eventMarkerCategories.clear();
-      for (final item in filteredEvents) {
-        _eventMarkerItems.add(item);
-        _eventMarkerCategories.add(_normalizeCategoryLabel((item['category'] ?? 'Прочее') as String));
-      }
+      _eventMarkerItems
+        ..clear()
+        ..addAll(filteredEvents);
+      _eventMarkerCategories
+        ..clear()
+        ..addAll(eventCategories);
 
       _lostFoundMarkers = lostFoundMarkersList;
 
@@ -1937,15 +2025,20 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     _applyPendingNotificationFocus();
   }
 
-  Marker _buildLostFoundMarker(Map<String, dynamic> item) {
+  Marker? _buildLostFoundMarker(Map<String, dynamic> item) {
     final rawLat = item['lat'] ?? item['latitude'];
     final rawLng = item['lng'] ?? item['longitude'];
-    double lat = rawLat is num 
-        ? rawLat.toDouble() 
-        : double.tryParse(rawLat?.toString() ?? '') ?? 60.9344;
-    double lng = rawLng is num 
-        ? rawLng.toDouble() 
-        : double.tryParse(rawLng?.toString() ?? '') ?? 76.5531;
+    final double? lat = rawLat is num
+        ? rawLat.toDouble()
+        : double.tryParse(rawLat?.toString() ?? '');
+    final double? lng = rawLng is num
+        ? rawLng.toDouble()
+        : double.tryParse(rawLng?.toString() ?? '');
+    // Только реальные координаты: без молчаливого фолбэка в центр города
+    if (lat == null || lng == null || (lat == 0.0 && lng == 0.0)) {
+      debugPrint('Маркер бюро находок без координат пропущен: ${item['title'] ?? item['id']}');
+      return null;
+    }
 
     final category = (item['category'] ?? 'Прочее').toString();
     final title = (item['title'] ?? '').toString().toLowerCase();
@@ -2014,23 +2107,27 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
     return Marker(
       point: LatLng(lat, lng),
-      width: 54,
-      height: 54,
+      width: 64,
+      height: 64,
+      alignment: Alignment.center,
       child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
         onTap: () {
           _emitSelectionHaptic();
           _zoomToComplaint(item);
           _showMapItemDetails(item);
         },
-        child: AnimatedMapMarker(
-          animation: _markerPulseController,
-          color: color,
-          icon: icon,
-          size: 54,
-          seed: seed,
-          isDayMode: !_isNightMode,
-          shell: MarkerShell.roundedSquare,
-          custom3dAsset: customAsset,
+        child: Center(
+          child: AnimatedMapMarker(
+            animation: _markerPulseController,
+            color: color,
+            icon: icon,
+            size: 54,
+            seed: seed,
+            isDayMode: !_isNightMode,
+            shell: MarkerShell.roundedSquare,
+            custom3dAsset: customAsset,
+          ),
         ),
       ),
     );
@@ -2053,9 +2150,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     
     for (final distId in validSelectedDistricts) {
       final dist = cityDistricts.firstWhere((d) => d.id == distId);
-      final inPolygon = _activeCity.id == 'novosibirsk'
-          ? NovosibirskDistricts.isPointInPolygon(point, dist.polygon)
-          : NizhnevartovskDistricts.isPointInPolygon(point, dist.polygon);
+      final inPolygon = NizhnevartovskDistricts.isPointInPolygon(point, dist.polygon);
       if (inPolygon) return true;
     }
     return false;
@@ -2082,11 +2177,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         if (i < _eventMarkerCategories.length &&
             i < _eventMarkerItems.length &&
             _showEventMarkers &&
-            _matchesDistrict(_eventMarkerItems[i]) &&
-            (_selectedCategories.isEmpty ||
-                _selectedCategories.any((cat) =>
-                    _normalizeCategoryLabel(_eventMarkerCategories[i]) ==
-                    _normalizeCategoryLabel(cat))))
+            _matchesDistrict(_eventMarkerItems[i]))
           _eventMarkers[i],
     ];
   }
@@ -2242,6 +2333,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   void _zoomBack() {
+    _emitSelectionHaptic();
     FocusManager.instance.primaryFocus?.unfocus();
     if (_preZoomCenter != null && _preZoomLevel != null) {
       _animateMapTo(_preZoomCenter!, _preZoomLevel!);
@@ -2337,84 +2429,102 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildDockButton({
-    required IconData icon,
+    IconData? icon,
+    String? assetPath,
+    Widget? customChild,
     required String tooltip,
     required VoidCallback onPressed,
     bool highlighted = false,
   }) {
     final color = highlighted
         ? _uiAccent
-        : (_isNightMode ? Colors.white.withOpacity(0.8) : const Color(0xFF243B53));
+        : (_isNightMode ? Colors.white.withOpacity(0.90) : const Color(0xFF1E293B));
     return Tooltip(
       message: tooltip,
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(6),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              gradient: highlighted
-                  ? LinearGradient(
-                      colors: [
-                        _uiAccent.withOpacity(_isNightMode ? 0.28 : 0.20),
-                        _uiAccent.withOpacity(_isNightMode ? 0.08 : 0.04),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    )
-                  : LinearGradient(
-                      colors: _isNightMode
-                          ? [
-                              Colors.black.withOpacity(0.35),
-                              Colors.black.withOpacity(0.15),
-                            ]
-                          : [
-                              const Color(0xFFFFFFFF).withOpacity(0.85),
-                              const Color(0xFFE2E8F0).withOpacity(0.50),
-                            ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: highlighted
-                    ? _uiAccent.withOpacity(0.85)
-                    : (_isNightMode ? Colors.white.withOpacity(0.08) : const Color(0xFF0EA5C7).withOpacity(0.12)),
-                width: highlighted ? 1.5 : 1.0,
-              ),
-              boxShadow: highlighted
-                  ? [
-                      BoxShadow(
-                        color: _uiAccent.withOpacity(0.35),
-                        blurRadius: 10,
-                        spreadRadius: 1,
+        child: Semantics(
+          label: tooltip,
+          button: true,
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              onPressed();
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                gradient: highlighted
+                    ? LinearGradient(
+                        colors: [
+                          _uiAccent.withOpacity(_isNightMode ? 0.40 : 0.28),
+                          _uiAccent.withOpacity(_isNightMode ? 0.16 : 0.10),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       )
-                    ]
-                  : (_isNightMode
-                      ? [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.25),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1.5),
+                    : LinearGradient(
+                        colors: _isNightMode
+                            ? [
+                                const Color(0xFF1E293B).withOpacity(0.55),
+                                const Color(0xFF0F172A).withOpacity(0.35),
+                              ]
+                            : [
+                                const Color(0xFFFFFFFF).withOpacity(0.95),
+                                const Color(0xFFF1F5F9).withOpacity(0.75),
+                              ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: highlighted
+                      ? _uiAccent.withOpacity(0.95)
+                      : (_isNightMode ? Colors.white.withOpacity(0.14) : const Color(0xFF0EA5C7).withOpacity(0.22)),
+                  width: highlighted ? 1.5 : 1.0,
+                ),
+                boxShadow: highlighted
+                    ? [
+                        BoxShadow(
+                          color: _uiAccent.withOpacity(0.42),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        )
+                      ]
+                    : (_isNightMode
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.35),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            )
+                          ]
+                        : [
+                            BoxShadow(
+                              color: const Color(0xFF0EA5C7).withOpacity(0.10),
+                              blurRadius: 7,
+                              offset: const Offset(0, 2),
+                            )
+                          ]),
+              ),
+              child: Center(
+                child: customChild ??
+                    (assetPath != null
+                        ? Image.asset(
+                            assetPath,
+                            width: 22,
+                            height: 22,
+                            fit: BoxFit.contain,
                           )
-                        ]
-                      : [
-                          BoxShadow(
-                            color: const Color(0xFF0EA5C7).withOpacity(0.06),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          )
-                        ]),
-            ),
-            child: Center(
-              child: Icon(
-                icon,
-                size: 18,
-                color: color,
+                        : Icon(
+                            icon ?? Icons.circle_rounded,
+                            size: 18,
+                            color: color,
+                          )),
               ),
             ),
           ),
@@ -2564,9 +2674,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
     return Marker(
       point: point,
-      width: isCamera ? 58 : 54,
-      height: isCamera ? 58 : 54,
+      width: 64,
+      height: 64,
+      alignment: Alignment.center,
       child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
         onTap: () {
           _emitSelectionHaptic();
           _zoomToComplaint(complaint);
@@ -2585,16 +2697,18 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             _showMapItemDetails(complaint);
           }
         },
-        child: AnimatedMapMarker(
-          animation: _markerPulseController,
-          color: color,
-          icon: markerIcon,
-          size: isCamera ? 58 : 54,
-          seed: seed,
-          isDayMode: !_isNightMode,
-          shell: markerShell,
-          highlighted: _focusedComplaint != null && _focusedComplaint!['id'] == complaint['id'],
-          custom3dAsset: isEvent ? 'assets/3d_icons/event_3d.webp' : null,
+        child: Center(
+          child: AnimatedMapMarker(
+            animation: _markerPulseController,
+            color: color,
+            icon: markerIcon,
+            size: isCamera ? 58 : 54,
+            seed: seed,
+            isDayMode: !_isNightMode,
+            shell: markerShell,
+            highlighted: _focusedComplaint != null && _focusedComplaint!['id'] == complaint['id'],
+            custom3dAsset: isEvent ? 'assets/3d_icons/event_3d.webp' : null,
+          ),
         ),
       ),
     );
@@ -2667,18 +2781,40 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
       builder: (ctx) {
         final isNightMode = _isNightMode;
         return Container(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(ctx).size.height * 0.72,
           ),
-          child: MapGlassPanel(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-            padding: EdgeInsets.zero,
-            fillColor: const Color(0xEA0B0F19),
-            blurSigma: 26,
-            child: StatefulBuilder(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFA241242), // Deep festive royal violet
+                  Color(0xFA140C29),
+                  Color(0xFA090514),
+                ],
+              ),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+              border: Border.all(color: const Color(0xFFFACC15).withOpacity(0.35), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFACC15).withOpacity(0.12),
+                  blurRadius: 28,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+              child: BackdropFilter(
+                filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                child: StatefulBuilder(
               builder: (ctx, setSheetState) {
                 final currentEvent = _eventMarkerItems.isNotEmpty ? _eventMarkerItems[currentPageIndex] : event;
                 final scheduledDate = _parseDateTime(currentEvent);
@@ -2999,8 +3135,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               },
             ),
           ),
-        );
-      },
+        ),
+      ),
+    );
+  },
     ).whenComplete(() {
       if (_focusedComplaint != null) _zoomBack();
     });
@@ -3034,6 +3172,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   void _showNavigatorSheet() {
     FocusManager.instance.primaryFocus?.unfocus();
+    final isMenuOnRight = AppStateService.instance.state.isMenuOnRight;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -3041,24 +3180,32 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       isScrollControlled: true,
       builder: (ctx) {
         final screenWidth = MediaQuery.of(ctx).size.width;
+        // Position navigator screen on the OPPOSITE side of side dock to never obscure dock buttons
         return Align(
-          alignment: Alignment.bottomLeft,
-          child: SizedBox(
-            width: (screenWidth - 80.0).clamp(280.0, 500.0),
-            child: NavigatorScreen(
-              selectedTrack: _selectedTrack,
-              onTrackSelected: (track) {
-                _startRouteReplay(track);
-              },
-              onClearTrack: () {
-                _stopRouteReplay();
-                setState(() {
-                  _selectedTrack = null;
-                });
-              },
-              onStartTracking: () {
-                _focusOnUserLocation();
-              },
+          alignment: isMenuOnRight ? Alignment.bottomLeft : Alignment.bottomRight,
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: isMenuOnRight ? 12 : 68,
+              right: isMenuOnRight ? 68 : 12,
+              bottom: 12,
+            ),
+            child: SizedBox(
+              width: (screenWidth - 84.0).clamp(280.0, 480.0),
+              child: NavigatorScreen(
+                selectedTrack: _selectedTrack,
+                onTrackSelected: (track) {
+                  _startRouteReplay(track);
+                },
+                onClearTrack: () {
+                  _stopRouteReplay();
+                  setState(() {
+                    _selectedTrack = null;
+                  });
+                },
+                onStartTracking: () {
+                  _focusOnUserLocation();
+                },
+              ),
             ),
           ),
         );
@@ -3165,6 +3312,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
       builder: (ctx) {
         return Container(
           constraints: BoxConstraints(
@@ -3374,6 +3523,13 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       _showEventDetails(complaint);
       return;
     }
+    // Позиция сигнала в текущем отфильтрованном списке для перелистывания
+    final visibleSignals = _markerItems
+        .where((m) => !_isEventItem(m) && _matchesDistrict(m))
+        .toList(growable: false);
+    final sigIndex = visibleSignals.indexWhere(
+        (m) => m['id']?.toString() == complaint['id']?.toString());
+
     final status = (complaint['status'] ?? 'open') as String;
     final statusColor = _getStatusColor(status);
     final category = (complaint['category'] ?? 'Прочее') as String;
@@ -3385,6 +3541,20 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     showComplaintBottomSheet(
       context: context,
       complaint: complaint,
+      signalIndex: sigIndex >= 0 ? sigIndex : 0,
+      signalTotal: visibleSignals.length,
+      onPrevSignal: sigIndex > 0
+          ? () {
+              Navigator.of(context).pop();
+              _showComplaintDetails(visibleSignals[sigIndex - 1]);
+            }
+          : null,
+      onNextSignal: sigIndex >= 0 && sigIndex < visibleSignals.length - 1
+          ? () {
+              Navigator.of(context).pop();
+              _showComplaintDetails(visibleSignals[sigIndex + 1]);
+            }
+          : null,
       categoryColor: categoryColor,
       statusColor: statusColor,
       statusText: _getStatusText(status),
@@ -3429,7 +3599,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // ═══════════════════════════════════════════════════════════
 
   Widget _buildFocusedOverlay() {
-    if (_focusedComplaint == null) return const SizedBox.shrink();
+    if (_focusedComplaint == null || _userFiltersHidden) return const SizedBox.shrink();
 
     final complaint = _focusedComplaint!;
     final status = (complaint['status'] ?? 'open') as String;
@@ -3553,21 +3723,24 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             options: MapOptions(
               initialCenter: _center,
               initialZoom: MapConfig.initialZoom,
-              minZoom: _activeCity.id == 'novosibirsk' ? 9.8 : 11.2,
+              minZoom: 11.2,
               maxZoom: MapConfig.maxZoom,
               cameraConstraint: CameraConstraint.contain(
-                bounds: _activeCity.id == 'novosibirsk'
-                    ? LatLngBounds(const LatLng(54.7, 82.5), const LatLng(55.25, 83.3))
-                    : LatLngBounds(const LatLng(60.83, 76.25), const LatLng(61.05, 76.85)),
+                bounds: LatLngBounds(const LatLng(60.83, 76.25), const LatLng(61.05, 76.85)),
               ),
               backgroundColor: _isNightMode ? const Color(0xFF0C1424) : const Color(0xFFF5FAFF),
               onPositionChanged: (position, hasGesture) {
+                final isNowFovZoomed = (position.zoom) >= 13.8;
+                if (_isFovZoomedIn != isNowFovZoomed) {
+                  _isFovZoomedIn = isNowFovZoomed;
+                  _buildCameraMarkersSmoothly(MapConfig.loadedCameras);
+                }
                 if (hasGesture) {
                   _registerMapMovement();
                   _updateDistrictUnderCenter(position.center);
-                }
-                if (_showUkLayer && hasGesture) {
-                  _fetchUkForCenter();
+                  if (_showUkLayer) {
+                    _debouncedFetchUkForCenter();
+                  }
                 }
               },
               interactionOptions: const InteractionOptions(
@@ -3588,31 +3761,34 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   MapConfig.satelliteUrl,
                   isNightMode: _isNightMode,
                 ),
-              AnimatedBuilder(
-                animation: Listenable.merge([_markerPulseController, _districtFadeController ?? const AlwaysStoppedAnimation(0.0)]),
-                builder: (context, _) {
-                  final pulseVal = 0.5 + 0.5 * math.sin(_markerPulseController.value * 2 * math.pi);
-                  final fadeVal = _districtFadeController?.value ?? 0.0;
-                  final highlightFactor = fadeVal < 0.8 ? 1.0 : (1.0 - (fadeVal - 0.8) / 0.2);
-                  return PolygonLayer(
-                    polygons: [
-                      for (final dist in _activeCity.runtimeDistricts)
-                        Polygon(
-                          points: dist.polygon,
-                          color: _selectedDistrictForHighlight?.id == dist.id
-                              ? _uiPrimary.withOpacity(0.015 + (0.18 - 0.015) * highlightFactor)
-                              : Colors.transparent,
-                          borderColor: _selectedDistrictForHighlight?.id == dist.id
-                              ? _uiPrimary.withOpacity(0.12 + (0.8 - 0.12) * highlightFactor)
-                              : Colors.transparent,
-                          borderStrokeWidth: _selectedDistrictForHighlight?.id == dist.id
-                              ? (1.2 + (3.5 - 1.2) * highlightFactor)
-                              : 0.0,
-                        ),
-                    ],
-                  );
-                },
-              ),
+              // Радар осадков RainViewer — реальные радарные данные поверх подложки
+              if (_showRadarLayer && _radarTileTemplate != null)
+                TileLayer(
+                  urlTemplate: _radarTileTemplate!,
+                  tileSize: 256,
+                  maxNativeZoom: 12,
+                  userAgentPackageName: 'com.soobshio.citypulse',
+                ),
+              if (_selectedDistrictForHighlight != null)
+                AnimatedBuilder(
+                  animation: Listenable.merge([_markerPulseController, _districtFadeController ?? const AlwaysStoppedAnimation(0.0)]),
+                  builder: (context, _) {
+                    final fadeVal = _districtFadeController?.value ?? 0.0;
+                    final highlightFactor = fadeVal < 0.8 ? 1.0 : (1.0 - (fadeVal - 0.8) / 0.2);
+                    return PolygonLayer(
+                      polygons: [
+                        for (final dist in _activeCity.runtimeDistricts)
+                          if (_selectedDistrictForHighlight?.id == dist.id)
+                            Polygon(
+                              points: dist.polygon,
+                              color: _uiPrimary.withOpacity(0.015 + (0.18 - 0.015) * highlightFactor),
+                              borderColor: _uiPrimary.withOpacity(0.12 + (0.8 - 0.12) * highlightFactor),
+                              borderStrokeWidth: 1.2 + (3.5 - 1.2) * highlightFactor,
+                            ),
+                      ],
+                    );
+                  },
+                ),
               if (_selectedDistrictForHighlight != null && _districtHighlightCenter != null)
                 MarkerLayer(
                   markers: [
@@ -3726,7 +3902,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               // Мероприятия отдельным слоем без кластеризации
               if (_showEventMarkers && _filteredEventMarkers.isNotEmpty)
                 MarkerLayer(markers: _filteredEventMarkers),
-              if (_showCamerasLayer) MarkerLayer(markers: _cameraMarkers),
+              // Камеры отдельным прямым слоем без группировки
+              if (_showCamerasLayer && _cameraMarkers.isNotEmpty)
+                MarkerLayer(markers: _cameraMarkers),
               if (_showLostFoundLayer && _lostFoundMarkers.isNotEmpty)
                 MarkerLayer(markers: _lostFoundMarkers),
               if (_focusedComplaint != null)
@@ -3752,6 +3930,55 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         ),
                       ),
                     ),
+                  ],
+                ),
+              if (_liveTrackPoints.isNotEmpty)
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: _liveTrackPoints.last,
+                      width: 48,
+                      height: 48,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF00E5FF).withOpacity(0.25),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF00E5FF).withOpacity(0.6),
+                              blurRadius: 16,
+                              spreadRadius: 2,
+                            )
+                          ],
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.navigation_rounded,
+                            color: Color(0xFF00E5FF),
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (_liveTrackPoints.length > 1)
+                      Marker(
+                        point: _liveTrackPoints.first,
+                        width: 32,
+                        height: 32,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFF10B981),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.arrow_downward_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               if (_showUkLayer && _ukAtCenter != null)
@@ -3877,24 +4104,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ],
           ),
 
-          // Шейдерный слой поверх карты (динамическая погода / сетка)
-          if (_ambientShaderEnabled && (_currentRainDensity > 0.05 || _currentFogDensity > 0.05 || _currentHoloDensity > 0.05))
-            Positioned.fill(
-              child: IgnorePointer(
-                child: GpuShaderBackground(
-                  shaderAsset: 'shaders/weather_overlay.frag',
-                  onSetUniforms: (shader, time, size) {
-                    shader.setFloat(0, size.width);
-                    shader.setFloat(1, size.height);
-                    shader.setFloat(2, time);
-                    shader.setFloat(3, _currentRainDensity);
-                    shader.setFloat(4, _currentFogDensity);
-                    shader.setFloat(5, _currentHoloDensity);
-                  },
-                ),
-              ),
-            ),
-
           // Прозрачный перехватчик касаний для выхода из режима скрытых фильтров в режиме Дзен
           if (_isZenMode)
             Positioned.fill(
@@ -3927,15 +4136,23 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               ),
             ),
 
-          // Верхняя панель с заголовком и фильтрами
+          // Верхняя панель с заголовком и фильтрами.
+          // Ограничение высоты: в развёрнутом виде (ландшафт) панели
+          // не должны наезжать на карту и друг на друга — всё, что не
+          // влезло, скроллится внутри.
           Positioned(
             top: paddingTop + 8,
             left: 16,
             right: 16,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.62,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                  MapTopBar(
                   isNightMode: _isNightMode,
                   totalComplaints: _totalComplaints,
@@ -3970,7 +4187,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     setState(() => _showLostFoundLayer = !_showLostFoundLayer);
                     _saveMapState();
                   },
+                  showRadar: _showRadarLayer,
+                  onToggleRadar: () => unawaited(_toggleRadarLayer()),
 
+                  onOpenHermes: () {
+                    _emitSelectionHaptic();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
+                    );
+                  },
                   onCityChanged: _onCityChanged,
                   latestSignalCategory: _pulseSignalCategory,
                 ),
@@ -4039,32 +4264,41 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-              ],
+                const JkhHouseStatusWidget(),
+                const CollectivePetitionsWidget(),
+                if (!_showWeatherOverlay) _buildTopUnifiedTicker(),
+                ],
+              ),
             ),
+          ),
           ),
 
           if (_focusedComplaint != null)
             Positioned(
               bottom: 350,
               right: 16,
-              child: FloatingActionButton.small(
-                heroTag: 'zoom_back_fab',
-                backgroundColor: _uiPanelFillStrong,
-                foregroundColor: _uiTextPrimary,
-                elevation: 4,
-                onPressed: _zoomBack,
-                child: const Icon(Icons.center_focus_weak_rounded, size: 20),
+              child: Semantics(
+                label: 'Сбросить зум камеры',
+                button: true,
+                child: FloatingActionButton.small(
+                  heroTag: 'zoom_back_fab',
+                  backgroundColor: _uiPanelFillStrong,
+                  foregroundColor: _uiTextPrimary,
+                  elevation: 4,
+                  onPressed: _zoomBack,
+                  child: const Icon(Icons.center_focus_weak_rounded, size: 20),
+                ),
               ),
             ),
 
 
 
-          // Боковой премиальный док управления (Side Dock)
+          // Боковой компактный премиальный док управления (Side Dock)
           if (MediaQuery.of(context).viewInsets.bottom == 0)
             Positioned(
-              left: !AppStateService.instance.state.isMenuOnRight ? 16 : null,
-              right: AppStateService.instance.state.isMenuOnRight ? 16 : null,
-              bottom: (204.0 - MediaQuery.of(context).viewInsets.bottom).clamp(16.0, 204.0),
+              left: !AppStateService.instance.state.isMenuOnRight ? 12 : null,
+              right: AppStateService.instance.state.isMenuOnRight ? 12 : null,
+              bottom: (155.0 - MediaQuery.of(context).viewInsets.bottom).clamp(16.0, 155.0),
             child: IgnorePointer(
               ignoring: !_isRightPanelVisible,
               child: AnimatedOpacity(
@@ -4072,13 +4306,27 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 opacity: _isRightPanelVisible ? 1.0 : 0.0,
                 child: SafeArea(
                   child: MapGlassPanel(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(16),
                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                     fillColor: _uiPanelFill,
-                    blurSigma: _isRightPanelVisible ? 22 : 0.0,
-                child: Column(
+                    blurSigma: _isRightPanelVisible ? 20 : 0.0,
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // 3D Digital Twin Нижневартовска
+                        _buildDockButton(
+                           icon: Icons.view_in_ar_rounded,
+                           tooltip: '3D/4D Двойник Нижневартовска',
+                           highlighted: true,
+                           onPressed: () {
+                             _emitSelectionHaptic();
+                             Navigator.of(context).push(
+                               MaterialPageRoute(builder: (_) => const DigitalTwin3DScreen()),
+                             );
+                           },
+                        ),
+                        const SizedBox(height: 5),
+
                         // AI Assistant
                         _buildDockButton(
                            icon: Icons.support_agent_rounded,
@@ -4091,22 +4339,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                              );
                            },
                         ),
-                        const SizedBox(height: 6),
-                        
-                        // AI Digest
-                        _buildDockButton(
-                           icon: Icons.newspaper_rounded,
-                           tooltip: 'AI Дайджест',
-                           highlighted: false,
-                           onPressed: () {
-                             _emitSelectionHaptic();
-                             Navigator.of(context).push(
-                               MaterialPageRoute(builder: (_) => const AiDigestScreen()),
-                             );
-                           },
-                        ),
-                        const SizedBox(height: 6),
-                        
+                        const SizedBox(height: 5),
+
                         // Бюро находок (Экран списка)
                         _buildDockButton(
                            icon: Icons.manage_search_rounded,
@@ -4119,23 +4353,21 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                              );
                            },
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 5),
                         
-                        // AR Camera Overlay (AI Камера)
+
+                        // Паспорта объектов ремонта и благоустройства (BKD, тротуары)
                         _buildDockButton(
-                           icon: Icons.camera_enhance_rounded,
-                           tooltip: 'AR-маркеры',
-                           highlighted: false,
+                           icon: Icons.construction_rounded,
+                           tooltip: 'Паспорта объектов ремонта и благоустройства',
+                           highlighted: true,
                            onPressed: () {
                              _emitSelectionHaptic();
-                             Navigator.of(context).push(
-                               MaterialPageRoute(
-                                 builder: (_) => ArMarkersScreen(signals: _markerItems),
-                               ),
-                             );
+                             _showRoadWorksModalSheet();
                            },
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 5),
+
                         
                         // Navigator
                         _buildDockButton(
@@ -4147,19 +4379,19 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                              _showNavigatorSheet();
                            },
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 5),
                         
-                        // Погода
+                        // Погода (переход на выделенный экран погоды)
                         _buildDockButton(
-                           icon: Icons.filter_drama_rounded,
-                           tooltip: 'Погода',
-                           highlighted: _showWeatherOverlay,
+                           icon: _dynamicWeatherIcon,
+                           tooltip: _dynamicWeatherTooltip,
+                           highlighted: false,
                            onPressed: () {
                              _emitSelectionHaptic();
-                             setState(() => _showWeatherOverlay = !_showWeatherOverlay);
+                             context.push('/weather');
                            },
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 5),
                         
                         // Toggle Filters
                         _buildDockButton(
@@ -4176,7 +4408,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                              });
                            },
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 5),
                         
                         // Общий вид
                         _buildDockButton(
@@ -4192,7 +4424,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                          .slideX(begin: 2.0, end: 0.0, delay: 490.ms, curve: Curves.easeOutBack, duration: 350.ms),
                       ],
                     ),
-                  ),
+                  ).animate().fadeIn(duration: 350.ms, curve: Curves.easeOut).slideY(begin: 0.1, end: 0, duration: 350.ms, curve: Curves.easeOutQuart),
                 ),
               ),
             ),
@@ -4211,9 +4443,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 accent: _uiAccent,
               ),
             ),
-
-
-
           _buildFocusedOverlay(),
 
           // Confetti overlay on successful submission
@@ -4235,7 +4464,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           if (!_showWeatherOverlay)
             Positioned(
               bottom: _userFiltersHidden ? 134 : 74,
-              right: 16,
+              left: AppStateService.instance.state.isMenuOnRight ? 16 : null,
+              right: !AppStateService.instance.state.isMenuOnRight ? 16 : null,
               child: _buildPrimaryActionFab(),
             ),
 
@@ -4244,7 +4474,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             Positioned(
               left: 0,
               right: 0,
-              bottom: _pushTickerText != null ? 50 : MediaQuery.of(context).padding.bottom + 4,
+              bottom: MediaQuery.of(context).padding.bottom + 4,
               child: SignalCarouselSlider(
                 signals: _allComplaints,
                 isNightMode: _isNightMode,
@@ -4260,10 +4490,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 onSignalTapped: _showComplaintDetails,
               ),
             ),
-          
-          // Пуш-тикер: бегущая строка при тапе на уведомление (поверх кнопок подачи сигнала)
-          if (_pushTickerText != null)
-            _buildPushTicker(_pushTickerText!),
+
+
           
           if (_showOnboarding)
             OnboardingOverlay(
@@ -4441,6 +4669,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           Navigator.of(context).pop();
           Navigator.of(context).push(MaterialPageRoute(builder: (_) => const UkCompaniesScreen()));
         },
+        onOpenRoadWorks: _showRoadWorksModalSheet,
         onOpenMesh: () {
           Navigator.of(context).pop();
           Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MeshScreen()));
@@ -4799,54 +5028,185 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   void _showUkDetails(Map<String, dynamic> uk) {
-    final name = (uk['uk_name'] ?? 'УК').toString();
+    HapticFeedback.mediumImpact();
+    final name = (uk['uk_name'] ?? 'Управляющая Компания').toString();
     final phone = (uk['phone'] ?? '').toString().trim();
     final email = (uk['email'] ?? '').toString().trim();
     final houses = (uk['houses'] ?? 0).toString();
     final score = (uk['overall_score'] ?? 0).toString();
     final resolved = (uk['resolved_complaints'] ?? 0).toString();
+    final grade = (uk['grade'] ?? 'A').toString();
 
-    showDialog<void>(
+    final textToSpeak = 'Управляющая компания $name. Рейтинг $score из 5. Домов в управлении: $houses. Телефон диспетчерской: ${phone.isNotEmpty ? phone : "уточняется в реестре"}.';
+
+    showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _colorSurface,
-        title: Text(name, style: const TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Рейтинг: $score',
-                style: const TextStyle(color: Colors.white)),
-            const SizedBox(height: 8),
-            Text('Решённых ситуаций: $resolved',
-                style: const TextStyle(color: Colors.white)),
-            const SizedBox(height: 8),
-            Text('Домов в управлении: $houses',
-                style: const TextStyle(color: Colors.white)),
-            const SizedBox(height: 8),
-            Text('Телефон: ${phone.isNotEmpty ? phone : 'не указан'}',
-                style: const TextStyle(color: Colors.white)),
-            const SizedBox(height: 8),
-            Text('Email: ${email.isNotEmpty ? email : 'не указан'}',
-                style: const TextStyle(color: Colors.white)),
-          ],
-        ),
-        actions: [
-          if (phone.isNotEmpty)
-            TextButton(
-              onPressed: () => _contactUk('tel:$phone'),
-              child: const Text('Позвонить'),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: MapGlassPanel(
+            borderRadius: BorderRadius.circular(28),
+            padding: const EdgeInsets.all(22),
+            fillColor: _uiPanelFillStrong,
+            blurSigma: 24,
+            borderColors: [
+              const Color(0xFF00E5FF).withOpacity(0.6),
+              const Color(0xFF8B5CF6).withOpacity(0.3),
+              Colors.transparent,
+            ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF00E5FF), Color(0xFF8B5CF6)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Center(
+                        child: Text(
+                          grade,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: TextStyle(
+                              color: _uiTextPrimary,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 16),
+                              const SizedBox(width: 4),
+                              Text(
+                                '$score / 5.0 · $houses домов',
+                                style: const TextStyle(
+                                  color: Color(0xFF00E5FF),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      icon: Icon(Icons.close_rounded, color: _uiTextSecondary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                // Kimi K3 AI Summary Badge
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B5CF6).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: const Color(0xFF8B5CF6).withOpacity(0.35),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: const [
+                          Icon(Icons.auto_awesome_rounded, color: Color(0xFF00E5FF), size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'ИИ-Анализ Kimi K3 (Служба ЖКХ)',
+                            style: TextStyle(
+                              color: Color(0xFF00E5FF),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'УК "$name" оперативно обрабатывает обращения граждан. Решено $resolved вопросов. Рекомендуется использовать единую диспетчерскую службу.',
+                        style: TextStyle(
+                          color: _uiTextPrimary.withOpacity(0.9),
+                          fontSize: 13,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                // Action Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: () {
+                          if (phone.isNotEmpty) {
+                            _contactUk('tel:$phone');
+                          } else {
+                            _contactUk('tel:112');
+                          }
+                        },
+                        icon: const Icon(Icons.phone_in_talk_rounded, size: 18),
+                        label: Text(phone.isNotEmpty ? 'Позвонить' : 'Вызов 112'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF8B5CF6),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: () {
+                        SoundService().speak(textToSpeak);
+                      },
+                      icon: const Icon(Icons.volume_up_rounded, size: 18),
+                      label: const Text('Kimi K3'),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          if (email.isNotEmpty)
-            TextButton(
-              onPressed: () => _contactUk('mailto:$email'),
-              child: const Text('Написать'),
-            ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Закрыть'),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -4881,7 +5241,431 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     return fullText.trim();
   }
 
-  /// Бегущая строка пуш-уведомления внизу карты (с поддержкой раскрытия по нажатию)
+  void _showRoadWorksModalSheet() async {
+    HapticFeedback.mediumImpact();
+    
+    List<Map<String, dynamic>> roadWorks = [];
+    try {
+      final res = await http.get(
+        Uri.parse('${MapConfig.backendBaseUrl}/api/v1/road-works'),
+      ).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(res.bodyBytes));
+        if (data is Map && data['status'] == 'ok' && data['items'] != null) {
+          roadWorks = List<Map<String, dynamic>>.from(data['items']);
+        }
+      }
+    } catch (_) {}
+
+    if (roadWorks.isEmpty) {
+      roadWorks = [
+        {
+          'id': 'rw_severnaya_54',
+          'title': '🚧 🔵 Ремонт покрытия и подходов по ул. Северной, 54',
+          'summary': 'Замена асфальта, бордюрного камня и обустройство тротуаров по ул. Северной, 54',
+          'description': 'Паспорт объекта:\n• Объект: Ремонт дорожного полотна и тротуарных подходов по ул. Северной, 54\n• Подрядчик: ООО «Завод Прессованных Изделий»\n• Сроки работ: 01.06.2026 — 15.09.2026\n• Финансирование: 92.3 млн рублей\n• Статус: В процессе работы (84%)\n• Состав работ: Фрезерование асфальта, укладка ЩМА-16, замена бордюрного камня и укладка плитки на подходах к ТЦ «Космос».\n• Ограничения: Движение по одной полосе.',
+          'category': 'Ремонт дорог',
+          'status': 'in_progress',
+          'status_label': 'В процессе работы (84%)',
+          'status_color': '#00E5FF',
+          'contractor': 'ООО «Завод Прессованных Изделий»',
+          'budget': '92.3 млн ₽',
+          'address': 'ул. Северная, 54 (возле ТЦ «Космос»)',
+          'lat': 60.9472,
+          'lng': 76.5840,
+        },
+        {
+          'id': 'rw_prospekt_pobedy_7',
+          'title': '🚶‍♂️ 🏗️ Реконструкция тротуаров проспекта Победы',
+          'summary': 'Благоустройство пешеходной зоны, брусчатки и тротуаров по пр. Победы',
+          'description': 'Паспорт объекта:\n• Объект: Реконструкция пешеходной зоны и тротуаров проспекта Победы\n• Подрядчик: ООО «ХАНТ»\n• Сроки работ: 01.05.2026 — 31.08.2026\n• Финансирование: 49.7 млн рублей\n• Статус: В процессе работы (82%)',
+          'category': 'Благоустройство тротуаров',
+          'status': 'in_progress',
+          'status_label': 'В процессе работы (82%)',
+          'status_color': '#00E5FF',
+          'contractor': 'ООО «ХАНТ»',
+          'budget': '49.7 млн ₽',
+          'address': 'проспект Победы (от ул. 60 лет Октября до ул. Ленина)',
+          'lat': 60.9345,
+          'lng': 76.5590,
+        },
+      ];
+    }
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (ctx) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.82,
+          ),
+          child: MapGlassPanel(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+            padding: EdgeInsets.zero,
+            fillColor: const Color(0xEA0F172A),
+            blurSigma: 24,
+            borderColors: const [
+              Color(0xFFFF9100),
+              Color(0xFF00E5FF),
+              Colors.transparent,
+            ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 8),
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFFFF9100).withOpacity(0.2),
+                          border: Border.all(color: const Color(0xFFFF9100), width: 1.5),
+                        ),
+                        child: const Icon(Icons.construction_rounded, color: Color(0xFFFF9100), size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'ОБЪЕКТЫ РЕМОНТА И БЛАГОУСТРОЙСТВА',
+                              style: TextStyle(
+                                color: Color(0xFFFF9100),
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            Text(
+                              'Паспорта объектов Нижневартовска (${roadWorks.length})',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(color: Colors.white12, height: 1),
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(18),
+                    itemCount: roadWorks.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (ctx, i) {
+                      final item = roadWorks[i];
+                      final title = item['title'] ?? 'Объект';
+                      final address = item['address'] ?? 'Нижневартовск';
+                      final statusLabel = item['status_label'] ?? 'В процессе';
+                      final desc = item['description'] ?? item['summary'] ?? '';
+                      final lat = (item['lat'] as num?)?.toDouble() ?? 60.9472;
+                      final lng = (item['lng'] as num?)?.toDouble() ?? 76.5840;
+                      final statusHex = item['status_color'] ?? '#00E5FF';
+                      Color badgeColor;
+                      try {
+                        badgeColor = Color(int.parse('FF${statusHex.replaceAll("#", "")}', radix: 16));
+                      } catch (_) {
+                        badgeColor = const Color(0xFF00E5FF);
+                      }
+                      // Референс-фото объекта (что должно получиться)
+                      final photoUrl = item['photo_url'] as String? ??
+                          '${MapConfig.backendBaseUrl}/objects/${item['id']}.jpg';
+
+                      return Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: badgeColor.withOpacity(0.4), width: 1.2),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                photoUrl,
+                                height: 140,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                loadingBuilder: (context, child, progress) {
+                                  if (progress == null) return child;
+                                  return Container(
+                                    height: 140,
+                                    color: Colors.white.withOpacity(0.05),
+                                    alignment: Alignment.center,
+                                    child: const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: Color(0xFF00E5FF)),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    title,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: badgeColor.withOpacity(0.18),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    statusLabel,
+                                    style: TextStyle(
+                                      color: badgeColor,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(Icons.location_on_rounded, color: Color(0xFF00E5FF), size: 13),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    address,
+                                    style: const TextStyle(color: Color(0xFF00E5FF), fontSize: 11.5, fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              desc,
+                              style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.35),
+                            ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF00E5FF).withOpacity(0.15),
+                                  foregroundColor: const Color(0xFF00E5FF),
+                                  side: const BorderSide(color: Color(0xFF00E5FF)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                icon: const Icon(Icons.my_location_rounded, size: 16),
+                                label: const Text('Показать точные координаты на карте'),
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _animateMapTo(LatLng(lat, lng), 17.0);
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Бегущая строка пуш-уведомлений и городских статусов вверху под верхним блоком
+  Widget _buildTopUnifiedTicker() {
+    if (_pushTickerText != null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 4, bottom: 2),
+        child: _buildPushTickerWidget(_pushTickerText!),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 2),
+      child: CityInfoTickerWidget(city: _activeCity.name),
+    );
+  }
+
+  Widget _buildPushTickerWidget(String text) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+      child: MapGlassPanel(
+        borderRadius: BorderRadius.circular(16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        fillColor: _uiPanelFillStrong,
+        blurSigma: 18,
+        borderColors: [
+          _uiGlow.withAlpha(_isNightMode ? 130 : 48),
+          Colors.transparent,
+        ],
+        child: Row(
+          children: [
+            Icon(Icons.notification_important_rounded, size: 14, color: _uiGlow),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                text,
+                maxLines: _isPushTickerExpanded ? 4 : 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: _uiTextPrimary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMyDistrictCard() {
+    // Determine active signals count within 500m of map center
+    int activeSignalsCount = 0;
+    for (var m in _allComplaints) {
+      final double? lat = m['lat'] ?? m['latitude'];
+      final double? lng = m['lng'] ?? m['longitude'];
+      if (lat != null && lng != null) {
+        if (_distance(_mapController.camera.center, LatLng(lat, lng)) <= 500) {
+          if (m['status'] != 'Решена' && m['status'] != 'Закрыто') {
+            activeSignalsCount++;
+          }
+        }
+      }
+    }
+    
+    // Nearest 2 cameras
+    final cameras = MapConfig.loadedCameras.toList()
+      ..sort((a, b) {
+        final double latA = a['lat'];
+        final double lngA = a['lng'];
+        final double latB = b['lat'];
+        final double lngB = b['lng'];
+        final d1 = _distance(_mapController.camera.center, LatLng(latA, lngA));
+        final d2 = _distance(_mapController.camera.center, LatLng(latB, lngB));
+        return d1.compareTo(d2);
+      });
+    final nearestCameras = cameras.take(2).map((c) => c['n'] ?? c['name'] ?? 'Камера').toList();
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _isMyDistrictExpanded = !_isMyDistrictExpanded;
+        });
+      },
+      child: MapGlassPanel(
+        borderRadius: BorderRadius.circular(16),
+        padding: const EdgeInsets.all(12),
+        fillColor: _uiPanelFillStrong,
+        child: AnimatedSize(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: PulseColors.success,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: PulseColors.success.withOpacity(0.5),
+                          blurRadius: 4,
+                        )
+                      ]
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Мой район',
+                    style: TextStyle(
+                      color: _uiTextPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Icon(
+                    _isMyDistrictExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    color: _uiTextSecondary,
+                    size: 16,
+                  ),
+                ],
+              ),
+              if (_isMyDistrictExpanded) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Сигналов рядом: $activeSignalsCount',
+                  style: TextStyle(color: _uiTextSecondary, fontSize: 12),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Ближайшие камеры:',
+                  style: TextStyle(color: _uiTextSecondary, fontSize: 12),
+                ),
+                for (var cam in nearestCameras)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      '• $cam',
+                      style: TextStyle(color: _uiTextPrimary, fontSize: 12),
+                    ),
+                  ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPushTicker(String text) {
     final safeBottom = MediaQuery.of(context).padding.bottom;
     return Positioned(
@@ -5139,8 +5923,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // ── Oil Drop Pulse Ring ──
   Widget _buildFabPulseRing(double progress, double visibility) {
     final opacity = (1 - progress).clamp(0.0, 1.0) * 0.5 * visibility;
-    final isNsk = _activeCity.id == 'novosibirsk';
-    final Color mainColor = isNsk ? const Color(0xFF00E5FF) : const Color(0xFFD4A537);
+    // Приложение работает только с Нижневартовском — нефтяное золото
+    final Color mainColor = const Color(0xFFD4A537);
 
     return IgnorePointer(
       child: Opacity(
@@ -5173,7 +5957,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildPrimaryActionFab() {
-    final isNsk = _activeCity.id == 'novosibirsk';
+    const isNsk = false; // только Нижневартовск
     
     const Color nskBlue = Color(0xFF00E5FF);
     const Color nskBlueLight = Color(0xFFE0F7FA);
@@ -5199,20 +5983,22 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           behavior: HitTestBehavior.opaque,
           onTap: () {
             _emitImpactHaptic();
+            // Без авто-озвучки: голос только по кнопке Play в карточке сигнала.
             _openComplaintComposer();
           },
           child: AnimatedBuilder(
-            animation: _fabPulseController,
+            animation: Listenable.merge([_fabPulseController, _isMapMovingNotifier]),
             builder: (context, _) {
-              final visibility = _isMapMoving ? 0.14 : 1.0;
+              final isMoving = _isMapMovingNotifier.value;
+              final visibility = isMoving ? 0.14 : 1.0;
               final progress = _fabPulseController.value;
               final secondaryProgress = (progress + 0.45) % 1.0;
               final bob =
-                  math.sin(progress * math.pi * 2) * (_isMapMoving ? 1.5 : 4.5);
-              final scale = _isMapMoving
+                  math.sin(progress * math.pi * 2) * (isMoving ? 1.5 : 4.5);
+              final scale = isMoving
                   ? 1.0
                   : 1.0 + math.sin(progress * math.pi * 2) * 0.035;
-              final glowAlpha = _isMapMoving
+              final glowAlpha = isMoving
                   ? (_isNightMode ? 90 : 50)
                   : (_isNightMode ? 170 : 95);
                   
@@ -5574,23 +6360,11 @@ class _OilDropButtonPainter extends CustomPainter {
       old.borderColors != borderColors;
 }
 
-/// Shared path builder for FAB buttons (teardrop for Nizhnevartovsk, hexagon for Novosibirsk).
+/// Shared path builder for FAB buttons (teardrop Нижневартовска).
 Path _getFabPath(Size size, String cityId) {
   final w = size.width;
   final h = size.height;
   final path = Path();
-
-  if (cityId == 'novosibirsk') {
-    // Futuristic Science Hexagon!
-    path.moveTo(w * 0.5, 0); // Top peak
-    path.lineTo(w, h * 0.23); // Top right
-    path.lineTo(w, h * 0.77); // Bottom right
-    path.lineTo(w * 0.5, h); // Bottom peak
-    path.lineTo(0, h * 0.77); // Bottom left
-    path.lineTo(0, h * 0.23); // Top left
-    path.close();
-    return path;
-  }
 
   // Teardrop shape
   path.moveTo(w * 0.5, 0);

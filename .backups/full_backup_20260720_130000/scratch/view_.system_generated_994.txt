@@ -1,0 +1,208 @@
+Created At: 2026-06-23T03:31:14Z
+Completed At: 2026-06-23T03:31:14Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1798
+Total Bytes: 74888
+Showing lines 951 to 1150
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+951:                               crossAxisAlignment: CrossAxisAlignment.start,
+952:                               children: [
+953:                                 Row(
+954:                                   crossAxisAlignment: CrossAxisAlignment.end,
+955:                                   children: [
+956:                                     Text(
+957:                                       _displayTemp == null ? '—' : '$_displayTemp°',
+958:                                       style: TextStyle(
+959:                                         color: widget.isNightMode
+960:                                             ? Colors.white
+961:                                             : const Color(0xFF0A2540),
+962:                                         fontSize: 76,
+963:                                         fontWeight: FontWeight.w200,
+964:                                         height: 0.95,
+965:                                         letterSpacing: -2,
+966:                                       ),
+967:                                     ),
+968:                                     const SizedBox(width: 12),
+969:                                     Padding(
+970:                                       padding: const EdgeInsets.only(bottom: 8),
+971:                                       child: Column(
+972:                                         crossAxisAlignment: CrossAxisAlignment.start,
+973:                                         children: [
+974:                                           Text(
+975:                                             _displayCondition,
+976:                                             style: TextStyle(
+977:                                               color: widget.accent,
+978:                                               fontSize: 18,
+979:                                               fontWeight: FontWeight.w700,
+980:                                             ),
+981:                                           ),
+982:                                           if (_displayHumidity != null) ...[
+983:                                             const SizedBox(height: 2),
+984:                                             Text(
+985:                                               'Влажность $_displayHumidity%',
+986:                                               style: TextStyle(
+987:                                                 color: widget.isNightMode ? Colors.white70 : Colors.black54,
+988:                                                 fontSize: 13,
+989:                                                 fontWeight: FontWeight.w600,
+990:                                               ),
+991:                                             ),
+992:                                           ],
+993:                                         ],
+994:                                       ),
+995:                                     ),
+996:                                   ],
+997:                                 ),
+998:                                 if (_displayFeels != null)
+999:                                   Padding(
+1000:                                     padding: const EdgeInsets.only(top: 4, bottom: 16),
+1001:                                     child: Text(
+1002:                                       'Ощущается как $_displayFeels°',
+1003:                                       style: TextStyle(
+1004:                                         color: widget.isNightMode
+1005:                                             ? Colors.white54
+1006:                                             : Colors.black45,
+1007:                                         fontSize: 13,
+1008:                                       ),
+1009:                                     ),
+1010:                                   ),
+1011:                                 
+1012:                                 // Interactive weather animation selector
+1013:                                 _buildConditionSelector(),
+1014:                                 
+1015:                                 const SizedBox(height: 16),
+1016:                                 
+1017:                                 TiltWidget(
+1018:                                   child: _buildGlassCard(
+1019:                                     child: Column(
+1020:                                       crossAxisAlignment: CrossAxisAlignment.start,
+1021:                                       children: [
+1022:                                         Text(
+1023:                                           'Качество воздуха',
+1024:                                           style: TextStyle(
+1025:                                             color: widget.isNightMode
+1026:                                                 ? Colors.white70
+1027:                                                 : Colors.black54,
+1028:                                             fontSize: 12,
+1029:                                             fontWeight: FontWeight.w700,
+1030:                                           ),
+1031:                                         ),
+1032:                                         const SizedBox(height: 6),
+1033:                                         Text(
+1034:                                           _displayAqiLevel.toUpperCase(),
+1035:                                           style: TextStyle(
+1036:                                             color: _aqColor(_displayAqiValue),
+1037:                                             fontSize: 26,
+1038:                                             fontWeight: FontWeight.w800,
+1039:                                           ),
+1040:                                         ),
+1041:                                         if (_displayAqiSummary.isNotEmpty)
+1042:                                           Padding(
+1043:                                             padding: const EdgeInsets.only(top: 6),
+1044:                                             child: Text(
+1045:                                               _displayAqiSummary,
+1046:                                               style: TextStyle(
+1047:                                                 color: widget.isNightMode
+1048:                                                     ? Colors.white60
+1049:                                                     : Colors.black54,
+1050:                                                 fontSize: 12,
+1051:                                                 height: 1.4,
+1052:                                               ),
+1053:                                             ),
+1054:                                           ),
+1055:                                       ],
+1056:                                     ),
+1057:                                   ),
+1058:                                 ),
+1059:                                 
+1060:                                 const SizedBox(height: 12),
+1061:                                 
+1062:                                 TiltWidget(
+1063:                                   child: _buildGlassCard(
+1064:                                     child: Column(
+1065:                                       crossAxisAlignment: CrossAxisAlignment.start,
+1066:                                       children: [
+1067:                                         Text(
+1068:                                           'Параметры атмосферы и космоса',
+1069:                                           style: TextStyle(
+1070:                                             color: widget.isNightMode
+1071:                                                 ? Colors.white70
+1072:                                                 : Colors.black54,
+1073:                                             fontSize: 12,
+1074:                                             fontWeight: FontWeight.w700,
+1075:                                           ),
+1076:                                         ),
+1077:                                         const SizedBox(height: 12),
+1078:                                         Row(
+1079:                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1080:                                           children: [
+1081:                                             _spaceParam(
+1082:                                               Icons.compress_rounded,
+1083:                                               'Давление',
+1084:                                               _displayPressure != null ? '${_displayPressure!.round()} мм рт. ст.' : '—',
+1085:                                             ),
+1086:                                             _spaceParam(
+1087:                                               Icons.wb_sunny_rounded,
+1088:                                               'Вспышки',
+1089:                                               _displaySolarFlare != null ? 'Класс $_displaySolarFlare' : '—',
+1090:                                             ),
+1091:                                           ],
+1092:                                         ),
+1093:                                         const Divider(height: 24, color: Colors.white10),
+1094:                                         Row(
+1095:                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1096:                                           children: [
+1097:                                             _spaceParam(
+1098:                                               Icons.waves_rounded,
+1099:                                               'Резонанс Шумана',
+1100:                                               _displaySchumannFreq != null
+1101:                                                   ? '$_displaySchumannFreq Гц'
+1102:                                                   : '—',
+1103:                                             ),
+1104:                                             _spaceParam(
+1105:                                               Icons.flash_on_rounded,
+1106:                                               'Амплитуда',
+1107:                                               _displaySchumannAmp != null
+1108:                                                   ? '$_displaySchumannAmp pT'
+1109:                                                   : '—',
+1110:                                             ),
+1111:                                           ],
+1112:                                         ),
+1113:                                         const Divider(height: 24, color: Colors.white10),
+1114:                                         Row(
+1115:                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1116:                                           children: [
+1117:                                             _spaceParam(
+1118:                                               Icons.air_rounded,
+1119:                                               'Ветер',
+1120:                                               _displayWindSpeed != null
+1121:                                                   ? '${_displayWindSpeed!.toStringAsFixed(0)} м/с'
+1122:                                                   : '—',
+1123:                                             ),
+1124:                                             _spaceParam(
+1125:                                               Icons.storm_rounded,
+1126:                                               'Порывы',
+1127:                                               _displayWindGusts != null
+1128:                                                   ? '${_displayWindGusts!.toStringAsFixed(0)} м/с'
+1129:                                                   : '—',
+1130:                                             ),
+1131:                                           ],
+1132:                                         ),
+1133:                                       ],
+1134:                                     ),
+1135:                                   ),
+1136:                                 ),
+1137:                               ],
+1138:                             )
+1139:                           : Column(
+1140:                               crossAxisAlignment: CrossAxisAlignment.start,
+1141:                               children: [
+1142:                                 if (_hasAnomaly) ...[
+1143:                                   Text(
+1144:                                     'Геокосмические предупреждения',
+1145:                                     style: TextStyle(
+1146:                                       fontSize: 12,
+1147:                                       fontWeight: FontWeight.w700,
+1148:                                       color: widget.isNightMode ? Colors.white60 : Colors.black54,
+1149:                                     ),
+1150:                                   ),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

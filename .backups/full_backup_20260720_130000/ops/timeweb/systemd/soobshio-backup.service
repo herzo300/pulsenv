@@ -1,0 +1,8 @@
+[Unit]
+Description=Soobshio Runtime Backup
+After=soobshio-stack.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/soobshio
+ExecStart=/opt/soobshio/scripts/maintenance/backup_runtime.sh /opt/soobshio/.env.production /opt/soobshio/backups

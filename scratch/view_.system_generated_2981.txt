@@ -1,0 +1,139 @@
+Created At: 2026-06-22T07:50:18Z
+Completed At: 2026-06-22T07:50:18Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1587
+Total Bytes: 62310
+Showing lines 1350 to 1480
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1350: 
+1351:   @override
+1352:   bool shouldRepaint(covariant _WeatherAmbientPainter oldDelegate) =>
+1353:       oldDelegate.progress != progress || oldDelegate.kind != kind;
+1354: }
+1355: 
+1356: /// Bottom marquee for city alerts and weather warnings.
+1357: class CityAlertTicker extends StatefulWidget {
+1358:   const CityAlertTicker({
+1359:     super.key,
+1360:     required this.data,
+1361:     required this.isNightMode,
+1362:     required this.accent,
+1363:     this.useWeatherOnly = false,
+1364:     this.useCityOnly = false,
+1365:     this.selectedCategory,
+1366:     this.customWarningText,
+1367:   });
+1368: 
+1369:   final CityAlertTickerData data;
+1370:   final bool isNightMode;
+1371:   final Color accent;
+1372:   final bool useWeatherOnly;
+1373:   final bool useCityOnly;
+1374:   final String? selectedCategory;
+1375:   final String? customWarningText;
+1376: 
+1377:   @override
+1378:   State<CityAlertTicker> createState() => _CityAlertTickerState();
+1379: }
+1380: 
+1381: class _CityAlertTickerState extends State<CityAlertTicker>
+1382:     with SingleTickerProviderStateMixin {
+1383:   late final AnimationController _scroll;
+1384: 
+1385:   @override
+1386:   void initState() {
+1387:     super.initState();
+1388:     _scroll = AnimationController(
+1389:       vsync: this,
+1390:       duration: const Duration(seconds: 28),
+1391:     )..repeat();
+1392:   }
+1393: 
+1394:   @override
+1395:   void dispose() {
+1396:     _scroll.dispose();
+1397:     super.dispose();
+1398:   }
+1399: 
+1400:   bool _isEmergencyAlert(Map<String, dynamic> item) {
+1401:     final cat = (item['category'] ?? '').toString().toLowerCase();
+1402:     final txt = (item['text'] ?? '').toString().toLowerCase();
+1403:     final hasEmergency = cat.contains('чп') || cat.contains('чрезвыч') || txt.contains('чп') || txt.contains('чрезвыч') || txt.contains('пожар') || txt.contains('взрыв');
+1404:     final hasAccident = cat.contains('авари') || cat.contains('дтп') || txt.contains('авари') || txt.contains('дтп') || txt.contains('столкн');
+1405:     final hasCrime = cat.contains('кримин') || cat.contains('преступ') || txt.contains('кримин') || txt.contains('преступ') || txt.contains('краж') || txt.contains('драка') || txt.contains('убий');
+1406:     return hasEmergency || hasAccident || hasCrime;
+1407:   }
+1408: 
+1409:   @override
+1410:   Widget build(BuildContext context) {
+1411:     String text = '';
+1412:     IconData leadingIcon = Icons.campaign_rounded;
+1413:     Color bg = widget.isNightMode ? const Color(0xB30A101C) : const Color(0xDDF0F8FF);
+1414:     Color border = widget.accent.withAlpha(90);
+1415: 
+1416:     if (widget.customWarningText != null && widget.customWarningText!.isNotEmpty) {
+1417:       text = widget.customWarningText!;
+1418:       leadingIcon = Icons.warning_amber_rounded;
+1419:       bg = const Color(0xDDF97316); // Amber/Orange warning
+1420:       border = const Color(0xFFFED7AA);
+1421:     } else if (widget.useWeatherOnly) {
+1422:       text = widget.data.weatherMarquee;
+1423:       leadingIcon = Icons.wb_cloudy_rounded;
+1424:     } else if (widget.useCityOnly) {
+1425:       final List<Map<String, dynamic>> itemsToProcess = widget.selectedCategory != null
+1426:           ? widget.data.items.where((i) {
+1427:               if (i['type'] != 'channel') return false;
+1428:               final cat = (i['category'] ?? 'Прочее').toString().trim().toLowerCase();
+1429:               final sel = widget.selectedCategory!.trim().toLowerCase();
+1430:               return cat == sel;
+1431:             }).toList()
+1432:           : widget.data.items;
+1433: 
+1434:       // Filter to only include ЧП (emergencies), accidents (аварии), and crimes (преступления)
+1435:       final filtered = itemsToProcess.where(_isEmergencyAlert).toList();
+1436: 
+1437:       if (filtered.isEmpty) {
+1438:         return const SizedBox.shrink(); // Hide the ticker block completely
+1439:       }
+1440: 
+1441:       text = filtered.map((i) => i['text'].toString()).join('   •   ');
+1442: 
+1443:       // Determine category-specific color & icon
+1444:       final hasSeriousEmergency = filtered.any((i) =>
+1445:           i['severity'].toString().toLowerCase() == 'high' &&
+1446:           (i['category'].toString().toLowerCase().contains('чп') ||
+1447:            i['text'].toString().toLowerCase().contains('чп') ||
+1448:            i['text'].toString().toLowerCase().contains('пожар') ||
+1449:            i['text'].toString().toLowerCase().contains('взрыв')));
+1450: 
+1451:       final hasEmergency = filtered.any((i) =>
+1452:           i['category'].toString().toLowerCase().contains('чп') ||
+1453:           i['text'].toString().toLowerCase().contains('чп') ||
+1454:           i['text'].toString().toLowerCase().contains('пожар') ||
+1455:           i['text'].toString().toLowerCase().contains('взрыв'));
+1456: 
+1457:       final hasAccident = filtered.any((i) =>
+1458:           i['category'].toString().toLowerCase().contains('авари') ||
+1459:           i['category'].toString().toLowerCase().contains('дтп') ||
+1460:           i['text'].toString().toLowerCase().contains('авари') ||
+1461:           i['text'].toString().toLowerCase().contains('дтп') ||
+1462:           i['text'].toString().toLowerCase().contains('столкн'));
+1463: 
+1464:       final hasCrime = filtered.any((i) =>
+1465:           i['category'].toString().toLowerCase().contains('кримин') ||
+1466:           i['category'].toString().toLowerCase().contains('преступ') ||
+1467:           i['text'].toString().toLowerCase().contains('кримин') ||
+1468:           i['text'].toString().toLowerCase().contains('преступ') ||
+1469:           i['text'].toString().toLowerCase().contains('краж') ||
+1470:           i['text'].toString().toLowerCase().contains('драка') ||
+1471:           i['text'].toString().toLowerCase().contains('убий'));
+1472: 
+1473:       if (hasSeriousEmergency) {
+1474:         bg = const Color(0xDDEB3B3B); // Red for serious ЧП
+1475:         border = const Color(0xFFFCA5A5);
+1476:         leadingIcon = Icons.error_outline_rounded;
+1477:       } else if (hasEmergency) {
+1478:         bg = const Color(0xDDFF7D1A); // Orange/Amber for medium/low ЧП
+1479:         border = const Color(0xFFFED7AA);
+1480:         leadingIcon = Icons.warning_amber_rounded;
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

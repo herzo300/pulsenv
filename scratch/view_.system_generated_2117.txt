@@ -1,0 +1,44 @@
+Created At: 2026-06-23T05:10:59Z
+Completed At: 2026-06-23T05:10:59Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1590
+Total Bytes: 65733
+Showing lines 1350 to 1385
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1350:   final String? customWarningText;
+1351: 
+1352:   @override
+1353:   State<CityAlertTicker> createState() => _CityAlertTickerState();
+1354: }
+1355: 
+1356: class _CityAlertTickerState extends State<CityAlertTicker>
+1357:     with SingleTickerProviderStateMixin {
+1358:   late final AnimationController _scroll;
+1359: 
+1360:   @override
+1361:   void initState() {
+1362:     super.initState();
+1363:     _scroll = AnimationController(
+1364:       vsync: this,
+1365:       duration: const Duration(seconds: 28),
+1366:     )..repeat();
+1367:   }
+1368: 
+1369:   @override
+1370:   void dispose() {
+1371:     _scroll.dispose();
+1372:     super.dispose();
+1373:   }
+1374: 
+1375:   bool _isEmergencyAlert(Map<String, dynamic> item) {
+1376:     final cat = (item['category'] ?? '').toString().toLowerCase();
+1377:     final txt = (item['text'] ?? '').toString().toLowerCase();
+1378:     final hasEmergency = cat.contains('чп') || cat.contains('чрезвыч') || txt.contains('чп') || txt.contains('чрезвыч') || txt.contains('пожар') || txt.contains('взрыв');
+1379:     final hasAccident = cat.contains('авари') || cat.contains('дтп') || txt.contains('авари') || txt.contains('дтп') || txt.contains('столкн');
+1380:     final hasCrime = cat.contains('кримин') || cat.contains('преступ') || txt.contains('кримин') || txt.contains('преступ') || txt.contains('краж') || txt.contains('драка') || txt.contains('убий');
+1381:     return hasEmergency || hasAccident || hasCrime;
+1382:   }
+1383: 
+1384:   @override
+1385:   Widget build(BuildContext context) {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

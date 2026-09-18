@@ -1,0 +1,87 @@
+{
+  "collections": {
+    "suggestions": {
+      "fields": {
+        "name": {
+          "type": "string",
+          "maxLength": 80,
+          "trim": true
+        },
+        "x_handle": {
+          "type": "string",
+          "maxLength": 16,
+          "trim": true
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 160,
+          "trim": true
+        },
+        "loop_title": {
+          "type": "string",
+          "required": true,
+          "maxLength": 120,
+          "trim": true
+        },
+        "instructions": {
+          "type": "string",
+          "required": true,
+          "maxLength": 3000,
+          "trim": true
+        },
+        "why_it_works": {
+          "type": "string",
+          "maxLength": 1000,
+          "trim": true
+        },
+        "source_url": {
+          "type": "string",
+          "maxLength": 300,
+          "trim": true
+        },
+        "review_status": {
+          "type": "string",
+          "maxLength": 24,
+          "trim": true
+        },
+        "review_note": {
+          "type": "string",
+          "maxLength": 500,
+          "trim": true
+        },
+        "published_slug": {
+          "type": "string",
+          "maxLength": 120,
+          "trim": true
+        },
+        "published_at": {
+          "type": "datetime"
+        }
+      },
+      "access": {
+        "read": "owner",
+        "insert": "owner",
+        "update": "owner",
+        "delete": "owner"
+      },
+      "rateLimit": "3/hour/ip"
+    },
+    "weekly_signups": {
+      "fields": {
+        "email": {
+          "type": "email",
+          "required": true,
+          "maxLength": 160,
+          "trim": true
+        }
+      },
+      "access": {
+        "read": "owner",
+        "insert": "owner",
+        "update": "owner",
+        "delete": "owner"
+      },
+      "rateLimit": "5/hour/ip"
+    }
+  }
+}

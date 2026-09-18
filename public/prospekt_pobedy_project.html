@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Паспорт проекта: Благоустройство проспекта Победы (от ул. Омской до ул. Г.И. Пикмана) | Нижневартовск</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --card-bg: rgba(22, 30, 49, 0.85);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --primary: #3b82f6;
+      --primary-glow: rgba(59, 130, 246, 0.25);
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.25);
+      --amber: #f59e0b;
+      --purple: #8b5cf6;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
+        radial-gradient(at 50% 50%, rgba(139, 92, 246, 0.05) 0px, transparent 60%);
+      background-attachment: fixed;
+      line-height: 1.6;
+      padding: 24px 16px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 28px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      margin-bottom: 12px;
+    }
+
+    .badge.active {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #ffffff 40%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      max-width: 860px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+      h1 {
+        font-size: 1.7rem;
+      }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .card:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #f1f5f9;
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .stat-box {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #38bdf8;
+    }
+
+    .stat-value.green {
+      color: #34d399;
+    }
+
+    .stat-value.amber {
+      color: #fbbf24;
+    }
+
+    /* Cross section visualization */
+    .cross-section {
+      background: #0d1322;
+      border: 1px dashed rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+
+    .section-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .profile-diagram {
+      display: flex;
+      align-items: stretch;
+      gap: 4px;
+      min-height: 100px;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .profile-seg {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 12px 6px;
+      font-size: 11px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .profile-seg:hover {
+      filter: brightness(1.2);
+      transform: scale(1.02);
+      z-index: 2;
+    }
+
+    .seg-green { background: #064e3b; color: #6ee7b7; border: 1px solid #059669; }
+    .seg-bike { background: #1e3a8a; color: #93c5fd; border: 1px solid #3b82f6; }
+    .seg-walk { background: #312e81; color: #c4b5fd; border: 1px solid #6366f1; }
+    .seg-maf { background: #78350f; color: #fde68a; border: 1px solid #d97706; }
+    .seg-road { background: #1e293b; color: #cbd5e1; border: 1px solid #475569; }
+
+    /* Timeline & Stages */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .timeline-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      padding: 12px 16px;
+    }
+
+    .stage-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .stage-num.done {
+      background: var(--accent);
+    }
+
+    .stage-info {
+      flex: 1;
+    }
+
+    .stage-name {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .stage-status {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .stage-progress {
+      width: 100px;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .stage-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #10b981);
+      border-radius: 4px;
+    }
+
+    /* List items */
+    .bullet-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .bullet-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 14px;
+      color: #cbd5e1;
+    }
+
+    .bullet-list li strong {
+      color: #fff;
+    }
+
+    .icon-check {
+      color: #10b981;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* Links & Buttons */
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(59, 130, 246, 0.2);
+      color: #93c5fd;
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      background: rgba(59, 130, 246, 0.35);
+      border-color: #60a5fa;
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
+    .btn-accent {
+      background: rgba(16, 185, 129, 0.2);
+      color: #6ee7b7;
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-accent:hover {
+      background: rgba(16, 185, 129, 0.35);
+      border-color: #34d399;
+      color: #fff;
+    }
+
+    .footer-note {
+      text-align: center;
+      margin-top: 36px;
+      font-size: 13px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="badge active">🟢 В реализации (Лето 2026)</div>
+      <h1>Паспорт проекта: Благоустройство проспекта Победы</h1>
+      <p class="subtitle">Комплексный капитальный ремонт пешеходной зоны, разделение пешеходных и велопотоков на участке от улицы Омской до улицы Г.И. Пикмана (г. Нижневартовск).</p>
+    </header>
+
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-label">Протяженность зоны</div>
+        <div class="stat-value">> 2.1 км</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Стоимость контракта</div>
+        <div class="stat-value green">49.7 млн ₽</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Срок сдачи объекта</div>
+        <div class="stat-value amber">31.08.2026</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Подрядная организация</div>
+        <div class="stat-value" style="font-size: 1.1rem; color: #e2e8f0;">ООО «ХАНТ»</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- Main Column -->
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        
+        <!-- Scheme Card -->
+        <div class="card">
+          <div class="card-title">
+            <span>📐</span> Архитектурно-планировочный профиль благоустройства
+          </div>
+          <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 12px;">
+            Вместо старых железобетонных плит 30-летней давности создается современный двухслойный асфальтобетонный профиль с зонированием для пешеходов, велосипедистов и рекреации.
+          </p>
+
+          <div class="cross-section">
+            <div class="section-title">Поперечный срез реновируемой полосы (от фасадов домов к проезжей части):</div>
+            <div class="profile-diagram">
+              <div class="profile-seg seg-green" title="Озеленение и газоны">
+                🌳 Газон & Озеленение
+                <span style="font-size: 9px; opacity: 0.8;">(Компенсационная высадка)</span>
+              </div>
+              <div class="profile-seg seg-bike" title="Выделенная велодорожка">
+                🚲 Велодорожка
+                <span style="font-size: 9px; opacity: 0.8;">(2.0 м, разметка)</span>
+              </div>
+              <div class="profile-seg seg-walk" title="Основной пешеходный тротуар">
+                🚶‍♂️ Пешеходная зона
+                <span style="font-size: 9px; opacity: 0.8;">(3.0+ м, 2 слоя асфальта)</span>
+              </div>
+              <div class="profile-seg seg-maf" title="Зона отдыха с МАФ">
+                🪑 МАФ & Скамьи
+                <span style="font-size: 9px; opacity: 0.8;">(33 скамьи, 8 вазонов)</span>
+              </div>
+              <div class="profile-seg seg-road" title="Проезжая часть">
+                🚗 Проспект Победы
+                <span style="font-size: 9px; opacity: 0.8;">(Улично-дорожная сеть)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-title" style="font-size: 1.1rem; margin-top: 20px;">
+            <span>📋</span> Детальный состав и особенности проекта:
+          </div>
+          <ul class="bullet-list">
+            <li><span class="icon-check">✓</span> <strong>Демонтаж аварийного покрытия:</strong> Полный снос старых растрескавшихся плит на площади более 12 000 кв. метров.</li>
+            <li><span class="icon-check">✓</span> <strong>Устройство двухслойного асфальтобетона:</strong> Высокая прочность, устойчивость к климатическим циклам заморозки/оттаивания в условиях ХМАО-Югры.</li>
+            <li><span class="icon-check">✓</span> <strong>Малые архитектурные формы (МАФ):</strong> Установка 33 чугунных антивандальных скамеек, 33 урн и 8 гранитных вазонов для цветов.</li>
+            <li><span class="icon-check">✓</span> <strong>Землеустроительная юстировка:</strong> Тротуар официально сдвинут с придомовых участков в границы красных линий улично-дорожной сети.</li>
+            <li><span class="icon-check">✓</span> <strong>Безопасность дорожного движения:</strong> Монтаж 20 новых дорожных знаков и нанесение термопластиковой разметки.</li>
+            <li><span class="icon-check">✓</span> <strong>Безбарьерная среда:</strong> Плавные съезды и пандусы для инвалидных и детских колясок на всех примыканиях.</li>
+          </ul>
+        </div>
+
+        <!-- Stages Card -->
+        <div class="card">
+          <div class="card-title">
+            <span>⏱️</span> Этапы и график выполнения работ (2026 г.)
+          </div>
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="stage-num done">1</div>
+              <div class="stage-info">
+                <div class="stage-name">Геодезическая разбивка и снос старых бетонных плит</div>
+                <div class="stage-status">Завершено на 100%</div>
+              </div>
+              <div class="stage-progress"><div class="stage-progress-bar" style="width: 100%;"></div></div>
+            </div>
+            <div class="timeline-item">
+              <div class="stage-num done">2</div>
+              <div class="stage-info">
+                <div class="stage-name">Устройство песчано-щебеночного основания и бордюрного камня</div>
+                <div class="stage-status">Завершено на 100%</div>
+              </div>
+              <div class="stage-progress"><div class="stage-progress-bar" style="width: 100%;"></div></div>
+            </div>
+            <div class="timeline-item">
+              <div class="stage-num">3</div>
+              <div class="stage-info">
+                <div class="stage-name">Укладка двух слоев асфальтобетона и разметка велодорожки</div>
+                <div class="stage-status">В активной работе — 85%</div>
+              </div>
+              <div class="stage-progress"><div class="stage-progress-bar" style="width: 85%;"></div></div>
+            </div>
+            <div class="timeline-item">
+              <div class="stage-num">4</div>
+              <div class="stage-info">
+                <div class="stage-name">Монтаж скамеек (33 шт.), урн и гранитных вазонов (8 шт.)</div>
+                <div class="stage-status">В монтаже — 50%</div>
+              </div>
+              <div class="stage-progress"><div class="stage-progress-bar" style="width: 50%;"></div></div>
+            </div>
+            <div class="timeline-item">
+              <div class="stage-num">5</div>
+              <div class="stage-info">
+                <div class="stage-name">Озеленение, устройство газонов и итоговая приемка комиссией</div>
+                <div class="stage-status">Срок сдачи: до 31 августа 2026</div>
+              </div>
+              <div class="stage-progress"><div class="stage-progress-bar" style="width: 40%;"></div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Column: Sidebar & Documents -->
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        
+        <!-- Live Monitoring & Cameras -->
+        <div class="card">
+          <div class="card-title">
+            <span>📹</span> Онлайн-камеры City Pulse
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+            Вы можете наблюдать за ходом благоустройства и движением транспорта через городские камеры в реальном времени:
+          </p>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <a href="/cameras.html?search=победы" class="btn" style="width: 100%; justify-content: center;">
+              📹 Перекресток пр. Победы — ул. Мира
+            </a>
+            <a href="/cameras.html?search=60%20лет%20октября" class="btn" style="width: 100%; justify-content: center;">
+              📹 Перекресток пр. Победы — 60 лет Октября
+            </a>
+          </div>
+        </div>
+
+        <!-- Official Sources & Blueprints -->
+        <div class="card">
+          <div class="card-title">
+            <span>📑</span> Где увидеть проект и документы
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+            Официальные материалы проекта доступны в открытых государственных реестрах:
+          </p>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <a href="https://zakupki.gov.ru" target="_blank" rel="noopener" class="btn btn-accent" style="width: 100%; justify-content: center;">
+              🏛️ Контракт в ЕИС Госзакупки
+            </a>
+            <a href="https://www.n-vartovsk.ru" target="_blank" rel="noopener" class="btn" style="width: 100%; justify-content: center;">
+              🌐 Портал администрации Нижневартовска
+            </a>
+            <a href="https://pos.gosuslugi.ru" target="_blank" rel="noopener" class="btn" style="width: 100%; justify-content: center;">
+              📍 «Карта развития Югры» / ПОС
+            </a>
+          </div>
+        </div>
+
+        <!-- Urban Context Card -->
+        <div class="card">
+          <div class="card-title">
+            <span>🏙️</span> Градостроительный контекст
+          </div>
+          <p style="font-size: 13px; color: #cbd5e1; line-height: 1.5;">
+            Проспект Победы — важнейший сквозной променад города, связывающий:
+          </p>
+          <ul class="bullet-list" style="margin-top: 10px; font-size: 13px;">
+            <li><span>🌲</span> <strong>Парк Победы</strong> (реконструирован, высажено ~1000 деревьев)</li>
+            <li><span>🎖️</span> <strong>Аллею Памяти</strong> (в створе Ленина и Мира)</li>
+            <li><span>🌊</span> <strong>Набережную реки Обь</strong> (ул. Пикмана)</li>
+            <li><span>⛲</span> <strong>Площадь Нефтяников</strong> (реконструкция запланирована на 2027 год)</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="footer-note">
+      Городская цифровая платформа City Pulse / Пульс Города & Hermes AI Agent • Нижневартовск 2026
+    </div>
+  </div>
+</body>
+</html>

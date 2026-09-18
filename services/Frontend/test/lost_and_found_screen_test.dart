@@ -7,163 +7,137 @@ import 'package:soobshio/screens/lost_and_found_screen.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('LostAndFoundScreen Landmark Extraction Tests', () {
-    const cacheKey = 'map_cached_markers_v2';
+  // На экране есть бесконечные анимации (пульс кнопки, конфетти, радар),
+  // поэтому pumpAndSettle никогда не завершается. Используем ограниченную
+  // серию pump (суммарно ~3 с — меньше таймаута сетевого запроса в 6 с).
+  Future<void> settleBounded(WidgetTester tester) async {
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 250));
+    }
+  }
 
-    final testMarkers = [
-      // 1. С перекрестком в описании, без адреса
+  group('LostAndFoundScreen (Бюро находок)', () {
+    // Ключ кэша должен совпадать с _complaintsCachePrefKey в экране.
+    const cacheKey = 'my_lost_and_found_items';
+
+    final testItems = [
       {
-        'id': '101',
+        'id': 'a1',
         'category': 'Животные',
-        'address': '',
-        'title': 'Потерялся песик',
-        'description': 'Видели на перекрестке Ленина и Чапаева, бежал в сторону дворов.',
+        'address': 'Парк Победы',
+        'title': 'Потерялся песик Рекс',
+        'description': 'Бежал в сторону дворов.',
         'lat': 60.9380,
         'lng': 76.5560,
-        'images': [],
+        'status': 'open',
+        'images': <String>[],
       },
-      // 2. С магазином в описании, без адреса
       {
-        'id': '102',
-        'category': 'Вещи',
-        'address': '   ',
-        'title': 'Найдена сумка',
-        'description': 'Черный рюкзак найден около Магнита на лавочке.',
-        'lat': 60.9400,
-        'lng': 76.5600,
-        'images': [],
-      },
-      // 3. Без адреса и без ориентиров (должен отфильтроваться)
-      {
-        'id': '103',
-        'category': 'Вещи',
-        'address': '',
-        'title': 'Потерян кошелек',
-        'description': 'Кожаный кошелек с картами. Помогите найти за вознаграждение.',
-        'lat': 60.9410,
-        'lng': 76.5610,
-        'images': [],
-      },
-      // 4. С конкретным адресом (должен отображаться как есть)
-      {
-        'id': '104',
+        'id': 'a2',
         'category': 'Животные',
         'address': 'ул. Мира, д. 24',
-        'title': 'Найдена кошка',
-        'description': 'Белая пушистая кошка сидит на дереве.',
+        'title': 'Найдена кошка Муся',
+        'description': 'Белая пушистая кошка.',
         'lat': 60.9420,
         'lng': 76.5620,
-        'images': [],
+        'status': 'resolved',
+        'images': <String>[],
       },
-      // 5. С ТЦ в описании, без адреса
       {
-        'id': '105',
+        'id': 'a3',
+        'category': 'Животные',
+        'address': 'Набережная',
+        'title': 'Найден щенок корги',
+        'description': 'Сидел на скамейке.',
+        'lat': 60.9360,
+        'lng': 76.5590,
+        'status': 'open',
+        'images': <String>[],
+      },
+      {
+        'id': 't1',
         'category': 'Вещи',
-        'address': '',
-        'title': 'Потерялись ключи',
-        'description': 'Связка ключей потеряна возле ТЦ Югра.',
-        'lat': 60.9430,
-        'lng': 76.5630,
-        'images': [],
-      }
+        'address': 'ТЦ Югра Молл',
+        'title': 'Потеряна связка ключей',
+        'description': 'С брелоком StarLine.',
+        'lat': 60.9420,
+        'lng': 76.5910,
+        'status': 'open',
+        'images': <String>[],
+      },
+      {
+        'id': 't2',
+        'category': 'Вещи',
+        'address': 'ул. Мира, д. 60',
+        'title': 'Найдено портмоне',
+        'description': 'Черный кожаный кошелек.',
+        'lat': 60.9450,
+        'lng': 76.5820,
+        'status': 'resolved',
+        'images': <String>[],
+      },
     ];
 
     setUp(() {
       SharedPreferences.setMockInitialValues({
-        cacheKey: jsonEncode(testMarkers),
-        'my_reported_ids': ['101', '105'],
+        cacheKey: jsonEncode(testItems),
       });
     });
 
-    testWidgets('extracts landmarks from text and filters items without location indicators', (WidgetTester tester) async {
+    testWidgets('renders app bar, tabs with counts and stats bar', (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: LostAndFoundScreen(),
         ),
       );
 
-      // Ждем завершения загрузки из кэша и рендеринга элементов списка
-      await tester.pumpAndSettle(const Duration(milliseconds: 500));
+      await settleBounded(tester);
 
-      // Проверяем наличие плашки статистики
-      expect(find.text('СТАТИСТИКА ЗА 30 ДНЕЙ'), findsOneWidget);
-      expect(find.text('Найдено животных и вещей: 0 из 4 потеряшек'), findsOneWidget);
+      // Шапка
+      expect(find.text('БЮРО НАХОДОК'), findsOneWidget);
 
-      // 1. Проверяем, что элемент №101 отображается и его адрес содержит ориентир "Перекрестке Ленина и Чапаева"
-      expect(find.text('Потерялся песик'), findsOneWidget);
-      expect(find.text('Перекрестке Ленина и Чапаева'), findsOneWidget);
-      
-      // Проверяем, что для №101 есть кнопка "НАЙДЕНО"
-      expect(find.text('НАЙДЕНО 🎉'), findsOneWidget);
+      // Капсульные вкладки со счётчиками: 3 питомца и 2 вещи из кэша
+      expect(find.text('🐾 ПИТОМЦЫ'), findsOneWidget);
+      expect(find.text('🔑 ВЕЩИ И ДОКУМЕНТЫ'), findsOneWidget);
+      expect(find.text('3'), findsWidgets);
+      expect(find.text('2'), findsWidgets);
 
-      // 2. Проверяем, что элемент №102 отображается и его адрес содержит "Около Магнита"
-      expect(find.text('Найдена сумка'), findsOneWidget);
-      expect(find.text('Около Магнита'), findsOneWidget);
+      // Мини-статистика
+      expect(find.textContaining('Возвращено владельцам:'), findsOneWidget);
 
-      // 3. Проверяем, что элемент №103 (без адреса и ориентиров) ОТСУТСТВУЕТ на экране
-      expect(find.text('Потерян кошелек'), findsNothing);
-
-      // Прокручиваем список вниз, чтобы увидеть элементы 104 и 105
-      await tester.drag(find.byType(ListView), const Offset(0, -300));
-      await tester.pumpAndSettle();
-
-      // 4. Проверяем, что элемент №104 отображается со своим реальным адресом
-      expect(find.text('Найдена кошка'), findsOneWidget);
-      expect(find.text('ул. Мира, д. 24'), findsOneWidget);
-
-      // 5. Проверяем, что элемент №105 отображается и его адрес содержит "Возле ТЦ Югра"
-      expect(find.text('Потерялись ключи'), findsOneWidget);
-      expect(find.text('Возле ТЦ Югра'), findsOneWidget);
+      // Кнопка добавления объявления
+      expect(find.text('Нашел/Потерял'), findsOneWidget);
     });
 
-    testWidgets('marks a report as resolved, triggers haptics and updates stats', (WidgetTester tester) async {
+    testWidgets('shows cached pet card on the first tab', (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: LostAndFoundScreen(),
         ),
       );
 
-      await tester.pumpAndSettle(const Duration(milliseconds: 500));
+      await settleBounded(tester);
 
-      // Находим кнопку "НАЙДЕНО 🎉" для первого элемента (№101)
-      final resolveButton = find.text('НАЙДЕНО 🎉');
-      expect(resolveButton, findsOneWidget);
-
-      // Нажимаем на нее
-      await tester.tap(resolveButton);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 100));
-
-      // Кнопка должна смениться на зеленую плашку "НАЙДЕНО"
-      expect(find.text('НАЙДЕНО 🎉'), findsNothing);
-      expect(find.text('НАЙДЕНО'), findsOneWidget);
-
-      // Проверяем, что статистика обновилась
-      expect(find.text('Найдено животных и вещей: 1 из 4 потеряшек'), findsOneWidget);
+      // Первая вкладка (питомцы) показывает карточку из кэша
+      expect(find.text('Потерялся песик Рекс'), findsOneWidget);
+      expect(find.textContaining('Парк Победы'), findsWidgets);
     });
 
-    testWidgets('search query filters items by extracted derived addresses', (WidgetTester tester) async {
+    testWidgets('switching to things tab shows cached thing card', (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: LostAndFoundScreen(),
         ),
       );
 
-      await tester.pumpAndSettle(const Duration(milliseconds: 500));
+      await settleBounded(tester);
 
-      // Находим поле поиска и вводим "Магнит"
-      final searchField = find.byType(TextField);
-      expect(searchField, findsOneWidget);
+      // Переключаемся на вкладку вещей
+      await tester.tap(find.text('🔑 ВЕЩИ И ДОКУМЕНТЫ'));
+      await settleBounded(tester);
 
-      await tester.enterText(searchField, 'Магнит');
-      await tester.pumpAndSettle();
-
-      // Должен остаться только один элемент - сумка около Магнита (№102)
-      expect(find.text('Найдена сумка'), findsOneWidget);
-      expect(find.text('Потерялся песик'), findsNothing);
-      expect(find.text('Найдена кошка'), findsNothing);
-      expect(find.text('Потерялись ключи'), findsNothing);
+      // На второй вкладке видна карточка вещи из кэша
+      expect(find.text('Потеряна связка ключей'), findsOneWidget);
     });
   });
 }

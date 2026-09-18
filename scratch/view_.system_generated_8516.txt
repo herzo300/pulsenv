@@ -1,0 +1,109 @@
+Created At: 2026-06-23T15:28:16Z
+Completed At: 2026-06-23T15:28:17Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1886
+Total Bytes: 84587
+Showing lines 1700 to 1800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1700: 
+1701:       if (filtered.isEmpty) {
+1702:         return const SizedBox.shrink(); // Hide the ticker block completely
+1703:       }
+1704: 
+1705:       text = filtered.map((i) => i['text'].toString()).join('   •   ');
+1706: 
+1707:       // Determine category-specific color & icon
+1708:       final hasSeriousEmergency = filtered.any((i) =>
+1709:           i['severity'].toString().toLowerCase() == 'high' &&
+1710:           (i['category'].toString().toLowerCase().contains('чп') ||
+1711:            i['text'].toString().toLowerCase().contains('чп') ||
+1712:            i['text'].toString().toLowerCase().contains('пожар') ||
+1713:            i['text'].toString().toLowerCase().contains('взрыв')));
+1714: 
+1715:       final hasEmergency = filtered.any((i) =>
+1716:           i['category'].toString().toLowerCase().contains('чп') ||
+1717:           i['text'].toString().toLowerCase().contains('чп') ||
+1718:           i['text'].toString().toLowerCase().contains('пожар') ||
+1719:           i['text'].toString().toLowerCase().contains('взрыв'));
+1720: 
+1721:       final hasAccident = filtered.any((i) =>
+1722:           i['category'].toString().toLowerCase().contains('авари') ||
+1723:           i['category'].toString().toLowerCase().contains('дтп') ||
+1724:           i['text'].toString().toLowerCase().contains('авари') ||
+1725:           i['text'].toString().toLowerCase().contains('дтп') ||
+1726:           i['text'].toString().toLowerCase().contains('столкн'));
+1727: 
+1728:       final hasCrime = filtered.any((i) =>
+1729:           i['category'].toString().toLowerCase().contains('кримин') ||
+1730:           i['category'].toString().toLowerCase().contains('преступ') ||
+1731:           i['text'].toString().toLowerCase().contains('кримин') ||
+1732:           i['text'].toString().toLowerCase().contains('преступ') ||
+1733:           i['text'].toString().toLowerCase().contains('краж') ||
+1734:           i['text'].toString().toLowerCase().contains('драка') ||
+1735:           i['text'].toString().toLowerCase().contains('убий'));
+1736: 
+1737:       if (hasSeriousEmergency) {
+1738:         bg = const Color(0xDDEB3B3B); // Red for serious ЧП
+1739:         border = const Color(0xFFFCA5A5);
+1740:         leadingIcon = Icons.error_outline_rounded;
+1741:       } else if (hasEmergency) {
+1742:         bg = const Color(0xDDFF7D1A); // Orange/Amber for medium/low ЧП
+1743:         border = const Color(0xFFFED7AA);
+1744:         leadingIcon = Icons.warning_amber_rounded;
+1745:       } else if (hasAccident) {
+1746:         bg = const Color(0xDDEAB308); // Yellow/Gold for accidents
+1747:         border = const Color(0xFFFEF08A);
+1748:         leadingIcon = Icons.car_crash_rounded;
+1749:       } else if (hasCrime) {
+1750:         bg = const Color(0xDD8B5CF6); // Purple for crime/police
+1751:         border = const Color(0xFFDDD6FE);
+1752:         leadingIcon = Icons.local_police_rounded;
+1753:       }
+1754:     }
+1755: 
+1756:     bg = Colors.white; // Solid white color for marquee block
+1757:     border = Colors.black.withOpacity(0.12); // Subtle border
+1758: 
+1759:     text = text.trim();
+1760:     if (text.isEmpty) return const SizedBox.shrink();
+1761: 
+1762:     return AnimatedSlide(
+1763:       offset: _visible ? Offset.zero : const Offset(0.0, 1.2),
+1764:       duration: const Duration(milliseconds: 600),
+1765:       curve: Curves.easeIn,
+1766:       child: ClipRRect(
+1767:         borderRadius: BorderRadius.zero,
+1768:         child: Container(
+1769:           height: 38,
+1770:           decoration: BoxDecoration(
+1771:             color: bg,
+1772:             border: Border(
+1773:               top: BorderSide(
+1774:                 color: border,
+1775:               ),
+1776:             ),
+1777:           ),
+1778:           child: Row(
+1779:             children: [
+1780:               Container(
+1781:                 width: 38,
+1782:                 alignment: Alignment.center,
+1783:                 color: Colors.black.withOpacity(0.05),
+1784:                 child: AnimatedBuilder(
+1785:                   animation: _scroll,
+1786:                   builder: (context, _) {
+1787:                     final double angle = _scroll.value * 2 * math.pi;
+1788:                     final double scale = 1.0 + 0.15 * math.sin(_scroll.value * 2 * math.pi * 4);
+1789:                     return Transform.scale(
+1790:                       scale: scale,
+1791:                       child: Transform.rotate(
+1792:                         angle: angle,
+1793:                         child: Icon(
+1794:                           leadingIcon,
+1795:                           color: const Color(0xFF1E293B),
+1796:                           size: 18,
+1797:                         ),
+1798:                       ),
+1799:                     );
+1800:                   },
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

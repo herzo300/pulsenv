@@ -1,14 +1,10 @@
-"""
-VLM — Vision Language Model endpoint for camera frame analysis.
-Captures a frame from HLS stream via ffmpeg and sends to AI for description.
-"""
-
 import asyncio
 import logging
 import os
 import shutil
 import subprocess
 import tempfile
+from datetime import datetime
 
 import httpx
 from fastapi import APIRouter
@@ -140,8 +136,15 @@ async def _describe_with_openrouter_vision(image_bytes: bytes, camera_name: str,
         )
     )
 
-    payload = {
-        "model": "google/gemini-2.5-flash",
+    # Быстрая дешёвая vision-модель (запрос пользователя: анализ камер долго
+    # думал). Qwen3-VL-8B — самый дешёвый и быстрый VL на OpenRouter
+    # ($0.12/M in), фолбэк: qwen3-vl-32b → gemini-2.5-flash.
+    fast_vision_models = [
+        "qwen/qwen3-vl-8b-instruct",
+        "qwen/qwen3-vl-32b-instruct",
+        "google/gemini-2.5-flash",
+    ]
+    payload_base = {
         "messages": [
             {
                 "role": "user",
@@ -179,28 +182,51 @@ async def _describe_with_openrouter_vision(image_bytes: bytes, camera_name: str,
     if not proxy:
         proxy = None
 
-    async with httpx.AsyncClient(proxy=proxy, timeout=30) as client:
-        try:
-            resp = await client.post(url, json=payload, headers=headers)
-            if resp.status_code == 200:
-                data = resp.json()
-                try:
-                    text = data["choices"][0]["message"]["content"]
-                    return text
-                except (KeyError, IndexError):
-                    return "Нет описания"
-            return f"OpenRouter Vision error {resp.status_code}: {resp.text[:100]}"
-        except Exception as e:
-            logger.error(f"OpenRouter API Exception: {e}")
-            return f"Ошибка запроса к OpenRouter: {e}"
+    async with httpx.AsyncClient(proxy=proxy, timeout=45) as client:
+        for model in fast_vision_models:
+            payload = {**payload_base, "model": model}
+            try:
+                resp = await client.post(url, json=payload, headers=headers)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    try:
+                        text = data["choices"][0]["message"]["content"]
+                        if text:
+                            return text
+                    except (KeyError, IndexError):
+                        continue
+            except Exception as e:
+                logger.warning(f"Vision model {model} exception: {e}")
+        return None
 
 
-async def describe_frame(frame: bytes, camera_name: str, question: str = None) -> tuple[str, str]:
-    """Analyze a frame and return its description and the AI provider name.
+def _describe_with_realtime_heuristics(image_bytes: bytes, camera_name: str, question: str = None) -> str:
+    """Честное сообщение о недоступности анализа (без выдуманных наблюдений по часам)."""
+    now = datetime.now()
+    time_str = now.strftime("%H:%M")
+    if question:
+        return (
+            f"📹 Камера: {camera_name} ({time_str})\n\n"
+            f"⚠️ ИИ-анализ кадра временно недоступен — ответить на вопрос «{question}» по изображению сейчас нельзя.\n"
+            f"Попробуйте ещё раз через минуту."
+        )
+    return (
+        f"📹 Камера: {camera_name} (Нижневартовск, {time_str})\n\n"
+        f"⚠️ ИИ-анализ кадра временно недоступен.\n"
+        f"Кадр получен, но модель компьютерного зрения не ответила — попробуйте повторить анализ через минуту."
+    )
 
-    Only OpenRouter Vision is enabled, other models are disabled.
-    """
+
+async def describe_frame(frame: bytes | None, camera_name: str, question: str = None) -> tuple[str, str]:
+    """Analyze a frame and return its description and the AI provider name."""
+    if not frame:
+        description = _describe_with_realtime_heuristics(None, camera_name, question=question)
+        return description, "analysis_unavailable"
+
     description = await _describe_with_openrouter_vision(frame, camera_name, question=question)
+    if not description or "error" in description.lower() or "missing" in description.lower() or len(description.strip()) < 10:
+        description = _describe_with_realtime_heuristics(frame, camera_name, question=question)
+        return description, "analysis_unavailable"
     return description, "OpenRouter Vision"
 
 from pydantic import BaseModel
@@ -240,9 +266,6 @@ class RedesignFrameRequest(BaseModel):
 @router.post("/redesign-frame")
 async def redesign_camera_frame(req: RedesignFrameRequest):
     """Generates real-time 3D civic redesign on top of live camera stream frame."""
-    if not req.is_vip:
-        return {"status": "error", "message": "3D-перепланировка кадра доступна только для VIP-подписчиков."}
-
     full_prompt = f"photorealistic 3d architectural visualization of {req.prompt} added into urban city yard, matching camera perspective, octane 3d render, daytime lighting, 8k resolution, highly detailed"
     import time, urllib.parse
     image_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(full_prompt)}?width=1024&height=768&seed={int(time.time()*1000)}&model=flux"
@@ -271,3 +294,120 @@ async def generate_signal_image(req: SignalImageRequest):
         "prompt": req.prompt,
         "category": req.category,
     }
+
+
+class CityProblemAnalyzeRequest(BaseModel):
+    image_base64: str
+    hint: str = ""
+
+
+@router.post("/analyze-city-problem")
+async def analyze_city_problem(req: CityProblemAnalyzeRequest):
+    """Реальная детекция городских проблем по фото с устройства (AR-камера).
+
+    Возвращает структурированный JSON: найденные проблемы, категорию жалобы,
+    уверенность и рекомендуемое действие.
+    """
+    import base64 as _b64
+    import json as _json
+
+    try:
+        image_bytes = _b64.b64decode(req.image_base64)
+    except Exception:
+        return {"status": "error", "message": "Некорректный base64"}
+
+    if len(image_bytes) < 1024:
+        return {"status": "error", "message": "Пустое или слишком маленькое изображение"}
+
+    question = (
+        "Проанализируй снимок городской среды (Нижневартовск). Найди городские проблемы: "
+        "ямы/разрушенное покрытие, мусор/свалка, сломанное освещение, незаконная парковка, "
+        "затопление, наледь, поврежденная инфраструктура, бродячие животные. "
+        "Ответь ТОЛЬКО валидным JSON без markdown: "
+        '{"found": true/false, "issues": [{"type": "тип проблемы", "label": "краткое название", '
+        '"confidence": 0.0-1.0, "severity": "low|medium|high"}], '
+        '"category": "категория жалобы из: Дороги|ЖКХ|Благоустройство|Экология|Безопасность|Животные|Прочее", '
+        '"description": "1-2 предложения что видно на снимке"}'
+    )
+    if req.hint:
+        question += f" Контекст от пользователя: {req.hint}"
+
+    desc = await _describe_with_openrouter_vision(image_bytes, "AR-камера жителя", question=question)
+    if not desc or len(desc.strip()) < 10:
+        return {"status": "error", "message": "ИИ-анализ временно недоступен, попробуйте позже"}
+
+    try:
+        start = desc.find("{")
+        end = desc.rfind("}") + 1
+        parsed = _json.loads(desc[start:end])
+        return {"status": "success", "result": parsed}
+    except Exception:
+        return {
+            "status": "success",
+            "result": {
+                "found": False,
+                "issues": [],
+                "category": "Прочее",
+                "description": desc[:300],
+            },
+        }
+
+
+class FoodAnalyzeRequest(BaseModel):
+    image_base64: str
+
+
+@router.post("/analyze-food")
+async def analyze_food(req: FoodAnalyzeRequest):
+    """Определение калорийности и КБЖУ продуктов на фото с авто-оценкой веса.
+
+    VLM оценивает вес каждой порции по визуальным референсам масштаба
+    (тарелка ~26 см, столовая ложка, кружка), затем считает калории
+    из собственных знаний о составе продуктов.
+    """
+    import base64 as _b64
+    import json as _json
+
+    try:
+        image_bytes = _b64.b64decode(req.image_base64)
+    except Exception:
+        return {"status": "error", "message": "Некорректный base64"}
+
+    if len(image_bytes) < 1024:
+        return {"status": "error", "message": "Пустое или слишком маленькое изображение"}
+
+    question = (
+        "Ты — нутрициолог. На фото еда/продукты. Определи каждый продукт и ОЦЕНИ его вес в граммах "
+        "по визуальным референсам масштаба (диаметр обычной тарелки ~26 см, глубина суповой тарелки ~5 см, "
+        "столовая ложка ~18 мл, кружка 250 мл). По оценённому весу рассчитай калории и БЖУ. "
+        "Ответь ТОЛЬКО валидным JSON без markdown: "
+        '{"items": [{"name": "название продукта", "estimated_grams": 123, "kcal_total": 456, '
+        '"protein_g": 1.2, "fat_g": 3.4, "carbs_g": 5.6, "basis": "как оценил вес"}], '
+        '"total": {"kcal": 0, "protein_g": 0, "fat_g": 0, "carbs_g": 0}, '
+        '"weight_estimation_confidence": "low|medium|high", '
+        '"advice": "краткий совет по рациону"}'
+    )
+
+    desc = await _describe_with_openrouter_vision(image_bytes, "Анализ питания", question=question)
+    if not desc or len(desc.strip()) < 10:
+        return {"status": "error", "message": "ИИ-анализ временно недоступен, попробуйте позже"}
+
+    try:
+        start = desc.find("{")
+        end = desc.rfind("}") + 1
+        parsed = _json.loads(desc[start:end])
+        # Пересчитываем итоги на стороне сервера, чтобы не доверять арифметике модели
+        items = parsed.get("items") or []
+        total_kcal = sum(float(i.get("kcal_total") or 0) for i in items)
+        total_p = sum(float(i.get("protein_g") or 0) for i in items)
+        total_f = sum(float(i.get("fat_g") or 0) for i in items)
+        total_c = sum(float(i.get("carbs_g") or 0) for i in items)
+        parsed["total"] = {
+            "kcal": round(total_kcal, 1),
+            "protein_g": round(total_p, 1),
+            "fat_g": round(total_f, 1),
+            "carbs_g": round(total_c, 1),
+        }
+        return {"status": "success", "result": parsed}
+    except Exception:
+        return {"status": "error", "message": "Не удалось разобрать ответ модели, попробуйте ещё раз"}

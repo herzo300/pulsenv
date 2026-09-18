@@ -1,0 +1,168 @@
+Created At: 2026-06-23T05:11:39Z
+Completed At: 2026-06-23T05:11:39Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1590
+Total Bytes: 65733
+Showing lines 941 to 1100
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+941:                               ),
+942:                             ),
+943:                           ),
+944:                           if (_hasAnomaly) ...[
+945:                             const SizedBox(height: 16),
+946:                             Text(
+947:                               'Погодные предупреждения',
+948:                               style: TextStyle(
+949:                                 fontSize: 12,
+950:                                 fontWeight: FontWeight.w700,
+951:                                 color: widget.isNightMode ? Colors.white60 : Colors.black54,
+952:                               ),
+953:                             ),
+954:                             const SizedBox(height: 8),
+955:                             TiltWidget(
+956:                               child: Column(
+957:                                 children: _buildAnomalyWarnings(),
+958:                               ),
+959:                             ),
+960:                           ],
+961:                         ],
+962:                       ),
+963:                     ),
+964:                   ),
+965:                 ],
+966:               ),
+967:             ),
+968:           ),
+969:         ],
+970:       ),
+971:     );
+972:   }
+973: 
+974:   Color _aqColor(num? aqi) {
+975:     if (aqi == null) return widget.accent;
+976:     if (aqi <= 40) return const Color(0xFF34D399);
+977:     if (aqi <= 60) return const Color(0xFFFBBF24);
+978:     if (aqi <= 80) return const Color(0xFFFB923C);
+979:     return const Color(0xFFEF4444);
+980:   }
+981: 
+982: 
+983: }
+984: 
+985: class _WeatherAmbientPainter extends CustomPainter {
+986:   _WeatherAmbientPainter({
+987:     required this.kind,
+988:     required this.progress,
+989:     required this.isNight,
+990:     required this.accent,
+991:   });
+992: 
+993:   final String kind;
+994:   final double progress;
+995:   final bool isNight;
+996:   final Color accent;
+997: 
+998:   @override
+999:   void paint(Canvas canvas, Size size) {
+1000:     final List<Color> colors;
+1001:     if (isNight) {
+1002:       switch (kind) {
+1003:         case 'clear':
+1004:           colors = [const Color(0xFF030712), const Color(0xFF0F172A), const Color(0xFF1E1B4B)];
+1005:           break;
+1006:         case 'rain':
+1007:         case 'storm':
+1008:           colors = [const Color(0xFF090D16), const Color(0xFF0F172A)];
+1009:           break;
+1010:         case 'snow':
+1011:           colors = [const Color(0xFF0F172A), const Color(0xFF1E293B)];
+1012:           break;
+1013:         case 'wind':
+1014:         case 'fog':
+1015:           colors = [const Color(0xFF020617), const Color(0xFF0F172A)];
+1016:           break;
+1017:         default:
+1018:           colors = [const Color(0xFF020617), const Color(0xFF1E293B)];
+1019:       }
+1020:     } else {
+1021:       switch (kind) {
+1022:         case 'clear':
+1023:           colors = [const Color(0xFF38BDF8), const Color(0xFF7DD3FC), const Color(0xFFBAE6FD)];
+1024:           break;
+1025:         case 'rain':
+1026:         case 'storm':
+1027:           colors = [const Color(0xFF475569), const Color(0xFF334155)];
+1028:           break;
+1029:         case 'snow':
+1030:           colors = [const Color(0xFFE2E8F0), const Color(0xFFF1F5F9)];
+1031:           break;
+1032:         case 'wind':
+1033:         case 'fog':
+1034:           colors = [const Color(0xFF94A3B8), const Color(0xFFCBD5E1)];
+1035:           break;
+1036:         default:
+1037:           colors = [const Color(0xFF7DD3FC), const Color(0xFFE2E8F0)];
+1038:       }
+1039:     }
+1040: 
+1041:     final rect = Offset.zero & size;
+1042:     final bgPaint = Paint()
+1043:       ..shader = LinearGradient(
+1044:         begin: Alignment.topCenter,
+1045:         end: Alignment.bottomCenter,
+1046:         colors: colors,
+1047:       ).createShader(rect);
+1048:     canvas.drawRect(rect, bgPaint);
+1049: 
+1050:     // Dynamic Lightning Flash for Storm
+1051:     if (!isNight && kind == 'storm') {
+1052:       final flashVal = math.sin(progress * math.pi * 18);
+1053:       if (flashVal > 0.88) {
+1054:         canvas.drawRect(
+1055:           rect,
+1056:           Paint()..color = Colors.white.withOpacity(0.25 * ((flashVal - 0.88) / 0.12)),
+1057:         );
+1058:       }
+1059:     } else if (isNight && kind == 'storm') {
+1060:       final flashVal = math.sin(progress * math.pi * 14);
+1061:       if (flashVal > 0.9) {
+1062:         canvas.drawRect(
+1063:           rect,
+1064:           Paint()..color = accent.withOpacity(0.18 * ((flashVal - 0.9) / 0.1)),
+1065:         );
+1066:       }
+1067:     }
+1068: 
+1069:     // Twinkling stars for clear night
+1070:     if (isNight && kind == 'clear') {
+1071:       for (int i = 0; i < 40; i++) {
+1072:         final seed = i * 47.0;
+1073:         final x = (seed * 19) % size.width;
+1074:         final y = (seed * 37) % (size.height * 0.45);
+1075:         final starPulse = 0.3 + 0.7 * math.sin(progress * math.pi * 4 + seed);
+1076:         final starPaint = Paint()..color = Colors.white.withOpacity(0.4 * starPulse);
+1077:         canvas.drawCircle(Offset(x, y), 0.8 + (i % 2) * 0.6, starPaint);
+1078:         if (i % 8 == 0) {
+1079:           // Glow aura
+1080:           canvas.drawCircle(Offset(x, y), 3.0 + (i % 3), Paint()..color = Colors.white.withOpacity(0.08 * starPulse));
+1081:         }
+1082:       }
+1083:     }
+1084: 
+1085:     switch (kind) {
+1086:       case 'clear':
+1087:         _paintSunOrMoon(canvas, size);
+1088:         break;
+1089:       case 'rain':
+1090:       case 'storm':
+1091:         _paintRain(canvas, size, heavy: kind == 'storm');
+1092:         break;
+1093:       case 'snow':
+1094:         _paintSnow(canvas, size);
+1095:         break;
+1096:       case 'wind':
+1097:         _paintWind(canvas, size);
+1098:         break;
+1099:       case 'fog':
+1100:         _paintFog(canvas, size);
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

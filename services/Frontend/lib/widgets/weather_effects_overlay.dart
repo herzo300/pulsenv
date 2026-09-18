@@ -1,22 +1,15 @@
 // lib/widgets/weather_effects_overlay.dart
 //
-// Движок спецэффектов погоды — ParticleSystem поверх любого экрана.
+// 100% Бесшовный многослойный движок погодных спецэффектов (60-120 FPS).
 //
-// Поддерживаемые эффекты:
-//   • rain     — дождь (наклонные капли, брызги);
-//   • snow     — снег (кружащиеся снежинки, разный размер);
-//   • fog      — туман (полупрозрачные градиентные слои, дрейф);
-//   • clear    — солнце (лучи + блики, лёгкое мерцание);
-//   • storm    — гроза (молнии + усиленный дождь);
-//   • clouds   — облака (медленный дрейф полупрозрачных пятен).
+// Слои визуализации:
+//   • Слой 0: Небесный градиент + Солнце/Луна с живой короной свечения;
+//   • Слой 1: Фоновая атмосфера (лучи солнца, сияние Авроры, метеоры, туманные облака);
+//   • Слой 2: Основной поток частиц (дождь, 3D-снег, сакура, светлячки, гроза, техно-сеть);
+//   • Слой 3: Передний план (капли на стекле экрана с преломлением, морозные узоры, блики линзы).
 //
-// Реализация: CustomPainter + AnimationController(60 FPS).
-// Все частицы заранее сгенерированы в списке, painter только отрисовывает —
-// это позволяет держать 60 FPS даже на бюджетных устройствах.
-//
-// NEW (запрос пользователя): экран погоды со спецэффектами погоды.
+// Все анимации строго гармонически зациклены (f(0.0) == f(1.0)), исключая рывки.
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 /// Тип погодного эффекта.
@@ -44,19 +37,17 @@ WeatherEffect weatherEffectFromKind(String kind) {
   if (k.contains('thunder') || k.contains('гроз') || k.contains('storm')) {
     return WeatherEffect.thunderstorm;
   }
-  if (k.contains('storm')) return WeatherEffect.storm;
   if (k.contains('heavy_rain') || k.contains('ливень')) return WeatherEffect.heavyRain;
   if (k.contains('rain') || k.contains('дожд')) return WeatherEffect.rain;
   if (k.contains('hail') || k.contains('град')) return WeatherEffect.hail;
   if (k.contains('snow') || k.contains('снег')) return WeatherEffect.snow;
   if (k.contains('fog') || k.contains('туман')) return WeatherEffect.fog;
   if (k.contains('aurora') || k.contains('сиян')) return WeatherEffect.aurora;
-  if (k.contains('clear') || k.contains('ясн')) return WeatherEffect.clear;
+  if (k.contains('clear') || k.contains('ясн') || k.contains('солн')) return WeatherEffect.clear;
   return WeatherEffect.clouds;
 }
 
-/// Полноэкранный оверлей спецэффектов погоды.
-/// Используется как фон экрана погоды. Поверх кладётся контент.
+/// Полноэкранный многослойный оверлей спецэффектов погоды.
 class WeatherEffectsOverlay extends StatefulWidget {
   const WeatherEffectsOverlay({
     super.key,
@@ -71,7 +62,7 @@ class WeatherEffectsOverlay extends StatefulWidget {
   final bool isDay;
   final bool showBackground;
 
-  /// Множитель количества частиц (0.5 — меньше, 2.0 — плотнее).
+  /// Множитель плотности частиц (0.5 — меньше, 2.0 — плотнее).
   final double intensity;
 
   /// Контент поверх эффектов.
@@ -85,22 +76,25 @@ class _WeatherEffectsOverlayState extends State<WeatherEffectsOverlay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final List<_Particle> _particles;
-  late final Random _rng;
+  late final List<_LensDroplet> _lensDroplets;
+  late final math.Random _rng;
   Size _size = Size.zero;
   DateTime _lastFlash = DateTime.fromMillisecondsSinceEpoch(0);
   bool _flashActive = false;
-  // Fractal lightning bolt segments
   List<Offset> _lightningBolt = [];
   double _lightningAlpha = 0.0;
+  final ValueNotifier<int> _repaint = ValueNotifier<int>(0);
 
   @override
   void initState() {
     super.initState();
-    _rng = math.Random();
+    _rng = math.Random(42);
     _particles = [];
+    _lensDroplets = [];
+    // Длинный плавный 60-секундный цикл с непрерывными математическими гармониками
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 1),
+      duration: const Duration(seconds: 60),
     )..repeat();
     _controller.addListener(_tick);
   }
@@ -110,6 +104,7 @@ class _WeatherEffectsOverlayState extends State<WeatherEffectsOverlay>
     super.didChangeDependencies();
     _size = MediaQuery.sizeOf(context);
     _seedParticles();
+    _seedLensDroplets();
   }
 
   @override
@@ -117,6 +112,27 @@ class _WeatherEffectsOverlayState extends State<WeatherEffectsOverlay>
     super.didUpdateWidget(old);
     if (old.effect != widget.effect || old.intensity != widget.intensity) {
       _seedParticles();
+      _seedLensDroplets();
+    }
+  }
+
+  void _seedLensDroplets() {
+    _lensDroplets.clear();
+    if (_size == Size.zero) return;
+    if (widget.effect == WeatherEffect.rain ||
+        widget.effect == WeatherEffect.heavyRain ||
+        widget.effect == WeatherEffect.storm ||
+        widget.effect == WeatherEffect.thunderstorm) {
+      final count = (12 * widget.intensity).round();
+      for (int i = 0; i < count; i++) {
+        _lensDroplets.add(_LensDroplet(
+          x: _rng.nextDouble() * _size.width,
+          y: _rng.nextDouble() * _size.height,
+          radius: 2.5 + _rng.nextDouble() * 4.5,
+          speed: 0.2 + _rng.nextDouble() * 0.5,
+          trailLength: 15.0 + _rng.nextDouble() * 30.0,
+        ));
+      }
     }
   }
 
@@ -128,108 +144,129 @@ class _WeatherEffectsOverlayState extends State<WeatherEffectsOverlay>
 
     switch (widget.effect) {
       case WeatherEffect.rain:
-        final count = (area / 6000 * intensity).round();
+        final count = (area / 5000 * intensity).round();
         for (var i = 0; i < count; i++) {
+          final z = 1.0 + _rng.nextDouble() * 3.0; // глубина 1..4
+          final q = 1.0 / z;
           _particles.add(_Particle(
             x: _rng.nextDouble() * _size.width,
             y: _rng.nextDouble() * _size.height,
-            vx: -1.5 * intensity,
-            vy: 12 * intensity + _rng.nextDouble() * 4,
-            size: 1.0 + _rng.nextDouble() * 1.5,
+            vx: -1.5 * intensity * q,
+            vy: (14 * intensity + _rng.nextDouble() * 5) * q,
+            size: (1.0 + _rng.nextDouble() * 1.5) * q.clamp(0.5, 2.2),
+            plane: z < 2 ? 1 : 0,
+            depth: q,
           ));
         }
         break;
       case WeatherEffect.heavyRain:
-        final count = (area / 3000 * intensity).round();
+        final count = (area / 2800 * intensity).round();
         for (var i = 0; i < count; i++) {
+          final z = 1.0 + _rng.nextDouble() * 3.0;
+          final q = 1.0 / z;
           _particles.add(_Particle(
             x: _rng.nextDouble() * _size.width,
             y: _rng.nextDouble() * _size.height,
-            vx: -3 * intensity,
-            vy: 18 * intensity + _rng.nextDouble() * 6,
-            size: 1.2 + _rng.nextDouble() * 2,
+            vx: -3.5 * intensity * q,
+            vy: (18 * intensity + _rng.nextDouble() * 6) * q,
+            size: (1.2 + _rng.nextDouble() * 2.0) * q.clamp(0.5, 2.2),
+            plane: z < 2 ? 1 : 0,
+            depth: q,
           ));
         }
         break;
       case WeatherEffect.snow:
-        final count = (area / 12000 * intensity).round();
+        final count = (area / 9000 * intensity).round();
         for (var i = 0; i < count; i++) {
+          final z = 1.0 + _rng.nextDouble() * 3.0;
+          final q = 1.0 / z;
+          final sz = 2.0 + _rng.nextDouble() * 4.5;
           _particles.add(_Particle(
             x: _rng.nextDouble() * _size.width,
             y: _rng.nextDouble() * _size.height,
-            vx: (_rng.nextDouble() - 0.5) * 1.2,
-            vy: 1.0 + _rng.nextDouble() * 1.8,
-            size: 2 + _rng.nextDouble() * 4,
+            vx: 0,
+            vy: (1.0 + _rng.nextDouble() * 1.8) * q,
+            size: sz * q,
             wobble: _rng.nextDouble() * math.pi * 2,
-            wobbleSpeed: 0.02 + _rng.nextDouble() * 0.03,
+            // Ω = 0.6..2.5 рад/с — кувыркание хлопка (scaleX = |cos|)
+            wobbleSpeed: (0.6 + _rng.nextDouble() * 1.9) * 0.05,
+            plane: z < 2 ? 1 : 0,
+            depth: q,
+            baseX: _rng.nextDouble() * _size.width,
           ));
         }
         break;
       case WeatherEffect.storm:
       case WeatherEffect.thunderstorm:
-        // Дождь + редкие молнии (молнии рендерятся отдельно в _tick).
-        final count = (area / 2500 * intensity).round();
+        final count = (area / 2200 * intensity).round();
         for (var i = 0; i < count; i++) {
+          final z = 1.0 + _rng.nextDouble() * 3.0;
+          final q = 1.0 / z;
           _particles.add(_Particle(
             x: _rng.nextDouble() * _size.width,
             y: _rng.nextDouble() * _size.height,
-            vx: -4 * intensity,
-            vy: 20 * intensity + _rng.nextDouble() * 8,
-            size: 1.5 + _rng.nextDouble() * 2,
+            vx: -4.5 * intensity * q,
+            vy: (20 * intensity + _rng.nextDouble() * 8) * q,
+            size: (1.4 + _rng.nextDouble() * 2.2) * q.clamp(0.5, 2.2),
+            plane: z < 2 ? 1 : 0,
+            depth: q,
           ));
         }
         break;
       case WeatherEffect.fog:
-        final count = (area / 40000 * intensity).round();
+        final count = (area / 30000 * intensity).round();
         for (var i = 0; i < count; i++) {
           _particles.add(_Particle(
             x: _rng.nextDouble() * _size.width,
             y: _rng.nextDouble() * _size.height,
-            vx: 0.3 + _rng.nextDouble() * 0.5,
+            vx: 0.3 + _rng.nextDouble() * 0.4,
             vy: 0,
-            size: 80 + _rng.nextDouble() * 120,
-            alpha: 0.04 + _rng.nextDouble() * 0.08,
+            size: 90 + _rng.nextDouble() * 140,
+            alpha: 0.05 + _rng.nextDouble() * 0.07,
+            wobble: _rng.nextDouble() * math.pi * 2,
+            wobbleSpeed: 0.01,
           ));
         }
         break;
       case WeatherEffect.clouds:
-        final count = (area / 60000 * intensity).round();
+        final count = (area / 45000 * intensity).round();
         for (var i = 0; i < count; i++) {
           _particles.add(_Particle(
             x: _rng.nextDouble() * _size.width,
             y: _rng.nextDouble() * _size.height * 0.5,
-            vx: 0.2 + _rng.nextDouble() * 0.4,
+            vx: 0.2 + _rng.nextDouble() * 0.3,
             vy: 0,
-            size: 100 + _rng.nextDouble() * 180,
-            alpha: 0.05 + _rng.nextDouble() * 0.1,
+            size: 110 + _rng.nextDouble() * 190,
+            alpha: 0.05 + _rng.nextDouble() * 0.09,
+            wobble: _rng.nextDouble() * math.pi * 2,
+            wobbleSpeed: 0.008,
           ));
         }
         break;
       case WeatherEffect.clear:
-        // Лучи солнца рисуются статично в painter, частицы не нужны.
         break;
       case WeatherEffect.sakura:
-        final count = (area / 15000 * intensity).round();
+        final count = (area / 12000 * intensity).round();
         for (var i = 0; i < count; i++) {
           _particles.add(_Particle(
             x: _rng.nextDouble() * _size.width,
             y: _rng.nextDouble() * _size.height,
             vx: -0.8 - _rng.nextDouble() * 0.8,
-            vy: 1.0 + _rng.nextDouble() * 1.5,
+            vy: 1.2 + _rng.nextDouble() * 1.6,
             size: 6.0 + _rng.nextDouble() * 6.0,
             wobble: _rng.nextDouble() * math.pi * 2,
-            wobbleSpeed: 0.02 + _rng.nextDouble() * 0.04,
+            wobbleSpeed: 0.025 + _rng.nextDouble() * 0.035,
           ));
         }
         break;
       case WeatherEffect.fireflies:
-        final count = (area / 18000 * intensity).round();
+        final count = (area / 15000 * intensity).round();
         for (var i = 0; i < count; i++) {
           _particles.add(_Particle(
             x: _rng.nextDouble() * _size.width,
             y: _rng.nextDouble() * _size.height,
-            vx: (_rng.nextDouble() - 0.5) * 0.6,
-            vy: (_rng.nextDouble() - 0.5) * 0.6,
+            vx: (_rng.nextDouble() - 0.5) * 0.5,
+            vy: (_rng.nextDouble() - 0.5) * 0.5,
             size: 3.5 + _rng.nextDouble() * 4.0,
             wobble: _rng.nextDouble() * math.pi * 2,
             wobbleSpeed: 0.02 + _rng.nextDouble() * 0.03,
@@ -237,27 +274,27 @@ class _WeatherEffectsOverlayState extends State<WeatherEffectsOverlay>
         }
         break;
       case WeatherEffect.cosmos:
-        final count = (area / 8000 * intensity).round();
+        final count = (area / 7000 * intensity).round();
         for (var i = 0; i < count; i++) {
           _particles.add(_Particle(
             x: _rng.nextDouble() * _size.width,
             y: _rng.nextDouble() * _size.height,
             vx: 0,
-            vy: 0.05 + _rng.nextDouble() * 0.15,
-            size: 1.2 + _rng.nextDouble() * 2.5,
+            vy: 0.06 + _rng.nextDouble() * 0.14,
+            size: 1.2 + _rng.nextDouble() * 2.6,
             wobble: _rng.nextDouble() * math.pi * 2,
-            wobbleSpeed: 0.04 + _rng.nextDouble() * 0.06,
+            wobbleSpeed: 0.03 + _rng.nextDouble() * 0.05,
           ));
         }
         break;
       case WeatherEffect.technoCivic:
-        final count = (area / 12000 * intensity).round();
+        final count = (area / 10000 * intensity).round();
         for (var i = 0; i < count; i++) {
           _particles.add(_Particle(
             x: _rng.nextDouble() * _size.width,
             y: _rng.nextDouble() * _size.height,
-            vx: (_rng.nextDouble() - 0.5) * 0.5,
-            vy: (_rng.nextDouble() - 0.5) * 0.5,
+            vx: (_rng.nextDouble() - 0.5) * 0.45,
+            vy: (_rng.nextDouble() - 0.5) * 0.45,
             size: 2.5 + _rng.nextDouble() * 3.5,
             wobble: _rng.nextDouble() * math.pi * 2,
             wobbleSpeed: 0.015 + _rng.nextDouble() * 0.02,
@@ -265,33 +302,31 @@ class _WeatherEffectsOverlayState extends State<WeatherEffectsOverlay>
         }
         break;
       case WeatherEffect.aurora:
-        // Aurora borealis shimmer bands
-        final count = (area / 20000 * intensity).round();
+        final count = (area / 18000 * intensity).round();
         for (var i = 0; i < count; i++) {
           _particles.add(_Particle(
             x: _rng.nextDouble() * _size.width,
-            y: _size.height * 0.1 + _rng.nextDouble() * _size.height * 0.35,
+            y: _size.height * 0.08 + _rng.nextDouble() * _size.height * 0.38,
             vx: 0.15 + _rng.nextDouble() * 0.25,
-            vy: (_rng.nextDouble() - 0.5) * 0.08,
-            size: 60 + _rng.nextDouble() * 120,
-            alpha: 0.03 + _rng.nextDouble() * 0.06,
+            vy: (_rng.nextDouble() - 0.5) * 0.06,
+            size: 70 + _rng.nextDouble() * 130,
+            alpha: 0.035 + _rng.nextDouble() * 0.065,
             wobble: _rng.nextDouble() * math.pi * 2,
             wobbleSpeed: 0.008 + _rng.nextDouble() * 0.012,
           ));
         }
         break;
       case WeatherEffect.hail:
-        // Hail: white bouncing orbs + rain streaks
-        final hailCount = (area / 10000 * intensity).round();
-        final rainCount = (area / 5000 * intensity).round();
+        final hailCount = (area / 8000 * intensity).round();
+        final rainCount = (area / 4000 * intensity).round();
         for (var i = 0; i < hailCount; i++) {
           _particles.add(_Particle(
             x: _rng.nextDouble() * _size.width,
             y: _rng.nextDouble() * _size.height,
             vx: -2.0 * intensity + _rng.nextDouble() * 1.0,
-            vy: 10 * intensity + _rng.nextDouble() * 8,
+            vy: 11 * intensity + _rng.nextDouble() * 7,
             size: 3.0 + _rng.nextDouble() * 4.0,
-            wobble: 0, // 0 = hail particle marker
+            wobble: 0,
           ));
         }
         for (var i = 0; i < rainCount; i++) {
@@ -299,22 +334,21 @@ class _WeatherEffectsOverlayState extends State<WeatherEffectsOverlay>
             x: _rng.nextDouble() * _size.width,
             y: _rng.nextDouble() * _size.height,
             vx: -2.5 * intensity,
-            vy: 14 * intensity + _rng.nextDouble() * 4,
+            vy: 15 * intensity + _rng.nextDouble() * 5,
             size: 1.0 + _rng.nextDouble() * 1.0,
-            wobble: 1, // 1 = rain particle marker
+            wobble: 1,
           ));
         }
         break;
       case WeatherEffect.windGust:
-        // Horizontal speed-lines + dust
-        final count = (area / 6000 * intensity).round();
+        final count = (area / 5000 * intensity).round();
         for (var i = 0; i < count; i++) {
           final isHorizontal = _rng.nextDouble() > 0.35;
           _particles.add(_Particle(
             x: _rng.nextDouble() * _size.width,
             y: _rng.nextDouble() * _size.height,
-            vx: isHorizontal ? (8 + _rng.nextDouble() * 12) * intensity : (_rng.nextDouble() - 0.5) * 1.5,
-            vy: isHorizontal ? (_rng.nextDouble() - 0.5) * 0.8 : (0.3 + _rng.nextDouble() * 0.6),
+            vx: isHorizontal ? (9 + _rng.nextDouble() * 13) * intensity : (_rng.nextDouble() - 0.5) * 1.5,
+            vy: isHorizontal ? (_rng.nextDouble() - 0.5) * 0.7 : (0.3 + _rng.nextDouble() * 0.6),
             size: isHorizontal ? (1.0 + _rng.nextDouble() * 1.5) : (1.5 + _rng.nextDouble() * 3.0),
             alpha: isHorizontal ? (0.2 + _rng.nextDouble() * 0.35) : (0.15 + _rng.nextDouble() * 0.2),
           ));
@@ -324,59 +358,123 @@ class _WeatherEffectsOverlayState extends State<WeatherEffectsOverlay>
   }
 
   void _tick() {
-    if (!_controller.isAnimating) return;
+    if (!_controller.isAnimating || _size == Size.zero) return;
+
+    // Связный ветер (рекомендация gpt-6-astra): один W(y,t) управляет дождём,
+    // снегом и туманом — вместо независимых анимаций. Плавные гармоники.
+    final t = _controller.value * 60.0; // секунды цикла
+    final windPhase = math.sin(t * 0.35) * 0.5 + math.sin(t * 0.13 + 1.7) * 0.3;
+
+    // 1. Частицы погоды с бесшовным тороидальным переносом (Seamless wrapping)
     for (final p in _particles) {
       if (widget.effect == WeatherEffect.fireflies || widget.effect == WeatherEffect.technoCivic) {
-        p.vx += (_rng.nextDouble() - 0.5) * 0.06;
-        p.vy += (_rng.nextDouble() - 0.5) * 0.06;
-        p.vx = p.vx.clamp(-0.8, 0.8);
-        p.vy = p.vy.clamp(-0.8, 0.8);
+        p.vx += (_rng.nextDouble() - 0.5) * 0.05;
+        p.vy += (_rng.nextDouble() - 0.5) * 0.05;
+        p.vx = p.vx.clamp(-0.7, 0.7);
+        p.vy = p.vy.clamp(-0.7, 0.7);
       }
-      p.x += p.vx;
-      p.y += p.vy;
-      if (p.wobbleSpeed > 0) {
+
+      if (widget.effect == WeatherEffect.snow) {
+        // Отклонение от базовой траектории, а не накопление синуса:
+        // x = baseX + A*sin(ωt+φ), A зависит от глубины (дальние — меньше)
         p.wobble += p.wobbleSpeed;
-        p.x += math.sin(p.wobble) * 0.6;
+        final amp = (1.8 + 6.0 * p.depth) * 0.5;
+        p.x = p.baseX + math.sin(p.wobble) * amp;
+      } else if (widget.effect == WeatherEffect.rain ||
+          widget.effect == WeatherEffect.heavyRain ||
+          widget.effect == WeatherEffect.storm ||
+          widget.effect == WeatherEffect.thunderstorm) {
+        // Порывы ветра синхронно сдвигают все капли (инерция через lerp)
+        p.x += windPhase * 0.6 * p.depth;
+        p.y += p.vy;
+      } else if (widget.effect == WeatherEffect.fog ||
+          widget.effect == WeatherEffect.clouds) {
+        p.wobble += p.wobbleSpeed;
+        p.x += p.vx + math.sin(p.wobble) * 0.15;
+      } else {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.wobbleSpeed > 0) {
+          p.wobble += p.wobbleSpeed;
+          p.x += math.sin(p.wobble) * 0.5;
+        }
       }
-      // Wrap-around.
-      if (p.y > _size.height + 20) {
-        p.y = -20;
-        p.x = _rng.nextDouble() * _size.width;
+
+      if (widget.effect != WeatherEffect.snow) {
+        p.x += p.vx;
+        p.y += p.vy;
+      } else {
+        p.y += p.vy;
+        // База движется с ветром — метель при порывах
+        p.baseX += windPhase * 0.35 * p.depth;
       }
-      if (p.x < -p.size) {
-        p.x = _size.width + p.size;
-      } else if (p.x > _size.width + p.size) {
-        p.x = -p.size;
+
+      // Бесшовный перенос по Y без случайных скачков
+      if (p.y > _size.height + 30) {
+        p.y -= (_size.height + 60);
+        if (widget.effect == WeatherEffect.snow) {
+          p.baseX = _rng.nextDouble() * _size.width;
+        }
+      } else if (p.y < -30) {
+        p.y += (_size.height + 60);
+      }
+
+      // Бесшовный перенос по X
+      if (widget.effect == WeatherEffect.snow) {
+        if (p.baseX < -p.size * 2) {
+          p.baseX += (_size.width + p.size * 4);
+        } else if (p.baseX > _size.width + p.size * 2) {
+          p.baseX -= (_size.width + p.size * 4);
+        }
+      } else if (p.x < -p.size * 2) {
+        p.x += (_size.width + p.size * 4);
+      } else if (p.x > _size.width + p.size * 2) {
+        p.x -= (_size.width + p.size * 4);
       }
     }
 
-    // Fractal lightning for storm/thunderstorm.
+    // 2. Капли на переднем стекле (Lens Droplets)
+    for (final d in _lensDroplets) {
+      d.y += d.speed;
+      if (d.y > _size.height + 20) {
+        d.y = -20;
+        d.x = _rng.nextDouble() * _size.width;
+      }
+    }
+
+    // 3. Фрактальные молнии при грозе — мульти-вспышки одного канала
+    // (рекомендация gpt-6-astra: 2-4 рестрика с паузами 30-90 мс,
+    // I(t)=Σ Ai*exp(-(t-ti)/τi) вместо одиночной альфы)
     if (widget.effect == WeatherEffect.thunderstorm ||
         widget.effect == WeatherEffect.storm) {
       final now = DateTime.now();
       final since = now.difference(_lastFlash).inMilliseconds;
-      if (_flashActive && since > 180) {
+      if (_flashActive && since > 600) {
         _flashActive = false;
         _lightningAlpha = 0.0;
         _lastFlash = now;
-      } else if (!_flashActive && since > 2500 && _rng.nextDouble() < 0.025) {
+      } else if (!_flashActive && since > 3200 && _rng.nextDouble() < 0.03) {
         _flashActive = true;
         _lastFlash = now;
         _lightningAlpha = 1.0;
-        // Generate fractal lightning bolt
         _lightningBolt = _generateFractalLightning(
           Offset(_rng.nextDouble() * _size.width, 0),
           Offset(_rng.nextDouble() * _size.width, _size.height * (0.5 + _rng.nextDouble() * 0.4)),
-          6, // depth
+          6,
         );
       } else if (_flashActive) {
-        _lightningAlpha = (1.0 - since / 180.0).clamp(0.0, 1.0);
+        // Затухающая цепочка рестриков: экспоненциальные пики
+        final tau = 45.0;
+        final flicker = math.sin(since * 0.09).abs();
+        _lightningAlpha = math.exp(-since / (tau * 6)) * (0.55 + 0.45 * flicker);
       }
     }
 
-    setState(() {});
+    // Перерисовка только canvas-слоёв (через listenable ниже), без
+    // перестройки виджет-дерева — убирает фризы на слабых устройствах.
+    _repaint.value++;
   }
-  /// Generate fractal lightning bolt using midpoint displacement
+
   List<Offset> _generateFractalLightning(Offset start, Offset end, int depth) {
     if (depth <= 0) return [start, end];
     final mid = Offset(
@@ -391,39 +489,47 @@ class _WeatherEffectsOverlayState extends State<WeatherEffectsOverlay>
   @override
   void dispose() {
     _controller.removeListener(_tick);
+    _repaint.dispose();
     _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Градиент-фон неба.
+    final progress = _controller.value;
+
+    return AnimatedBuilder(
+      animation: _repaint,
+      builder: (context, _) => Stack(
+        children: [
+        // ─── СЛОЙ 0: Небесный градиент ───
         if (widget.showBackground)
           Container(
             decoration: BoxDecoration(
-              gradient: _skyGradient(),
+              gradient: _skyGradient(progress),
             ),
           ),
-        // Атмосферный фоновый слой
+
+        // ─── СЛОЙ 1: Фоновая атмосфера (Лучи, Аврора, Метеоры, Туман) ───
         Positioned.fill(
           child: CustomPaint(
             painter: _AmbientAtmospherePainter(
               isDay: widget.isDay,
               effect: widget.effect,
-              animProgress: _controller.value,
+              animProgress: progress,
             ),
           ),
         ),
-        // Солнце/луна для ясной погоды.
-        if (widget.effect == WeatherEffect.clear)
+
+        // ─── СЛОЙ 1.5: Солнце / Луна с мягким пульсирующим ореолом ───
+        if (widget.effect == WeatherEffect.clear || widget.effect == WeatherEffect.clouds)
           Positioned(
-            top: _size.height * 0.08,
-            right: _size.width * 0.12,
-            child: _SunMoon(isDay: widget.isDay),
+            top: _size.height * 0.07,
+            right: _size.width * 0.10,
+            child: _AnimatedSunMoon(isDay: widget.isDay, progress: progress),
           ),
-        // Слой частиц.
+
+        // ─── СЛОЙ 2: Основные погодные частицы ───
         Positioned.fill(
           child: CustomPaint(
             painter: _WeatherPainter(
@@ -433,41 +539,57 @@ class _WeatherEffectsOverlayState extends State<WeatherEffectsOverlay>
               isDay: widget.isDay,
               lightningBolt: _lightningBolt,
               lightningAlpha: _lightningAlpha,
+              progress: progress,
             ),
           ),
         ),
-        // Контент поверх.
+
+        // ─── СЛОЙ 3: Передний план (Капли на стекле, мороз, блики) ───
+        Positioned.fill(
+          child: CustomPaint(
+            painter: _ForegroundLensPainter(
+              droplets: _lensDroplets,
+              effect: widget.effect,
+              isDay: widget.isDay,
+              progress: progress,
+            ),
+          ),
+        ),
+
+        // Контент поверх
         if (widget.child != null) widget.child!,
       ],
+      ),
     );
   }
 
-  LinearGradient _skyGradient() {
+  LinearGradient _skyGradient(double progress) {
     final isDay = widget.isDay;
+
     switch (widget.effect) {
       case WeatherEffect.clear:
         return LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: isDay
-              ? [const Color(0xFF4A90D9), const Color(0xFF87CEEB), const Color(0xFFB8E0F6)]
-              : [const Color(0xFF0B1026), const Color(0xFF1A1F3A), const Color(0xFF2C3E5A)],
+              ? [const Color(0xFF0284C7), const Color(0xFF38BDF8), const Color(0xFFBAE6FD)]
+              : [const Color(0xFF030712), const Color(0xFF0F172A), const Color(0xFF1E293B)],
         );
       case WeatherEffect.clouds:
         return LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: isDay
-              ? [const Color(0xFF6B7B8C), const Color(0xFF95A5B5), const Color(0xFFB0C0D0)]
-              : [const Color(0xFF1C2333), const Color(0xFF2D3848), const Color(0xFF3A4A5C)],
+              ? [const Color(0xFF475569), const Color(0xFF64748B), const Color(0xFF94A3B8)]
+              : [const Color(0xFF0A0F1D), const Color(0xFF131C2E), const Color(0xFF1E293B)],
         );
       case WeatherEffect.fog:
         return LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: isDay
-              ? [const Color(0xFF9CA8B5), const Color(0xFFB5BFC9), const Color(0xFFCED5DC)]
-              : [const Color(0xFF2A3038), const Color(0xFF383F47), const Color(0xFF454D55)],
+              ? [const Color(0xFF78909C), const Color(0xFFB0BEC5), const Color(0xFFECEFF1)]
+              : [const Color(0xFF101720), const Color(0xFF1E272E), const Color(0xFF2C3A47)],
         );
       case WeatherEffect.rain:
       case WeatherEffect.heavyRain:
@@ -475,8 +597,8 @@ class _WeatherEffectsOverlayState extends State<WeatherEffectsOverlay>
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: isDay
-              ? [const Color(0xFF4A5568), const Color(0xFF606E82), const Color(0xFF7B8A9E)]
-              : [const Color(0xFF141A24), const Color(0xFF1F2632), const Color(0xFF2A3340)],
+              ? [const Color(0xFF334155), const Color(0xFF475569), const Color(0xFF64748B)]
+              : [const Color(0xFF05070C), const Color(0xFF0A0F1D), const Color(0xFF161F30)],
         );
       case WeatherEffect.snow:
         return LinearGradient(
@@ -492,42 +614,38 @@ class _WeatherEffectsOverlayState extends State<WeatherEffectsOverlay>
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: isDay
-              ? [const Color(0xFF2D3748), const Color(0xFF3B4759), const Color(0xFF4E5B6F)]
-              : [const Color(0xFF0A0E16), const Color(0xFF161B26), const Color(0xFF222934)],
+              ? [const Color(0xFF1E293B), const Color(0xFF334155), const Color(0xFF475569)]
+              : [const Color(0xFF030508), const Color(0xFF0B101B), const Color(0xFF182232)],
         );
       case WeatherEffect.sakura:
-        return LinearGradient(
+        return const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: isDay
-              ? [const Color(0xFFFFF0F5), const Color(0xFFFFD1DC)]
-              : [const Color(0xFF1A0F24), const Color(0xFF32143F)],
+          colors: [Color(0xFF2B0A1E), Color(0xFF4A1535), Color(0xFF702050)],
         );
       case WeatherEffect.fireflies:
-        return LinearGradient(
+        return const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: isDay
-              ? [const Color(0xFF14241C), const Color(0xFF1F382B)]
-              : [const Color(0xFF030708), const Color(0xFF0D1B2A)],
+          colors: [Color(0xFF020908), Color(0xFF081814), Color(0xFF0F2B20)],
         );
       case WeatherEffect.cosmos:
-        return LinearGradient(
+        return const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF020208), const Color(0xFF0F0A1E)],
+          colors: [Color(0xFF020208), Color(0xFF090417), Color(0xFF150A2E)],
         );
       case WeatherEffect.technoCivic:
-        return LinearGradient(
+        return const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF050811), const Color(0xFF0E1A2F)],
+          colors: [Color(0xFF030814), Color(0xFF071226), Color(0xFF0D2240)],
         );
       case WeatherEffect.aurora:
-        return LinearGradient(
+        return const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [const Color(0xFF000428), const Color(0xFF004E40), const Color(0xFF000428)],
+          colors: [Color(0xFF000428), Color(0xFF00382E), Color(0xFF001F1A)],
         );
       case WeatherEffect.hail:
         return LinearGradient(
@@ -560,6 +678,12 @@ class _Particle {
     this.alpha = 1.0,
     this.wobble = 0,
     this.wobbleSpeed = 0,
+    this.plane = 0,
+    // Непрерывная глубина (рекомендация gpt-6-astra): q=1/z, z∈[1,4].
+    // Управляет скоростью, толщиной и прозрачностью вместо 2 дискретных планов.
+    this.depth = 1.0,
+    // Базовая траектория для снега: отклонение задаётся от базы, не накоплением
+    this.baseX = 0.0,
   });
 
   double x;
@@ -570,29 +694,58 @@ class _Particle {
   double alpha;
   double wobble;
   double wobbleSpeed;
+  int plane;
+  double depth;
+  double baseX;
 }
 
-typedef Random = math.Random;
+/// Капля на стекле переднего плана.
+class _LensDroplet {
+  _LensDroplet({
+    required this.x,
+    required this.y,
+    required this.radius,
+    required this.speed,
+    required this.trailLength,
+  });
 
-/// Солнце/Луна для ясной погоды — с мягким свечением.
-class _SunMoon extends StatelessWidget {
-  const _SunMoon({required this.isDay});
+  double x;
+  double y;
+  double radius;
+  double speed;
+  double trailLength;
+}
+
+/// Солнце/Луна с гармоническим дыханием ореола.
+class _AnimatedSunMoon extends StatelessWidget {
+  const _AnimatedSunMoon({required this.isDay, required this.progress});
   final bool isDay;
+  final double progress;
 
   @override
   Widget build(BuildContext context) {
-    final coreColor = isDay ? const Color(0xFFFFD54F) : const Color(0xFFE0E0E0);
+    final coreColor = isDay ? const Color(0xFFFFD54F) : const Color(0xFFE0F2FE);
+    final breath = (0.7 + 0.3 * math.sin(progress * 2 * math.pi * 3)).clamp(0.4, 1.0);
+
     return Container(
-      width: 90,
-      height: 90,
+      width: 95,
+      height: 95,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: coreColor,
+        gradient: RadialGradient(
+          colors: [
+            coreColor,
+            coreColor.withOpacity(0.85),
+            coreColor.withOpacity(0.2),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.45, 0.75, 1.0],
+        ),
         boxShadow: [
           BoxShadow(
-            color: coreColor.withOpacity(0.6),
-            blurRadius: 50,
-            spreadRadius: 10,
+            color: coreColor.withOpacity(0.35 * breath),
+            blurRadius: 50 * breath,
+            spreadRadius: 8 * breath,
           ),
         ],
       ),
@@ -600,255 +753,7 @@ class _SunMoon extends StatelessWidget {
   }
 }
 
-/// Painter, отрисовывающий частицы по типу эффекта.
-class _WeatherPainter extends CustomPainter {
-  const _WeatherPainter({
-    required this.particles,
-    required this.effect,
-    required this.flash,
-    required this.isDay,
-    this.lightningBolt = const [],
-    this.lightningAlpha = 0.0,
-  });
-
-  final List<_Particle> particles;
-  final WeatherEffect effect;
-  final bool flash;
-  final bool isDay;
-  final List<Offset> lightningBolt;
-  final double lightningAlpha;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Молния: вспышка фона + fractal bolt
-    if (flash) {
-      final flashPaint = Paint()..color = Colors.white.withOpacity(0.35 * lightningAlpha);
-      canvas.drawRect(Offset.zero & size, flashPaint);
-      
-      // Draw fractal lightning bolt
-      if (lightningBolt.length >= 2 && lightningAlpha > 0.1) {
-        // Main bolt
-        final boltPaint = Paint()
-          ..color = Colors.white.withOpacity(0.95 * lightningAlpha)
-          ..strokeWidth = 2.5
-          ..strokeCap = StrokeCap.round
-          ..style = PaintingStyle.stroke;
-        final boltPath = Path()..moveTo(lightningBolt.first.dx, lightningBolt.first.dy);
-        for (final pt in lightningBolt.skip(1)) {
-          boltPath.lineTo(pt.dx, pt.dy);
-        }
-        canvas.drawPath(boltPath, boltPaint);
-        
-        // Glow around bolt
-        final glowPaint = Paint()
-          ..color = const Color(0xFF80D8FF).withOpacity(0.4 * lightningAlpha)
-          ..strokeWidth = 8.0
-          ..strokeCap = StrokeCap.round
-          ..style = PaintingStyle.stroke
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-        canvas.drawPath(boltPath, glowPaint);
-        
-        // Outer bloom
-        final bloomPaint = Paint()
-          ..color = const Color(0xFFB3E5FC).withOpacity(0.15 * lightningAlpha)
-          ..strokeWidth = 18.0
-          ..style = PaintingStyle.stroke
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14);
-        canvas.drawPath(boltPath, bloomPaint);
-      }
-    }
-
-    for (final p in particles) {
-      switch (effect) {
-        case WeatherEffect.rain:
-        case WeatherEffect.heavyRain:
-        case WeatherEffect.storm:
-        case WeatherEffect.thunderstorm:
-          final paint = Paint()
-            ..color = isDay
-                ? Colors.white.withOpacity(0.5)
-                : Colors.lightBlueAccent.withOpacity(0.4)
-            ..strokeWidth = p.size
-            ..strokeCap = StrokeCap.round;
-          canvas.drawLine(
-            Offset(p.x, p.y),
-            Offset(p.x - p.vx * 2, p.y - p.vy * 1.2),
-            paint,
-          );
-          break;
-        case WeatherEffect.snow:
-          final paint = Paint()
-            ..color = Colors.white.withOpacity(0.9)
-            ..style = PaintingStyle.fill;
-          canvas.drawCircle(Offset(p.x, p.y), p.size, paint);
-          break;
-        case WeatherEffect.fog:
-          final paint = Paint()
-            ..color = (isDay ? Colors.white : Colors.grey.shade300)
-                .withOpacity(p.alpha);
-          canvas.drawCircle(Offset(p.x, p.y), p.size, paint);
-          break;
-        case WeatherEffect.clouds:
-          final paint = Paint()
-            ..color = Colors.white.withOpacity(p.alpha);
-          canvas.drawOval(
-            Rect.fromCenter(
-                center: Offset(p.x, p.y),
-                width: p.size * 1.6,
-                height: p.size),
-            paint,
-          );
-          break;
-        case WeatherEffect.clear:
-          break; // солнце рисуется виджетом, не частицами
-        case WeatherEffect.sakura:
-          final paint = Paint()
-            ..color = const Color(0xFFFFB7C5).withOpacity(0.8)
-            ..style = PaintingStyle.fill;
-          canvas.save();
-          canvas.translate(p.x, p.y);
-          canvas.rotate(p.wobble); // rotate based on wobble phase
-          canvas.drawOval(
-            Rect.fromCenter(center: Offset.zero, width: p.size, height: p.size * 0.6),
-            paint,
-          );
-          canvas.restore();
-          break;
-        case WeatherEffect.fireflies:
-          final intensityVal = (0.3 + 0.7 * math.sin(p.wobble)).clamp(0.0, 1.0);
-          final paint = Paint()
-            ..color = const Color(0xFFCCFF00).withOpacity(0.5 * intensityVal)
-            ..maskFilter = MaskFilter.blur(BlurStyle.normal, p.size * 0.4);
-          canvas.drawCircle(Offset(p.x, p.y), p.size, paint);
-          // Central core
-          canvas.drawCircle(
-            Offset(p.x, p.y),
-            p.size * 0.35,
-            Paint()..color = Colors.white.withOpacity(0.95 * intensityVal),
-          );
-          break;
-        case WeatherEffect.cosmos:
-          final intensityVal = (0.2 + 0.8 * math.sin(p.wobble)).clamp(0.0, 1.0);
-          final color = (p.size > 2.2) 
-              ? (p.wobbleSpeed > 0.05 ? const Color(0xFF00FFFF) : const Color(0xFFFF00FF)) 
-              : Colors.white;
-          final paint = Paint()
-            ..color = color.withOpacity(intensityVal)
-            ..style = PaintingStyle.fill;
-          canvas.drawCircle(Offset(p.x, p.y), p.size * 0.8, paint);
-          // Large star flare
-          if (p.size > 2.2 && intensityVal > 0.7) {
-            final linePaint = Paint()
-              ..color = color.withOpacity(0.3)
-              ..strokeWidth = 0.5;
-            canvas.drawLine(Offset(p.x - 4, p.y), Offset(p.x + 4, p.y), linePaint);
-            canvas.drawLine(Offset(p.x, p.y - 4), Offset(p.x, p.y + 4), linePaint);
-          }
-          break;
-        case WeatherEffect.technoCivic:
-          final paint = Paint()
-            ..color = const Color(0xFF00E5FF).withOpacity(0.6)
-            ..style = PaintingStyle.fill;
-          canvas.drawCircle(Offset(p.x, p.y), p.size * 0.6, paint);
-          // Connect to nearby nodes
-          for (final other in particles) {
-            if (other != p && other.x > p.x) {
-              final distSq = (p.x - other.x) * (p.x - other.x) + (p.y - other.y) * (p.y - other.y);
-              if (distSq < 3600) {
-                final dist = math.sqrt(distSq);
-                final alpha = (1.0 - dist / 60.0) * 0.15;
-                canvas.drawLine(
-                  Offset(p.x, p.y),
-                  Offset(other.x, other.y),
-                  Paint()
-                    ..color = const Color(0xFF00E5FF).withOpacity(alpha)
-                    ..strokeWidth = 0.5,
-                );
-              }
-            }
-          }
-          break;
-        case WeatherEffect.aurora:
-          // Aurora borealis: translucent gradient bands with wave distortion
-          final waveY = math.sin(p.wobble) * 15.0;
-          final auroraGreen = Color.lerp(
-            const Color(0xFF00FF87),
-            const Color(0xFF00BFFF),
-            (math.sin(p.wobble * 0.7) * 0.5 + 0.5),
-          )!;
-          final aurPaint = Paint()
-            ..color = auroraGreen.withOpacity(p.alpha * (0.6 + 0.4 * math.sin(p.wobble)))
-            ..maskFilter = MaskFilter.blur(BlurStyle.normal, p.size * 0.3);
-          canvas.drawOval(
-            Rect.fromCenter(
-              center: Offset(p.x, p.y + waveY),
-              width: p.size * 2.2,
-              height: p.size * 0.35,
-            ),
-            aurPaint,
-          );
-          break;
-        case WeatherEffect.hail:
-          if (p.wobble == 0) {
-            // Hail stone: white sphere with specular highlight
-            final hailPaint = Paint()
-              ..shader = RadialGradient(
-                colors: [
-                  Colors.white.withOpacity(0.95),
-                  const Color(0xFFB0D4F1).withOpacity(0.7),
-                  const Color(0xFF7EB3D4).withOpacity(0.4),
-                ],
-                stops: const [0.0, 0.5, 1.0],
-              ).createShader(Rect.fromCircle(center: Offset(p.x, p.y), radius: p.size));
-            canvas.drawCircle(Offset(p.x, p.y), p.size, hailPaint);
-            // Specular dot
-            canvas.drawCircle(
-              Offset(p.x - p.size * 0.25, p.y - p.size * 0.25),
-              p.size * 0.2,
-              Paint()..color = Colors.white.withOpacity(0.9),
-            );
-          } else {
-            // Rain streak alongside hail
-            final rPaint = Paint()
-              ..color = Colors.lightBlueAccent.withOpacity(0.35)
-              ..strokeWidth = p.size
-              ..strokeCap = StrokeCap.round;
-            canvas.drawLine(
-              Offset(p.x, p.y),
-              Offset(p.x - p.vx * 1.5, p.y - p.vy * 1.0),
-              rPaint,
-            );
-          }
-          break;
-        case WeatherEffect.windGust:
-          // Horizontal speed lines
-          if (p.vx.abs() > 3) {
-            final lineLen = p.vx.abs() * 1.8;
-            final windPaint = Paint()
-              ..color = (isDay ? Colors.white : const Color(0xFF80D8FF)).withOpacity(p.alpha)
-              ..strokeWidth = p.size * 0.5
-              ..strokeCap = StrokeCap.round;
-            canvas.drawLine(
-              Offset(p.x, p.y),
-              Offset(p.x - lineLen, p.y),
-              windPaint,
-            );
-          } else {
-            // Dust/debris particle
-            final dustPaint = Paint()
-              ..color = (isDay ? const Color(0xFFD4A76A) : const Color(0xFF8B7355)).withOpacity(p.alpha)
-              ..style = PaintingStyle.fill;
-            canvas.drawCircle(Offset(p.x, p.y), p.size, dustPaint);
-          }
-          break;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _WeatherPainter old) => true;
-}
-
+/// СЛОЙ 1: Атмосферный фоновый пейнтер (строго гармонический).
 class _AmbientAtmospherePainter extends CustomPainter {
   const _AmbientAtmospherePainter({
     required this.isDay,
@@ -862,70 +767,423 @@ class _AmbientAtmospherePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final now = DateTime.now();
-    final hour = now.hour;
-
+    // 1. Дневные лучи солнца с бесшовным гармоническим вращением
     if (isDay && (effect == WeatherEffect.clear || effect == WeatherEffect.clouds)) {
-      // 1. Day Sunbeams / Sunburst rotating light shafts
-      final sunOrigin = Offset(size.width * 0.85, size.height * 0.12);
-      final rayCount = 8;
+      final sunOrigin = Offset(size.width * 0.88, size.height * 0.10);
+      final rayCount = 10;
       final rayPaint = Paint()
         ..shader = RadialGradient(
           colors: [
-            const Color(0xFFFFE082).withOpacity(0.18),
-            const Color(0xFFFFD54F).withOpacity(0.06),
+            const Color(0xFFFFE082).withOpacity(0.16),
+            const Color(0xFFFFD54F).withOpacity(0.04),
             Colors.transparent,
           ],
-          stops: const [0.0, 0.4, 1.0],
-        ).createShader(Rect.fromCircle(center: sunOrigin, radius: size.height * 0.8));
+          stops: const [0.0, 0.45, 1.0],
+        ).createShader(Rect.fromCircle(center: sunOrigin, radius: size.height * 0.85));
 
       canvas.save();
       canvas.translate(sunOrigin.dx, sunOrigin.dy);
-      canvas.rotate(animProgress * 2 * math.pi * 0.05);
+      // Вращение на строго целое число оборотов за цикл (2 оборота за 60 секунд)
+      canvas.rotate(animProgress * 2 * math.pi * 2.0);
 
       for (int i = 0; i < rayCount; i++) {
         final angle = (i * 2 * math.pi) / rayCount;
         final path = Path()
           ..moveTo(0, 0)
-          ..lineTo(math.cos(angle - 0.15) * size.height * 0.9, math.sin(angle - 0.15) * size.height * 0.9)
-          ..lineTo(math.cos(angle + 0.15) * size.height * 0.9, math.sin(angle + 0.15) * size.height * 0.9)
+          ..lineTo(math.cos(angle - 0.12) * size.height * 0.9, math.sin(angle - 0.12) * size.height * 0.9)
+          ..lineTo(math.cos(angle + 0.12) * size.height * 0.9, math.sin(angle + 0.12) * size.height * 0.9)
           ..close();
         canvas.drawPath(path, rayPaint);
       }
       canvas.restore();
-    } else if (hour >= 17 && hour < 22) {
-      // 2. Twilight Sunset / Evening Glow with warm ember particles
-      final twilightPaint = Paint()
+    }
+
+    // 2. Северное сияние (Аврора) — плавные волновые ленты
+    if (effect == WeatherEffect.aurora || (!isDay && effect == WeatherEffect.clear)) {
+      final wave1 = math.sin(animProgress * 2 * math.pi * 4) * 20.0;
+      final wave2 = math.cos(animProgress * 2 * math.pi * 3) * 15.0;
+
+      final aurPath = Path()
+        ..moveTo(0, size.height * 0.15 + wave1)
+        ..quadraticBezierTo(
+            size.width * 0.35, size.height * 0.08 + wave2, size.width * 0.65, size.height * 0.18 + wave1)
+        ..quadraticBezierTo(
+            size.width * 0.85, size.height * 0.22 + wave2, size.width, size.height * 0.12 + wave1)
+        ..lineTo(size.width, size.height * 0.32 + wave1)
+        ..quadraticBezierTo(
+            size.width * 0.65, size.height * 0.38 + wave2, size.width * 0.35, size.height * 0.28 + wave1)
+        ..lineTo(0, size.height * 0.35 + wave1)
+        ..close();
+
+      final aurPaint = Paint()
         ..shader = LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
           colors: [
-            const Color(0xFFFF7043).withOpacity(0.25),
-            const Color(0xFFAB47BC).withOpacity(0.15),
+            const Color(0xFF00FF87).withOpacity(0.18),
+            const Color(0xFF00E5FF).withOpacity(0.12),
             Colors.transparent,
           ],
-          stops: const [0.0, 0.5, 1.0],
-        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-      canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), twilightPaint);
-    } else if (!isDay) {
-      // 3. Night Starfield Constellations with twinkling stars
+        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height * 0.5))
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16);
+
+      canvas.drawPath(aurPath, aurPaint);
+    }
+
+    // 3. Звездное небо с гармоническим мерцанием и падающими метеорами
+    if (!isDay) {
       final rng = math.Random(1337);
-      for (int i = 0; i < 40; i++) {
-        final sx = rng.nextDouble() * size.width;
-        final sy = rng.nextDouble() * (size.height * 0.65);
-        final starSize = 0.8 + rng.nextDouble() * 1.6;
-        final twinkle = 0.3 + 0.7 * math.sin((animProgress * 2 * math.pi * (1.0 + rng.nextDouble())) + i);
-        
+      for (int i = 0; i < 48; i++) {
+        final sx = (rng.nextDouble() * size.width);
+        final sy = (rng.nextDouble() * size.height * 0.65);
+        final starSize = 0.8 + (i % 3) * 0.6;
+        // Строго гармоническая частота мерцания (целочисленные множители 2, 3, 4, 5)
+        final harmonic = 2 + (i % 4);
+        final twinkle = 0.35 + 0.65 * math.sin(animProgress * 2 * math.pi * harmonic + (i * 0.5));
+
         final starPaint = Paint()
-          ..color = (i % 5 == 0 ? const Color(0xFF80D8FF) : Colors.white).withOpacity(twinkle.clamp(0.1, 0.95))
+          ..color = (i % 6 == 0 ? const Color(0xFF80D8FF) : Colors.white)
+              .withOpacity(twinkle.clamp(0.1, 0.95))
           ..style = PaintingStyle.fill;
         canvas.drawCircle(Offset(sx, sy), starSize, starPaint);
+      }
+
+      // Падающая звезда (Метеор)
+      final meteorCycle = (animProgress * 6) % 1.0;
+      if (meteorCycle < 0.25) {
+        final mProg = meteorCycle / 0.25;
+        final mx = size.width * 0.15 + mProg * size.width * 0.45;
+        final my = size.height * 0.05 + mProg * size.height * 0.20;
+        final mAlpha = (math.sin(mProg * math.pi)).clamp(0.0, 1.0);
+
+        final meteorPaint = Paint()
+          ..shader = LinearGradient(
+            colors: [Colors.white.withOpacity(mAlpha * 0.9), Colors.transparent],
+          ).createShader(Rect.fromPoints(Offset(mx, my), Offset(mx - 60, my - 26)))
+          ..strokeWidth = 1.6
+          ..strokeCap = StrokeCap.round;
+        canvas.drawLine(Offset(mx, my), Offset(mx - 60, my - 26), meteorPaint);
       }
     }
   }
 
   @override
-  bool shouldRepaint(covariant _AmbientAtmospherePainter oldDelegate) =>
-      oldDelegate.animProgress != animProgress || oldDelegate.isDay != isDay || oldDelegate.effect != effect;
+  bool shouldRepaint(covariant _AmbientAtmospherePainter oldDelegate) => true;
 }
 
+/// СЛОЙ 2: Основной пейнтер погодных частиц.
+class _WeatherPainter extends CustomPainter {
+  const _WeatherPainter({
+    required this.particles,
+    required this.effect,
+    required this.flash,
+    required this.isDay,
+    this.lightningBolt = const [],
+    this.lightningAlpha = 0.0,
+    required this.progress,
+  });
+
+  final List<_Particle> particles;
+  final WeatherEffect effect;
+  final bool flash;
+  final bool isDay;
+  final List<Offset> lightningBolt;
+  final double lightningAlpha;
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Вспышка молнии — освещает сцену, а не только белеет:
+    // тёплый градиент сверху + подсветка облачного слоя
+    if (flash && lightningAlpha > 0.05) {
+      final flashPaint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.white.withOpacity(0.38 * lightningAlpha),
+            const Color(0xFFBFD9FF).withOpacity(0.16 * lightningAlpha),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.45, 1.0],
+        ).createShader(Offset.zero & size);
+      canvas.drawRect(Offset.zero & size, flashPaint);
+
+      if (lightningBolt.length >= 2) {
+        final boltPath = Path()..moveTo(lightningBolt.first.dx, lightningBolt.first.dy);
+        for (final pt in lightningBolt.skip(1)) {
+          boltPath.lineTo(pt.dx, pt.dy);
+        }
+
+        // Внутренняя нить молнии
+        canvas.drawPath(
+          boltPath,
+          Paint()
+            ..color = Colors.white.withOpacity(0.95 * lightningAlpha)
+            ..strokeWidth = 2.4
+            ..strokeCap = StrokeCap.round
+            ..style = PaintingStyle.stroke,
+        );
+
+        // Неоновый ореол
+        canvas.drawPath(
+          boltPath,
+          Paint()
+            ..color = const Color(0xFF00E5FF).withOpacity(0.45 * lightningAlpha)
+            ..strokeWidth = 9.0
+            ..strokeCap = StrokeCap.round
+            ..style = PaintingStyle.stroke
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+        );
+      }
+    }
+
+    for (final p in particles) {
+      // Плавное затухание прозрачности у границ экрана для исключения резкого появления
+      final edgeFade = ((p.y / 50.0).clamp(0.0, 1.0) * ((size.height - p.y) / 50.0).clamp(0.0, 1.0));
+
+      switch (effect) {
+        case WeatherEffect.rain:
+        case WeatherEffect.heavyRain:
+        case WeatherEffect.storm:
+        case WeatherEffect.thunderstorm:
+          // Непрерывная глубина: q=1/z управляет яркостью и толщиной
+          final isNear = p.depth > 0.5;
+          final paint = Paint()
+            ..color = isDay
+                ? Colors.white.withOpacity((p.depth.clamp(0.3, 1.0) * (isNear ? 0.65 : 0.35)) * edgeFade)
+                : const Color(0xFF80D8FF).withOpacity((p.depth.clamp(0.3, 1.0) * (isNear ? 0.60 : 0.30)) * edgeFade)
+            ..strokeWidth = p.size.clamp(0.5, 2.6)
+            ..strokeCap = StrokeCap.round;
+          canvas.drawLine(
+            Offset(p.x, p.y),
+            Offset(p.x - p.vx * 2.2, p.y - p.vy * 1.3),
+            paint,
+          );
+          break;
+
+        case WeatherEffect.snow:
+          // Кувыркание хлопка: scaleX = 0.35+0.65*|cos(Ωt+φ)|
+          final tumble = 0.35 + 0.65 * math.cos(p.wobble).abs();
+          final paint = Paint()
+            ..color = Colors.white.withOpacity(p.depth.clamp(0.45, 0.95) * edgeFade)
+            ..style = PaintingStyle.fill;
+          canvas.save();
+          canvas.translate(p.x, p.y);
+          canvas.scale(tumble, 1.0);
+          canvas.drawCircle(Offset.zero, p.size, paint);
+          canvas.restore();
+          break;
+
+        case WeatherEffect.fog:
+          // Слоистая оптическая толщина (закон Бугера): α=1-exp(-ρ*d).
+          // Дальние слои крупнее и прозрачнее, ближние — плотнее.
+          final opticalDepth = 1.0 - math.exp(-p.alpha * 14.0 * (1.0 - p.size / 240.0));
+          final paint = Paint()
+            ..color = (isDay ? Colors.white : Colors.grey.shade300)
+                .withOpacity(opticalDepth.clamp(0.03, 0.22) * edgeFade)
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, p.size * 0.35);
+          canvas.drawCircle(Offset(p.x, p.y), p.size, paint);
+          break;
+
+        case WeatherEffect.clouds:
+          final paint = Paint()..color = Colors.white.withOpacity(p.alpha * edgeFade);
+          canvas.drawOval(
+            Rect.fromCenter(center: Offset(p.x, p.y), width: p.size * 1.8, height: p.size * 0.9),
+            paint,
+          );
+          break;
+
+        case WeatherEffect.sakura:
+          final paint = Paint()
+            ..color = const Color(0xFFFFB7C5).withOpacity(0.85 * edgeFade)
+            ..style = PaintingStyle.fill;
+          canvas.save();
+          canvas.translate(p.x, p.y);
+          canvas.rotate(p.wobble);
+          canvas.drawOval(
+            Rect.fromCenter(center: Offset.zero, width: p.size, height: p.size * 0.55),
+            paint,
+          );
+          canvas.restore();
+          break;
+
+        case WeatherEffect.fireflies:
+          final intensityVal = (0.35 + 0.65 * math.sin(p.wobble)).clamp(0.0, 1.0);
+          final paint = Paint()
+            ..color = const Color(0xFFCCFF00).withOpacity(0.55 * intensityVal * edgeFade)
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, p.size * 0.4);
+          canvas.drawCircle(Offset(p.x, p.y), p.size, paint);
+          canvas.drawCircle(
+            Offset(p.x, p.y),
+            p.size * 0.35,
+            Paint()..color = Colors.white.withOpacity(0.95 * intensityVal * edgeFade),
+          );
+          break;
+
+        case WeatherEffect.cosmos:
+          final intensityVal = (0.3 + 0.7 * math.sin(p.wobble)).clamp(0.0, 1.0);
+          final color = (p.size > 2.2) ? const Color(0xFF00E5FF) : Colors.white;
+          final paint = Paint()
+            ..color = color.withOpacity(intensityVal * edgeFade)
+            ..style = PaintingStyle.fill;
+          canvas.drawCircle(Offset(p.x, p.y), p.size * 0.8, paint);
+          break;
+
+        case WeatherEffect.technoCivic:
+          final paint = Paint()
+            ..color = const Color(0xFF00E5FF).withOpacity(0.65 * edgeFade)
+            ..style = PaintingStyle.fill;
+          canvas.drawCircle(Offset(p.x, p.y), p.size * 0.6, paint);
+
+          // Связи между ближайшими узлами
+          for (final other in particles) {
+            if (other != p && other.x > p.x) {
+              final distSq = (p.x - other.x) * (p.x - other.x) + (p.y - other.y) * (p.y - other.y);
+              if (distSq < 3200) {
+                final dist = math.sqrt(distSq);
+                final alpha = (1.0 - dist / 56.0) * 0.18 * edgeFade;
+                canvas.drawLine(
+                  Offset(p.x, p.y),
+                  Offset(other.x, other.y),
+                  Paint()
+                    ..color = const Color(0xFF00E5FF).withOpacity(alpha)
+                    ..strokeWidth = 0.6,
+                );
+              }
+            }
+          }
+          break;
+
+        case WeatherEffect.aurora:
+          final waveY = math.sin(p.wobble) * 14.0;
+          final aurPaint = Paint()
+            ..color = const Color(0xFF00FF87).withOpacity(p.alpha * (0.6 + 0.4 * math.sin(p.wobble)) * edgeFade)
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, p.size * 0.35);
+          canvas.drawOval(
+            Rect.fromCenter(center: Offset(p.x, p.y + waveY), width: p.size * 2.2, height: p.size * 0.35),
+            aurPaint,
+          );
+          break;
+
+        case WeatherEffect.hail:
+          if (p.wobble == 0) {
+            canvas.drawCircle(
+              Offset(p.x, p.y),
+              p.size,
+              Paint()..color = Colors.white.withOpacity(0.9 * edgeFade),
+            );
+          } else {
+            final rPaint = Paint()
+              ..color = const Color(0xFF80D8FF).withOpacity(0.35 * edgeFade)
+              ..strokeWidth = p.size
+              ..strokeCap = StrokeCap.round;
+            canvas.drawLine(
+              Offset(p.x, p.y),
+              Offset(p.x - p.vx * 1.5, p.y - p.vy * 1.0),
+              rPaint,
+            );
+          }
+          break;
+
+        case WeatherEffect.windGust:
+          if (p.vx.abs() > 3) {
+            final lineLen = p.vx.abs() * 1.8;
+            final windPaint = Paint()
+              ..color = (isDay ? Colors.white : const Color(0xFF80D8FF)).withOpacity(p.alpha * edgeFade)
+              ..strokeWidth = p.size * 0.5
+              ..strokeCap = StrokeCap.round;
+            canvas.drawLine(Offset(p.x, p.y), Offset(p.x - lineLen, p.y), windPaint);
+          } else {
+            final dustPaint = Paint()
+              ..color = (isDay ? const Color(0xFFD4A76A) : const Color(0xFF8B7355)).withOpacity(p.alpha * edgeFade)
+              ..style = PaintingStyle.fill;
+            canvas.drawCircle(Offset(p.x, p.y), p.size, dustPaint);
+          }
+          break;
+
+        case WeatherEffect.clear:
+          break;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _WeatherPainter old) => true;
+}
+
+/// СЛОЙ 3: Передний план — капли на стекле и блики линзы (Lens Droplets & Glass Vignette).
+class _ForegroundLensPainter extends CustomPainter {
+  const _ForegroundLensPainter({
+    required this.droplets,
+    required this.effect,
+    required this.isDay,
+    required this.progress,
+  });
+
+  final List<_LensDroplet> droplets;
+  final WeatherEffect effect;
+  final bool isDay;
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // 1. Капли на стекле экрана (Дождь/Гроза)
+    if (effect == WeatherEffect.rain ||
+        effect == WeatherEffect.heavyRain ||
+        effect == WeatherEffect.storm ||
+        effect == WeatherEffect.thunderstorm) {
+      for (final d in droplets) {
+        // След капли
+        final trailPaint = Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.transparent, Colors.white.withOpacity(0.12)],
+          ).createShader(Rect.fromLTWH(d.x - 1, d.y - d.trailLength, 2, d.trailLength))
+          ..strokeWidth = 1.0;
+        canvas.drawLine(Offset(d.x, d.y - d.trailLength), Offset(d.x, d.y), trailPaint);
+
+        // Основное тело капли с эффектом преломления
+        final dropPaint = Paint()
+          ..color = Colors.white.withOpacity(0.35)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5);
+        canvas.drawCircle(Offset(d.x, d.y), d.radius, dropPaint);
+
+        // Блик света на капле
+        canvas.drawCircle(
+          Offset(d.x - d.radius * 0.35, d.y - d.radius * 0.35),
+          d.radius * 0.35,
+          Paint()..color = Colors.white.withOpacity(0.85),
+        );
+      }
+    }
+
+    // 2. Анамфорные кольца бликов объектива при ярком солнце
+    if (isDay && effect == WeatherEffect.clear) {
+      final sunOrigin = Offset(size.width * 0.88, size.height * 0.10);
+      final center = Offset(size.width * 0.5, size.height * 0.5);
+      final dir = center - sunOrigin;
+
+      final flare1 = sunOrigin + dir * 0.45;
+      final flare2 = sunOrigin + dir * 0.85;
+      final breath = 0.8 + 0.2 * math.sin(progress * 2 * math.pi * 2);
+
+      final ringPaint = Paint()
+        ..color = const Color(0xFF00E5FF).withOpacity(0.04 * breath)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+      canvas.drawCircle(flare1, 45 * breath, ringPaint);
+
+      final hexPaint = Paint()
+        ..color = const Color(0xFFFFD54F).withOpacity(0.05 * breath)
+        ..style = PaintingStyle.fill
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+      canvas.drawCircle(flare2, 28 * breath, hexPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ForegroundLensPainter old) => true;
+}

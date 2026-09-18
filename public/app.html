@@ -4,6 +4,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta name="theme-color" content="#0a84ff">
+  <link rel="manifest" href="/manifest.json">
   <title>Пульс города — Нижневартовск</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -21,32 +23,64 @@
 
   <style>
     /* ===========================
-   DESIGN TOKENS
+   DESIGN TOKENS (Design Eng & Apple Style)
    =========================== */
     :root {
-      --bg-primary: #0a0c10;
-      --bg-surface: #12151c;
-      --bg-elevated: #1a1e28;
-      --text-primary: #f0f4f8;
+      --bg-primary: #0b0d12;
+      --bg-surface: #141720;
+      --bg-elevated: #1e2230;
+      --text-primary: #f8fafc;
       --text-secondary: #94a3b8;
       --text-muted: #64748b;
-      --accent-cyan: #00f0ff;
-      --accent-violet: #7c3aed;
+      --accent-blue: #0a84ff;
+      --accent-cyan: #00d2ff;
+      --accent-violet: #6366f1;
       --accent-orange: #ff6b35;
-      --accent-green: #00ff88;
-      --accent-red: #ff4757;
-      --accent-amber: #ffc107;
+      --accent-green: #34c759;
+      --accent-red: #ff3b30;
+      --accent-amber: #ffcc00;
       --radius-sm: 8px;
       --radius-md: 12px;
       --radius-lg: 16px;
       --radius-xl: 24px;
-      --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.4);
-      --glow-cyan: 0 0 20px rgba(0, 240, 255, 0.3);
-      --glow-violet: 0 0 20px rgba(124, 58, 237, 0.3);
-      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.35);
+      --shadow-subtle: 0 4px 20px rgba(0, 0, 0, 0.25);
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
       --font-display: 'Bebas Neue', sans-serif;
-      --transition-fast: 150ms ease;
-      --transition-normal: 300ms ease;
+
+      /* Design Engineering Custom Curves (emil-design-eng & apple-design) */
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+      --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+      --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      --transition-fast: 140ms var(--ease-out);
+      --transition-normal: 240ms var(--ease-out);
+    }
+
+    /* ===========================
+   DESIGN ENG: PRESS FEEDBACK & ACCESSIBILITY
+   =========================== */
+    button, .btn, .chip, .nav-item, [role="button"] {
+      transition: transform var(--transition-fast), background-color var(--transition-fast), opacity var(--transition-fast);
+      touch-action: manipulation;
+    }
+
+    button:active, .btn:active, .chip:active, .nav-item:active, [role="button"]:active {
+      transform: scale(0.96) !important;
+    }
+
+    h1, h2, h3, .heading-display {
+      letter-spacing: -0.025em;
+      line-height: 1.15;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
     }
 
     /* ===========================
@@ -484,6 +518,14 @@
       display: flex;
       align-items: center;
       gap: 8px;
+    }
+
+    /* Уменьшение иконок боковых панелей (scale 0.32) */
+    .sidebar .icon, .sidebar iconify-icon, .sidebar svg,
+    .panel .icon, .panel iconify-icon, .panel svg {
+      transform: scale(0.32);
+      transform-origin: center;
+      display: inline-block;
     }
 
     .oil-pulse-mini {
@@ -1388,10 +1430,7 @@
         </div>
       </button>
 
-      <!-- Timeline -->
-      <div class="timeline-panel">
-        <canvas id="timelineCanvas"></canvas>
-      </div>
+
     </div>
 
     <!-- Stats Tab -->
@@ -1424,14 +1463,22 @@
             <select id="formCategory"></select>
           </div>
           <div class="form-group">
-            <label><span data-icon="mdi:text"></span> Описание проблемы</label>
-            <textarea id="formDescription" rows="4" placeholder="Опишите проблему подробно..."></textarea>
+            <label style="display:flex;justify-content:space-between;align-items:center;">
+              <span><span data-icon="mdi:text"></span> Описание проблемы</span>
+              <span class="gps-btn" id="voiceBtn" style="background:rgba(0,240,255,0.15);border:1px solid rgba(0,240,255,0.4);color:#00f0ff;cursor:pointer;">
+                <span data-icon="mdi:microphone"></span> 🎙️ Продиктовать
+              </span>
+            </label>
+            <textarea id="formDescription" rows="4" placeholder="Опишите проблему подробно или продиктуйте голосом..."></textarea>
           </div>
           <div class="form-group">
             <label>
               <span data-icon="mdi:map-marker"></span> Адрес
+              <span class="gps-btn" id="mapPickBtn" style="margin-right:6px;background:rgba(0,240,255,0.15);">
+                <span data-icon="mdi:map-search"></span> На карте
+              </span>
               <span class="gps-btn" id="gpsBtn">
-                <span data-icon="mdi:crosshairs-gps"></span> Определить
+                <span data-icon="mdi:crosshairs-gps"></span> GPS
               </span>
             </label>
             <input type="text" id="formAddress" placeholder="ул. Ленина, 15" />
@@ -1473,8 +1520,8 @@
       'use strict';
 
       // --- Constants ---
-      const VARZOVSK_LAT = 60.9344;
-      const VARZOVSK_LNG = 76.5531;
+      const NV_LAT = 60.9344;
+      const NV_LNG = 76.5531;
       const DEFAULT_ZOOM = 13;
       const API_BASE = window.location.origin;
       const CATEGORIES = [
@@ -1504,8 +1551,8 @@
       let map = null;
       let markerCluster = null;
       let allComplaints = [];
-      let activeCategoryFilters = new Set();
-      let activeStatusFilters = new Set(new Set(STATUSES.map(s => s.id)));
+      let activeCategoryFilters = new Set(CATEGORIES.map(c => c.id));
+      let activeStatusFilters = new Set(STATUSES.map(s => s.id));
       let chartsInitialized = false;
       let currentTab = 'map';
 
@@ -1561,23 +1608,61 @@
       // ========================================================
       function initMap() {
         map = L.map('map', {
-          center: [VARZOVSK_LAT, VARZOVSK_LNG],
+          center: [NV_LAT, NV_LNG],
           zoom: DEFAULT_ZOOM,
           zoomControl: false,
-          attributionControl: true
+          attributionControl: true,
+          preferCanvas: true
         });
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          subdomains: 'abcd',
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
-          maxZoom: 19
-        }).addTo(map);
+          maxZoom: 19,
+          updateWhenIdle: false,
+          updateWhenZooming: false,
+          keepBuffer: 6,
+          crossOrigin: true
+        });
+
+        tileLayer.on('tileerror', function(e) {
+          if (e.tile && e.coords) {
+            e.tile.src = 'https://tile.openstreetmap.org/' + e.coords.z + '/' + e.coords.x + '/' + e.coords.y + '.png';
+          }
+        });
+
+        tileLayer.addTo(map);
 
         markerCluster = L.markerClusterGroup({
           maxClusterRadius: 40,
           spiderfyOnMaxZoom: true,
-          showCoverageOnHover: false
+          showCoverageOnHover: false,
+          chunkedLoading: true,
+          removeOutsideVisibleBounds: true,
+          disableClusteringAtZoom: 17,
+          animateAddingMarkers: false
         });
         map.addLayer(markerCluster);
+
+        // Map click picker for complaint modal
+        map.on('click', function(e) {
+          if (window.isMapPicking) {
+            window.isMapPicking = false;
+            map.getContainer().style.cursor = '';
+            const lat = e.latlng.lat.toFixed(6);
+            const lng = e.latlng.lng.toFixed(6);
+            document.getElementById('formLat').value = lat;
+            document.getElementById('formLng').value = lng;
+            if (typeof saveDraft === 'function') saveDraft();
+            if (typeof reverseGeocode === 'function') {
+              reverseGeocode(lat, lng).then(() => {
+                document.getElementById('complaintModal').classList.add('visible');
+              });
+            } else {
+              document.getElementById('complaintModal').classList.add('visible');
+            }
+          }
+        });
 
         // Fix for map not rendering correctly on initial hidden state
         setTimeout(() => map.invalidateSize(), 300);
@@ -1688,8 +1773,8 @@
             status,
             description: `Жалоба #${i + 1}: ${cat.label}`,
             address: demoAddresses[i % demoAddresses.length],
-            lat: VARZOVSK_LAT + latOffset,
-            lng: VARZOVSK_LNG + lngOffset,
+            lat: NV_LAT + latOffset,
+            lng: NV_LNG + lngOffset,
             created_at: new Date(Date.now() - Math.random() * 30 * 86400000).toISOString()
           };
         });
@@ -1779,6 +1864,10 @@
       // ========================================================
       function initCharts() {
         if (chartsInitialized) return;
+        if (typeof Chart === 'undefined') {
+          document.getElementById('statsContent').innerHTML = '<div style="padding:30px;text-align:center;color:#8eaec2;">Графика загружается...</div>';
+          return;
+        }
         chartsInitialized = true;
 
         const container = document.getElementById('statsContent');
@@ -1950,40 +2039,188 @@
       }
 
       // ========================================================
-      //  COMPLAINT FORM (MODAL)
+      //  COMPLAINT FORM (MODAL) & DRAFT & REVERSE GEOCODE
       // ========================================================
+      const DRAFT_KEY = 'pulse_complaint_draft';
+      window.isMapPicking = false;
+
+      function saveDraft() {
+        const cat = document.getElementById('formCategory')?.value || '';
+        const desc = document.getElementById('formDescription')?.value || '';
+        const addr = document.getElementById('formAddress')?.value || '';
+        const lat = document.getElementById('formLat')?.value || '';
+        const lng = document.getElementById('formLng')?.value || '';
+        try {
+          localStorage.setItem(DRAFT_KEY, JSON.stringify({
+            category: cat, description: desc, address: addr, lat: lat, lng: lng
+          }));
+        } catch (e) {}
+      }
+
+      function loadDraft() {
+        try {
+          const raw = localStorage.getItem(DRAFT_KEY);
+          if (!raw) return;
+          const draft = JSON.parse(raw);
+          if (draft.category) document.getElementById('formCategory').value = draft.category;
+          if (draft.description) document.getElementById('formDescription').value = draft.description;
+          if (draft.address) document.getElementById('formAddress').value = draft.address;
+          if (draft.lat) document.getElementById('formLat').value = draft.lat;
+          if (draft.lng) document.getElementById('formLng').value = draft.lng;
+        } catch (e) {}
+      }
+
+      function clearDraft() {
+        try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+      }
+
+      async function reverseGeocode(lat, lng) {
+        if (!lat || !lng) return;
+        try {
+          showToast('info', 'Поиск адреса...');
+          const res = await fetch(`${API_BASE}/api/geo/reverse?lat=${lat}&lon=${lng}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.address) {
+              document.getElementById('formAddress').value = data.address;
+              saveDraft();
+              showToast('info', 'Адрес определен!');
+            }
+          }
+        } catch (e) {
+          console.warn('Reverse geocode failed:', e);
+        }
+      }
+
       function initForm() {
         const select = document.getElementById('formCategory');
         select.innerHTML = '<option value="" disabled selected>Выберите категорию</option>' +
           CATEGORIES.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
 
+        loadDraft();
+
+        ['formCategory', 'formDescription', 'formAddress', 'formLat', 'formLng'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.addEventListener('input', saveDraft);
+            el.addEventListener('change', saveDraft);
+          }
+        });
+
         // FAB
         document.getElementById('fabBtn').addEventListener('click', () => {
+          loadDraft();
           document.getElementById('complaintModal').classList.add('visible');
         });
 
-        // GPS
+        // Map Pick Button
+        const mapPickBtn = document.getElementById('mapPickBtn');
+        if (mapPickBtn) {
+          mapPickBtn.addEventListener('click', () => {
+            document.getElementById('complaintModal').classList.remove('visible');
+            showToast('info', 'Нажмите на карту для выбора адреса');
+            window.isMapPicking = true;
+            if (map) {
+              map.getContainer().style.cursor = 'crosshair';
+            }
+          });
+        }
+
+        // Voice Dictation
+        initVoiceDictation('voiceBtn', 'formDescription');
+
+        // GPS Button
         document.getElementById('gpsBtn').addEventListener('click', () => {
           if ('geolocation' in navigator) {
+            showToast('info', 'Определение GPS...');
             navigator.geolocation.getCurrentPosition(pos => {
-              document.getElementById('formLat').value = pos.coords.latitude.toFixed(4);
-              document.getElementById('formLng').value = pos.coords.longitude.toFixed(4);
-              showToast('info', 'Координаты определены');
+              const lat = pos.coords.latitude.toFixed(6);
+              const lng = pos.coords.longitude.toFixed(6);
+              document.getElementById('formLat').value = lat;
+              document.getElementById('formLng').value = lng;
+              saveDraft();
+              reverseGeocode(lat, lng);
             }, () => {
-              showToast('error', 'Не удалось определить координаты');
-            });
+              showToast('error', 'Не удалось определить координаты GPS');
+            }, { enableHighAccuracy: true, timeout: 10000 });
           } else {
             showToast('error', 'Геолокация недоступна');
           }
         });
       }
 
-      // Expose to global scope for inline onclick handlers
+      function initVoiceDictation(btnId, targetInputId) {
+        const btn = document.getElementById(btnId);
+        const target = document.getElementById(targetInputId);
+        if (!btn || !target) return;
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          btn.style.display = 'none';
+          return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ru-RU';
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        let isListening = false;
+
+        btn.addEventListener('click', () => {
+          if (isListening) {
+            recognition.stop();
+            return;
+          }
+          try {
+            recognition.start();
+            isListening = true;
+            btn.style.background = 'rgba(239, 68, 68, 0.2)';
+            btn.style.borderColor = '#ef4444';
+            btn.style.color = '#ef4444';
+            btn.innerHTML = '🔴 Слушаю...';
+            showToast('info', 'Говорите! Идет диктовка...');
+          } catch(e) {
+            console.warn('Speech error:', e);
+          }
+        });
+
+        recognition.onresult = (event) => {
+          let text = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            text += event.results[i][0].transcript;
+          }
+          if (text) {
+            target.value = text;
+            saveDraft();
+          }
+        };
+
+        const resetBtn = () => {
+          isListening = false;
+          btn.style.background = 'rgba(0, 240, 255, 0.15)';
+          btn.style.borderColor = 'rgba(0, 240, 255, 0.4)';
+          btn.style.color = '#00f0ff';
+          btn.innerHTML = '🎙️ Продиктовать';
+        };
+
+        recognition.onend = resetBtn;
+        recognition.onerror = resetBtn;
+      }
+
       window.closeModal = function () {
         document.getElementById('complaintModal').classList.remove('visible');
       };
 
-      window.submitComplaint = function () {
+      function resetForm() {
+        document.getElementById('formCategory').selectedIndex = 0;
+        document.getElementById('formDescription').value = '';
+        document.getElementById('formAddress').value = '';
+        document.getElementById('formLat').value = '';
+        document.getElementById('formLng').value = '';
+        clearDraft();
+      }
+
+      window.submitComplaint = async function () {
         const category = document.getElementById('formCategory').value;
         const description = document.getElementById('formDescription').value.trim();
         const address = document.getElementById('formAddress').value.trim();
@@ -1995,42 +2232,49 @@
 
         const payload = {
           type: 'complaint',
+          title: description.slice(0, 60),
           category,
           description,
           address,
           lat,
-          lng
+          lng,
+          latitude: lat,
+          longitude: lng
         };
 
-        // Send via Telegram WebApp
-        if (tg) {
-          tg.sendData(JSON.stringify(payload));
-          showToast('success', 'Жалоба отправлена!');
-        } else {
-          // Fallback: POST to API
-          fetch(`${API_BASE}/api/complaints`, {
+        if (tg && typeof tg.sendData === 'function') {
+          try { tg.sendData(JSON.stringify(payload)); } catch (e) {}
+        }
+
+        try {
+          showToast('info', 'Отправка на сервер...');
+          let res = await fetch(`${API_BASE}/api/complaints`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
-          })
-            .then(res => {
-              if (res.ok) {
-                showToast('success', 'Жалоба отправлена!');
-                setTimeout(() => loadComplaints(), 500);
-              } else {
-                showToast('error', 'Ошибка при отправке');
-              }
-            })
-            .catch(() => showToast('error', 'Ошибка сети'));
-        }
+          });
 
-        closeModal();
-        // Reset form
-        document.getElementById('formCategory').selectedIndex = 0;
-        document.getElementById('formDescription').value = '';
-        document.getElementById('formAddress').value = '';
-        document.getElementById('formLat').value = '';
-        document.getElementById('formLng').value = '';
+          if (!res.ok) {
+            res = await fetch(`${API_BASE}/complaints`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+          }
+
+          if (res.ok) {
+            showToast('success', 'Жалоба успешно отправлена!');
+            closeModal();
+            resetForm();
+            setTimeout(() => loadComplaints(), 500);
+          } else {
+            const errJson = await res.json().catch(() => ({}));
+            showToast('error', errJson.detail || 'Ошибка сервера. Черновик сохранен!');
+          }
+        } catch (err) {
+          console.warn('Network error submitting complaint:', err);
+          showToast('error', 'Нет связи с сервером! Черновик сохранен.');
+        }
       };
 
       // ========================================================
@@ -2131,7 +2375,16 @@
           });
 
           t++;
-          requestAnimationFrame(draw);
+          if (!document.hidden) {
+            requestAnimationFrame(draw);
+          } else {
+            document.addEventListener('visibilitychange', function resume() {
+              if (!document.hidden) {
+                document.removeEventListener('visibilitychange', resume);
+                requestAnimationFrame(draw);
+              }
+            });
+          }
         }
         draw();
       }
@@ -2177,7 +2430,16 @@
           ctx.shadowBlur = 0;
 
           t++;
-          requestAnimationFrame(draw);
+          if (!document.hidden) {
+            requestAnimationFrame(draw);
+          } else {
+            document.addEventListener('visibilitychange', function resume() {
+              if (!document.hidden) {
+                document.removeEventListener('visibilitychange', resume);
+                requestAnimationFrame(draw);
+              }
+            });
+          }
         }
         draw();
 
@@ -2262,6 +2524,11 @@
         document.addEventListener('DOMContentLoaded', boot);
       } else {
         boot();
+      // PWA Service Worker Registration
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
       }
     })();
   </script>

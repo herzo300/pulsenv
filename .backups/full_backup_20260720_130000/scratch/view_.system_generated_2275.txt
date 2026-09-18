@@ -1,0 +1,104 @@
+Created At: 2026-06-23T05:17:47Z
+Completed At: 2026-06-23T05:17:47Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1595
+Total Bytes: 65922
+Showing lines 190 to 285
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+190:   @override
+191:   void initState() {
+192:     super.initState();
+193:     _controller = AnimationController(
+194:       vsync: this,
+195:       duration: const Duration(seconds: 6),
+196:     )..repeat();
+197:     _initDisplayData();
+198:   }
+199: 
+200:   void _initDisplayData() {
+201:     _selectedKind = widget.weather.kind;
+202:     _displayTemp = widget.weather.temperatureC?.round();
+203:     _displayFeels = widget.weather.feelsLikeC?.round();
+204:     _displayCondition = widget.weather.condition;
+205:     _displayAqiLevel = widget.weather.airQualityLevel;
+206:     _displayAqiSummary = widget.weather.airQualitySummary;
+207:     _displayAqiValue = widget.weather.europeanAqi;
+208:     _displayWindSpeed = widget.weather.windSpeedMs;
+209:     _displayWindGusts = widget.weather.windGustsMs;
+210:     _displayHumidity = widget.weather.humidityPct;
+211:     _displayPressure = widget.weather.pressureMmHg;
+212:     _displaySolarFlare = widget.weather.solarFlare;
+213:     _displaySchumannFreq = widget.weather.schumannFreqHz;
+214:     _displaySchumannAmp = widget.weather.schumannAmpPt;
+215: 
+216:     // If API returned empty/missing, assign defaults of current kind
+217:     if (!widget.weather.available || _displayTemp == null) {
+218:       _selectCondition(_selectedKind, updateState: false);
+219:     }
+220: 
+221:     // Play alert sound if anomaly exists on load
+222:     WidgetsBinding.instance.addPostFrameCallback((_) {
+223:       if (_hasAnomaly) {
+224:         _playAlertSound();
+225:       }
+226:     });
+227:   }
+228: 
+229:   @override
+230:   void didUpdateWidget(WeatherOverlayPanel oldWidget) {
+231:     super.didUpdateWidget(oldWidget);
+232:     if (oldWidget.weather.kind != widget.weather.kind ||
+233:         oldWidget.weather.temperatureC != widget.weather.temperatureC) {
+234:       _initDisplayData();
+235:     }
+236:   }
+237: 
+238:   bool get _hasAnomaly {
+239:     if (_displaySchumannFreq != null && (_displaySchumannFreq! < 7.7 || _displaySchumannFreq! > 8.0)) return true;
+240:     if (_displayPressure != null && (_displayPressure! < 748 || _displayPressure! > 768)) return true;
+241:     if (_displaySolarFlare != null && (_displaySolarFlare!.startsWith('M') || _displaySolarFlare!.startsWith('X') || _displaySolarFlare!.startsWith('C'))) return true;
+242:     if (_displaySchumannAmp != null && _displaySchumannAmp! > 15.0) return true;
+243:     if (_displayWindSpeed != null && _displayWindSpeed! > 10.0) return true;
+244:     return false;
+245:   }
+246: 
+247: 
+248: 
+249:   void _playAlertSound() {
+250:     SystemSound.play(SystemSoundType.click);
+251:     Future.delayed(const Duration(milliseconds: 150), () {
+252:       SystemSound.play(SystemSoundType.click);
+253:     });
+254:     Future.delayed(const Duration(milliseconds: 300), () {
+255:       SystemSound.play(SystemSoundType.click);
+256:     });
+257:   }
+258: 
+259:   void _selectCondition(String kind, {bool updateState = true}) {
+260:     final demo = _demoConditions.firstWhere(
+261:       (e) => e['kind'] == kind,
+262:       orElse: () => _demoConditions.first,
+263:     );
+264:     void newState() {
+265:       _selectedKind = kind;
+266:       _displayTemp = demo['temp'];
+267:       _displayFeels = demo['feels'];
+268:       _displayCondition = demo['conditionText'];
+269:       _displayAqiLevel = demo['aqiText'];
+270:       _displayAqiSummary = demo['aqiSummary'];
+271:       _displayAqiValue = demo['aqi'];
+272:       _displayWindSpeed = demo['wind'];
+273:       _displayWindGusts = demo['gusts'];
+274:       _displayHumidity = demo['humidity'];
+275:       _displayPressure = demo['pressure'];
+276:       _displaySolarFlare = demo['flare'];
+277:       _displaySchumannFreq = demo['schumannFreq'];
+278:       _displaySchumannAmp = demo['schumannAmp'];
+279:     }
+280: 
+281:     if (updateState) {
+282:       setState(newState);
+283:       if (_hasAnomaly) {
+284:         _playAlertSound();
+285:       }
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

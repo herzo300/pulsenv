@@ -1,0 +1,108 @@
+Created At: 2026-06-23T05:11:20Z
+Completed At: 2026-06-23T05:11:20Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1590
+Total Bytes: 65733
+Showing lines 851 to 950
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+851:                                       padding: const EdgeInsets.only(top: 6),
+852:                                       child: Text(
+853:                                         _displayAqiSummary,
+854:                                         style: TextStyle(
+855:                                           color: widget.isNightMode
+856:                                               ? Colors.white60
+857:                                               : Colors.black54,
+858:                                           fontSize: 12,
+859:                                           height: 1.4,
+860:                                         ),
+861:                                       ),
+862:                                     ),
+863:                                 ],
+864:                               ),
+865:                             ),
+866:                           ),
+867:                           
+868:                           const SizedBox(height: 12),
+869:                           
+870:                           TiltWidget(
+871:                             child: _buildGlassCard(
+872:                               child: Column(
+873:                                 crossAxisAlignment: CrossAxisAlignment.start,
+874:                                 children: [
+875:                                   Text(
+876:                                     'Параметры атмосферы и космоса',
+877:                                     style: TextStyle(
+878:                                       color: widget.isNightMode
+879:                                           ? Colors.white70
+880:                                           : Colors.black54,
+881:                                       fontSize: 12,
+882:                                       fontWeight: FontWeight.w700,
+883:                                     ),
+884:                                   ),
+885:                                   const SizedBox(height: 12),
+886:                                   Row(
+887:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+888:                                     children: [
+889:                                       _spaceParam(
+890:                                         Icons.compress_rounded,
+891:                                         'Давление',
+892:                                         _displayPressure != null ? '${_displayPressure!.round()} мм рт. ст.' : '—',
+893:                                         _explainPressure,
+894:                                       ),
+895:                                       _spaceParam(
+896:                                         Icons.wb_sunny_rounded,
+897:                                         'Вспышки',
+898:                                         _displaySolarFlare != null ? 'Класс $_displaySolarFlare' : '—',
+899:                                         _explainSolarFlare,
+900:                                       ),
+901:                                     ],
+902:                                   ),
+903:                                   const Divider(height: 24, color: Colors.white10),
+904:                                   Row(
+905:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+906:                                     children: [
+907:                                       _spaceParam(
+908:                                         Icons.waves_rounded,
+909:                                         'Резонанс Шумана',
+910:                                         _displaySchumannFreq != null
+911:                                             ? '$_displaySchumannFreq Гц'
+912:                                             : '—',
+913:                                         _explainSchumannFreq,
+914:                                       ),
+915:                                       _spaceParam(
+916:                                         Icons.flash_on_rounded,
+917:                                         'Амплитуда',
+918:                                         _displaySchumannAmp != null
+919:                                             ? '$_displaySchumannAmp pT'
+920:                                             : '—',
+921:                                         _explainSchumannAmp,
+922:                                       ),
+923:                                     ],
+924:                                   ),
+925:                                   const Divider(height: 24, color: Colors.white10),
+926:                                   Row(
+927:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+928:                                     children: [
+929:                                       _spaceParam(
+930:                                         Icons.air_rounded,
+931:                                         'Ветер',
+932:                                         _displayWindSpeed != null
+933:                                             ? '${_displayWindSpeed!.toStringAsFixed(0)} м/с'
+934:                                             : '—',
+935:                                         _explainWind,
+936:                                       ),
+937:                                       const Expanded(child: SizedBox.shrink()),
+938:                                     ],
+939:                                   ),
+940:                                 ],
+941:                               ),
+942:                             ),
+943:                           ),
+944:                           if (_hasAnomaly) ...[
+945:                             const SizedBox(height: 16),
+946:                             Text(
+947:                               'Погодные предупреждения',
+948:                               style: TextStyle(
+949:                                 fontSize: 12,
+950:                                 fontWeight: FontWeight.w700,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

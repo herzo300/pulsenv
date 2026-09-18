@@ -163,6 +163,29 @@
       gap: 12px;
     }
 
+    /* Уменьшение иконок боковой панели (scale 0.32) */
+    .sidebar .icon,
+    .sidebar .search-icon,
+    .sidebar iconify-icon,
+    .sidebar svg,
+    .sidebar .chip-icon,
+    .sidebar .filter-icon {
+      transform: scale(0.32);
+      transform-origin: center;
+      display: inline-block;
+    }
+
+    .sidebar .cam-dot {
+      width: 3px !important;
+      height: 3px !important;
+    }
+
+    /* Скрытие блока 'Район' */
+    #district-chips,
+    .filter-group:has(#district-chips) {
+      display: none !important;
+    }
+
     .sidebar::-webkit-scrollbar {
       width: 4px;
     }
@@ -1287,7 +1310,11 @@
         buildFilters();
         applyFilters();
         updateUptimeStatus();
-        setInterval(updateUptimeStatus, 30000);
+        setInterval(() => {
+          if (!document.hidden) {
+            updateUptimeStatus();
+          }
+        }, 30000);
         state.loaded = true;
       } catch (e) {
         // Fallback: try older file
@@ -1468,7 +1495,7 @@
       if (banner && !banner.dataset.placed) {
         const insertAfter = Math.min(state.gridSize, cams.length);
         const cards = grid.querySelectorAll('.cam-card');
-        if (cards[insertAfter - 1]) {
+        if (banner && cards[insertAfter - 1]) {
           cards[insertAfter - 1].after(banner);
           banner.dataset.placed = 'true';
         }
@@ -1544,6 +1571,10 @@
     }
 
     function openModal(filteredIdx) {
+      if (state.hlsInstances['modal']) {
+        state.hlsInstances['modal'].destroy();
+        delete state.hlsInstances['modal'];
+      }
       var cam = state.filtered[filteredIdx];
       if (!cam) return;
       var modal = document.getElementById('modal');
@@ -1730,7 +1761,8 @@
         var d = await r.json();
         if (d.success) {
           showToast('✅ Подписка активирована!', 'Тариф: ' + tier + ', поисков: ' + d.searches_limit, 'success');
-          document.getElementById('vip-banner').style.display = 'none';
+          const vipB = document.getElementById('vip-banner');
+          if (vipB) vipB.style.display = 'none';
           closePayment();
         }
       } catch (e) {
@@ -1772,6 +1804,7 @@
       var cam = state.activeModal;
       if (!cam) return;
 
+      const aiStart = performance.now();
       var btn = document.getElementById('vlm-describe-btn');
       var box = document.getElementById('vlm-result-box');
       var text = document.getElementById('vlm-text');
@@ -1789,7 +1822,8 @@
         });
         var data = await r.json();
         text.textContent = data.description;
-        document.getElementById('ai-load').textContent = (Math.random() * 0.5 + 0.5).toFixed(2) + 's';
+        const aiDuration = ((performance.now() - aiStart) / 1000).toFixed(2);
+        document.getElementById('ai-load').textContent = aiDuration + 's';
       } catch (e) {
         text.textContent = 'Ошибка AI-анализа. Возможно, поток недоступен для захвата кадра.';
       } finally {

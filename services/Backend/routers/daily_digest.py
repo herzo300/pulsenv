@@ -251,7 +251,7 @@ async def get_latest_digest(city: str = Query("nizhnevartovsk"), db: Session = D
                 "AND lat IS NOT NULL AND lng IS NOT NULL "
                 "AND address IS NOT NULL AND TRIM(address) <> '' "
                 "AND LOWER(address) NOT LIKE 'gps %' "
-                "AND (:city = 'novosibirsk' AND city = 'novosibirsk' OR :city <> 'novosibirsk' AND (city = 'nizhnevartovsk' OR city IS NULL OR city = '')) "
+                "AND (city = 'nizhnevartovsk' OR city IS NULL OR city = '') "
                 "ORDER BY created_at DESC"
             ),
             {"start_utc": start_utc, "end_utc": end_utc, "city": city},
@@ -290,7 +290,7 @@ async def get_latest_digest(city: str = Query("nizhnevartovsk"), db: Session = D
                 "FROM reports WHERE created_at >= :start_utc AND created_at < :end_utc "
                 "AND (source LIKE 'tg:%' OR source LIKE 'telegram:%' OR source LIKE 'vk:%') "
                 "AND (lat IS NULL OR lng IS NULL OR address IS NULL OR TRIM(address) = '' "
-                "OR (:city = 'novosibirsk' AND city = 'novosibirsk' OR :city <> 'novosibirsk' AND (city = 'nizhnevartovsk' OR city IS NULL OR city = ''))) "
+                "OR city = 'nizhnevartovsk' OR city IS NULL OR city = '') "
                 "ORDER BY created_at DESC"
             ),
             {"start_utc": start_utc, "end_utc": end_utc, "city": city},

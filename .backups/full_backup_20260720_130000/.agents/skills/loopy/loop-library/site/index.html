@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Copy practical AI agent workflows for engineering, research, editorial work, evaluation, and operations, each with a clear stopping condition."
+    />
+    <meta name="author" content="Forward Future" />
+    <meta
+      name="robots"
+      content="index,follow,max-image-preview:large,max-snippet:-1"
+    />
+    <meta name="theme-color" content="#faf8f7" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="loop-library-form-api"
+      content="https://loop-library-forms.mberman84.workers.dev"
+    />
+    <script>
+      (() => {
+        const storageKey = "loop-library-theme";
+        let storedTheme;
+
+        try {
+          storedTheme = window.localStorage.getItem(storageKey);
+        } catch {
+          storedTheme = null;
+        }
+
+        const theme =
+          storedTheme === "light" || storedTheme === "dark"
+            ? storedTheme
+            : window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+
+        document.documentElement.dataset.theme = theme;
+        document
+          .querySelector('meta[name="theme-color"]')
+          .setAttribute("content", theme === "dark" ? "#101010" : "#faf8f7");
+      })();
+    </script>
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Loop Library" />
+    <meta
+      property="og:title"
+      content="Loop Library: Repeatable AI Agent Workflows | Forward Future"
+    />
+    <meta
+      property="og:description"
+      content="Repeatable AI agent prompts with practical checks, proof, and stopping conditions."
+    />
+    <meta
+      property="og:url"
+      content="https://signals.forwardfuture.com/loop-library/"
+    />
+    <meta
+      property="og:image"
+      content="https://signals.forwardfuture.com/loop-library/assets/social/loop-library-20260621-2.png"
+    />
+    <meta
+      property="og:image:secure_url"
+      content="https://signals.forwardfuture.com/loop-library/assets/social/loop-library-20260621-2.png"
+    />
+    <meta property="og:image:type" content="image/png" />
+    <meta
+      property="og:image:alt"
+      content="Loop Library — repeatable AI agent workflows from Forward Future"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="Loop Library: Repeatable AI Agent Workflows | Forward Future"
+    />
+    <meta
+      name="twitter:description"
+      content="Repeatable AI agent prompts with practical checks, proof, and stopping conditions."
+    />
+    <meta
+      name="twitter:image"
+      content="https://signals.forwardfuture.com/loop-library/assets/social/loop-library-20260621-2.png"
+    />
+    <meta
+      name="twitter:image:alt"
+      content="Loop Library — repeatable AI agent workflows from Forward Future"
+    />
+    <link
+      rel="canonical"
+      href="https://signals.forwardfuture.com/loop-library/"
+    />
+    <link
+      rel="sitemap"
+      type="application/xml"
+      href="https://signals.forwardfuture.com/loop-library/sitemap.xml"
+    />
+    <link
+      rel="alternate"
+      type="application/atom+xml"
+      title="Loop Library updates"
+      href="https://signals.forwardfuture.com/loop-library/feed.xml"
+    />
+    <link
+      rel="alternate"
+      type="application/json"
+      title="Loop Library catalog"
+      href="https://signals.forwardfuture.com/loop-library/catalog.json"
+    />
+    <link
+      rel="alternate"
+      type="text/markdown"
+      title="Loop Library catalog in Markdown"
+      href="https://signals.forwardfuture.com/loop-library/catalog.md"
+    />
+    <link
+      rel="alternate"
+      type="text/plain"
+      title="Loop Library agent instructions"
+      href="https://signals.forwardfuture.com/loop-library/llms.txt"
+    />
+    <link
+      rel="alternate"
+      type="text/plain"
+      title="Loop Library plain-text catalog"
+      href="https://signals.forwardfuture.com/loop-library/catalog.txt"
+    />
+    <link
+      rel="help"
+      href="https://signals.forwardfuture.com/loop-library/agents/"
+    />
+    <link rel="icon" type="image/png" href="./assets/favicon.png" />
+    <link rel="stylesheet" href="./styles.css?v=20260623-row-background-v2" />
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://signals.forwardfuture.com/loop-library/#organization",
+      "name": "Forward Future",
+      "url": "https://forwardfuture.com/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://signals.forwardfuture.com/loop-library/assets/ff-mark.png",
+        "width": 1920,
+        "height": 1920
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://signals.forwardfuture.com/loop-library/#website",
+      "url": "https://signals.forwardfuture.com/loop-library/",
+      "name": "Loop Library",
+      "description": "Practical AI agent workflows for engineering, research, editorial work, evaluation, and operations.",
+      "publisher": {
+        "@id": "https://signals.forwardfuture.com/loop-library/#organization"
+      }
+    },
+    {
+      "@type": "CollectionPage",
+      "@id": "https://signals.forwardfuture.com/loop-library/#collection",
+      "url": "https://signals.forwardfuture.com/loop-library/",
+      "name": "Loop Library",
+      "description": "A practical library of repeatable AI agent workflows with clear checks and stopping conditions.",
+      "dateModified": "2026-06-21",
+      "primaryImageOfPage": {
+        "@type": "ImageObject",
+        "url": "https://signals.forwardfuture.com/loop-library/assets/social/loop-library-20260621-2.png",
+        "width": 1200,
+        "height": 630
+      },
+      "isPartOf": {
+        "@id": "https://signals.forwardfuture.com/loop-library/#website"
+      },
+      "about": {
+        "@id": "https://signals.forwardfuture.com/loop-library/#ai-agent-loop"
+      },
+      "mainEntity": {
+        "@type": "ItemList",
+        "numberOfItems": 0,
+        "itemListElement": []
+      }
+    },
+    {
+      "@type": "DefinedTerm",
+      "@id": "https://signals.forwardfuture.com/loop-library/#ai-agent-loop",
+      "name": "AI agent loop",
+      "description": "A repeatable workflow in which an AI agent acts on a goal, checks the result, and continues until it reaches an explicit success or stop condition.",
+      "url": "https://signals.forwardfuture.com/loop-library/learn/",
+      "sameAs": [
+        "https://code.claude.com/docs/en/agent-sdk/agent-loop",
+        "https://arxiv.org/abs/2210.03629"
+      ]
+    }
+  ]
+}
+    </script>
+    <script src="./script.js?v=20260625-form-protection" defer></script>
+    <title>Loop Library: Repeatable AI Agent Workflows | Forward Future</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <a class="brand-lockup" href="#top" aria-label="Forward Future Loop Library">
+        <img
+          class="brand-mark"
+          src="./assets/favicon.png"
+          width="32"
+          height="32"
+          alt=""
+        />
+        <span class="brand-name">Forward Future</span>
+        <span class="brand-product">Loop Library</span>
+      </a>
+
+      <a
+        class="here-now-credit here-now-credit--header"
+        data-here-now-credit
+        href="https://here.now/r/signals"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Hosted by here.now"
+      >
+        <img
+          class="here-now-credit__icon"
+          src="./assets/here-now-icon.svg"
+          alt=""
+          aria-hidden="true"
+        />
+        <span class="here-now-credit__text">
+          <small>Hosted by</small>
+          <strong>here.now</strong>
+        </span>
+      </a>
+
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a href="#library" aria-current="page">Loops</a>
+        <a href="./learn/">Learn</a>
+        <a href="./agents/">For agents</a>
+        <a
+          href="https://github.com/Forward-Future/loopy/tree/main/skills/loopy"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Loopy skill on GitHub"
+        >
+          Skill
+        </a>
+        <button
+          class="theme-toggle"
+          id="theme-toggle"
+          type="button"
+          aria-label="Switch to dark mode"
+          aria-pressed="false"
+        >
+          <svg class="theme-icon theme-icon-light" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="3.5"></circle>
+            <path d="M12 2v3M12 19v3M4.9 4.9 7 7M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"></path>
+          </svg>
+          <svg class="theme-icon theme-icon-dark" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 15.2A8.5 8.5 0 0 1 8.8 4a8.5 8.5 0 1 0 11.2 11.2Z"></path>
+          </svg>
+          <span class="theme-label theme-label-light">Light</span>
+          <span class="theme-label theme-label-dark">Dark</span>
+        </button>
+        <a class="nav-cta" href="#submit">Submit a loop</a>
+      </nav>
+      <nav class="mobile-site-nav" aria-label="Primary navigation on small screens">
+        <a href="#library" aria-current="page">Loops</a>
+        <a href="./learn/">Learn</a>
+        <a href="./agents/">For agents</a>
+        <a
+          href="https://github.com/Forward-Future/loopy/tree/main/skills/loopy"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Loopy skill on GitHub"
+        >
+          Skill
+        </a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="library-section page-width" id="library">
+        <div class="library-hero" id="top">
+          <div class="library-intro">
+            <h1>Loop Library</h1>
+            <p class="hero-lede">
+              Copy practical AI agent prompts with clear checks and stopping
+              conditions.
+            </p>
+            <div class="share-actions" aria-label="Share Loop Library">
+              <button
+                class="share-action share-action-primary"
+                type="button"
+                data-copy-social-post
+                data-post-text="Find Loops and create your own - Loop Library"
+                data-post-url="https://signals.forwardfuture.com/loop-library/"
+                aria-label="Copy a Loop Library social post"
+              >
+                <svg class="share-copy-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="8" y="8" width="11" height="11"></rect>
+                  <path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"></path>
+                </svg>
+                <span>Share on social</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <section
+          class="skill-promo"
+          id="agent-skill"
+          aria-labelledby="agent-skill-title"
+        >
+          <div class="skill-promo-copy">
+            <p class="skill-promo-kicker">Agent skill</p>
+            <h2 id="agent-skill-title">
+              Use Loopy in your coding agent.
+            </h2>
+            <p>
+              Send an agent to the live guide, or install Loopy for guided
+              finding, crafting, running, improving, and publishing of loops.
+            </p>
+          </div>
+
+          <div class="skill-promo-actions">
+            <code class="skill-install-command" data-skill-install-command
+              >npx skills add Forward-Future/loopy --skill loopy
+              -g</code
+            >
+            <div class="skill-action-row">
+              <button
+                class="skill-copy-button"
+                type="button"
+                data-copy-skill-command
+              >
+                <span>Copy command</span>
+              </button>
+              <a
+                class="skill-github-link"
+                href="https://github.com/Forward-Future/loopy"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View repository
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <div class="library-controls">
+          <label class="search-control">
+            <span class="search-control-label">Search the library</span>
+            <span class="search-field">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="7"></circle>
+                <path d="m20 20-4-4"></path>
+              </svg>
+              <input
+                id="loop-search"
+                type="search"
+                placeholder="Search by title, task, or contributor"
+                autocomplete="off"
+              />
+            </span>
+          </label>
+
+          <div class="library-refinements">
+            <div
+              class="category-filters"
+              role="group"
+              aria-label="Filter loops by category"
+            >
+              <button
+                class="category-filter is-active"
+                type="button"
+                data-category-filter="all"
+                aria-pressed="true"
+              >
+                All
+              </button>
+              <button
+                class="category-filter"
+                type="button"
+                data-category-filter="engineering"
+                aria-pressed="false"
+              >
+                Engineering
+              </button>
+              <button
+                class="category-filter"
+                type="button"
+                data-category-filter="evaluation"
+                aria-pressed="false"
+              >
+                Evaluation
+              </button>
+              <button
+                class="category-filter"
+                type="button"
+                data-category-filter="operations"
+                aria-pressed="false"
+              >
+                Operations
+              </button>
+              <button
+                class="category-filter"
+                type="button"
+                data-category-filter="content"
+                aria-pressed="false"
+              >
+                Content
+              </button>
+              <button
+                class="category-filter"
+                type="button"
+                data-category-filter="design"
+                aria-pressed="false"
+              >
+                Design
+              </button>
+            </div>
+
+            <label class="sort-control" for="loop-sort">
+              <span>Sort</span>
+              <select id="loop-sort">
+                <option value="featured">Featured, then popular</option>
+                <option value="newest">Newest → oldest</option>
+                <option value="oldest">Oldest → newest</option>
+                <option value="alphabetical">A–Z</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="results-line">
+          <p id="results-count" aria-live="polite">Showing 0 loops</p>
+          <time datetime="2026-06-21">Updated Jun 21, 2026</time>
+        </div>
+
+        <div class="table-wrap">
+          <table class="loop-table">
+            <caption class="sr-only">
+              Agentic engineering loops
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Loop</th>
+                <th scope="col"><span class="sr-only">Action</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- LOOP_DATABASE_ROWS_START -->
+
+              <!-- LOOP_DATABASE_ROWS_END -->
+
+            </tbody>
+          </table>
+        </div>
+
+        <div class="empty-state" id="empty-state" hidden>
+          <h3>No matching loops</h3>
+          <p>Try another category, broaden your search, or submit the workflow.</p>
+          <div class="empty-state-actions">
+            <button class="empty-state-reset" id="clear-filters" type="button">
+              Clear search &amp; filters
+            </button>
+            <a href="#submit">Submit a loop</a>
+          </div>
+        </div>
+
+        <nav
+          class="pagination"
+          id="library-pagination"
+          aria-label="Loop pages"
+          hidden
+        >
+          <button
+            class="pagination-button"
+            id="pagination-previous"
+            type="button"
+          >
+            Previous
+          </button>
+          <p
+            class="pagination-status"
+            id="pagination-status"
+            aria-live="polite"
+          >
+            Page 1 of 2
+          </p>
+          <button
+            class="pagination-button"
+            id="pagination-next"
+            type="button"
+          >
+            Next
+          </button>
+        </nav>
+
+      </section>
+
+      <section class="newsletter-section" id="weekly">
+        <div class="page-width newsletter-layout">
+          <div class="newsletter-copy">
+            <p class="eyebrow">Weekly picks</p>
+            <h2>One useful loop, once a week.</h2>
+          </div>
+
+          <form class="newsletter-form" id="weekly-form" novalidate>
+            <label for="weekly-email">Email address</label>
+            <div class="newsletter-form-row">
+              <input
+                id="weekly-email"
+                name="email"
+                type="email"
+                maxlength="160"
+                autocomplete="email"
+                inputmode="email"
+                placeholder="you@example.com"
+                required
+              />
+              <button class="newsletter-button" type="submit" disabled>
+                <span>Notify me weekly</span>
+                <span aria-hidden="true">&rarr;</span>
+              </button>
+            </div>
+
+            <div
+              class="form-verification form-verification--newsletter"
+              id="weekly-turnstile"
+              aria-label="Spam protection"
+            ></div>
+
+            <div class="form-trap" aria-hidden="true">
+              <label>
+                Company
+                <input
+                  name="newsletter_company"
+                  type="text"
+                  tabindex="-1"
+                  autocomplete="off"
+                />
+              </label>
+            </div>
+
+            <p class="newsletter-note">
+              Weekly only. No spam. Unsubscribe anytime.
+            </p>
+            <p
+              class="form-status newsletter-status"
+              id="weekly-status"
+              role="status"
+              aria-live="polite"
+            ></p>
+          </form>
+        </div>
+      </section>
+
+      <section class="submission-section page-width" id="submit">
+        <div class="submission-header">
+          <p class="eyebrow">Contribute</p>
+          <h2>Share a loop</h2>
+          <p>Send the prompt you actually use. We review everything before publishing.</p>
+        </div>
+
+        <form class="submission-form" id="loop-form" novalidate>
+          <div class="field-grid">
+            <label class="field">
+              <span>Loop title *</span>
+              <input name="loop_title" type="text" maxlength="120" required />
+            </label>
+
+            <label class="field">
+              <span>Name for attribution <small>optional</small></span>
+              <input
+                name="name"
+                type="text"
+                maxlength="80"
+                autocomplete="name"
+                placeholder="Your name"
+              />
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Prompt or instructions *</span>
+            <textarea
+              name="instructions"
+              rows="5"
+              maxlength="3000"
+              placeholder="Paste the loop exactly as someone should run it."
+              required
+            ></textarea>
+          </label>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>X handle <small>optional</small></span>
+              <input
+                name="x_handle"
+                type="text"
+                maxlength="16"
+                autocomplete="off"
+                autocapitalize="none"
+                spellcheck="false"
+                pattern="@?[A-Za-z0-9_]{1,15}"
+                placeholder="@handle"
+                title="Enter an X handle such as @handle."
+              />
+            </label>
+
+            <label class="field">
+              <span>Source link <small>optional</small></span>
+              <input
+                name="source_url"
+                type="url"
+                maxlength="300"
+                inputmode="url"
+                placeholder="https://"
+              />
+            </label>
+          </div>
+
+          <div class="form-trap" aria-hidden="true">
+            <label>
+              Company
+              <input
+                name="company"
+                type="text"
+                tabindex="-1"
+                autocomplete="off"
+              />
+            </label>
+          </div>
+
+          <div
+            class="form-verification"
+            id="loop-turnstile"
+            aria-label="Spam protection"
+          ></div>
+
+          <label class="consent-field">
+            <input name="permission" type="checkbox" required />
+            <span>
+              I confirm that I own this loop and grant Loop Library a
+              non-exclusive license to edit, reproduce, and publish it.
+            </span>
+          </label>
+
+          <div class="form-footer">
+            <p>
+              Private review queue. Never include secrets or private code.
+            </p>
+            <button class="submit-button" type="submit" disabled>
+              <span>Submit loop</span>
+              <span aria-hidden="true">&rarr;</span>
+            </button>
+          </div>
+
+          <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="page-width footer-inner">
+        <p><strong>Forward Future</strong> <span>Make the future legible.</span></p>
+        <div class="footer-actions">
+          <p>
+            <a href="https://forwardfuture.com/" rel="noopener">forwardfuture.com</a>
+            <span>&copy; 2026</span>
+          </p>
+          <a
+            class="here-now-credit here-now-credit--footer"
+            data-here-now-credit
+            href="https://here.now/r/signals"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Hosted by here.now"
+          >
+            <img
+              class="here-now-credit__icon"
+              src="./assets/here-now-icon.svg"
+              alt=""
+              aria-hidden="true"
+            />
+            <span class="here-now-credit__text">
+              <small>Hosted by</small>
+              <strong>here.now</strong>
+            </span>
+          </a>
+        </div>
+      </div>
+    </footer>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

@@ -1,0 +1,59 @@
+Created At: 2026-06-23T05:10:28Z
+Completed At: 2026-06-23T05:10:28Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1590
+Total Bytes: 65733
+Showing lines 800 to 850
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+800:                                     ],
+801:                                   ],
+802:                                 ),
+803:                               ),
+804:                             ],
+805:                           ),
+806:                           if (_displayFeels != null)
+807:                             Padding(
+808:                               padding: const EdgeInsets.only(top: 4, bottom: 16),
+809:                               child: Text(
+810:                                 'Ощущается как $_displayFeels°',
+811:                                 style: TextStyle(
+812:                                   color: widget.isNightMode
+813:                                       ? Colors.white54
+814:                                       : Colors.black45,
+815:                                   fontSize: 13,
+816:                                 ),
+817:                               ),
+818:                             ),
+819:                           
+820:                           // Interactive weather animation selector
+821:                           _buildConditionSelector(),
+822:                           
+823:                           const SizedBox(height: 16),
+824:                           
+825:                           TiltWidget(
+826:                             child: _buildGlassCard(
+827:                               child: Column(
+828:                                 crossAxisAlignment: CrossAxisAlignment.start,
+829:                                 children: [
+830:                                   Text(
+831:                                     'Качество воздуха',
+832:                                     style: TextStyle(
+833:                                       color: widget.isNightMode
+834:                                           ? Colors.white70
+835:                                           : Colors.black54,
+836:                                       fontSize: 12,
+837:                                       fontWeight: FontWeight.w700,
+838:                                     ),
+839:                                   ),
+840:                                   const SizedBox(height: 6),
+841:                                   Text(
+842:                                     _displayAqiLevel.toUpperCase(),
+843:                                     style: TextStyle(
+844:                                       color: _aqColor(_displayAqiValue),
+845:                                       fontSize: 26,
+846:                                       fontWeight: FontWeight.w800,
+847:                                     ),
+848:                                   ),
+849:                                   if (_displayAqiSummary.isNotEmpty)
+850:                                     Padding(
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -25,6 +25,8 @@ import 'ai_assistant_screen.dart';
 import 'weather_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../widgets/skeleton_loaders.dart';
+import '../widgets/glassmorphic_shimmer_loader.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
@@ -343,8 +345,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: PulseColors.primary),
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(20.0),
+            children: const [
+              SizedBox(height: 16),
+              GlassmorphicShimmerLoader(width: double.infinity, height: 160, borderRadius: 24),
+              SizedBox(height: 24),
+              GlassmorphicShimmerLoader(width: double.infinity, height: 200, borderRadius: 24),
+              SizedBox(height: 24),
+              GlassmorphicShimmerLoader(width: double.infinity, height: 300, borderRadius: 24),
+            ],
+          ),
         ),
       );
     }
@@ -395,7 +407,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final onMap = (profile['reports_on_map'] as num?)?.toInt() ?? 0;
     final resolved = (profile['reports_resolved'] as num?)?.toInt() ?? 0;
     final rank = (profile['activity_rank'] as num?)?.toInt() ?? 0;
-    final isVip = profile['is_vip'] == true;
+    final isVip = true; // [Все функции открыты бесплатно]
     final tariffName = profile['tariff_name']?.toString() ?? 'Базовый';
     final tariffExpiry = profile['tariff_expiry']?.toString();
     final balanceMinutes = (profile['monitoring_minutes_left'] as num?)?.toInt() ?? 9999;
@@ -591,14 +603,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text('Мои обращения', style: AppTextStyles.section.copyWith(color: Colors.white)),
               const Spacer(),
               if (_isLoadingSignals)
-                const SizedBox(
-                  width: 16, height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00E5FF)),
-                ),
+                const SizedBox(height: 20),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          if (_userSignals.isEmpty && !_isLoadingSignals)
+          if (_isLoadingSignals)
+            const ComplaintListSkeleton(count: 2)
+          else if (_userSignals.isEmpty)
             Container(
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
@@ -736,7 +747,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       eyebrow: 'Информационное табло',
       title: 'Городской контур',
       subtitle:
-          'Статус профиля, статистика обращений и AI-анализ ситуации через городские камеры.',
+          'Статус профиля, статистика обращений и мониторинг городских служб Нижневартовска.',
       trailing: IconButton(
         onPressed: () => Navigator.of(context).pop(),
         icon: Icon(
@@ -749,7 +760,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildCombinedAuthStatsSignalsSection(int telegramIdValue, int onMap, int resolved) {
     return AuraProfileCard(
-      borderGradient: const [Color(0xFF8B5CF6), Color(0xFF00E5FF)],
+      borderGradient: const [Color(0xFF00E5FF), Color(0xFF00E5FF)],
       borderRadius: 20,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -853,7 +864,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildSocialAuthPanel(int telegramIdValue) {
     return AuraProfileCard(
-      borderGradient: const [Color(0xFF8B5CF6), Color(0xFFD946EF)], // Violet to Fuchsia
+      borderGradient: const [Color(0xFF00E5FF), Color(0xFFD946EF)], // Violet to Fuchsia
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1039,7 +1050,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildSystemStatusCard(int reports) {
     String userStatus = 'Наблюдатель';
     IconData statusIcon = Icons.visibility_rounded;
-    Color statusColor = const Color(0xFF8B5CF6);
+    Color statusColor = const Color(0xFF00E5FF);
     List<Color> metalGradient = [const Color(0xFF94A3B8), const Color(0xFFE2E8F0), const Color(0xFF64748B)];
     
     if (reports >= 30) {
@@ -1129,15 +1140,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const Divider(color: Colors.white12, height: 24),
           
           // System Status Item 1
-          _buildStatusLine('Городской ИИ-аналитик', 'Готов к работе (Gemini VLM)', const Color(0xFF10B981)),
+          _buildStatusLine('Городской ИИ-диспетчер Гермес', 'Активен (Kimi K3 / Nous Swarm)', const Color(0xFF10B981)),
           const SizedBox(height: 8),
           
           // System Status Item 2
-          _buildStatusLine('Умные камеры (Нижневартовск)', '34 камеры онлайн', const Color(0xFF10B981)),
+          _buildStatusLine('Мониторинг паводка р. Обь', 'Гидропост 840 см (Норма)', const Color(0xFF00E5FF)),
           const SizedBox(height: 8),
           
           // System Status Item 3
-          _buildStatusLine('Мониторинг пабликов (TG/VK)', 'Активен (за последние 2 дня)', const Color(0xFF10B981)),
+          _buildStatusLine('Мониторинг ЖКХ и ЕДДС-112', 'Синхронизировано', const Color(0xFF10B981)),
         ],
       ),
     );
@@ -1184,13 +1195,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final limitText = isVip ? '${tasks.length}/10 задач в месяц' : '0/0 задач (Требуется VIP)';
 
         return AuraProfileCard(
-          borderGradient: const [Color(0xFF8B5CF6), Color(0xFF00E5FF)],
+          borderGradient: const [Color(0xFF00E5FF), Color(0xFF00E5FF)],
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.auto_awesome_rounded, size: 20, color: Color(0xFF8B5CF6)),
+                  const Icon(Icons.auto_awesome_rounded, size: 20, color: Color(0xFF00E5FF)),
                   const SizedBox(width: 8),
                   const Text(
                     'ЗАДАЧИ ИИ-МОНИТОРИНГА 24/7',
@@ -1240,7 +1251,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: Text(
-                    'У вас нет активных задач ИИ-мониторинга. Запросите ИИ-Помощника отслеживать камеры или паблики!',
+                    'У вас нет активных задач ИИ-мониторинга. Запросите ИИ-Помощника отслеживать паводок, ЖКХ или паблики!',
                     style: TextStyle(color: Colors.white54, fontSize: 12),
                   ),
                 )
@@ -1441,15 +1452,15 @@ class _ProfileHeroCardState extends State<ProfileHeroCard>
 
     // Holographic border colors
     const holoColors = [
-      Color(0xFF6366F1),
-      Color(0xFF8B5CF6),
+      Color(0xFF0284C7),
+      Color(0xFF00E5FF),
       Color(0xFFEC4899),
-      Color(0xFF6366F1),
+      Color(0xFF0284C7),
     ];
 
     String userStatus = 'Наблюдатель';
     IconData statusIcon = Icons.visibility_rounded;
-    Color statusColor = const Color(0xFF8B5CF6);
+    Color statusColor = const Color(0xFF00E5FF);
     
     if (widget.reports >= 30) {
       userStatus = 'Хранитель Города';
@@ -1481,7 +1492,7 @@ class _ProfileHeroCardState extends State<ProfileHeroCard>
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF6366F1).withOpacity(isDark ? (0.18 + 0.08 * math.sin(t * 2 * math.pi)) : 0.1),
+                color: const Color(0xFF0284C7).withOpacity(isDark ? (0.18 + 0.08 * math.sin(t * 2 * math.pi)) : 0.1),
                 blurRadius: 16,
                 spreadRadius: -2,
               ),
@@ -1534,7 +1545,7 @@ class _ProfileHeroCardState extends State<ProfileHeroCard>
                     },
                   ),
                 ),
-              ),
+              ).animate().scale(begin: const Offset(0.8, 0.8), end: const Offset(1.0, 1.0), duration: 500.ms).fadeIn(),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
@@ -1560,15 +1571,25 @@ class _ProfileHeroCardState extends State<ProfileHeroCard>
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      'Обращений отправлено: ${widget.reports}',
-                      style: TextStyle(color: mutedTextColor, fontSize: 11, fontWeight: FontWeight.w500),
+                    TweenAnimationBuilder<int>(
+                      tween: IntTween(begin: 0, end: widget.reports),
+                      duration: const Duration(milliseconds: 800),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, _) => Text(
+                        'Обращений отправлено: $value',
+                        style: TextStyle(color: mutedTextColor, fontSize: 11, fontWeight: FontWeight.w500),
+                      ),
                     ),
                     if (widget.rank > 0) ...[
                       const SizedBox(height: 2),
-                      Text(
-                        'Рейтинг активности: #${widget.rank}',
-                        style: TextStyle(color: mutedTextColor, fontSize: 11, fontWeight: FontWeight.w500),
+                      TweenAnimationBuilder<int>(
+                        tween: IntTween(begin: 0, end: widget.rank),
+                        duration: const Duration(milliseconds: 800),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, value, _) => Text(
+                          'Рейтинг активности: #$value',
+                          style: TextStyle(color: mutedTextColor, fontSize: 11, fontWeight: FontWeight.w500),
+                        ),
                       ),
                     ],
                   ],
@@ -1579,7 +1600,7 @@ class _ProfileHeroCardState extends State<ProfileHeroCard>
                 onTap: () => _showBadgeDialog(context),
                 child: AppStatusBadge(
                   label: widget.tariffName,
-                  color: widget.isVip ? PulseColors.warning : const Color(0xFF8B5CF6),
+                  color: widget.isVip ? PulseColors.warning : const Color(0xFF00E5FF),
                   icon: widget.isVip
                       ? Icons.workspace_premium_rounded
                       : Icons.shield_outlined,
@@ -1594,18 +1615,7 @@ class _ProfileHeroCardState extends State<ProfileHeroCard>
             level: _xpLevel,
             animation: _shimmerController,
           ),
-          const SizedBox(height: 6),
-          const Divider(color: Colors.white12, height: 10),
           const SizedBox(height: 4),
-          // Compact integrated system status row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildCompactSystemStatus(Icons.psychology_alt_rounded, 'ИИ: Готов', const Color(0xFF10B981), isDark),
-              _buildCompactSystemStatus(Icons.videocam_rounded, '34 Камеры', const Color(0xFF10B981), isDark),
-              _buildCompactSystemStatus(Icons.rss_feed_rounded, 'Паблики', const Color(0xFF10B981), isDark),
-            ],
-          ),
         ],
       ),
     );
@@ -1671,14 +1681,14 @@ class _NeonXpBar extends StatelessWidget {
                       borderRadius: AppRadii.pill,
                       gradient: const LinearGradient(
                         colors: [
-                          Color(0xFF6366F1),
-                          Color(0xFF8B5CF6),
+                          Color(0xFF0284C7),
+                          Color(0xFF00E5FF),
                           Color(0xFFD946EF),
                         ],
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF8B5CF6).withOpacity(glowOpacity),
+                          color: const Color(0xFF00E5FF).withOpacity(glowOpacity),
                           blurRadius: 10,
                           spreadRadius: 1,
                         ),
@@ -1954,67 +1964,65 @@ class _BadgeRotateDialogState extends State<_BadgeRotateDialog>
 
                     const SizedBox(height: 16),
                     
-                    if (!widget.isVip) ...[
-                      // Agreement Checklist
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: _acceptedAgreement,
-                            activeColor: badgeColor,
-                            onChanged: (val) {
-                              setState(() => _acceptedAgreement = val ?? false);
-                            },
-                          ),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => _showLegalDocs(context),
-                              child: Text(
-                                'Я согласен с Пользовательским соглашением и обязуюсь не нарушать законы РФ и 152-ФЗ.',
-                                style: AppTextStyles.bodyMuted.copyWith(
-                                  fontSize: 12,
-                                  decoration: TextDecoration.underline,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      
-                      // Payment button
-                      GestureDetector(
-                        onTap: _isProcessing ? null : () => _startVipPayment(context),
-                        child: Container(
-                          width: double.infinity,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
-                            ),
-                            borderRadius: AppRadii.md,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.orange.withOpacity(0.3),
-                                blurRadius: 16,
-                                spreadRadius: 1,
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: _isProcessing
-                                ? const CircularProgressIndicator(color: Colors.white)
-                                : const Text(
-                                    'Активировать VIP Premium — 199 ₽',
-                                    style: TextStyle(
-                                      color: Colors.black87,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    // [Кнопка оплаты VIP закомментирована по запросу]
+                    // if (!widget.isVip) ...[
+                    //   Row(
+                    //     children: [
+                    //       Checkbox(
+                    //         value: _acceptedAgreement,
+                    //         activeColor: badgeColor,
+                    //         onChanged: (val) {
+                    //           setState(() => _acceptedAgreement = val ?? false);
+                    //         },
+                    //       ),
+                    //       Expanded(
+                    //         child: GestureDetector(
+                    //           onTap: () => _showLegalDocs(context),
+                    //           child: Text(
+                    //             'Я согласен с Пользовательским соглашением и обязуюсь не нарушать законы РФ и 152-ФЗ.',
+                    //             style: AppTextStyles.bodyMuted.copyWith(
+                    //               fontSize: 12,
+                    //               decoration: TextDecoration.underline,
+                    //             ),
+                    //           ),
+                    //         ),
+                    //       ),
+                    //     ],
+                    //   ),
+                    //   const SizedBox(height: 20),
+                    //   GestureDetector(
+                    //     onTap: _isProcessing ? null : () => _startVipPayment(context),
+                    //     child: Container(
+                    //       width: double.infinity,
+                    //       height: 52,
+                    //       decoration: BoxDecoration(
+                    //         gradient: const LinearGradient(
+                    //           colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
+                    //         ),
+                    //         borderRadius: AppRadii.md,
+                    //         boxShadow: [
+                    //           BoxShadow(
+                    //             color: Colors.orange.withOpacity(0.3),
+                    //             blurRadius: 16,
+                    //             spreadRadius: 1,
+                    //           ),
+                    //         ],
+                    //       ),
+                    //       child: Center(
+                    //         child: _isProcessing
+                    //             ? const CircularProgressIndicator(color: Colors.white)
+                    //             : const Text(
+                    //                 'Активировать VIP Premium — 199 ₽',
+                    //                 style: TextStyle(
+                    //                   color: Colors.black87,
+                    //                   fontWeight: FontWeight.w700,
+                    //                   fontSize: 15,
+                    //                 ),
+                    //               ),
+                    //       ),
+                    //     ),
+                    //   ),
+                    // ],
                     
                     const SizedBox(height: 12),
                     TextButton(
@@ -2105,23 +2113,8 @@ class _BadgeRotateDialogState extends State<_BadgeRotateDialog>
                   children: [
                     if (!loading && auditResult == null) ...[
                       Text(
-                        'Выберите ваш город для сопоставления с официальными тарифами на 2026 год:',
+                        'Сопоставление с официальными тарифами г. Нижневартовска (ХМАО) на 2026 год:',
                         style: TextStyle(color: PulseColors.textSecondary, fontSize: 13),
-                      ),
-                      PulseGlassDropdown<String>(
-                        value: selectedCity,
-                        isNightMode: ThemeProvider.instance.isDarkMode,
-                        onChanged: (val) {
-                          if (val != null) {
-                            setDialogState(() {
-                              selectedCity = val;
-                            });
-                          }
-                        },
-                        items: const [
-                          PulseGlassDropdownItem(value: 'Нижневартовск', child: Text('г. Нижневартовск (ХМАО)')),
-                          PulseGlassDropdownItem(value: 'Новосибирск', child: Text('г. Новосибирск (НСО)')),
-                        ],
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -2389,27 +2382,37 @@ class ProfileStatsRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: AppMetricTile(
-            label: 'На карте',
-            value: '$onMap',
-            accent: const Color(0xFFD946EF),
-            trailing: const Icon(
-              Icons.map_rounded,
-              color: Color(0xFFD946EF),
-              size: 20,
+          child: TweenAnimationBuilder<int>(
+            tween: IntTween(begin: 0, end: onMap),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, _) => AppMetricTile(
+              label: 'На карте',
+              value: '$value',
+              accent: const Color(0xFFD946EF),
+              trailing: const Icon(
+                Icons.map_rounded,
+                color: Color(0xFFD946EF),
+                size: 20,
+              ),
             ),
           ),
         ),
         const SizedBox(width: AppSpacing.md),
         Expanded(
-          child: AppMetricTile(
-            label: 'Решено',
-            value: '$resolved',
-            accent: const Color(0xFF10B981),
-            trailing: const Icon(
-              Icons.check_circle_outline_rounded,
-              color: Color(0xFF10B981),
-              size: 20,
+          child: TweenAnimationBuilder<int>(
+            tween: IntTween(begin: 0, end: resolved),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, _) => AppMetricTile(
+              label: 'Решено',
+              value: '$value',
+              accent: const Color(0xFF10B981),
+              trailing: const Icon(
+                Icons.check_circle_outline_rounded,
+                color: Color(0xFF10B981),
+                size: 20,
+              ),
             ),
           ),
         ),
@@ -2472,12 +2475,45 @@ class _ProfileAuraBackgroundState extends State<ProfileAuraBackground>
         final dy4 = math.cos(val * 0.8 + math.pi * 0.4) * 60;
         final scale4 = 1.0 + 0.18 * math.cos(val * 1.4);
 
-        final isDark = ThemeProvider.instance.isDarkMode;
-        final bgGradient = isDark
-            ? (widget.useMeshBg
-                ? const [Color(0xFF03010A), Color(0xFF0A041A), Color(0xFF020712)]
-                : const [Color(0xFF080415), Color(0xFF0D0722), Color(0xFF050914)])
-            : const [Color(0xFFF8FAFC), Color(0xFFF1F5F9), Color(0xFFE2E8F0)];
+        final hour = DateTime.now().hour;
+        const isDark = true;
+
+        // Dynamic 4-period diurnal color palettes (Light, vibrant & alive)
+        final List<Color> bgGradient;
+        final Color orb1Color;
+        final Color orb2Color;
+        final Color orb3Color;
+
+        if (isDark) {
+          bgGradient = const [Color(0xFF0F172A), Color(0xFF1E1B4B), Color(0xFF0A0F1D)];
+          orb1Color = const Color(0xFF38BDF8);
+          orb2Color = const Color(0xFF818CF8);
+          orb3Color = const Color(0xFF34D399);
+        } else if (hour >= 6 && hour < 12) {
+          // УТРО: Нежный рассветный перламутр и теплое золотое сияние
+          bgGradient = const [Color(0xFFFFFBF0), Color(0xFFFFF1F2), Color(0xFFF0FDF4)];
+          orb1Color = const Color(0xFFF59E0B);
+          orb2Color = const Color(0xFFFB7185);
+          orb3Color = const Color(0xFF38BDF8);
+        } else if (hour >= 12 && hour < 18) {
+          // ДЕНЬ: Кристально-чистый светлый лазурный аквамарин
+          bgGradient = const [Color(0xFFF0F9FF), Color(0xFFE0F2FE), Color(0xFFF8FAFC)];
+          orb1Color = const Color(0xFF0EA5E9);
+          orb2Color = const Color(0xFF06B6D4);
+          orb3Color = const Color(0xFF10B981);
+        } else if (hour >= 18 && hour < 23) {
+          // ВЕЧЕР: Закатный лавандово-розовый светлый градиент
+          bgGradient = const [Color(0xFFFAF5FF), Color(0xFFFCE7F3), Color(0xFFF1F5F9)];
+          orb1Color = const Color(0xFFA855F7);
+          orb2Color = const Color(0xFFEC4899);
+          orb3Color = const Color(0xFFFBBF24);
+        } else {
+          // НОЧЬ: Мягкий звездный сапфировый перламутр
+          bgGradient = const [Color(0xFFF1F5F9), Color(0xFFE2E8F0), Color(0xFFEEF2F6)];
+          orb1Color = const Color(0xFF0284C7);
+          orb2Color = const Color(0xFF3B82F6);
+          orb3Color = const Color(0xFF06B6D4);
+        }
 
         return Container(
           decoration: BoxDecoration(
@@ -2489,7 +2525,7 @@ class _ProfileAuraBackgroundState extends State<ProfileAuraBackground>
           ),
           child: Stack(
             children: [
-              // Ambient Orb 1 (Top-Left: Fuchsia / Electric Magenta)
+              // Ambient Orb 1
               Positioned(
                 top: -80 + dy1,
                 left: -80 + dx1,
@@ -2502,8 +2538,8 @@ class _ProfileAuraBackgroundState extends State<ProfileAuraBackground>
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
                         colors: [
-                          const Color(0xFFD946EF).withOpacity(widget.useMeshBg ? 0.28 : 0.20),
-                          const Color(0xFFD946EF).withOpacity(0.0),
+                          orb1Color.withOpacity(widget.useMeshBg ? 0.28 : 0.22),
+                          orb1Color.withOpacity(0.0),
                         ],
                       ),
                     ),
@@ -2511,7 +2547,7 @@ class _ProfileAuraBackgroundState extends State<ProfileAuraBackground>
                 ),
               ),
 
-              // Ambient Orb 2 (Middle-Right: Ultra Violet)
+              // Ambient Orb 2
               Positioned(
                 top: 220 + dy2,
                 right: -90 + dx2,
@@ -2524,8 +2560,8 @@ class _ProfileAuraBackgroundState extends State<ProfileAuraBackground>
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
                         colors: [
-                          const Color(0xFF8B5CF6).withOpacity(widget.useMeshBg ? 0.25 : 0.18),
-                          const Color(0xFF8B5CF6).withOpacity(0.0),
+                          orb2Color.withOpacity(widget.useMeshBg ? 0.25 : 0.20),
+                          orb2Color.withOpacity(0.0),
                         ],
                       ),
                     ),
@@ -2533,7 +2569,7 @@ class _ProfileAuraBackgroundState extends State<ProfileAuraBackground>
                 ),
               ),
 
-              // Ambient Orb 3 (Center-Left: Electric Cyan / Neon Teal)
+              // Ambient Orb 3
               Positioned(
                 top: 120 + dy4,
                 left: 20 + dx4,
@@ -2546,8 +2582,8 @@ class _ProfileAuraBackgroundState extends State<ProfileAuraBackground>
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
                         colors: [
-                          const Color(0xFF00E5FF).withOpacity(widget.useMeshBg ? 0.26 : 0.16),
-                          const Color(0xFF00E5FF).withOpacity(0.0),
+                          orb3Color.withOpacity(widget.useMeshBg ? 0.26 : 0.20),
+                          orb3Color.withOpacity(0.0),
                         ],
                       ),
                     ),
@@ -2640,7 +2676,7 @@ class _ProfileParticlesPainter extends CustomPainter {
           : index % 4 == 1
               ? const Color(0xFFD946EF)
               : index % 4 == 2
-                  ? const Color(0xFF8B5CF6)
+                  ? const Color(0xFF00E5FF)
                   : const Color(0xFF10B981),
     );
   });
@@ -2700,13 +2736,13 @@ class AuraProfileCard extends StatelessWidget {
   const AuraProfileCard({
     super.key,
     required this.child,
-    this.borderGradient = const [Color(0xFF8B5CF6), Color(0xFFD946EF)],
+    this.borderGradient = const [Color(0xFF00E5FF), Color(0xFFD946EF)],
     this.borderRadius = 16.0,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = ThemeProvider.instance.isDarkMode;
+    const isDark = true;
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(borderRadius),
@@ -2731,18 +2767,18 @@ class AuraProfileCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(borderRadius - 1.2),
             color: isDark
                 ? const Color(0xFF0D0821).withOpacity(0.72)
-                : Colors.white.withOpacity(0.85), // Premium light/dark card bg
+                : Colors.white.withOpacity(0.82), // Premium crystal light glass
             boxShadow: [
               BoxShadow(
-                color: borderGradient.first.withOpacity(0.08),
-                blurRadius: 12,
+                color: borderGradient.first.withOpacity(isDark ? 0.08 : 0.05),
+                blurRadius: 16,
                 spreadRadius: -2,
               ),
             ],
           ),
           clipBehavior: Clip.antiAlias,
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: child,

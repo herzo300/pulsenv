@@ -34,7 +34,7 @@ class ArCameraScreen extends StatefulWidget {
 }
 
 class _ArCameraScreenState extends State<ArCameraScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   CameraController? _cameraController;
   bool _isCameraReady = false;
   bool _isTakingPicture = false;
@@ -77,20 +77,32 @@ class _ArCameraScreenState extends State<ArCameraScreen>
   String? _detectedIssue;
   double _detectionConfidence = 0.0;
   Timer? _aiDetectionTimer;
-  int _aiScanCycles = 0;
   final List<String> _detectedHints = [];
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initAnimations();
     _initCamera();
     _fetchGps();
-    _loadSignals();
     _startGpsPolling();
-    _startDataFeed();
+    _loadSignals().then((_) {
+      if (mounted) _startDataFeed();
+    });
     _checkInstructions();
     _startAiDetectionSimulation();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden || state == AppLifecycleState.detached) {
+      if (_scanLineController.isAnimating) _scanLineController.stop();
+      if (_pulseController.isAnimating) _pulseController.stop();
+    } else if (state == AppLifecycleState.resumed) {
+      if (!_scanLineController.isAnimating) _scanLineController.repeat(reverse: true);
+      if (!_pulseController.isAnimating) _pulseController.repeat(reverse: true);
+    }
   }
 
   Future<void> _checkInstructions() async {
@@ -283,14 +295,13 @@ class _ArCameraScreenState extends State<ArCameraScreen>
   }
 
   void _startDataFeed() {
-    const lines = [
-      'СИСТЕМА: Инициализация AI-модуля...',
-      'GPS: Захват спутников... OK',
-      'VISION: TFLite модель загружена',
-      'OCR: Google ML Kit ready',
-      'NET: Сервер api.soobshio.ru... OK',
-      'AI: Z.AI GLM-5 Vision доступен',
-      'SCAN: Ожидание команды...',
+    // Строки ленты отражают реальные состояния модулей на момент запуска
+    final lines = <String>[
+      'GPS: ${_latitude != null ? 'фиксация ±${_accuracy?.toStringAsFixed(0)}m' : 'поиск спутников…'}',
+      'VISION: серверный VLM ${MapConfig.backendApiBaseUrl.contains('127.0.0.1') ? '(локальный)' : 'подключен'}',
+      'AI-ДЕТЕКЦИЯ: каждые 6 сек — реальный кадр',
+      'СИГНАЛЫ КАРТЫ: загружено ${_signals.length}',
+      'SCAN: наведите камеру на проблему',
     ];
     _feedTimer = Timer.periodic(const Duration(milliseconds: 800), (timer) {
       if (!mounted) {
@@ -494,6 +505,7 @@ class _ArCameraScreenState extends State<ArCameraScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _gpsTimer?.cancel();
     _feedTimer?.cancel();
     _instructionTimer?.cancel();
@@ -507,41 +519,88 @@ class _ArCameraScreenState extends State<ArCameraScreen>
   }
 
   void _startAiDetectionSimulation() {
-    // Simulate AI scanning camera feed every 4 seconds
-    _aiDetectionTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+    // Реальная детекция: каждые 6 секунд кадр с камеры уходит на backend VLM
+    _aiDetectionTimer = Timer.periodic(const Duration(seconds: 6), (timer) async {
       if (!mounted || !_aiDetectionActive) return;
-      _aiScanCycles++;
-      
-      // Simulate detection scenarios
-      final scenarios = [
-        null, // No detection
-        null,
-        {'issue': 'Дорожная яма', 'confidence': 0.87, 'hint': 'Обнаружен дефект покрытия'},
-        null,
-        {'issue': 'Переполненный контейнер', 'confidence': 0.72, 'hint': 'Зафиксирован мусор'},
-        null,
-        {'issue': 'Повреждение освещения', 'confidence': 0.65, 'hint': 'Неисправный фонарь'},
-        null,
-        {'issue': 'Граффити', 'confidence': 0.78, 'hint': 'Несанкционированная надпись'},
-        null,
-        {'issue': 'Безнадзорное животное', 'confidence': 0.81, 'hint': 'Детекция животного'},
-      ];
-      
-      final scenario = scenarios[_aiScanCycles % scenarios.length];
-      if (mounted) {
-        setState(() {
-          if (scenario != null) {
-            _detectedIssue = scenario['issue'] as String;
-            _detectionConfidence = scenario['confidence'] as double;
-            _detectedHints.insert(0, scenario['hint'] as String);
-            if (_detectedHints.length > 3) _detectedHints.removeLast();
-          } else {
-            _detectedIssue = null;
-            _detectionConfidence = 0.0;
-          }
-        });
-      }
+      await _runRealAiDetection();
     });
+  }
+
+  Future<void> _runRealAiDetection() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) return;
+    try {
+      final XFile shot = await _cameraController!.takePicture();
+      final bytes = await shot.readAsBytes();
+      if (bytes.length < 1024) return;
+      try {
+        // cross_file's XFile has no delete(); remove via dart:io when local
+        final f = File(shot.path);
+        if (await f.exists()) await f.delete();
+      } catch (_) {}
+
+      final uri = Uri.parse('${MapConfig.backendApiBaseUrl}/vlm/analyze-city-problem');
+      final resp = await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json; charset=utf-8'},
+            body: jsonEncode({'image_base64': base64Encode(bytes)}),
+          )
+          .timeout(const Duration(seconds: 20));
+
+      if (resp.statusCode != 200 || !mounted) return;
+      final data = jsonDecode(utf8.decode(resp.bodyBytes));
+      if (data['status'] != 'success') return;
+      final result = data['result'] as Map<String, dynamic>? ?? {};
+
+      final issues = (result['issues'] as List?) ?? [];
+      final found = (result['found'] as bool? ?? false) && issues.isNotEmpty;
+      if (!mounted) return;
+      setState(() {
+        if (found) {
+          final first = Map<String, dynamic>.from(issues.first);
+          _detectedIssue = '${first['label'] ?? result['category']}';
+          _detectionConfidence = ((first['confidence'] as num?) ?? 0.5).toDouble();
+          final desc = (result['description'] as String?) ?? '';
+          if (desc.isNotEmpty) {
+            _detectedHints.insert(0, desc);
+            if (_detectedHints.length > 3) _detectedHints.removeLast();
+          }
+        } else {
+          _detectedIssue = null;
+          _detectionConfidence = 0.0;
+        }
+      });
+    } catch (e) {
+      debugPrint('AI detection error: $e');
+    }
+  }
+
+  /// Анализ калорийности продуктов в кадре (вес оценивается моделью
+  /// по референсам масштаба: тарелка, ложка, кружка).
+  Future<Map<String, dynamic>?> analyzeFoodInFrame() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) return null;
+    try {
+      final XFile shot = await _cameraController!.takePicture();
+      final bytes = await shot.readAsBytes();
+      if (bytes.length < 1024) return null;
+
+      final uri = Uri.parse('${MapConfig.backendApiBaseUrl}/vlm/analyze-food');
+      final resp = await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json; charset=utf-8'},
+            body: jsonEncode({'image_base64': base64Encode(bytes)}),
+          )
+          .timeout(const Duration(seconds: 25));
+
+      if (resp.statusCode != 200) return null;
+      final data = jsonDecode(utf8.decode(resp.bodyBytes));
+      if (data['status'] != 'success') return null;
+      return data['result'] as Map<String, dynamic>?;
+    } catch (e) {
+      debugPrint('Food analysis error: $e');
+      return null;
+    }
   }
 
   void _createSignalFromCamera() {
@@ -614,14 +673,16 @@ class _ArCameraScreenState extends State<ArCameraScreen>
 
           // 14. GPS Searching Message
           if (_latitude == null) _buildGpsSearchingOverlay(),
-
-          // 15. Map signals overlaid on AR Camera view
-          if (_showMapSignalsOnCamera && _signals.isNotEmpty && _latitude != null && _longitude != null)
-            ..._buildFloatingArSignals(),
         ],
       ),
     );
   }
+
+  // Категорийная панель-чипы удалена по запросу пользователя: разноцветные
+  // блоки были нефункциональны. Осталась настоящая детекция: фоновый анализ
+  // каждые 6 сек (_runRealAiDetection) + кнопка «Создать сигнал» с
+  // автоподстановкой распознанной проблемы, координат и адреса.
+
 
   Widget _buildInstructionsOverlay() {
     return Positioned(
@@ -1043,7 +1104,7 @@ class _ArCameraScreenState extends State<ArCameraScreen>
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-            if (_feedLineIndex >= 7)
+            if (_feedLineIndex >= 5 && _feedTimer == null)
               AnimatedBuilder(
                 animation: _pulseAnimation,
                 builder: (_, __) => Text(
@@ -1248,8 +1309,169 @@ class _ArCameraScreenState extends State<ArCameraScreen>
               });
             },
           ),
+          const SizedBox(height: 12),
+          // Food calorie analyzer (реальный VLM-анализ КБЖУ с авто-оценкой веса)
+          _buildArMiniButton(
+            icon: Icons.restaurant_menu_rounded,
+            tooltip: 'Калории и КБЖУ',
+            activeColor: const Color(0xFFFF7043),
+            active: false,
+            onTap: _analyzeFoodDialog,
+          ),
         ],
       ),
+    );
+  }
+
+  Future<void> _analyzeFoodDialog() async {
+    HapticFeedback.mediumImpact();
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        backgroundColor: Color(0xFF0F172A),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: Color(0xFFFF7043)),
+            SizedBox(height: 16),
+            Text('🍽️ Анализируем продукты…',
+                style: TextStyle(color: Colors.white, fontSize: 15)),
+            SizedBox(height: 6),
+            Text('Оценка веса порции по референсам (тарелка, ложка)',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white54, fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+    try {
+      final result = await analyzeFoodInFrame();
+      if (!mounted) return;
+      Navigator.of(context).pop(); // close progress
+      if (result == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('ИИ-анализ питания временно недоступен')));
+        return;
+      }
+      _showFoodResultDialog(result);
+    } catch (_) {
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Не удалось проанализировать кадр')));
+      }
+    }
+  }
+
+  void _showFoodResultDialog(Map<String, dynamic> result) {
+    final items = (result['items'] as List?) ?? [];
+    final total = (result['total'] as Map?) ?? {};
+    final advice = (result['advice'] as String?) ?? '';
+    final confidence = (result['weight_estimation_confidence'] as String?) ?? 'medium';
+    final confidenceLabel = {
+      'high': 'высокая',
+      'medium': 'средняя',
+      'low': 'низкая',
+    }[confidence] ?? confidence;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0F172A),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Color(0xFFFF7043), width: 1)),
+        title: const Text('🍽️ КБЖУ в кадре',
+            style: TextStyle(color: Colors.white, fontSize: 18)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF7043).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _macroChip('ккал', '${total['kcal'] ?? 0}', const Color(0xFFFF7043)),
+                      _macroChip('Б', '${total['protein_g'] ?? 0} г', const Color(0xFF00E5FF)),
+                      _macroChip('Ж', '${total['fat_g'] ?? 0} г', const Color(0xFFFFD700)),
+                      _macroChip('У', '${total['carbs_g'] ?? 0} г', const Color(0xFF10B981)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text('ТОЧНОСТЬ ОЦЕНКИ ВЕСА: $confidenceLabel',
+                    style: const TextStyle(
+                        color: Colors.white54, fontSize: 10, letterSpacing: 1)),
+                const SizedBox(height: 8),
+                ...items.map((raw) {
+                  final item = Map<String, dynamic>.from(raw);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Text('${item['name'] ?? '—'}',
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 13)),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Text('${item['estimated_grams'] ?? '?'} г',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 13)),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Text('${item['kcal_total'] ?? '?'} ккал',
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(
+                                  color: const Color(0xFFFF7043), fontSize: 13)),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                if (advice.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(advice,
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 12, height: 1.4)),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Понятно',
+                style: TextStyle(color: Color(0xFF00E5FF))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _macroChip(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(value,
+            style: TextStyle(
+                color: color, fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+      ],
     );
   }
 

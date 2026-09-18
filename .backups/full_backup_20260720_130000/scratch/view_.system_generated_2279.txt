@@ -1,0 +1,39 @@
+Created At: 2026-06-23T05:17:57Z
+Completed At: 2026-06-23T05:17:57Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1605
+Total Bytes: 66465
+Showing lines 490 to 520
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+490:     } else {
+491:       text = 'Базовая частота Шумана стабильна и составляет $freq Гц, что соответствует норме (7.83 Гц). Ионосфера Земли спокойна, естественные электромагнитные колебания планеты сбалансированы.';
+492:     }
+493:     _showParamExplanation('Резонанс Шумана', freq != null ? '$freq Гц' : '—', text);
+494:   }
+495: 
+496:   void _explainSchumannAmp() {
+497:     final amp = _displaySchumannAmp;
+498:     String text = '';
+499:     if (amp == null) {
+500:       text = 'Данные об амплитуде Шумана временно недоступны.';
+501:     } else if (amp > 15.0) {
+502:       text = 'Зарегистрирован всплеск амплитуды резонанса Шумана до $amp pT (норма <= 15.0). Такие пики часто связаны с сильными грозовыми фронтами или геомагнитным воздействием. Может вызывать повышенную возбудимость нервной системы или перепады тонуса.';
+503:     } else {
+504:       text = 'Амплитуда колебаний Шумана находится в спокойном состоянии ($amp pT при норме <= 15.0). Геомагнитный фон Земли находится в состоянии покоя, дополнительной нагрузки на нервную систему нет.';
+505:     }
+506:     _showParamExplanation('Амплитуда Шумана', amp != null ? '$amp pT' : '—', text);
+507:   }
+508: 
+509:   void _explainWind() {
+510:     final wind = _displayWindSpeed;
+511:     String text = '';
+512:     if (wind == null) {
+513:       text = 'Данные о ветре временно недоступны.';
+514:     } else if (wind > 10.0) {
+515:       text = 'Наблюдается сильный, порывистый ветер (${wind.toStringAsFixed(1)} м/с). Рекомендуется обходить шаткие конструкции, рекламные щиты, старые деревья и не парковать под ними транспорт.';
+516:     } else if (wind > 5.0) {
+517:       text = 'Наблюдается умеренный ветер (${wind.toStringAsFixed(1)} м/с). На открытых участках ощущается прохлада, рекомендуется надевать ветрозащитную одежду.';
+518:     } else {
+519:       text = 'Слабый, приятный ветер (${wind.toStringAsFixed(1)} м/с). Комфортные условия для прогулок и активного отдыха на свежем воздухе.';
+520:     }
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

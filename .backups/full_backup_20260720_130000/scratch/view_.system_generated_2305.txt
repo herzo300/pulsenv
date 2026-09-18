@@ -1,0 +1,59 @@
+Created At: 2026-06-23T05:19:03Z
+Completed At: 2026-06-23T05:19:03Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1775
+Total Bytes: 77483
+Showing lines 1630 to 1680
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1630:           i['text'].toString().toLowerCase().contains('драка') ||
+1631:           i['text'].toString().toLowerCase().contains('убий'));
+1632: 
+1633:       if (hasSeriousEmergency) {
+1634:         bg = const Color(0xDDEB3B3B); // Red for serious ЧП
+1635:         border = const Color(0xFFFCA5A5);
+1636:         leadingIcon = Icons.error_outline_rounded;
+1637:       } else if (hasEmergency) {
+1638:         bg = const Color(0xDDFF7D1A); // Orange/Amber for medium/low ЧП
+1639:         border = const Color(0xFFFED7AA);
+1640:         leadingIcon = Icons.warning_amber_rounded;
+1641:       } else if (hasAccident) {
+1642:         bg = const Color(0xDDEAB308); // Yellow/Gold for accidents
+1643:         border = const Color(0xFFFEF08A);
+1644:         leadingIcon = Icons.car_crash_rounded;
+1645:       } else if (hasCrime) {
+1646:         bg = const Color(0xDD8B5CF6); // Purple for crime/police
+1647:         border = const Color(0xFFDDD6FE);
+1648:         leadingIcon = Icons.local_police_rounded;
+1649:       }
+1650:     }
+1651: 
+1652:     bg = Colors.white.withOpacity(0.92); // White color for marquee block
+1653:     border = Colors.black.withOpacity(0.12); // Subtle border
+1654: 
+1655:     text = text.trim();
+1656:     if (text.isEmpty) return const SizedBox.shrink();
+1657: 
+1658:     return ClipRRect(
+1659:       borderRadius: BorderRadius.circular(14),
+1660:       child: Container(
+1661:         height: 38,
+1662:         decoration: BoxDecoration(
+1663:           color: bg,
+1664:           border: Border.all(
+1665:             color: border,
+1666:           ),
+1667:         ),
+1668:         child: Row(
+1669:           children: [
+1670:             Container(
+1671:               width: 38,
+1672:               alignment: Alignment.center,
+1673:               color: Colors.black.withOpacity(0.05),
+1674:               child: AnimatedBuilder(
+1675:                 animation: _scroll,
+1676:                 builder: (context, _) {
+1677:                   final double angle = _scroll.value * 2 * math.pi;
+1678:                   final double scale = 1.0 + 0.15 * math.sin(_scroll.value * 2 * math.pi * 4);
+1679:                   return Transform.scale(
+1680:                     scale: scale,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,58 @@
+Created At: 2026-06-23T05:18:53Z
+Completed At: 2026-06-23T05:18:53Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1775
+Total Bytes: 77483
+Showing lines 1541 to 1590
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1541: class _CityAlertTickerState extends State<CityAlertTicker>
+1542:     with SingleTickerProviderStateMixin {
+1543:   late final AnimationController _scroll;
+1544: 
+1545:   @override
+1546:   void initState() {
+1547:     super.initState();
+1548:     _scroll = AnimationController(
+1549:       vsync: this,
+1550:       duration: const Duration(seconds: 28),
+1551:     )..repeat();
+1552:   }
+1553: 
+1554:   @override
+1555:   void dispose() {
+1556:     _scroll.dispose();
+1557:     super.dispose();
+1558:   }
+1559: 
+1560:   bool _isEmergencyAlert(Map<String, dynamic> item) {
+1561:     final cat = (item['category'] ?? '').toString().toLowerCase();
+1562:     final txt = (item['text'] ?? '').toString().toLowerCase();
+1563:     final hasEmergency = cat.contains('чп') || cat.contains('чрезвыч') || txt.contains('чп') || txt.contains('чрезвыч') || txt.contains('пожар') || txt.contains('взрыв');
+1564:     final hasAccident = cat.contains('авари') || cat.contains('дтп') || txt.contains('авари') || txt.contains('дтп') || txt.contains('столкн');
+1565:     final hasCrime = cat.contains('кримин') || cat.contains('преступ') || txt.contains('кримин') || txt.contains('преступ') || txt.contains('краж') || txt.contains('драка') || txt.contains('убий');
+1566:     return hasEmergency || hasAccident || hasCrime;
+1567:   }
+1568: 
+1569:   @override
+1570:   Widget build(BuildContext context) {
+1571:     String text = '';
+1572:     IconData leadingIcon = Icons.campaign_rounded;
+1573:     Color bg = widget.isNightMode ? const Color(0xB30A101C) : const Color(0xDDF0F8FF);
+1574:     Color border = widget.accent.withAlpha(90);
+1575: 
+1576:     if (widget.customWarningText != null && widget.customWarningText!.isNotEmpty) {
+1577:       text = widget.customWarningText!;
+1578:       leadingIcon = Icons.warning_amber_rounded;
+1579:       bg = const Color(0xDDF97316); // Amber/Orange warning
+1580:       border = const Color(0xFFFED7AA);
+1581:     } else if (widget.useWeatherOnly) {
+1582:       text = widget.data.weatherMarquee;
+1583:       leadingIcon = Icons.wb_cloudy_rounded;
+1584:     } else if (widget.useCityOnly) {
+1585:       final List<Map<String, dynamic>> itemsToProcess = widget.selectedCategory != null
+1586:           ? widget.data.items.where((i) {
+1587:               if (i['type'] != 'channel') return false;
+1588:               final cat = (i['category'] ?? 'Прочее').toString().trim().toLowerCase();
+1589:               final sel = widget.selectedCategory!.trim().toLowerCase();
+1590:               return cat == sel;
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

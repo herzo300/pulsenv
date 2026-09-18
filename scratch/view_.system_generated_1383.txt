@@ -1,0 +1,49 @@
+Created At: 2026-06-24T07:02:25Z
+Completed At: 2026-06-24T07:02:26Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1886
+Total Bytes: 82013
+Showing lines 460 to 500
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+460:   }
+461: 
+462:   void _explainPressure() {
+463:     final pressure = _displayPressure?.round();
+464:     String text = '';
+465:     if (pressure == null) {
+466:       text = 'Данные временно отсутствуют.';
+467:     } else if (pressure < 748) {
+468:       text = 'Атмосферное давление понижено ($pressure мм рт. ст. при норме 748–768). Это может вызывать гипоксию, сонливость, головокружение или снижение тонуса сосудов у метеозависимых людей. Полезно пить чистую воду и избегать резких физических нагрузок.';
+469:     } else if (pressure > 768) {
+470:       text = 'Атмосферное давление повышено ($pressure мм рт. ст. при норме 748–768). Это может приводить к увеличению артериального давления, головной боли или общему недомоганию. Метеозависимым людям рекомендуется контролировать давление и избегать переутомления.';
+471:     } else {
+472:       text = 'Атмосферное давление находится в пределах нормы ($pressure мм рт. ст., норма 748–768). Это комфортные условия для большинства людей, влияние на самочувствие отсутствует.';
+473:     }
+474:     _showParamExplanation('Атмосферное давление', pressure != null ? '$pressure мм рт. ст.' : '—', text);
+475:   }
+476: 
+477:   void _explainSolarFlare() {
+478:     final flare = _displaySolarFlare;
+479:     String text = '';
+480:     if (flare == null || flare.isEmpty || flare == '—') {
+481:       text = 'Крупных солнечных вспышек не обнаружено. Космический фон в пределах нормы, рисков для техники или здоровья людей нет.';
+482:     } else if (flare.startsWith('X')) {
+483:       text = 'Солнечная вспышка критического класса $flare. Высокая вероятность мощных геомагнитных бурь, возможных сбоев в радиосвязи, спутниковой навигации и сетях электропередач. Людям с сердечно-сосудистыми заболеваниями следует быть осторожнее.';
+484:     } else if (flare.startsWith('M')) {
+485:       text = 'Солнечная вспышка умеренного класса $flare. Возможны кратковременные перебои в полярной радиосвязи и умеренное влияние геомагнитного поля на метеочувствительных людей.';
+486:     } else {
+487:       text = 'Слабая солнечная вспышка класса $flare. Влияние на земную инфраструктуру и самочувствие людей отсутствует, магнитный фон стабилен.';
+488:     }
+489:     _showParamExplanation('Солнечные вспышки', flare != null && flare.isNotEmpty && flare != '—' ? 'Класс $flare' : 'отсутствуют', text);
+490:   }
+491: 
+492:   void _explainSchumannFreq() {
+493:     final freq = _displaySchumannFreq;
+494:     String text = '';
+495:     if (freq == null) {
+496:       text = 'Данные о частоте Шумана временно недоступны.';
+497:     } else if (freq < 7.7 || freq > 8.0) {
+498:       text = 'Базовая частота Шумана составляет $freq Гц (норма 7.83 Гц). Отклонения от нормы могут возникать из-за грозовой активности в атмосфере Земли или изменений в ионосфере. Метеозависимые люди могут отмечать изменения сна или уровня тревожности.';
+499:     } else {
+500:       text = 'Базовая частота Шумана стабильна и составляет $freq Гц, что соответствует норме (7.83 Гц). Ионосфера Земли спокойна, естественные электромагнитные колебания планеты сбалансированы.';
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

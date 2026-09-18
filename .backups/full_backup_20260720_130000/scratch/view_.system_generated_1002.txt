@@ -1,0 +1,39 @@
+Created At: 2026-06-23T03:31:49Z
+Completed At: 2026-06-23T03:31:49Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1779
+Total Bytes: 72661
+Showing lines 695 to 725
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+695:         Icons.waves_rounded,
+696:         'Колебания частоты Шумана',
+697:         'Базовая частота резонанса Шумана сместилась до $_displaySchumannFreq Гц (норма 7.83 Гц). Возможны кратковременные изменения естественного электромагнитного фона планеты.',
+698:       ));
+699:     }
+700:     if (_displaySchumannAmp != null && _displaySchumannAmp! > 15.0) {
+701:       warnings.add(_buildWarningCard(
+702:         Icons.flash_on_rounded,
+703:         'Всплеск амплитуды Шумана',
+704:         'Зарегистрировано кратковременное повышение амплитуды Шумана до $_displaySchumannAmp pT (норма <=15.0). Рекомендуется уделить внимание отдыху и спокойной деятельности.',
+705:       ));
+706:     }
+707:     if (_displayWindSpeed != null && _displayWindSpeed! > 10.0) {
+708:       warnings.add(_buildWarningCard(
+709:         Icons.air_rounded,
+710:         'Штормовой ветер',
+711:         'Скорость ветра достигает ${_displayWindSpeed!.toStringAsFixed(0)} м/с (порывы до ${_displayWindGusts?.toStringAsFixed(0) ?? '—'} м/с). Не находитесь вблизи рекламных щитов, старых деревьев и легких конструкций.',
+712:       ));
+713:     }
+714:     return warnings;
+715:   }
+716: 
+717:   Widget _buildWarningCard(IconData icon, String title, String body) {
+718:     return Container(
+719:       margin: const EdgeInsets.only(bottom: 12),
+720:       padding: const EdgeInsets.all(16),
+721:       decoration: BoxDecoration(
+722:         color: const Color(0xFFF97316).withOpacity(widget.isNightMode ? 0.15 : 0.08),
+723:         borderRadius: BorderRadius.circular(16),
+724:         border: Border.all(
+725:           color: const Color(0xFFF97316).withOpacity(0.3),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

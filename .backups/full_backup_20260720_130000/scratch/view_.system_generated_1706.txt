@@ -1,0 +1,139 @@
+Created At: 2026-06-23T05:02:24Z
+Completed At: 2026-06-23T05:02:24Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1590
+Total Bytes: 65733
+Showing lines 670 to 800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+670:       child: Row(
+671:         crossAxisAlignment: CrossAxisAlignment.start,
+672:         children: [
+673:           Icon(icon, color: const Color(0xFFF97316), size: 24),
+674:           const SizedBox(width: 12),
+675:           Expanded(
+676:             child: Column(
+677:               crossAxisAlignment: CrossAxisAlignment.start,
+678:               children: [
+679:                 Text(
+680:                   title,
+681:                   style: const TextStyle(
+682:                     fontSize: 14,
+683:                     fontWeight: FontWeight.w700,
+684:                     color: Color(0xFFF97316),
+685:                   ),
+686:                 ),
+687:                 const SizedBox(height: 4),
+688:                 Text(
+689:                   body,
+690:                   style: TextStyle(
+691:                     fontSize: 12,
+692:                     height: 1.4,
+693:                     color: widget.isNightMode ? Colors.white.withOpacity(0.87) : Colors.black87,
+694:                   ),
+695:                 ),
+696:               ],
+697:             ),
+698:           ),
+699:         ],
+700:       ),
+701:     );
+702:   }
+703: 
+704: 
+705: 
+706:   @override
+707:   Widget build(BuildContext context) {
+708:     return Material(
+709:       color: Colors.black.withAlpha(widget.isNightMode ? 120 : 60),
+710:       child: Stack(
+711:         children: [
+712:           Positioned.fill(
+713:             child: AnimatedBuilder(
+714:               animation: _controller,
+715:               builder: (context, _) => CustomPaint(
+716:                 painter: _WeatherAmbientPainter(
+717:                   kind: _selectedKind,
+718:                   progress: _controller.value,
+719:                   isNight: widget.isNightMode,
+720:                   accent: widget.accent,
+721:                 ),
+722:               ),
+723:             ),
+724:           ),
+725:           SafeArea(
+726:             child: Padding(
+727:               padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+728:               child: Column(
+729:                 crossAxisAlignment: CrossAxisAlignment.start,
+730:                 children: [
+731:                   Align(
+732:                     alignment: Alignment.topRight,
+733:                     child: IconButton(
+734:                       onPressed: widget.onClose,
+735:                       icon: Icon(
+736:                         Icons.close_rounded,
+737:                         color: widget.isNightMode
+738:                             ? Colors.white70
+739:                             : Colors.black54,
+740:                       ),
+741:                     ),
+742:                   ),
+743:                   Text(
+744:                     'Нижневартовск',
+745:                     style: TextStyle(
+746:                       color: widget.isNightMode
+747:                           ? Colors.white60
+748:                           : Colors.black54,
+749:                       fontSize: 14,
+750:                       fontWeight: FontWeight.w600,
+751:                       letterSpacing: 0.6,
+752:                     ),
+753:                   ),
+754:                   const SizedBox(height: 16),
+755:                   Expanded(
+756:                     child: SingleChildScrollView(
+757:                       physics: const BouncingScrollPhysics(),
+758:                       child: Column(
+759:                         crossAxisAlignment: CrossAxisAlignment.start,
+760:                         children: [
+761:                           Row(
+762:                             crossAxisAlignment: CrossAxisAlignment.end,
+763:                             children: [
+764:                               Text(
+765:                                 _displayTemp == null ? '—' : '$_displayTemp°',
+766:                                 style: TextStyle(
+767:                                   color: widget.isNightMode
+768:                                       ? Colors.white
+769:                                       : const Color(0xFF0A2540),
+770:                                   fontSize: 76,
+771:                                   fontWeight: FontWeight.w200,
+772:                                   height: 0.95,
+773:                                   letterSpacing: -2,
+774:                                 ),
+775:                               ),
+776:                               const SizedBox(width: 12),
+777:                               Padding(
+778:                                 padding: const EdgeInsets.only(bottom: 8),
+779:                                 child: Column(
+780:                                   crossAxisAlignment: CrossAxisAlignment.start,
+781:                                   children: [
+782:                                     Text(
+783:                                       _displayCondition,
+784:                                       style: TextStyle(
+785:                                         color: widget.accent,
+786:                                         fontSize: 18,
+787:                                         fontWeight: FontWeight.w700,
+788:                                       ),
+789:                                     ),
+790:                                     if (_displayHumidity != null) ...[
+791:                                       const SizedBox(height: 2),
+792:                                       Text(
+793:                                         'Влажность $_displayHumidity%',
+794:                                         style: TextStyle(
+795:                                           color: widget.isNightMode ? Colors.white70 : Colors.black54,
+796:                                           fontSize: 13,
+797:                                           fontWeight: FontWeight.w600,
+798:                                         ),
+799:                                       ),
+800:                                     ],
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

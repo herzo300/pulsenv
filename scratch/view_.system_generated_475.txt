@@ -1,0 +1,496 @@
+Created At: 2026-06-21T19:34:32Z
+Completed At: 2026-06-21T19:34:32Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1587
+Total Bytes: 62310
+Showing lines 1100 to 1587
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1100:         final starPulse = 0.3 + 0.7 * math.sin(progress * math.pi * 4 + seed);
+1101:         final starPaint = Paint()..color = Colors.white.withOpacity(0.4 * starPulse);
+1102:         canvas.drawCircle(Offset(x, y), 0.8 + (i % 2) * 0.6, starPaint);
+1103:         if (i % 8 == 0) {
+1104:           // Glow aura
+1105:           canvas.drawCircle(Offset(x, y), 3.0 + (i % 3), Paint()..color = Colors.white.withOpacity(0.08 * starPulse));
+1106:         }
+1107:       }
+1108:     }
+1109: 
+1110:     switch (kind) {
+1111:       case 'clear':
+1112:         _paintSunOrMoon(canvas, size);
+1113:         break;
+1114:       case 'rain':
+1115:       case 'storm':
+1116:         _paintRain(canvas, size, heavy: kind == 'storm');
+1117:         break;
+1118:       case 'snow':
+1119:         _paintSnow(canvas, size);
+1120:         break;
+1121:       case 'wind':
+1122:         _paintWind(canvas, size);
+1123:         break;
+1124:       case 'fog':
+1125:         _paintFog(canvas, size);
+1126:         break;
+1127:       default:
+1128:         _paintClouds(canvas, size);
+1129:     }
+1130:   }
+1131: 
+1132:   void _paintSunOrMoon(Canvas canvas, Size size) {
+1133:     final center = Offset(size.width * 0.72, size.height * 0.22);
+1134:     if (isNight) {
+1135:       // Crescent Moon
+1136:       final moonPaint = Paint()
+1137:         ..color = const Color(0xFFE2E8F0)
+1138:         ..style = PaintingStyle.fill;
+1139:       
+1140:       // Moon path
+1141:       final moonPath = Path()
+1142:         ..addArc(Rect.fromCircle(center: center, radius: 32), -math.pi / 2.2, math.pi * 1.5);
+1143:       final cutPath = Path()
+1144:         ..addArc(Rect.fromCircle(center: center - const Offset(8, -4), radius: 28), -math.pi / 2, math.pi * 1.5);
+1145:       final finalMoon = Path.combine(PathOperation.difference, moonPath, cutPath);
+1146:       
+1147:       // Glow
+1148:       final glow = Paint()
+1149:         ..shader = RadialGradient(colors: [
+1150:           const Color(0xFF94A3B8).withOpacity(0.3),
+1151:           Colors.transparent,
+1152:         ]).createShader(Rect.fromCircle(center: center, radius: 80));
+1153:       canvas.drawCircle(center, 80, glow);
+1154:       canvas.drawPath(finalMoon, moonPaint);
+1155:     } else {
+1156:       // Rotating Sunrays
+1157:       final rayPaint = Paint()
+1158:         ..color = const Color(0xFFFFF3B0).withOpacity(0.08)
+1159:         ..style = PaintingStyle.fill;
+1160:       
+1161:       canvas.save();
+1162:       canvas.translate(center.dx, center.dy);
+1163:       canvas.rotate(progress * 2 * math.pi * 0.05); // Slow rotation
+1164:       
+1165:       for (int i = 0; i < 8; i++) {
+1166:         final angle = i * math.pi / 4;
+1167:         final path = Path()
+1168:           ..moveTo(0, 0)
+1169:           ..lineTo(50 * math.cos(angle - 0.2), 50 * math.sin(angle - 0.2))
+1170:           ..lineTo(220 * math.cos(angle), 220 * math.sin(angle))
+1171:           ..lineTo(50 * math.cos(angle + 0.2), 50 * math.sin(angle + 0.2))
+1172:           ..close();
+1173:         canvas.drawPath(path, rayPaint);
+1174:       }
+1175:       canvas.restore();
+1176: 
+1177:       // Sun body and inner glow
+1178:       final glow = Paint()
+1179:         ..shader = RadialGradient(colors: [
+1180:           const Color(0xFFFFD54F).withOpacity(0.6),
+1181:           Colors.transparent,
+1182:         ]).createShader(Rect.fromCircle(center: center, radius: 110));
+1183:       canvas.drawCircle(center, 110, glow);
+1184:       canvas.drawCircle(center, 40, Paint()..color = const Color(0xFFFFCA28));
+1185:       canvas.drawCircle(center, 30, Paint()..color = const Color(0xFFFFF176));
+1186:     }
+1187:   }
+1188: 
+1189:   void _paintRain(Canvas canvas, Size size, {bool heavy = false}) {
+1190:     final paint = Paint()
+1191:       ..color = (heavy ? accent : Colors.white).withOpacity(heavy ? 0.6 : 0.45)
+1192:       ..strokeWidth = heavy ? 2.4 : 1.4
+1193:       ..strokeCap = StrokeCap.round;
+1194:     
+1195:     final count = heavy ? 90 : 54;
+1196:     for (int i = 0; i < count; i++) {
+1197:       final seed = i * 29.0;
+1198:       final speedMult = 1.6 + (i % 3) * 0.4;
+1199:       final x = (seed * 41 + progress * speedMult * size.width * 0.8) % size.width;
+1200:       final y = (seed * 17 + progress * speedMult * size.height * 1.8) % size.height;
+1201:       canvas.drawLine(Offset(x, y), Offset(x - 6, y + 16), paint);
+1202:       
+1203:       // Draw splash when raindrops hit the bottom area
+1204:       if (y > size.height * 0.78 && i % 4 == 0) {
+1205:         final splashProgress = (y - size.height * 0.78) / (size.height * 0.22);
+1206:         final splashPaint = Paint()
+1207:           ..color = Colors.white.withOpacity(0.28 * (1 - splashProgress))
+1208:           ..style = PaintingStyle.stroke
+1209:           ..strokeWidth = 0.8;
+1210:         canvas.drawArc(
+1211:           Rect.fromCenter(
+1212:             center: Offset(x, y + 16),
+1213:             width: 14 * splashProgress,
+1214:             height: 4 * splashProgress,
+1215:           ),
+1216:           0,
+1217:           math.pi * 2,
+1218:           false,
+1219:           splashPaint,
+1220:         );
+1221:       }
+1222:     }
+1223:   }
+1224: 
+1225:   void _paintSnow(Canvas canvas, Size size) {
+1226:     // Beautiful drifting snowflakes with sine movement
+1227:     final paint = Paint()..color = Colors.white.withOpacity(0.8);
+1228:     for (int i = 0; i < 70; i++) {
+1229:       final seed = i * 31.0;
+1230:       final speedMult = 0.6 + (i % 3) * 0.25;
+1231:       final waveFreq = 2.0 + (i % 2) * 1.5;
+1232:       
+1233:       final y = (seed * 19 + progress * speedMult * size.height * 0.8) % size.height;
+1234:       // Sideways drift
+1235:       final drift = math.sin((y / size.height) * waveFreq * math.pi + progress * math.pi) * 12;
+1236:       final x = (seed * 29 + drift) % size.width;
+1237:       
+1238:       final radius = 1.5 + (i % 4) * 0.8;
+1239:       canvas.drawCircle(Offset(x, y), radius, paint);
+1240:       
+1241:       // Draw larger custom snowflake structure for a few items
+1242:       if (i % 12 == 0) {
+1243:         final linePaint = Paint()
+1244:           ..color = Colors.white.withOpacity(0.4)
+1245:           ..strokeWidth = 0.8;
+1246:         final len = radius * 2.2;
+1247:         canvas.drawLine(Offset(x - len, y), Offset(x + len, y), linePaint);
+1248:         canvas.drawLine(Offset(x, y - len), Offset(x, y + len), linePaint);
+1249:       }
+1250:     }
+1251:   }
+1252: 
+1253:   void _paintWind(Canvas canvas, Size size) {
+1254:     // Flows with colors and particles
+1255:     final paint = Paint()
+1256:       ..color = accent.withOpacity(0.25)
+1257:       ..strokeWidth = 2.5
+1258:       ..style = PaintingStyle.stroke;
+1259:     
+1260:     // Draw wind trails
+1261:     for (int i = 0; i < 15; i++) {
+1262:       final y = size.height * (0.12 + i * 0.055);
+1263:       final path = Path();
+1264:       final seed = i * 13.0;
+1265:       for (double x = 0; x <= size.width; x += 10) {
+1266:         final dy = math.sin((x / 50) + progress * math.pi * 2 + seed) * (8 + (i % 3) * 4);
+1267:         if (x == 0) {
+1268:           path.moveTo(x, y + dy);
+1269:         } else {
+1270:           path.lineTo(x, y + dy);
+1271:         }
+1272:       }
+1273:       canvas.drawPath(path, paint);
+1274:     }
+1275: 
+1276:     // Draw blowing leaf/wind particles
+1277:     final particlePaint = Paint()..color = (isNight ? accent : const Color(0xFF10B981)).withOpacity(0.48);
+1278:     for (int i = 0; i < 12; i++) {
+1279:       final seed = i * 43.0;
+1280:       final speed = 1.2 + (i % 3) * 0.3;
+1281:       final x = (seed * 19 + progress * speed * size.width * 1.4) % size.width;
+1282:       final y = (seed * 27 + math.sin(progress * math.pi * 2 + seed) * 30) % size.height;
+1283:       
+1284:       canvas.save();
+1285:       canvas.translate(x, y);
+1286:       canvas.rotate(progress * math.pi * 2 + seed);
+1287:       
+1288:       // Small leaf shape
+1289:       final path = Path()
+1290:         ..moveTo(-6, 0)
+1291:         ..quadraticBezierTo(0, -3, 6, 0)
+1292:         ..quadraticBezierTo(0, 3, -6, 0);
+1293:       canvas.drawPath(path, particlePaint);
+1294:       canvas.restore();
+1295:     }
+1296:   }
+1297: 
+1298:   void _paintFog(Canvas canvas, Size size) {
+1299:     // Volumetric mist layer effects
+1300:     for (int i = 0; i < 8; i++) {
+1301:       final y = size.height * (0.2 + i * 0.09);
+1302:       final speed = 0.15 + (i % 2) * 0.1;
+1303:       final offset = (progress * speed * size.width) % size.width;
+1304:       
+1305:       final rect = Rect.fromLTWH(
+1306:         -size.width * 0.4 + offset,
+1307:         y + math.sin(progress * math.pi * 2 + i) * 6,
+1308:         size.width * 1.5,
+1309:         32 + (i % 3) * 10,
+1310:       );
+1311:       
+1312:       canvas.drawOval(
+1313:         rect,
+1314:         Paint()
+1315:           ..shader = LinearGradient(
+1316:             colors: [
+1317:               Colors.white.withOpacity(0.0),
+1318:               Colors.white.withOpacity(0.12 + (i % 2) * 0.06),
+1319:               Colors.white.withOpacity(0.0),
+1320:             ],
+1321:           ).createShader(rect),
+1322:       );
+1323:     }
+1324:   }
+1325: 
+1326:   void _paintClouds(Canvas canvas, Size size) {
+1327:     // Multi-layered parallax clouds
+1328:     final cloudCount = 6;
+1329:     for (int i = 0; i < cloudCount; i++) {
+1330:       final speed = 0.2 + (i % 3) * 0.15;
+1331:       final scale = 0.75 + (i % 2) * 0.35;
+1332:       final cx = (size.width * (0.1 + i * 0.18) + progress * speed * 80) % (size.width + 120) - 60;
+1333:       final cy = size.height * (0.15 + (i % 3) * 0.045);
+1334:       
+1335:       final cloudOpacity = isNight ? 0.26 : 0.65;
+1336:       final shadowColor = Colors.black.withOpacity(isNight ? 0.38 : 0.08);
+1337:       
+1338:       // Volumetric cloud drawing
+1339:       final basePaint = Paint()..color = Colors.white.withOpacity(cloudOpacity * (scale > 1.0 ? 1.0 : 0.8));
+1340:       
+1341:       // Draw subtle shadow behind clouds for depth
+1342:       canvas.drawCircle(Offset(cx + 2, cy + 4), 32 * scale, Paint()..color = shadowColor..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+1343:       
+1344:       // Main cloud body circles
+1345:       canvas.drawCircle(Offset(cx, cy), 32 * scale, basePaint);
+1346:       canvas.drawCircle(Offset(cx + 24 * scale, cy + 6 * scale), 24 * scale, basePaint);
+1347:       canvas.drawCircle(Offset(cx - 20 * scale, cy + 8 * scale), 20 * scale, basePaint);
+1348:     }
+1349:   }
+1350: 
+1351:   @override
+1352:   bool shouldRepaint(covariant _WeatherAmbientPainter oldDelegate) =>
+1353:       oldDelegate.progress != progress || oldDelegate.kind != kind;
+1354: }
+1355: 
+1356: /// Bottom marquee for city alerts and weather warnings.
+1357: class CityAlertTicker extends StatefulWidget {
+1358:   const CityAlertTicker({
+1359:     super.key,
+1360:     required this.data,
+1361:     required this.isNightMode,
+1362:     required this.accent,
+1363:     this.useWeatherOnly = false,
+1364:     this.useCityOnly = false,
+1365:     this.selectedCategory,
+1366:     this.customWarningText,
+1367:   });
+1368: 
+1369:   final CityAlertTickerData data;
+1370:   final bool isNightMode;
+1371:   final Color accent;
+1372:   final bool useWeatherOnly;
+1373:   final bool useCityOnly;
+1374:   final String? selectedCategory;
+1375:   final String? customWarningText;
+1376: 
+1377:   @override
+1378:   State<CityAlertTicker> createState() => _CityAlertTickerState();
+1379: }
+1380: 
+1381: class _CityAlertTickerState extends State<CityAlertTicker>
+1382:     with SingleTickerProviderStateMixin {
+1383:   late final AnimationController _scroll;
+1384: 
+1385:   @override
+1386:   void initState() {
+1387:     super.initState();
+1388:     _scroll = AnimationController(
+1389:       vsync: this,
+1390:       duration: const Duration(seconds: 28),
+1391:     )..repeat();
+1392:   }
+1393: 
+1394:   @override
+1395:   void dispose() {
+1396:     _scroll.dispose();
+1397:     super.dispose();
+1398:   }
+1399: 
+1400:   bool _isEmergencyAlert(Map<String, dynamic> item) {
+1401:     final cat = (item['category'] ?? '').toString().toLowerCase();
+1402:     final txt = (item['text'] ?? '').toString().toLowerCase();
+1403:     final hasEmergency = cat.contains('чп') || cat.contains('чрезвыч') || txt.contains('чп') || txt.contains('чрезвыч') || txt.contains('пожар') || txt.contains('взрыв');
+1404:     final hasAccident = cat.contains('авари') || cat.contains('дтп') || txt.contains('авари') || txt.contains('дтп') || txt.contains('столкн');
+1405:     final hasCrime = cat.contains('кримин') || cat.contains('преступ') || txt.contains('кримин') || txt.contains('преступ') || txt.contains('краж') || txt.contains('драка') || txt.contains('убий');
+1406:     return hasEmergency || hasAccident || hasCrime;
+1407:   }
+1408: 
+1409:   @override
+1410:   Widget build(BuildContext context) {
+1411:     String text = '';
+1412:     IconData leadingIcon = Icons.campaign_rounded;
+1413:     Color bg = widget.isNightMode ? const Color(0xB30A101C) : const Color(0xDDF0F8FF);
+1414:     Color border = widget.accent.withAlpha(90);
+1415: 
+1416:     if (widget.customWarningText != null && widget.customWarningText!.isNotEmpty) {
+1417:       text = widget.customWarningText!;
+1418:       leadingIcon = Icons.warning_amber_rounded;
+1419:       bg = const Color(0xDDF97316); // Amber/Orange warning
+1420:       border = const Color(0xFFFED7AA);
+1421:     } else if (widget.useWeatherOnly) {
+1422:       text = widget.data.weatherMarquee;
+1423:       leadingIcon = Icons.wb_cloudy_rounded;
+1424:     } else if (widget.useCityOnly) {
+1425:       final List<Map<String, dynamic>> itemsToProcess = widget.selectedCategory != null
+1426:           ? widget.data.items.where((i) {
+1427:               if (i['type'] != 'channel') return false;
+1428:               final cat = (i['category'] ?? 'Прочее').toString().trim().toLowerCase();
+1429:               final sel = widget.selectedCategory!.trim().toLowerCase();
+1430:               return cat == sel;
+1431:             }).toList()
+1432:           : widget.data.items;
+1433: 
+1434:       // Filter to only include ЧП (emergencies), accidents (аварии), and crimes (преступления)
+1435:       final filtered = itemsToProcess.where(_isEmergencyAlert).toList();
+1436: 
+1437:       if (filtered.isEmpty) {
+1438:         return const SizedBox.shrink(); // Hide the ticker block completely
+1439:       }
+1440: 
+1441:       text = filtered.map((i) => i['text'].toString()).join('   •   ');
+1442: 
+1443:       // Determine category-specific color & icon
+1444:       final hasSeriousEmergency = filtered.any((i) =>
+1445:           i['severity'].toString().toLowerCase() == 'high' &&
+1446:           (i['category'].toString().toLowerCase().contains('чп') ||
+1447:            i['text'].toString().toLowerCase().contains('чп') ||
+1448:            i['text'].toString().toLowerCase().contains('пожар') ||
+1449:            i['text'].toString().toLowerCase().contains('взрыв')));
+1450: 
+1451:       final hasEmergency = filtered.any((i) =>
+1452:           i['category'].toString().toLowerCase().contains('чп') ||
+1453:           i['text'].toString().toLowerCase().contains('чп') ||
+1454:           i['text'].toString().toLowerCase().contains('пожар') ||
+1455:           i['text'].toString().toLowerCase().contains('взрыв'));
+1456: 
+1457:       final hasAccident = filtered.any((i) =>
+1458:           i['category'].toString().toLowerCase().contains('авари') ||
+1459:           i['category'].toString().toLowerCase().contains('дтп') ||
+1460:           i['text'].toString().toLowerCase().contains('авари') ||
+1461:           i['text'].toString().toLowerCase().contains('дтп') ||
+1462:           i['text'].toString().toLowerCase().contains('столкн'));
+1463: 
+1464:       final hasCrime = filtered.any((i) =>
+1465:           i['category'].toString().toLowerCase().contains('кримин') ||
+1466:           i['category'].toString().toLowerCase().contains('преступ') ||
+1467:           i['text'].toString().toLowerCase().contains('кримин') ||
+1468:           i['text'].toString().toLowerCase().contains('преступ') ||
+1469:           i['text'].toString().toLowerCase().contains('краж') ||
+1470:           i['text'].toString().toLowerCase().contains('драка') ||
+1471:           i['text'].toString().toLowerCase().contains('убий'));
+1472: 
+1473:       if (hasSeriousEmergency) {
+1474:         bg = const Color(0xDDEB3B3B); // Red for serious ЧП
+1475:         border = const Color(0xFFFCA5A5);
+1476:         leadingIcon = Icons.error_outline_rounded;
+1477:       } else if (hasEmergency) {
+1478:         bg = const Color(0xDDFF7D1A); // Orange/Amber for medium/low ЧП
+1479:         border = const Color(0xFFFED7AA);
+1480:         leadingIcon = Icons.warning_amber_rounded;
+1481:       } else if (hasAccident) {
+1482:         bg = const Color(0xDDEAB308); // Yellow/Gold for accidents
+1483:         border = const Color(0xFFFEF08A);
+1484:         leadingIcon = Icons.car_crash_rounded;
+1485:       } else if (hasCrime) {
+1486:         bg = const Color(0xDD8B5CF6); // Purple for crime/police
+1487:         border = const Color(0xFFDDD6FE);
+1488:         leadingIcon = Icons.local_police_rounded;
+1489:       }
+1490:     }
+1491: 
+1492:     text = text.trim();
+1493:     if (text.isEmpty) return const SizedBox.shrink();
+1494: 
+1495:     return ClipRRect(
+1496:       borderRadius: BorderRadius.circular(14),
+1497:       child: Container(
+1498:         height: 38,
+1499:         decoration: BoxDecoration(
+1500:           color: bg,
+1501:           border: Border.all(
+1502:             color: border,
+1503:           ),
+1504:         ),
+1505:         child: Row(
+1506:           children: [
+1507:             Container(
+1508:               width: 38,
+1509:               alignment: Alignment.center,
+1510:               color: Colors.white.withOpacity(0.15),
+1511:               child: Icon(
+1512:                 leadingIcon,
+1513:                 color: Colors.white,
+1514:                 size: 18,
+1515:               ),
+1516:             ),
+1517:             Expanded(
+1518:               child: AnimatedBuilder(
+1519:                 animation: _scroll,
+1520:                 builder: (context, _) {
+1521:                   return Transform.translate(
+1522:                     offset: Offset(-_scroll.value * 600, 0),
+1523:                     child: Text(
+1524:                       '$text     $text',
+1525:                       maxLines: 1,
+1526:                       style: const TextStyle(
+1527:                         color: Colors.white,
+1528:                         fontSize: 12.5,
+1529:                         fontWeight: FontWeight.w600,
+1530:                       ),
+1531:                     ),
+1532:                   );
+1533:                 },
+1534:               ),
+1535:             ),
+1536:           ],
+1537:         ),
+1538:       ),
+1539:     );
+1540:   }
+1541: }
+1542: 
+1543: /// A custom widget that applies a 3D perspective tilt effect on drag/pan gestures.
+1544: class TiltWidget extends StatefulWidget {
+1545:   const TiltWidget({super.key, required this.child});
+1546:   final Widget child;
+1547: 
+1548:   @override
+1549:   State<TiltWidget> createState() => _TiltWidgetState();
+1550: }
+1551: 
+1552: class _TiltWidgetState extends State<TiltWidget> {
+1553:   double _xAngle = 0.0;
+1554:   double _yAngle = 0.0;
+1555: 
+1556:   @override
+1557:   Widget build(BuildContext context) {
+1558:     return GestureDetector(
+1559:       onPanUpdate: (details) {
+1560:         setState(() {
+1561:           _yAngle += details.delta.dx * 0.002;
+1562:           _xAngle -= details.delta.dy * 0.002;
+1563:           _xAngle = _xAngle.clamp(-0.25, 0.25);
+1564:           _yAngle = _yAngle.clamp(-0.25, 0.25);
+1565:         });
+1566:       },
+1567:       onPanEnd: (_) => _resetTilt(),
+1568:       onPanCancel: () => _resetTilt(),
+1569:       child: Transform(
+1570:         transform: Matrix4.identity()
+1571:           ..setEntry(3, 2, 0.0015) // perspective depth
+1572:           ..rotateX(_xAngle)
+1573:           ..rotateY(_yAngle),
+1574:         alignment: FractionalOffset.center,
+1575:         child: widget.child,
+1576:       ),
+1577:     );
+1578:   }
+1579: 
+1580:   void _resetTilt() {
+1581:     setState(() {
+1582:       _xAngle = 0.0;
+1583:       _yAngle = 0.0;
+1584:     });
+1585:   }
+1586: }
+1587: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,54 @@
+Created At: 2026-06-23T03:01:04Z
+Completed At: 2026-06-23T03:01:04Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1615
+Total Bytes: 63639
+Showing lines 1470 to 1515
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1470:           i['text'].toString().toLowerCase().contains('драка') ||
+1471:           i['text'].toString().toLowerCase().contains('убий'));
+1472: 
+1473:       if (hasSeriousEmergency) {
+1474:         bg = const Color(0xDDEB3B3B); // Red for serious ЧП
+1475:         border = const Color(0xFFFCA5A5);
+1476:         leadingIcon = Icons.error_outline_rounded;
+1477:       } else if (hasEmergency) {
+1478:         bg = const Color(0xDDFF7D1A); // Orange/Amber for medium/low ЧП
+1479:         border = const Color(0xFFFED7AA);
+1480:         leadingIcon = Icons.warning_amber_rounded;
+1481:       } else if (hasAccident) {
+1482:         bg = const Color(0xDDEAB308); // Yellow/Gold for accidents
+1483:         border = const Color(0xFFFEF08A);
+1484:         leadingIcon = Icons.car_crash_rounded;
+1485:       } else if (hasCrime) {
+1486:         bg = const Color(0xDD8B5CF6); // Purple for crime/police
+1487:         border = const Color(0xFFDDD6FE);
+1488:         leadingIcon = Icons.local_police_rounded;
+1489:       }
+1490:     }
+1491: 
+1492:     bg = const Color(0xDDEB3B3B); // Red color for marquee block
+1493:     border = const Color(0xFFFCA5A5); // Light red border
+1494: 
+1495:     text = text.trim();
+1496:     if (text.isEmpty) return const SizedBox.shrink();
+1497: 
+1498:     return ClipRRect(
+1499:       borderRadius: BorderRadius.circular(14),
+1500:       child: Container(
+1501:         height: 38,
+1502:         decoration: BoxDecoration(
+1503:           color: bg,
+1504:           border: Border.all(
+1505:             color: border,
+1506:           ),
+1507:         ),
+1508:         child: Row(
+1509:           children: [
+1510:             Container(
+1511:               width: 38,
+1512:               alignment: Alignment.center,
+1513:               color: Colors.white.withOpacity(0.15),
+1514:               child: AnimatedBuilder(
+1515:                 animation: _scroll,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

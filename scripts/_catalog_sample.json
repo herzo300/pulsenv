@@ -1,0 +1,20 @@
+[
+  {
+    "identifier": "8603032896-budgetbulletin",
+    "title": "Финансовый бюллетень об исполнении бюджета города Нижневартовска",
+    "link": "https://data.n-vartovsk.ru/opendata/8603032896-budgetbulletin/meta.json",
+    "format": "json"
+  },
+  {
+    "identifier": "8603032896-budgetinfo",
+    "title": "Информация об исполнении бюджета города Нижневартовска по доходам и расходам",
+    "link": "https://data.n-vartovsk.ru/opendata/8603032896-budgetinfo/meta.json",
+    "format": "json"
+  },
+  {
+    "identifier": "8603032896-budgetreport",
+    "title": "Отчёты об исполнении бюджета города Нижневартовска",
+    "link": "https://data.n-vartovsk.ru/opendata/8603032896-budgetreport/meta.json",
+    "format": "json"
+  }
+]

@@ -1,0 +1,108 @@
+Created At: 2026-06-24T05:16:31Z
+Completed At: 2026-06-24T05:16:31Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1886
+Total Bytes: 84525
+Showing lines 1351 to 1450
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1351:     switch (kind) {
+1352:       case 'clear':
+1353:         _paintSunOrMoon(canvas, size);
+1354:         break;
+1355:       case 'rain':
+1356:       case 'storm':
+1357:         _paintRain(canvas, size, heavy: kind == 'storm');
+1358:         break;
+1359:       case 'snow':
+1360:         _paintSnow(canvas, size);
+1361:         break;
+1362:       case 'wind':
+1363:         _paintWind(canvas, size);
+1364:         break;
+1365:       case 'fog':
+1366:         _paintFog(canvas, size);
+1367:         break;
+1368:       default:
+1369:         _paintClouds(canvas, size);
+1370:     }
+1371:   }
+1372: 
+1373:   void _paintSunOrMoon(Canvas canvas, Size size) {
+1374:     final center = Offset(size.width * 0.72, size.height * 0.22);
+1375:     if (isNight) {
+1376:       // Crescent Moon
+1377:       final moonPaint = Paint()
+1378:         ..color = const Color(0xFFE2E8F0)
+1379:         ..style = PaintingStyle.fill;
+1380:       
+1381:       // Moon path
+1382:       final moonPath = Path()
+1383:         ..addArc(Rect.fromCircle(center: center, radius: 32), -math.pi / 2.2, math.pi * 1.5);
+1384:       final cutPath = Path()
+1385:         ..addArc(Rect.fromCircle(center: center - const Offset(8, -4), radius: 28), -math.pi / 2, math.pi * 1.5);
+1386:       final finalMoon = Path.combine(PathOperation.difference, moonPath, cutPath);
+1387:       
+1388:       // Glow
+1389:       final glow = Paint()
+1390:         ..shader = RadialGradient(colors: [
+1391:           const Color(0xFF94A3B8).withOpacity(0.3),
+1392:           Colors.transparent,
+1393:         ]).createShader(Rect.fromCircle(center: center, radius: 80));
+1394:       canvas.drawCircle(center, 80, glow);
+1395:       canvas.drawPath(finalMoon, moonPaint);
+1396:     } else {
+1397:       // Rotating Sunrays
+1398:       final rayPaint = Paint()
+1399:         ..color = const Color(0xFFFFF3B0).withOpacity(0.08)
+1400:         ..style = PaintingStyle.fill;
+1401:       
+1402:       canvas.save();
+1403:       canvas.translate(center.dx, center.dy);
+1404:       canvas.rotate(progress * 2 * math.pi * 0.05); // Slow rotation
+1405:       
+1406:       for (int i = 0; i < 8; i++) {
+1407:         final angle = i * math.pi / 4;
+1408:         final path = Path()
+1409:           ..moveTo(0, 0)
+1410:           ..lineTo(50 * math.cos(angle - 0.2), 50 * math.sin(angle - 0.2))
+1411:           ..lineTo(220 * math.cos(angle), 220 * math.sin(angle))
+1412:           ..lineTo(50 * math.cos(angle + 0.2), 50 * math.sin(angle + 0.2))
+1413:           ..close();
+1414:         canvas.drawPath(path, rayPaint);
+1415:       }
+1416:       canvas.restore();
+1417: 
+1418:       // Sun body and inner glow
+1419:       final glow = Paint()
+1420:         ..shader = RadialGradient(colors: [
+1421:           const Color(0xFFFFD54F).withOpacity(0.6),
+1422:           Colors.transparent,
+1423:         ]).createShader(Rect.fromCircle(center: center, radius: 110));
+1424:       canvas.drawCircle(center, 110, glow);
+1425:       canvas.drawCircle(center, 40, Paint()..color = const Color(0xFFFFCA28));
+1426:       canvas.drawCircle(center, 30, Paint()..color = const Color(0xFFFFF176));
+1427:     }
+1428:   }
+1429: 
+1430:   void _paintRain(Canvas canvas, Size size, {bool heavy = false}) {
+1431:     final paint = Paint()
+1432:       ..color = (heavy ? accent : Colors.white).withOpacity(heavy ? 0.6 : 0.45)
+1433:       ..strokeWidth = heavy ? 2.4 : 1.4
+1434:       ..strokeCap = StrokeCap.round;
+1435:     
+1436:     final count = heavy ? 90 : 54;
+1437:     for (int i = 0; i < count; i++) {
+1438:       final seed = i * 29.0;
+1439:       final speedMult = 1.6 + (i % 3) * 0.4;
+1440:       final x = (seed * 41 + progress * speedMult * size.width * 0.8) % size.width;
+1441:       final y = (seed * 17 + progress * speedMult * size.height * 1.8) % size.height;
+1442:       canvas.drawLine(Offset(x, y), Offset(x - 6, y + 16), paint);
+1443:       
+1444:       // Draw splash when raindrops hit the bottom area
+1445:       if (y > size.height * 0.78 && i % 4 == 0) {
+1446:         final splashProgress = (y - size.height * 0.78) / (size.height * 0.22);
+1447:         final splashPaint = Paint()
+1448:           ..color = Colors.white.withOpacity(0.28 * (1 - splashProgress))
+1449:           ..style = PaintingStyle.stroke
+1450:           ..strokeWidth = 0.8;
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

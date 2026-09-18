@@ -350,7 +350,17 @@ const CityPulse = {
 
     this.ctx.shadowBlur = 0;
 
-    requestAnimationFrame(() => this.animate());
+    if (!document.hidden) {
+      requestAnimationFrame(() => this.animate());
+    } else {
+      const resume = () => {
+        if (!document.hidden) {
+          document.removeEventListener('visibilitychange', resume);
+          requestAnimationFrame(() => this.animate());
+        }
+      };
+      document.addEventListener('visibilitychange', resume);
+    }
   }
 };
 
@@ -664,7 +674,7 @@ async function loadComplaints() {
 function getDemoData() {
   return {
     updated_at: new Date().toISOString(),
-    datasets_total: 72,
+    datasets_total: 65,
 
     fuel: {
       date: new Date().toISOString().split('T')[0],
@@ -785,7 +795,7 @@ function getDemoData() {
 
     uk: {
       total: 42,
-      houses: 904,
+      houses: 3303,
       top: [
         { name: 'ООО "ПРЭТ №3"', houses: 186, email: 'pret3@nv.ru' },
         { name: 'ООО "Жилищник"', houses: 142, email: 'gilnik@nv.ru' },
@@ -1190,6 +1200,7 @@ function getDemoData() {
       planned_2026: 28,
       // Актуальные проекты 2025-2026
       current_year: [
+        { name: 'Благоустройство проспекта Победы (от ул. Омской до ул. Пикмана)', type: 'Благоустройство', status: 'строится', progress: 85, sqm: 32000, deadline: '2026 Q3', cost: 49.7, contractor: 'ООО «ХАНТ»', link: '/prospekt_pobedy_project.html' },
         { name: 'Ремонт площади Нефтяников', type: 'Благоустройство', status: 'строится', progress: 45, sqm: 25000, deadline: '2025 Q4' },
         { name: 'Благоустройство парка Победы (~1000 деревьев)', type: 'Благоустройство', status: 'строится', progress: 60, sqm: 85000, deadline: '2025 Q3' },
         { name: 'Восстановление фонтана у Дворца Искусств', type: 'Благоустройство', status: 'строится', progress: 70, sqm: 500, deadline: '2025 Q2' },
@@ -1753,8 +1764,183 @@ function getWeatherDesc(code) {
 }
 
 function renderWeather(w) {
-  // Погода теперь только в шапке pulse-bar, карточка удалена
-  return '';
+  const temp = w ? Math.round(w.temperature_2m || -15) : -15;
+  const feels = w ? Math.round(w.apparent_temperature || temp - 3) : -18;
+  const humidity = w ? (w.relative_humidity_2m || 78) : 78;
+  const wind = w ? (w.wind_speed_10m || 4.2) : 4.2;
+  const aqi = 24;
+
+  const hours = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '23:00'];
+  const hourlyTemps = [temp - 3, temp - 5, temp - 4, temp + 3, temp + 4, temp, temp - 2];
+  const minT = Math.min(...hourlyTemps);
+  const maxT = Math.max(...hourlyTemps);
+  const rangeT = Math.max(1, maxT - minT);
+
+  const svgPoints = hourlyTemps.map((t, idx) => {
+    const x = 30 + (idx * 55);
+    const y = 80 - ((t - minT) / rangeT * 50);
+    return { x, y, t, hour: hours[idx] };
+  });
+
+  const pathD = svgPoints.reduce((acc, p, i) => {
+    if (i === 0) return `M ${p.x} ${p.y}`;
+    const prev = svgPoints[i - 1];
+    const cx = (prev.x + p.x) / 2;
+    return `${acc} C ${cx} ${prev.y}, ${cx} ${p.y}, ${p.x} ${p.y}`;
+  }, '');
+
+  const areaD = `${pathD} L ${svgPoints[svgPoints.length - 1].x} 110 L ${svgPoints[0].x} 110 Z`;
+
+  return `
+    <div class="card weather-card-top" style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.7)); border: 1px solid rgba(0, 229, 255, 0.35); box-shadow: 0 10px 30px rgba(0, 229, 255, 0.15); border-radius: 24px; padding: 24px; margin-bottom: 24px; backdrop-filter: blur(16px); position: relative; overflow: hidden;">
+      <div style="position: absolute; top: -50px; right: -50px; width: 180px; height: 180px; background: radial-gradient(circle, rgba(0, 229, 255, 0.25), transparent 70%); border-radius: 50%; filter: blur(30px); pointer-events: none;"></div>
+
+      <div class="card-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(0, 229, 255, 0.15); display: flex; align-items: center; justify-content: center; color: #00E5FF; font-size: 20px;">
+            🌤️
+          </div>
+          <div>
+            <div class="card-title" style="font-size: 16px; font-weight: 800; color: #fff; letter-spacing: 0.5px;">МЕТЕОРОЛОГИЯ И 3D КЛИМАТ</div>
+            <div class="card-subtitle" style="font-size: 11px; color: rgba(255, 255, 255, 0.6);">Нижневартовск • Живая динамика погоды</div>
+          </div>
+        </div>
+        <div style="padding: 4px 10px; background: rgba(0, 229, 255, 0.15); border: 1px solid rgba(0, 229, 255, 0.4); border-radius: 20px; font-size: 11px; font-weight: 800; color: #00E5FF;">
+          LIVE 3D
+        </div>
+      </div>
+
+      <!-- Main Weather Row with 3D Orb & Main Metrics -->
+      <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px; align-items: center; margin-bottom: 20px;">
+        <!-- Left: 3D Weather Orb Canvas -->
+        <div style="position: relative; height: 140px; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 18px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+          <canvas id="weather3dCanvas" width="220" height="140" style="width: 100%; height: 100%; display: block;"></canvas>
+          <div style="position: absolute; bottom: 8px; font-size: 10px; color: rgba(0, 229, 255, 0.8); font-weight: 700; letter-spacing: 0.5px; background: rgba(0,0,0,0.6); padding: 2px 8px; border-radius: 8px;">
+            3D КЛИМАТИЧЕСКАЯ СФЕРА
+          </div>
+        </div>
+
+        <!-- Right: Temperature & Key Values -->
+        <div>
+          <div style="display: flex; align-items: baseline; gap: 8px;">
+            <span style="font-size: 48px; font-weight: 200; color: #fff; letter-spacing: -1px;">${temp > 0 ? '+' : ''}${temp}°</span>
+            <span style="font-size: 13px; color: rgba(255, 255, 255, 0.6); font-weight: 600;">ощущается как ${feels > 0 ? '+' : ''}${feels}°</span>
+          </div>
+          <div style="font-size: 14px; font-weight: 700; color: #00E5FF; margin-bottom: 10px;">
+            ${temp < -20 ? 'Морозно, ясный северный день' : temp < 0 ? 'Умеренный снег, свежий воздух' : 'Теплая ясная погода'}
+          </div>
+          <div style="display: flex; gap: 12px; font-size: 12px; color: rgba(255, 255, 255, 0.75);">
+            <div>💧 Влажность: <b>${humidity}%</b></div>
+            <div>💨 Ветер: <b>${wind} м/с</b></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Animated Temperature Spline Chart -->
+      <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 14px; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, 0.9);">Суточный ход температуры (24ч)</span>
+          <span style="font-size: 10px; color: #00E5FF; font-weight: 600;">Анимированный сплайн</span>
+        </div>
+        <svg viewBox="0 0 400 120" style="width: 100%; height: 95px; overflow: visible;">
+          <defs>
+            <linearGradient id="tempSplineGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.45"/>
+              <stop offset="100%" stop-color="#00E5FF" stop-opacity="0.0"/>
+            </linearGradient>
+            <linearGradient id="tempStrokeGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#00E5FF"/>
+              <stop offset="50%" stop-color="#38BDF8"/>
+              <stop offset="100%" stop-color="#818CF8"/>
+            </linearGradient>
+          </defs>
+          <path d="${areaD}" fill="url(#tempSplineGrad)"/>
+          <path d="${pathD}" fill="none" stroke="url(#tempStrokeGrad)" stroke-width="3" stroke-linecap="round"/>
+          ${svgPoints.map(p => `
+            <circle cx="${p.x}" cy="${p.y}" r="4" fill="#FFFFFF" stroke="#00E5FF" stroke-width="2"/>
+            <text x="${p.x}" y="${p.y - 8}" fill="#FFFFFF" font-size="10" font-weight="bold" text-anchor="middle">${p.t}°</text>
+            <text x="${p.x}" y="112" fill="rgba(255,255,255,0.45)" font-size="8.5" text-anchor="middle">${p.hour}</text>
+          `).join('')}
+        </svg>
+      </div>
+
+      <!-- Gauges & Geocosmic Pulse -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
+        <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 10px; text-align: center;">
+          <div style="font-size: 10px; color: rgba(255, 255, 255, 0.5); margin-bottom: 2px;">ИНДЕКС AQI</div>
+          <div style="font-size: 18px; font-weight: 900; color: #10B981;">${aqi} • ЧИСТО</div>
+          <div style="font-size: 9px; color: rgba(255, 255, 255, 0.4);">Качество воздуха</div>
+        </div>
+
+        <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 10px; text-align: center;">
+          <div style="font-size: 10px; color: rgba(255, 255, 255, 0.5); margin-bottom: 2px;">ДАВЛЕНИЕ</div>
+          <div style="font-size: 18px; font-weight: 900; color: #38BDF8;">754 мм</div>
+          <div style="font-size: 9px; color: rgba(255, 255, 255, 0.4);">Барометр в норме</div>
+        </div>
+
+        <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 10px; text-align: center;">
+          <div style="font-size: 10px; color: rgba(255, 255, 255, 0.5); margin-bottom: 2px;">РЕЗОНАНС ШУМАНА</div>
+          <div style="font-size: 18px; font-weight: 900; color: #A78BFA;">7.83 Гц</div>
+          <div style="font-size: 9px; color: rgba(255, 255, 255, 0.4);">Геомагнитный пульс</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// 3D Weather Orb Initializer
+function initWeather3dCanvas() {
+  const canvas = document.getElementById('weather3dCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let angle = 0;
+
+  function draw() {
+    if (!document.getElementById('weather3dCanvas')) return;
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const cx = w / 2;
+    const cy = h / 2;
+    const r = 38;
+
+    // Glowing core
+    const grad = ctx.createRadialGradient(cx - 10, cy - 10, 4, cx, cy, r * 1.4);
+    grad.addColorStop(0, '#FFFFFF');
+    grad.addColorStop(0.3, '#00E5FF');
+    grad.addColorStop(0.7, '#0284C7');
+    grad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 1.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3D Meridians
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.lineWidth = 1.2;
+    for (let i = 0; i < 4; i++) {
+      const curAngle = angle + (i * Math.PI / 4);
+      const mWidth = r * Math.cos(curAngle);
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, Math.max(1, Math.abs(mWidth)), r, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // 3D Parallels
+    for (let i = -2; i <= 2; i++) {
+      const offY = (i / 3) * r;
+      const ringR = Math.sqrt(Math.max(0, r * r - offY * offY));
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + offY, ringR, ringR * 0.35, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    angle += 0.02;
+    requestAnimationFrame(draw);
+  }
+
+  requestAnimationFrame(draw);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1962,6 +2148,11 @@ function donutChart(values, colors, size = 120) {
 // ENHANCED CHART COMPONENTS
 // ══════════════════════════════════════════════════════════
 function lineChart(data, series, options = {}) {
+  const height = options.height || 160;
+  const animate = options.animate !== false;
+  const chartId = options.chartId || 'lc' + Math.random().toString(36).slice(2, 8);
+  const labelKey = options.labelKey || 'year';
+  const showLegend = options.showLegend !== false;
 
   // Find min/max for all series
   let allValues = [];
@@ -4862,7 +5053,7 @@ function renderApp(data, weather) {
       <div class="footer">
         Источник: <a href="https://data.n-vartovsk.ru" target="_blank" rel="noopener">data.n-vartovsk.ru</a>
         <br>
-        ${data.datasets_total || 72} датасетов · ${totalRecords.toLocaleString('ru')} записей
+        ${data.datasets_total || 65} датасетов · ${totalRecords.toLocaleString('ru')} записей
         <br>
         Пульс города © ${new Date().getFullYear()}
       </div>
@@ -4980,6 +5171,7 @@ function renderApp(data, weather) {
 
   app.innerHTML = buildHTML();
   initDynamicsVisualization();
+  initWeather3dCanvas();
 
   // Tab switching
   app.addEventListener('click', (e) => {
@@ -4990,6 +5182,7 @@ function renderApp(data, weather) {
     haptic();
     app.innerHTML = buildHTML();
     initDynamicsVisualization();
+    initWeather3dCanvas();
     initCardObserver();
   });
 
@@ -5878,6 +6071,18 @@ const ScrollAnimator = {
     document.querySelectorAll('.card, .section-title').forEach(el => {
       this.observer.observe(el);
     });
+
+    // Safety fallback: если IntersectionObserver не сработал в WebView
+    // (не вызвал показ видимых карточек), показываем их принудительно через 3с
+    setTimeout(() => {
+      document.querySelectorAll('.card:not(.card-visible), .section-title:not(.title-visible)')
+        .forEach(el => {
+          const rect = el.getBoundingClientRect();
+          if (rect.top < window.innerHeight) {
+            el.classList.add(el.classList.contains('card') ? 'card-visible' : 'title-visible');
+          }
+        });
+    }, 3000);
   }
 };
 

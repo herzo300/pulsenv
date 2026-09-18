@@ -381,18 +381,9 @@
       }
     }
 
-    /* ── Scanline Subtle Effect ── */
+    /* ── Scanline Subtle Effect Disabled ── */
     .scanlines {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      pointer-events: none;
-      background: repeating-linear-gradient(0deg,
-          transparent,
-          transparent 2px,
-          rgba(0, 240, 255, 0.008) 2px,
-          rgba(0, 240, 255, 0.008) 4px);
-      animation: scanline-shift 8s linear infinite;
+      display: none !important;
     }
 
     @keyframes scanline-shift {
@@ -4174,8 +4165,7 @@
     <div class="aurora-layer"></div>
   </div>
 
-  <!-- Scanlines -->
-  <div class="scanlines" aria-hidden="true"></div>
+  <!-- Scanlines Removed -->
 
   <!-- Grid Pattern -->
   <div class="grid-pattern" aria-hidden="true"></div>
@@ -4189,6 +4179,11 @@
         <span class="weather-temp" id="weather-temp">--°</span>
         <span class="weather-feels" id="weather-feels">Загрузка...</span>
       </div>
+    </div>
+
+    <!-- Индекс удовлетворенности ЖКХ наверх экрана -->
+    <div style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(0,240,255,0.12);border:1px solid rgba(0,240,255,0.3);border-radius:12px;color:#00f0ff;font-size:11px;font-weight:700;white-space:nowrap;">
+      📊 Индекс ЖКХ: <span style="color:#10b981;">84% (+3.2%)</span>
     </div>
 
     <div class="pulse-heart-icon" title="Пульс города">
@@ -4345,10 +4340,12 @@
 
       // Run after content loads
       setTimeout(enhanceNumbers, 1000);
-      new MutationObserver(() => setTimeout(enhanceNumbers, 500)).observe(document.getElementById('app') || document.body, {
-        childList: true,
-        subtree: true
+      const numbersObserver = new MutationObserver(function(mutations) {
+        numbersObserver.disconnect();
+        enhanceNumbers();
+        numbersObserver.observe(document.body, { childList: true, subtree: true });
       });
+      numbersObserver.observe(document.body, { childList: true, subtree: true });
 
       // ─── 3. ENHANCED CANVAS PARTICLES ───
       const canvas = document.getElementById('interactiveCanvas');
@@ -4455,16 +4452,26 @@
 
         // Animation loop
         function animate() {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.shadowBlur = 0;
+          if (!document.hidden) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.shadowBlur = 0;
 
-          particles.forEach(p => {
-            p.update();
-            p.draw();
-          });
+            particles.forEach(p => {
+              p.update();
+              p.draw();
+            });
 
-          drawConnections();
-          animationId = requestAnimationFrame(animate);
+            drawConnections();
+            animationId = requestAnimationFrame(animate);
+          } else {
+            const resume = () => {
+              if (!document.hidden) {
+                document.removeEventListener('visibilitychange', resume);
+                animate();
+              }
+            };
+            document.addEventListener('visibilitychange', resume);
+          }
         }
 
         animate();

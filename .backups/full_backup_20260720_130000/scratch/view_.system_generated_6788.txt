@@ -1,0 +1,34 @@
+Created At: 2026-06-23T09:56:43Z
+Completed At: 2026-06-23T09:56:43Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1857
+Total Bytes: 83094
+Showing lines 570 to 595
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+570:       text = 'Умеренный уровень излучения ($uv). В полуденные часы рекомендуется находиться в тени, надевать головной убор и использовать солнцезащитный крем SPF 15+.';
+571:     } else {
+572:       text = 'Высокий уровень ультрафиолетового излучения ($uv). Ограничьте пребывание на солнце. Используйте защитную одежду, очки, головной убор и солнцезащитный крем SPF 30+.';
+573:     }
+574:     _showParamExplanation('Индекс ультрафиолета (UV)', uv != null ? '${uv.toStringAsFixed(1)}' : '—', text);
+575:   }
+576: 
+577:   void _explainVisibility() {
+578:     final vis = _displayVisibilityM;
+579:     String text = '';
+580:     if (vis == null) {
+581:       text = 'Данные о видимости временно недоступны.';
+582:     } else {
+583:       final visKm = vis / 1000.0;
+584:       if (visKm >= 10.0) {
+585:         text = 'Отличная горизонтальная видимость (${visKm.toStringAsFixed(1)} км). Атмосфера чистая, препятствий для дорожного движения и авиации нет.';
+586:       } else if (visKm >= 5.0) {
+587:         text = 'Хорошая видимость (${visKm.toStringAsFixed(1)} км). Наблюдается легкая дымка, будьте внимательны при вождении.';
+588:       } else {
+589:         text = 'Сниженная видимость (${visKm.toStringAsFixed(1)} км) из-за тумана или осадков. Водителям следует соблюдать дистанцию и скоростной режим, включить противотуманные фары.';
+590:       }
+591:     }
+592:     _showParamExplanation('Горизонтальная видимость', vis != null ? '${(vis / 1000).toStringAsFixed(1)} км' : '—', text);
+593:   }
+594: 
+595:   Widget _buildConditionSelector() {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

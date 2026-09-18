@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Пользовательское соглашение — Пульс города</title>
+
+  <!-- Design System Tokens -->
+  <link rel="stylesheet" href="/css/design-tokens.css">
+  <link rel="stylesheet" href="/css/components.css">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700;800&family=IBM+Plex+Sans:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    /* Page-specific styles — tokens from design-tokens.css */
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-deep: var(--cp-bg);
+      --bg-surface: var(--cp-surface);
+      --bg-elevated: var(--cp-surface-elevated);
+      --text-primary: var(--cp-text);
+      --text-secondary: var(--cp-text-secondary);
+      --text-muted: var(--cp-text-tertiary);
+      --accent-cyan: var(--cp-primary);
+      --accent-violet: var(--cp-accent-violet);
+      --accent-orange: var(--cp-negative);
+      --glass-border: var(--cp-border);
+      --glass-bg: var(--cp-surface-glass);
+      --radius-md: var(--cp-radius-md);
+      --radius-lg: var(--cp-radius-lg);
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--cp-font-body);
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      line-height: 1.7;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* === Background gradient orbs === */
+    body::before,
+    body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.12;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::before {
+      width: 600px;
+      height: 600px;
+      background: var(--accent-violet);
+      top: -200px;
+      left: -100px;
+    }
+
+    body::after {
+      width: 500px;
+      height: 500px;
+      background: var(--accent-orange);
+      bottom: -150px;
+      right: -100px;
+    }
+
+    /* === Layout === */
+    .page-wrapper {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 32px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    /* === TOC Sidebar === */
+    .toc-sidebar {
+      position: sticky;
+      top: 24px;
+      align-self: start;
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+      padding: 24px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+    }
+
+    .toc-sidebar h3 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      letter-spacing: 1.5px;
+      color: var(--accent-orange);
+      margin-bottom: 16px;
+      text-transform: uppercase;
+    }
+
+    .toc-list {
+      list-style: none;
+      counter-reset: toc-counter;
+    }
+
+    .toc-list li {
+      counter-increment: toc-counter;
+      margin-bottom: 4px;
+    }
+
+    .toc-list li::before {
+      content: counter(toc-counter, decimal-leading-zero) ".";
+      display: inline-block;
+      width: 28px;
+      color: var(--accent-cyan);
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .toc-list a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s, padding-left 0.2s;
+      display: block;
+      padding: 4px 0 4px 4px;
+      border-radius: 6px;
+    }
+
+    .toc-list a:hover,
+    .toc-list a.active {
+      color: var(--accent-cyan);
+      padding-left: 10px;
+    }
+
+    /* === Main content === */
+    .main-content {
+      min-width: 0;
+    }
+
+    /* === Top bar === */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 14px;
+      transition: all 0.25s;
+    }
+
+    .back-btn:hover {
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.15);
+    }
+
+    .version-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(255, 107, 53, 0.1));
+      border: 1px solid rgba(124, 58, 237, 0.3);
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* === Search === */
+    .search-box {
+      margin-bottom: 32px;
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 12px 16px 12px 44px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-family: 'Exo 2', 'Inter', sans-serif;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.25s;
+    }
+
+    .search-box input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .search-box input:focus {
+      border-color: var(--accent-cyan);
+    }
+
+    .search-box .search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+      font-size: 16px;
+    }
+
+    .search-results-info {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--text-muted);
+      min-height: 20px;
+    }
+
+    mark.search-highlight {
+      background: rgba(0, 240, 255, 0.25);
+      color: var(--accent-cyan);
+      border-radius: 2px;
+      padding: 0 2px;
+    }
+
+    /* === Page header === */
+    .page-header {
+      margin-bottom: 40px;
+    }
+
+    .page-header h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(32px, 5vw, 48px);
+      letter-spacing: 2px;
+      line-height: 1.1;
+      background: linear-gradient(135deg, var(--accent-orange), var(--accent-violet));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+
+    .page-header .subtitle {
+      color: var(--text-secondary);
+      font-size: 15px;
+      max-width: 640px;
+    }
+
+    /* === Section cards === */
+    .section-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .section-card:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 4px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .section-card h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 24px;
+      letter-spacing: 1px;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-card h2 .section-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent-orange), var(--accent-violet));
+      border-radius: 8px;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--bg-deep);
+      flex-shrink: 0;
+    }
+
+    .section-card p {
+      color: var(--text-secondary);
+      font-size: 15px;
+      margin-bottom: 12px;
+      text-align: justify;
+    }
+
+    .section-card p:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-card strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .section-card ul {
+      list-style: none;
+      margin: 8px 0;
+      padding-left: 0;
+    }
+
+    .section-card ul li {
+      position: relative;
+      padding-left: 20px;
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    .section-card ul li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-orange);
+      opacity: 0.6;
+    }
+
+    /* === Tariff cards === */
+    .tariff-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin: 12px 0;
+    }
+
+    .tariff-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      text-align: center;
+      transition: border-color 0.25s;
+    }
+
+    .tariff-card:hover {
+      border-color: var(--accent-orange);
+    }
+
+    .tariff-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      letter-spacing: 1px;
+      color: var(--accent-orange);
+      margin-bottom: 4px;
+    }
+
+    .tariff-price {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .tariff-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* === Footer === */
+    .site-footer {
+      margin-top: 48px;
+      padding: 32px 0;
+      border-top: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .footer-logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent-orange), var(--accent-violet));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      color: var(--bg-deep);
+    }
+
+    .footer-text {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .footer-text span {
+      color: var(--text-secondary);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .footer-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: var(--accent-cyan);
+    }
+
+    /* === Scroll to top === */
+    .scroll-top-btn {
+      position: fixed;
+      bottom: 32px;
+      right: 32px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-orange), var(--accent-violet));
+      border: none;
+      color: var(--bg-deep);
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(10px);
+      transition: all 0.3s;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(255, 107, 53, 0.3);
+    }
+
+    .scroll-top-btn.visible {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .scroll-top-btn:hover {
+      box-shadow: 0 6px 28px rgba(255, 107, 53, 0.5);
+      transform: translateY(-2px);
+    }
+
+    /* === Mobile TOC toggle === */
+    .toc-toggle {
+      display: none;
+      position: fixed;
+      bottom: 32px;
+      left: 32px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--bg-elevated);
+      border: 1px solid var(--glass-border);
+      color: var(--text-primary);
+      font-size: 18px;
+      cursor: pointer;
+      z-index: 101;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    /* === Responsive === */
+    @media (max-width: 860px) {
+      .page-wrapper {
+        grid-template-columns: 1fr;
+        padding: 16px;
+        gap: 20px;
+      }
+
+      .toc-sidebar {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 200;
+        max-height: none;
+        border-radius: 0;
+        padding: 60px 24px 24px;
+        overflow-y: auto;
+      }
+
+      .toc-sidebar.open {
+        display: block;
+      }
+
+      .toc-close {
+        display: block;
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: none;
+        border: none;
+        color: var(--text-primary);
+        font-size: 24px;
+        cursor: pointer;
+      }
+
+      .toc-toggle {
+        display: flex;
+      }
+
+      .section-card {
+        padding: 20px;
+      }
+
+      .tariff-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .site-footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+
+    @media (min-width: 861px) {
+      .toc-close {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="page-wrapper">
+    <!-- TOC Sidebar -->
+    <aside class="toc-sidebar" id="tocSidebar">
+      <button class="toc-close" id="tocClose" aria-label="Закрыть">&times;</button>
+      <h3>Содержание</h3>
+      <ol class="toc-list" id="tocList">
+        <li><a href="#section-1">Термины и определения</a></li>
+        <li><a href="#section-2">Предмет соглашения</a></li>
+        <li><a href="#section-3">Условия использования и Тарифы</a></li>
+        <li><a href="#section-4">Ограничение ответственности</a></li>
+        <li><a href="#section-5">Конфиденциальность</a></li>
+      </ol>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Top bar -->
+      <div class="top-bar">
+        <a href="/" class="back-btn">&#8592; На главную</a>
+        <span class="version-badge">Версия 1.0 &middot; 28 марта 2026</span>
+      </div>
+
+      <!-- Search -->
+      <div class="search-box">
+        <span class="search-icon">&#128269;</span>
+        <input type="text" id="searchInput" placeholder="Поиск по тексту документа…" autocomplete="off">
+        <div class="search-results-info" id="searchInfo"></div>
+      </div>
+
+      <!-- Page header -->
+      <div class="page-header">
+        <h1>Пользовательское соглашение сервиса «Пульс города»</h1>
+        <p class="subtitle">Настоящее Соглашение является публичной офертой и определяет условия использования
+          программного комплекса «Пульс города» (далее — Сервис). Использование Сервиса, включая регистрацию и оплату
+          тарифов, означает полное и безоговорочное согласие Пользователя с условиями настоящего Соглашения.</p>
+      </div>
+
+      <!-- Sections -->
+      <div class="section-card" id="section-1">
+        <h2><span class="section-num">1</span> Термины и определения</h2>
+        <ul>
+          <li><strong>Сервис</strong> — программно-аппаратный комплекс для мониторинга городской среды на основе
+            открытых данных.</li>
+          <li><strong>ИИ-Задача</strong> — алгоритмический запрос к нейросетевым моделям для анализа визуальных данных с
+            камер видеонаблюдения.</li>
+          <li><strong>Пользователь</strong> — физическое лицо, прошедшее регистрацию в Сервисе.</li>
+        </ul>
+      </div>
+
+      <div class="section-card" id="section-2">
+        <h2><span class="section-num">2</span> Предмет соглашения</h2>
+        <p>2.1. Сервис предоставляет Пользователю доступ к инструментам визуального поиска и мониторинга объектов
+          (транспортных средств, животных, элементов городской инфраструктуры) на базе технологий искусственного
+          интеллекта (VLM).</p>
+        <p>2.2. Анализ данных производится ИСКЛЮЧИТЕЛЬНО на основе общедоступных видеопотоков из открытых источников.
+        </p>
+        <p>2.3. Сервис НЕ ПРОИЗВОДИТ идентификацию личностей (распознавание лиц) и не собирает персональные данные
+          третьих лиц.</p>
+      </div>
+
+      <div class="section-card" id="section-3">
+        <h2><span class="section-num">3</span> Условия использования и Тарифы</h2>
+        <p>3.1. Пользователю доступно бесплатное тестирование Сервиса (1 Задача на 1 час) однократно при регистрации.
+        </p>
+        <p>3.2. Платные услуги включают:</p>
+        <div class="tariff-grid">
+          <div class="tariff-card">
+            <div class="tariff-name">Экспресс</div>
+            <div class="tariff-price">250 &#8381;</div>
+            <div class="tariff-desc">1 Задача на 1 час</div>
+          </div>
+          <div class="tariff-card">
+            <div class="tariff-name">Суточный</div>
+            <div class="tariff-price">500 &#8381;</div>
+            <div class="tariff-desc">2 Задачи на 24 часа</div>
+          </div>
+          <div class="tariff-card">
+            <div class="tariff-name">Месячный</div>
+            <div class="tariff-price">1 499 &#8381;</div>
+            <div class="tariff-desc">3 Задачи на 30 дней</div>
+          </div>
+        </div>
+        <p>3.3. Пользователь обязуется использовать полученные данные только в законных частных целях, не нарушающих
+          права и свободы третьих лиц.</p>
+      </div>
+
+      <div class="section-card" id="section-4">
+        <h2><span class="section-num">4</span> Ограничение ответственности</h2>
+        <p>4.1. Сервис не гарантирует 100% точность распознавания объектов ввиду зависимости от качества видеопотока,
+          погодных условий и освещенности.</p>
+        <p>4.2. Сервис не несет ответственности за использование Пользователем полученной информации в противоправных
+          целях.</p>
+        <p>4.3. Оплата тарифа является подтверждением того, что услуга будет оказана в автоматическом режиме с момента
+          постановки Задачи ИИ.</p>
+      </div>
+
+      <div class="section-card" id="section-5">
+        <h2><span class="section-num">5</span> Конфиденциальность</h2>
+        <p>5.1. Обработка данных Пользователя производится в соответствии с Политикой конфиденциальности Сервиса и
+          ФЗ-152 «О персональных данных».</p>
+      </div>
+
+      <!-- Footer -->
+      <footer class="site-footer">
+        <div class="footer-brand">
+          <div class="footer-logo">CP</div>
+          <div class="footer-text">
+            <span>Пульс города</span> &middot; Интеллектуальный мониторинг Нижневартовска<br>
+            Редакция от 28 марта 2026 г.
+          </div>
+        </div>
+        <div class="footer-links">
+          <a href="/">Главная</a>
+          <a href="/privacy_policy.html">Политика конфиденциальности</a>
+          <a href="javascript:history.back()">Назад</a>
+        </div>
+      </footer>
+
+      <section class="legal-card" id="geo-photo-consent">
+        <h2>9. Геолокация, фотографии и пользовательский контент</h2>
+        <p>Приложение активно использует геолокацию и пользовательские фотографии для своей основной функции — фиксации городских проблем:</p>
+        <ul>
+          <li><strong>Геолокация.</strong> Приложение запрашивает доступ к геолокации устройства для привязки обращений к карте, отображения ближайших инцидентов и отправки гео-push-уведомлений. Запрос местоположения происходит только с согласия Пользователя и может быть отозван в любой момент в настройках устройства.</li>
+          <li><strong>Фотографии.</strong> При подаче обращения Пользователь может прикрепить фотографию. Фотографии обрабатываются ИИ (улучшение качества через Real-ESRGAN, OCR текста, распознавание объектов) и публикуются в открытом доступе вместе с обращением. Пользователь подтверждает, что обладает правами на загружаемые изображения и не нарушает права третьих лиц.</li>
+          <li><strong>Публичность обращений.</strong> Поданные обращения, включая текст, фото и координаты, становятся общедоступными на карте, в Telegram-канале и инфографике. Не включайте в обращение персональные данные третьих лиц (ФИО, документы, госномера) без необходимости.</li>
+          <li><strong>Удаление контента.</strong> Пользователь может запросить удаление своего обращения, написав на контактный email. Администрация оставляет за собой право удалять контент, нарушающий законодательство РФ или настоящее Соглашение.</li>
+        </ul>
+      </section>
+
+      <section class="legal-card" id="age-restriction">
+        <h2>10. Возрастное ограничение</h2>
+        <p>Использование Сервиса допускается лицами, достигшими <strong>16 лет</strong> (согласно ст. 26 ГК РФ и Федеральному закону № 152-ФЗ «О персональных данных»). Несовершеннолетние в возрасте от 14 до 16 лет могут использовать Сервис с согласия родителей или законных представителей. За достоверность возраста при регистрации ответственность несёт Пользователь.</p>
+      </section>
+
+      <section class="legal-card" id="moderation-ai">
+        <h2>11. ИИ-модерация и автоматическая обработка</h2>
+        <p>Сервис использует системы искусственного интеллекта для автоматической обработки контента:</p>
+        <ul>
+          <li>Классификация обращений по 27 категориям (ЧП, ЖКХ, Дороги, Безопасность и др.);</li>
+          <li>Извлечение адреса и геокоординат из текста обращения;</li>
+          <li>Улучшение качества загруженных фотографий (Real-ESRGAN x4);</li>
+          <li>OCR (распознавание текста с фотографий);</li>
+          <li>Анализ городских видеокамер (VLM — Vision-Language Model);</li>
+          <li>Генерация сводного дайджеста по городу за день.</li>
+        </ul>
+        <p>ИИ-обработка может давать неточные результаты. Окончательное решение о публикации, категории и статусе обращения принимает модерация. Пользователь вправе оспорить классификацию через форму обратной связи.</p>
+      </section>
+
+      <section class="legal-card" id="legal-basis">
+        <h2>12. Правовое основание обработки</h2>
+        <p>Обработка персональных данных осуществляется в соответствии с:</p>
+        <ul>
+          <li>Федеральным законом от 27.07.2006 № 152-ФЗ «О персональных данных»;</li>
+          <li>Федеральным законом от 27.07.2006 № 149-ФЗ «Об информации, информационных технологиях и о защите информации»;</li>
+          <li>Федеральным законом от 13.03.2006 № 38-ФЗ «О рекламе»;</li>
+          <li>Уставом городского округа Нижневартовск и нормативными актами администрации.</li>
+        </ul>
+        <p>Правовым основанием обработки является согласие Пользователя (ч. 1 ст. 6 Закона № 152-ФЗ), даваемое при акцепте настоящего Соглашения.</p>
+      </section>
+
+      <section class="legal-card" id="cookies">
+        <h2>13. Файлы cookie</h2>
+        <p>Сервис использует технические файлы cookie и локальное хранилище браузера (localStorage, IndexedDB) для:</p>
+        <ul>
+          <li>Сохранения настроек карты (выбранные категории, фильтры, слой);</li>
+          <li>Кэширования сессии и идентификатора устройства;</li>
+          <li>Аналитики посещаемости и обезличенной статистики;</li>
+          <li>Запоминания факта акцепта Соглашения (чтобы не показывать его повторно).</li>
+        </ul>
+        <p>Пользователь может отключить cookie в настройках браузера, однако часть функций может работать некорректно. Сервис не использует рекламные cookie третьих сторон.</p>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Scroll to top -->
+  <button class="scroll-top-btn" id="scrollTopBtn" aria-label="Наверх">&#9650;</button>
+
+  <!-- Mobile TOC toggle -->
+  <button class="toc-toggle" id="tocToggle" aria-label="Содержание">&#9776;</button>
+
+  <script>
+    (function () {
+      // Scroll to top button
+      const scrollBtn = document.getElementById('scrollTopBtn');
+      window.addEventListener('scroll', function () {
+        scrollBtn.classList.toggle('visible', window.scrollY > 400);
+      }, { passive: true });
+      scrollBtn.addEventListener('click', function () {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      // Mobile TOC
+      const tocSidebar = document.getElementById('tocSidebar');
+      const tocToggle = document.getElementById('tocToggle');
+      const tocClose = document.getElementById('tocClose');
+      if (tocToggle) {
+        tocToggle.addEventListener('click', function () {
+          tocSidebar.classList.toggle('open');
+        });
+      }
+      if (tocClose) {
+        tocClose.addEventListener('click', function () {
+          tocSidebar.classList.remove('open');
+        });
+      }
+      // Close TOC on link click (mobile)
+      document.querySelectorAll('.toc-list a').forEach(function (a) {
+        a.addEventListener('click', function () {
+          tocSidebar.classList.remove('open');
+        });
+      });
+
+      // Active TOC link on scroll
+      const sections = document.querySelectorAll('.section-card[id]');
+      const tocLinks = document.querySelectorAll('.toc-list a');
+      window.addEventListener('scroll', function () {
+        let current = '';
+        sections.forEach(function (section) {
+          const rect = section.getBoundingClientRect();
+          if (rect.top <= 120) current = section.id;
+        });
+        tocLinks.forEach(function (link) {
+          link.classList.remove('active');
+          if (link.getAttribute('href') === '#' + current) {
+            link.classList.add('active');
+          }
+        });
+      }, { passive: true });
+
+      // Search functionality
+      const searchInput = document.getElementById('searchInput');
+      const searchInfo = document.getElementById('searchInfo');
+      let originalContent = {};
+
+      searchInput.addEventListener('input', function () {
+        const query = searchInput.value.trim();
+
+        // Restore previous highlights
+        document.querySelectorAll('.section-card').forEach(function (card) {
+          if (originalContent[card.id] !== undefined) {
+            card.innerHTML = originalContent[card.id];
+          }
+        });
+        originalContent = {};
+
+        if (!query) {
+          searchInfo.textContent = '';
+          return;
+        }
+
+        let totalMatches = 0;
+        const regex = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+
+        document.querySelectorAll('.section-card').forEach(function (card) {
+          originalContent[card.id] = card.innerHTML;
+          const html = card.innerHTML;
+          const newHtml = html.replace(regex, '<mark class="search-highlight">$1</mark>');
+          const matches = (html.match(regex) || []).length;
+          totalMatches += matches;
+          if (matches > 0) {
+            card.innerHTML = newHtml;
+          }
+        });
+
+        if (totalMatches > 0) {
+          searchInfo.textContent = 'Найдено совпадений: ' + totalMatches;
+        } else {
+          searchInfo.textContent = 'Совпадений не найдено';
+        }
+      });
+    })();
+  </script>
+</body>
+
+</html>

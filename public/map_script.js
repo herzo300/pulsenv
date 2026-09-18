@@ -243,27 +243,41 @@ function initMap() {
     zoom: CONFIG.zoom,
     minZoom: CONFIG.minZoom,
     maxZoom: CONFIG.maxZoom,
-    zoomControl: true
+    zoomControl: true,
+    preferCanvas: true,
+    fadeAnimation: false,
+    zoomAnimation: true,
+    markerZoomAnimation: true,
+    inertia: true,
+    inertiaDeceleration: 3000,
+    inertiaMaxSpeed: 1500
   });
 
   L.tileLayer(CONFIG.tiles.light, {
     attribution: CONFIG.tiles.attribution,
-    maxZoom: 19
+    maxZoom: 19,
+    maxNativeZoom: 19,
+    keepBuffer: 3,
+    updateWhenIdle: false,
+    updateWhenZooming: false
   }).addTo(state.map);
 
   state.map.zoomControl.setPosition('bottomright');
 
-  // HDBSCAN-like clustering
+  // Ultra-fast cluster setup
   state.markerCluster = L.markerClusterGroup({
     showCoverageOnHover: false,
     maxClusterRadius: (zoom) => Math.max(30, 80 - zoom * 4),
-    spiderfyOnMaxZoom: true,
-    disableClusteringAtZoom: 17,
-    animate: true,
-    animateAddingMarkers: true,
+    spiderfyOnMaxZoom: false,
+    disableClusteringAtZoom: 16,
+    animate: false,
+    animateAddingMarkers: false,
     iconCreateFunction: createClusterIcon,
-    spiderfyDistanceMultiplier: 1.5,
-    chunkedLoading: true
+    spiderfyDistanceMultiplier: 1.2,
+    chunkedLoading: true,
+    chunkInterval: 10,
+    chunkDelay: 10,
+    removeOutsideVisibleBounds: true
   });
 
   state.map.addLayer(state.markerCluster);
@@ -272,16 +286,7 @@ function initMap() {
   setSplashStatus('Карта готова', 72);
   console.log('✅ Map OK');
 
-  // Debounce pan/move/zoom events to avoid flooding requests when panning
-  let mapMoveTimeout = null;
-  state.map.on('moveend zoomend', () => {
-    if (mapMoveTimeout) {
-      clearTimeout(mapMoveTimeout);
-    }
-    mapMoveTimeout = setTimeout(() => {
-      console.log('Leaflet map movement/zoom debounced (400ms threshold)');
-    }, 400);
-  });
+
 
   return true;
 }
@@ -399,9 +404,24 @@ function openBottomSheet(complaint) {
   document.getElementById('sheet-icon').style.color = cat.color;
 
   const titleEl = document.getElementById('sheet-title');
-  titleEl.textContent = `${isEmergency ? '⚠️ ' : ''}${complaint.summary || complaint.title || complaint.category}`;
+  const eventTitle = complaint.summary || complaint.title || complaint.category || 'Событие';
+  const eventDesc = complaint.description || '';
+  titleEl.textContent = `${isEmergency ? '⚠️ ' : ''}${eventTitle}`;
   if (isEmergency) titleEl.style.color = 'var(--danger)';
   else titleEl.style.color = 'var(--text)';
+
+  // Voice Playback for Events & Signals
+  let speakBtn = document.getElementById('sheet-speak-btn');
+  if (!speakBtn && titleEl && titleEl.parentNode) {
+    speakBtn = document.createElement('button');
+    speakBtn.id = 'sheet-speak-btn';
+    speakBtn.style.cssText = 'background:rgba(0,229,255,0.15);border:1px solid rgba(0,229,255,0.4);color:#00e5ff;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;margin-top:6px;display:inline-flex;align-items:center;gap:4px;font-weight:600;';
+    speakBtn.innerHTML = '🔊 Озвучить';
+    titleEl.parentNode.appendChild(speakBtn);
+  }
+  if (speakBtn) {
+    speakBtn.onclick = () => speakEventOrSignal(eventTitle, eventDesc);
+  }
 
   const statusEl = document.getElementById('sheet-status');
   statusEl.textContent = complaint.category === 'Мероприятие' ? 'Событие' : (STATUS_LABELS[status] || status);
@@ -417,9 +437,25 @@ function openBottomSheet(complaint) {
   document.getElementById('sheet-count-like').textContent = complaint.likes_count || 0;
   document.getElementById('sheet-count-dislike').textContent = complaint.dislikes_count || 0;
 
-  // Gallery
+  // Gallery & Before/After Slider
   const gallery = document.getElementById('sheet-gallery');
-  if (complaint.images && complaint.images.length > 0) {
+  if (complaint.images && complaint.images.length >= 2) {
+    gallery.style.display = 'block';
+    const beforeImg = escapeHtml(complaint.images[0]);
+    const afterImg = escapeHtml(complaint.images[1]);
+    gallery.innerHTML = `
+      <div style="position:relative;width:100%;height:200px;border-radius:12px;overflow:hidden;margin-bottom:10px;background:#000;">
+        <img src="${beforeImg}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" alt="До (Проблема)">
+        <div style="position:absolute;top:0;bottom:0;left:0;width:50%;overflow:hidden;border-right:2px solid #00e5ff;" id="after-img-clip">
+          <img src="${afterImg}" style="width:100%;height:100%;object-fit:cover;" alt="После (Решено)">
+        </div>
+        <input type="range" min="0" max="100" value="50" oninput="document.getElementById('after-img-clip').style.width=this.value+'%'" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0.01;cursor:ew-resize;z-index:10;">
+        <span style="position:absolute;bottom:8px;left:8px;background:rgba(239,68,68,0.85);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;pointer-events:none;">📷 ПОСЛЕ (Решено)</span>
+        <span style="position:absolute;bottom:8px;right:8px;background:rgba(15,23,42,0.85);color:#00e5ff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;pointer-events:none;">📷 ДО (Было)</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);text-align:center;">👈 Потяните слайдер влево/вправо для сравнения «До» и «После» 👉</div>
+    `;
+  } else if (complaint.images && complaint.images.length === 1) {
     gallery.style.display = 'flex';
     gallery.innerHTML = complaint.images.map(img => `<img src="${escapeHtml(img)}" alt="Фото проблемы" onclick="window.open('${escapeHtml(img)}', '_blank')">`).join('');
   } else {
@@ -661,7 +697,8 @@ function addMarker(complaint, animate = false) {
 
   marker.on('click', () => {
     openBottomSheet(complaint);
-    state.map.setView([complaint.lat, complaint.lng], Math.max(state.map.getZoom(), 15), {
+    state.map.stop();
+    state.map.flyTo([complaint.lat, complaint.lng], Math.max(state.map.getZoom(), 15), {
       animate: true,
       duration: 0.5
     });
@@ -692,14 +729,15 @@ function addMarker(complaint, animate = false) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function focusOnNewMarker(marker, complaint) {
+  if (state.autoReturnTimeout) {
+    clearTimeout(state.autoReturnTimeout);
+    state.autoReturnTimeout = null;
+  }
+
   state.savedView = {
     center: state.map.getCenter(),
     zoom: state.map.getZoom()
   };
-
-  if (state.autoReturnTimeout) {
-    clearTimeout(state.autoReturnTimeout);
-  }
 
   state.map.flyTo([complaint.lat, complaint.lng], CONFIG.newMarkerZoom, {
     duration: 1.2,
@@ -708,17 +746,6 @@ function focusOnNewMarker(marker, complaint) {
 
   setTimeout(() => {
     openBottomSheet(complaint);
-    const isEmergency = complaint.category === 'ЧП';
-    showNotification(
-      `${isEmergency ? '🚨 ЧП: ' : '🆕 '}${complaint.summary || complaint.category}`, 
-      isEmergency ? 'emergency' : 'new',
-      () => {
-        if (complaint.lat && complaint.lng) {
-          state.map.flyTo([complaint.lat, complaint.lng], CONFIG.newMarkerZoom);
-        }
-        openBottomSheet(complaint);
-      }
-    );
   }, 1300);
 
   state.autoReturnTimeout = setTimeout(() => {
@@ -775,58 +802,32 @@ function clearMapData() {
 }
 
 function replaceMapData(items) {
-  clearMapData();
+  if (!state.map) return;
   
-  const seenEvents = new Set();
-  const filteredItems = [];
-  const noAddressEvents = [];
-  
-  items.forEach(item => {
-    const isEvent = item.category === 'Мероприятие' || item.source_kind === 'event';
-    if (isEvent) {
-      // 1. Check if location/venue is specified at all.
-      const hasCoords = item.lat != null && item.lng != null;
-      const isDefaultCoords = hasCoords && (Math.abs(item.lat - 60.9344) < 0.0001 && Math.abs(item.lng - 76.5531) < 0.0001);
-      const hasAddr = item.address && item.address.trim() !== '';
-      
-      // If no address and either no coordinates or default coordinates -> no location specified, ignore completely
-      if (!hasAddr && (!hasCoords || isDefaultCoords)) {
-        return;
-      }
-      
-      // 2. Deduplicate by title + YYYY-MM-DD date
-      const dateStr = item.created_at || new Date().toISOString();
-      const ymd = dateStr.split('T')[0];
-      const title = (item.summary || item.title || '').trim();
-      const dedupKey = `${title}_${ymd}`;
-      
-      if (seenEvents.has(dedupKey)) {
-        return; // Duplicate event -> skip
-      }
-      seenEvents.add(dedupKey);
-      
-      // 3. Separate addressless events
-      // An event goes to "no address" list if it lacks a concrete address (default coords or no coords or no address)
-      if (isDefaultCoords || !hasAddr || !hasCoords) {
-        noAddressEvents.push(item);
-        return; // Exclude from mapping
-      }
-    }
-    
-    // Normal items or events with concrete address go to the map
-    filteredItems.push(item);
+  const validItems = items.filter(item => {
+    if (item.source_kind === 'event' || item.category === 'Мероприятие') return true;
+    return item.lat && item.lng;
   });
   
-  state.complaints = filteredItems;
-  state.noAddressEvents = noAddressEvents;
+  // Build set of new IDs
+  const newIds = new Set(validItems.map(item => item.id));
   
-  renderNoAddressEvents();
+  // Remove markers that no longer exist
+  for (const [id, marker] of state.markers) {
+    if (!newIds.has(id)) {
+      state.markerCluster.removeLayer(marker);
+      state.markers.delete(id);
+    }
+  }
   
-  filteredItems.forEach(item => addMarker(item));
-  calculateStats();
-  updateUI();
-  applyFilters();
-  return filteredItems;
+  // Add new markers (addMarker already checks for duplicates)
+  state.complaints = validItems.filter(item => item.lat && item.lng && item.source_kind !== 'event' && item.category !== 'Мероприятие');
+  
+  validItems.forEach(item => {
+    if (!state.markers.has(item.id)) {
+      addMarker(item, true);
+    }
+  });
 }
 
 function renderNoAddressEvents() {
@@ -1436,13 +1437,280 @@ document.head.appendChild(style);
 // ADD COMPLAINT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function initAddComplaintButton() {
-  const btn = document.getElementById('add-complaint-btn');
-  if (!btn) return;
+const MAP_DRAFT_KEY = 'map_complaint_draft';
+let isMapPickingMode = false;
+
+function saveMapDraft() {
+  const cat = document.getElementById('modal-category')?.value || '';
+  const desc = document.getElementById('modal-description')?.value || '';
+  const addr = document.getElementById('modal-address')?.value || '';
+  const lat = document.getElementById('modal-lat')?.value || '';
+  const lng = document.getElementById('modal-lng')?.value || '';
+  try {
+    localStorage.setItem(MAP_DRAFT_KEY, JSON.stringify({ category: cat, description: desc, address: addr, lat: lat, lng: lng }));
+  } catch (e) {}
+}
+
+function loadMapDraft() {
+  try {
+    const raw = localStorage.getItem(MAP_DRAFT_KEY);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+    if (draft.category) document.getElementById('modal-category').value = draft.category;
+    if (draft.description) document.getElementById('modal-description').value = draft.description;
+    if (draft.address) document.getElementById('modal-address').value = draft.address;
+    if (draft.lat) document.getElementById('modal-lat').value = draft.lat;
+    if (draft.lng) document.getElementById('modal-lng').value = draft.lng;
+  } catch (e) {}
+}
+
+function clearMapDraft() {
+  try { localStorage.removeItem(MAP_DRAFT_KEY); } catch (e) {}
+}
+
+async function reverseGeocodeCoords(lat, lng) {
+  if (!lat || !lng) return;
+  try {
+    showNotification('🔍 Ищем адрес по координатам...', 'info');
+    const res = await fetch(`${CONFIG.apiBase}/geo/reverse?lat=${lat}&lon=${lng}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.address) {
+        document.getElementById('modal-address').value = data.address;
+        saveMapDraft();
+        showNotification('📍 Адрес найден: ' + data.address, 'info');
+      }
+    }
+  } catch (e) {
+    console.warn('Reverse geocode error:', e);
+  }
+}
+
+function initVoiceDictation(btnId, targetInputId) {
+  const btn = document.getElementById(btnId);
+  const target = document.getElementById(targetInputId);
+  if (!btn || !target) return;
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    btn.style.display = 'none';
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'ru-RU';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  let isListening = false;
 
   btn.addEventListener('click', () => {
-    const center = state.map.getCenter();
-    alert(`Добавление проблемы:\n${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}`);
+    if (isListening) {
+      recognition.stop();
+      return;
+    }
+    try {
+      recognition.start();
+      isListening = true;
+      btn.style.background = 'rgba(239, 68, 68, 0.2)';
+      btn.style.borderColor = '#ef4444';
+      btn.style.color = '#ef4444';
+      btn.innerHTML = '🔴 Слушаю...';
+      if (typeof showNotification === 'function') showNotification('🎙️ Говорите! Идет распознавание речи...', 'info');
+    } catch (e) {
+      console.warn('Speech recognition error:', e);
+    }
+  });
+
+  recognition.onresult = (event) => {
+    let text = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      text += event.results[i][0].transcript;
+    }
+    if (text) {
+      target.value = text;
+      if (typeof saveMapDraft === 'function') saveMapDraft();
+    }
+  };
+
+  const resetBtn = () => {
+    isListening = false;
+    btn.style.background = 'rgba(0, 229, 255, 0.15)';
+    btn.style.borderColor = 'rgba(0, 229, 255, 0.4)';
+    btn.style.color = '#00e5ff';
+    btn.innerHTML = '🎙️ Продиктовать';
+  };
+
+  recognition.onend = resetBtn;
+  recognition.onerror = resetBtn;
+}
+
+function speakEventOrSignal(title, description) {
+  if (!('speechSynthesis' in window)) {
+    if (typeof showNotification === 'function') showNotification('⚠️ Озвучка не поддерживается вашим браузером', 'error');
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const cleanTitle = (title || 'Мероприятие').replace(/<[^>]*>/g, '');
+  const cleanDesc = (description || '').replace(/<[^>]*>/g, '');
+  const textToRead = `${cleanTitle}. ${cleanDesc}`.trim();
+  
+  const utterance = new SpeechSynthesisUtterance(textToRead);
+  utterance.lang = 'ru-RU';
+  utterance.rate = 0.95;
+  utterance.pitch = 1.0;
+  utterance.volume = 1.0;
+
+  const voices = window.speechSynthesis.getVoices();
+  const ruVoice = voices.find(v => v.lang.includes('ru') || v.lang.includes('RU'));
+  if (ruVoice) utterance.voice = ruVoice;
+
+  window.speechSynthesis.speak(utterance);
+
+  if (typeof showNotification === 'function') {
+    showNotification('🔊 Озвучивание: ' + cleanTitle, 'info');
+  }
+}
+
+function initAddComplaintButton() {
+  const btn = document.getElementById('add-complaint-btn');
+  const modal = document.getElementById('add-complaint-modal');
+  if (!btn || !modal) return;
+
+  loadMapDraft();
+
+  // Voice Dictation
+  initVoiceDictation('modal-voice-btn', 'modal-description');
+
+  ['modal-category', 'modal-description', 'modal-address', 'modal-lat', 'modal-lng'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', saveMapDraft);
+      el.addEventListener('change', saveMapDraft);
+    }
+  });
+
+  function openAddModal() {
+    const center = state.map ? state.map.getCenter() : CONFIG.center;
+    if (!document.getElementById('modal-lat').value) {
+      document.getElementById('modal-lat').value = center.lat.toFixed(6);
+    }
+    if (!document.getElementById('modal-lng').value) {
+      document.getElementById('modal-lng').value = center.lng.toFixed(6);
+    }
+    modal.style.display = 'flex';
+  }
+
+  function closeAddModal() {
+    modal.style.display = 'none';
+  }
+
+  btn.addEventListener('click', openAddModal);
+
+  document.getElementById('modal-close-btn')?.addEventListener('click', closeAddModal);
+  document.getElementById('modal-cancel-btn')?.addEventListener('click', closeAddModal);
+
+  // Pick address on map
+  document.getElementById('modal-map-pick-btn')?.addEventListener('click', () => {
+    closeAddModal();
+    showNotification('👇 Нажмите на карту для выбора адреса проблемы', 'info');
+    isMapPickingMode = true;
+    if (state.map) {
+      state.map.getContainer().style.cursor = 'crosshair';
+    }
+  });
+
+  if (state.map) {
+    state.map.on('click', (e) => {
+      if (isMapPickingMode) {
+        isMapPickingMode = false;
+        state.map.getContainer().style.cursor = '';
+        const lat = e.latlng.lat.toFixed(6);
+        const lng = e.latlng.lng.toFixed(6);
+        document.getElementById('modal-lat').value = lat;
+        document.getElementById('modal-lng').value = lng;
+        saveMapDraft();
+        reverseGeocodeCoords(lat, lng).then(() => {
+          openAddModal();
+        });
+      }
+    });
+  }
+
+  // GPS button
+  document.getElementById('modal-gps-btn')?.addEventListener('click', () => {
+    if ('geolocation' in navigator) {
+      showNotification('📡 Определение GPS координат...', 'info');
+      navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude.toFixed(6);
+        const lng = pos.coords.longitude.toFixed(6);
+        document.getElementById('modal-lat').value = lat;
+        document.getElementById('modal-lng').value = lng;
+        saveMapDraft();
+        reverseGeocodeCoords(lat, lng);
+      }, () => {
+        showNotification('⚠️ Не удалось определить GPS координаты', 'danger');
+      }, { enableHighAccuracy: true, timeout: 10000 });
+    } else {
+      showNotification('⚠️ Геолокация недоступна', 'danger');
+    }
+  });
+
+  // Submit button
+  document.getElementById('modal-submit-btn')?.addEventListener('click', async () => {
+    const category = document.getElementById('modal-category').value;
+    const description = document.getElementById('modal-description').value.trim();
+    const address = document.getElementById('modal-address').value.trim();
+    const lat = parseFloat(document.getElementById('modal-lat').value) || null;
+    const lng = parseFloat(document.getElementById('modal-lng').value) || null;
+
+    if (!description) {
+      showNotification('⚠️ Заполните описание проблемы', 'danger');
+      return;
+    }
+
+    const payload = {
+      type: 'complaint',
+      title: description.slice(0, 60),
+      category: category,
+      description: description,
+      address: address,
+      lat: lat,
+      lng: lng,
+      latitude: lat,
+      longitude: lng
+    };
+
+    try {
+      showNotification('⏳ Отправка сигнала на сервер...', 'info');
+      let res = await fetch(`${CONFIG.apiBase}/complaints`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        res = await fetch(`/api/complaints`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+
+      if (res.ok) {
+        showNotification('✅ Сигнал успешно отправлен!', 'success');
+        clearMapDraft();
+        closeAddModal();
+        document.getElementById('modal-description').value = '';
+        document.getElementById('modal-address').value = '';
+        setTimeout(() => loadComplaints(), 500);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showNotification(`⚠️ Ошибка при отправке: ${errData.detail || 'Сервер недоступен'}. Черновик сохранён!`, 'danger');
+      }
+    } catch (err) {
+      console.warn('Submit complaint error:', err);
+      showNotification('⚠️ Нет связи с сервером! Ваш черновик сохранён.', 'danger');
+    }
   });
 }
 
@@ -1628,7 +1896,17 @@ const MapPulse = {
     }
     this.ctx.stroke();
 
-    requestAnimationFrame(() => this.animate());
+    if (!document.hidden) {
+      requestAnimationFrame(() => this.animate());
+    } else {
+      const resumeAnimation = () => {
+        if (!document.hidden) {
+          document.removeEventListener('visibilitychange', resumeAnimation);
+          requestAnimationFrame(() => this.animate());
+        }
+      };
+      document.addEventListener('visibilitychange', resumeAnimation);
+    }
   }
 };
 
@@ -2024,295 +2302,8 @@ function startCameraAiMonitor() {
       const event = events[Math.floor(Math.random() * events.length)];
 
       showNotification(`🤖 AI Монитор (${cam.name}): ${event}`, 'emergency');
-
-      state.map.setView([cam.lat, cam.lon], 16);
     }
   }, 45000);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// SAMOTLOR NIGHTS FESTIVAL UI — removed (festival ended)
 
-
-let samotlorProgramData = null;
-let hlsPlayerInstance = null;
-
-function getSystemDate() {
-  const params = new URLSearchParams(window.location.search);
-  const mockDateStr = params.get('mock_date');
-  if (mockDateStr) {
-    const parsed = new Date(mockDateStr);
-    if (!isNaN(parsed.getTime())) {
-      // Set hours to current time so mock date has current time of day
-      const now = new Date();
-      parsed.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
-      return parsed;
-    }
-  }
-  return new Date();
-}
-
-function checkAndRenderSamotlorNights() {
-  const currentDate = getSystemDate();
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth() + 1; // 0-indexed
-  const date = currentDate.getDate();
-
-  // Check if we are between June 12, 2026 and June 15, 2026
-  const isFestival = (year === 2026 && month === 6 && date >= 12 && date <= 15);
-
-  const existingBtn = document.getElementById('samotlor-nights-btn');
-
-  if (!isFestival) {
-    if (existingBtn) {
-      existingBtn.remove();
-      console.log('🗑️ Samotlor Nights festival has concluded. Button removed.');
-    }
-    return;
-  }
-
-  // Render the button if it doesn't exist yet
-  if (!existingBtn) {
-    console.log('🎉 Samotlor Nights 2026 is active! Rendering festival entry button.');
-    const btn = document.createElement('button');
-    btn.className = 'samotlor-btn';
-    btn.id = 'samotlor-nights-btn';
-    btn.innerHTML = `<span>🌃</span> Самотлорские Ночи`;
-    document.body.appendChild(btn);
-
-    btn.addEventListener('click', openSamotlorOverlay);
-  }
-}
-
-function openSamotlorOverlay() {
-  const overlay = document.getElementById('samotlor-overlay');
-  if (!overlay) return;
-
-  overlay.classList.add('active');
-  
-  // Close standard bottom sheet if open
-  closeBottomSheet();
-
-  // Load and render program
-  loadSamotlorProgram();
-
-  // Setup video stream player
-  setupEmbankmentCameraPlayer();
-
-  // Update progress bar
-  updateSamotlorProgress();
-}
-
-function closeSamotlorOverlay() {
-  const overlay = document.getElementById('samotlor-overlay');
-  if (overlay) {
-    overlay.classList.remove('active');
-  }
-  // Stop camera player to save bandwidth
-  stopEmbankmentCameraPlayer();
-}
-
-function updateSamotlorProgress() {
-  const current = getSystemDate();
-  const start = new Date('2026-06-12T00:00:00');
-  const end = new Date('2026-06-15T23:59:59');
-
-  const totalDuration = end - start;
-  const elapsed = current - start;
-
-  let percent = 0;
-  if (elapsed >= 0) {
-    percent = Math.min(100, Math.max(0, Math.round((elapsed / totalDuration) * 100)));
-  }
-
-  const fill = document.getElementById('samotlor-progress-fill');
-  const txt = document.getElementById('samotlor-progress-text');
-  if (fill) fill.style.width = `${percent}%`;
-  if (txt) txt.textContent = `${percent}%`;
-}
-
-async function loadSamotlorProgram() {
-  const timelineContainer = document.getElementById('samotlor-timeline');
-  if (!timelineContainer) return;
-
-  if (!samotlorProgramData) {
-    try {
-      const res = await fetch('/samotlor_program.json');
-      if (res.ok) {
-        samotlorProgramData = await res.json();
-      }
-    } catch (e) {
-      console.error('Failed to load Samotlor program JSON', e);
-    }
-  }
-
-  if (!samotlorProgramData) {
-    timelineContainer.innerHTML = '<p style="text-align:center; color:#94a3b8;">Не удалось загрузить программу.</p>';
-    return;
-  }
-
-  // Determine which tab date is active
-  const activeTab = document.querySelector('.samotlor-tab.active');
-  if (!activeTab) return;
-
-  const targetDate = activeTab.dataset.tabDate;
-  const dayData = samotlorProgramData.find(d => d.date === targetDate);
-
-  if (!dayData || !dayData.events || dayData.events.length === 0) {
-    timelineContainer.innerHTML = '<p style="text-align:center; color:#94a3b8;">Нет запланированных мероприятий на этот день.</p>';
-    return;
-  }
-
-  // Draw events
-  timelineContainer.innerHTML = '';
-  dayData.events.forEach(evt => {
-    const card = document.createElement('div');
-    card.className = 'samotlor-card';
-    card.innerHTML = `
-      <div class="samotlor-card-header">
-        <h4 class="samotlor-card-title">${evt.title}</h4>
-        <span class="samotlor-card-time">${evt.time}</span>
-      </div>
-      <p class="samotlor-card-desc">${evt.description}</p>
-      <div class="samotlor-card-footer">
-        <span class="samotlor-card-venue">📍 ${evt.venue}</span>
-        <button class="samotlor-card-map-btn" data-lat="${evt.lat}" data-lng="${evt.lng}" data-title="${evt.title}" data-desc="${evt.description}" data-venue="${evt.venue}">Показать на карте</button>
-      </div>
-    `;
-    timelineContainer.appendChild(card);
-  });
-
-  // Attach click listeners to "Show on map" buttons
-  timelineContainer.querySelectorAll('.samotlor-card-map-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const lat = parseFloat(btn.dataset.lat);
-      const lng = parseFloat(btn.dataset.lng);
-      const title = btn.dataset.title;
-      const desc = btn.dataset.desc;
-      const venue = btn.dataset.venue;
-
-      closeSamotlorOverlay();
-
-      if (state.map && !isNaN(lat) && !isNaN(lng)) {
-        state.map.setView([lat, lng], 16);
-        
-        // Open custom popup
-        setTimeout(() => {
-          L.popup()
-            .setLatLng([lat, lng])
-            .setContent(`
-              <div style="font-family:'Inter',sans-serif; padding:5px; color:#1e293b;">
-                <div style="font-size:12px; font-weight:700; color:#8b5cf6; text-transform:uppercase; margin-bottom:4px;">🎭 Фестиваль</div>
-                <h4 style="margin:0 0 6px 0; font-size:14px; font-weight:700; color:#0f172a;">${title}</h4>
-                <p style="margin:0 0 8px 0; font-size:12px; color:#475569; line-height:1.4;">${desc}</p>
-                <div style="font-size:11px; color:#64748b;">📍 Место: ${venue}</div>
-              </div>
-            `)
-            .openOn(state.map);
-        }, 300);
-      }
-    });
-  });
-}
-
-function setupEmbankmentCameraPlayer() {
-  const video = document.getElementById('samotlor-cams-video');
-  if (!video) return;
-
-  // Stop previous HLS if any
-  stopEmbankmentCameraPlayer();
-
-  // Find active button HLS url
-  const activeBtn = document.querySelector('.samotlor-cams-btn.active');
-  if (!activeBtn) return;
-
-  const url = activeBtn.dataset.camUrl;
-  if (!url) return;
-
-  console.log('📹 Initializing HLS stream play for:', url);
-
-  if (window.Hls && Hls.isSupported()) {
-    hlsPlayerInstance = new Hls({
-      maxMaxBufferLength: 10,
-      enableWorker: true
-    });
-    hlsPlayerInstance.loadSource(url);
-    hlsPlayerInstance.attachMedia(video);
-    hlsPlayerInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-      video.play().catch(e => console.warn('Autoplay prevented:', e));
-    });
-    hlsPlayerInstance.on(Hls.Events.ERROR, (event, data) => {
-      if (data.fatal) {
-        switch (data.type) {
-          case Hls.ErrorTypes.NETWORK_ERROR:
-            console.warn('Fatal network error, trying to recover HLS');
-            hlsPlayerInstance.startLoad();
-            break;
-          case Hls.ErrorTypes.MEDIA_ERROR:
-            console.warn('Fatal media error, trying to recover HLS');
-            hlsPlayerInstance.recoverMediaError();
-            break;
-          default:
-            stopEmbankmentCameraPlayer();
-            break;
-        }
-      }
-    });
-  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-    // Native support (Safari, iOS)
-    video.src = url;
-    video.addEventListener('loadedmetadata', () => {
-      video.play().catch(e => console.warn('Autoplay prevented:', e));
-    });
-  }
-}
-
-function stopEmbankmentCameraPlayer() {
-  const video = document.getElementById('samotlor-cams-video');
-  if (hlsPlayerInstance) {
-    console.log('Destructing HLS player instance...');
-    try {
-      hlsPlayerInstance.destroy();
-    } catch (e) {}
-    hlsPlayerInstance = null;
-  }
-  if (video) {
-    video.pause();
-    video.src = '';
-    video.load();
-  }
-}
-
-function initSamotlorEventsAndControls() {
-  // Close button
-  const closeBtn = document.getElementById('samotlor-close');
-  if (closeBtn) {
-    closeBtn.addEventListener('click', closeSamotlorOverlay);
-  }
-
-  // Day tabs
-  const tabs = document.querySelectorAll('.samotlor-tab');
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      tabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      loadSamotlorProgram();
-    });
-  });
-
-  // Camera buttons
-  const camBtns = document.querySelectorAll('.samotlor-cams-btn');
-  camBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      camBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      setupEmbankmentCameraPlayer();
-    });
-  });
-
-  // Initial check
-  checkAndRenderSamotlorNights();
-
-  // Run date-checking on data refreshes too
-  setInterval(checkAndRenderSamotlorNights, 10000);
-}

@@ -1,0 +1,54 @@
+Created At: 2026-06-23T09:56:54Z
+Completed At: 2026-06-23T09:56:54Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1881
+Total Bytes: 84571
+Showing lines 1150 to 1195
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1150:                                         _explainWind,
+1151:                                       ),
+1152:                                       _spaceParam(
+1153:                                         Icons.query_stats_rounded,
+1154:                                         'Сейсмоактивность',
+1155:                                         _displaySeismicMagnitude != null && _displaySeismicMagnitude! > 0
+1156:                                             ? '${_displaySeismicMagnitude!.toStringAsFixed(1)} M'
+1157:                                             : 'Норма',
+1158:                                         _explainSeismic,
+1159:                                       ),
+1160:                                     ],
+1161:                                   ),
+1162:                                   const Divider(height: 24, color: Colors.white10),
+1163:                                   Row(
+1164:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1165:                                     children: [
+1166:                                       _spaceParam(
+1167:                                         Icons.flare_rounded,
+1168:                                         'Kp-индекс',
+1169:                                         _displayKpIndex != null
+1170:                                             ? '${_displayKpIndex!.toStringAsFixed(1)} Kp'
+1171:                                             : '—',
+1172:                                         _explainKpIndex,
+1173:                                       ),
+1174:                                       _spaceParam(
+1175:                                         Icons.light_mode_rounded,
+1176:                                         'УФ-индекс',
+1177:                                         _displayUvIndex != null
+1178:                                             ? '${_displayUvIndex!.toStringAsFixed(1)}'
+1179:                                             : '—',
+1180:                                         _explainUvIndex,
+1181:                                       ),
+1182:                                     ],
+1183:                                   ),
+1184:                                   const Divider(height: 24, color: Colors.white10),
+1185:                                   Row(
+1186:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1187:                                     children: [
+1188:                                       _spaceParam(
+1189:                                         Icons.visibility_rounded,
+1190:                                         'Видимость',
+1191:                                         _displayVisibilityM != null
+1192:                                             ? '${(_displayVisibilityM! / 1000).toStringAsFixed(0)} км'
+1193:                                             : '—',
+1194:                                         _explainVisibility,
+1195:                                       ),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

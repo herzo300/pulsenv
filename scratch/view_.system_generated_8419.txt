@@ -1,0 +1,79 @@
+Created At: 2026-06-23T15:20:07Z
+Completed At: 2026-06-23T15:20:07Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1888
+Total Bytes: 84967
+Showing lines 1180 to 1250
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1180:                                         _explainUvIndex,
+1181:                                       ),
+1182:                                     ],
+1183:                                   ),
+1184:                                   const Divider(height: 24, color: Colors.white10),
+1185:                                   Row(
+1186:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1187:                                     children: [
+1188:                                       _spaceParam(
+1189:                                         Icons.visibility_rounded,
+1190:                                         'Видимость',
+1191:                                         _displayVisibilityM != null
+1192:                                             ? '${(_displayVisibilityM! / 1000).toStringAsFixed(0)} км'
+1193:                                             : '—',
+1194:                                         _explainVisibility,
+1195:                                       ),
+1196:                                       _spaceParam(
+1197:                                         Icons.nightlight_round,
+1198:                                         'Лунный цикл',
+1199:                                         _displayMoonPhaseName != null
+1200:                                             ? '$_displayMoonPhaseName'
+1201:                                             : '—',
+1202:                                         _explainMoon,
+1203:                                       ),
+1204:                                     ],
+1205:                                   ),
+1206:                                 ],
+1207:                               ),
+1208:                             ),
+1209:                           ),
+1210:                           if (_hasAnomaly) ...[
+1211:                             const SizedBox(height: 16),
+1212:                             Text(
+1213:                               'Погодные предупреждения',
+1214:                               style: TextStyle(
+1215:                                 fontSize: 12,
+1216:                                 fontWeight: FontWeight.w700,
+1217:                                 color: widget.isNightMode ? Colors.white60 : Colors.black54,
+1218:                               ),
+1219:                             ),
+1220:                             const SizedBox(height: 8),
+1221:                             TiltWidget(
+1222:                               child: Column(
+1223:                                 children: _buildAnomalyWarnings(),
+1224:                               ),
+1225:                             ),
+1226:                           ],
+1227:                         ],
+1228:                       ),
+1229:                     ),
+1230:                   ),
+1231:                 ],
+1232:               ),
+1233:             ),
+1234:           ),
+1235:         ],
+1236:       ),
+1237:     );
+1238:   }
+1239: 
+1240:   Color _aqColor(num? aqi) {
+1241:     if (aqi == null) return widget.accent;
+1242:     if (aqi <= 40) return const Color(0xFF34D399);
+1243:     if (aqi <= 60) return const Color(0xFFFBBF24);
+1244:     if (aqi <= 80) return const Color(0xFFFB923C);
+1245:     return const Color(0xFFEF4444);
+1246:   }
+1247: 
+1248: 
+1249: }
+1250: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

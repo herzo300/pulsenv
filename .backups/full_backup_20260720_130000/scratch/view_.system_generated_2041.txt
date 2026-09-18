@@ -1,0 +1,68 @@
+Created At: 2026-06-23T05:15:35Z
+Completed At: 2026-06-23T05:15:35Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1590
+Total Bytes: 65733
+Showing lines 1481 to 1540
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1481:           ),
+1482:         ),
+1483:         child: Row(
+1484:           children: [
+1485:             Container(
+1486:               width: 38,
+1487:               alignment: Alignment.center,
+1488:               color: Colors.black.withOpacity(0.05),
+1489:               child: AnimatedBuilder(
+1490:                 animation: _scroll,
+1491:                 builder: (context, _) {
+1492:                   final double angle = _scroll.value * 2 * math.pi;
+1493:                   final double scale = 1.0 + 0.15 * math.sin(_scroll.value * 2 * math.pi * 4);
+1494:                   return Transform.scale(
+1495:                     scale: scale,
+1496:                     child: Transform.rotate(
+1497:                       angle: angle,
+1498:                       child: Icon(
+1499:                         leadingIcon,
+1500:                         color: const Color(0xFF1E293B),
+1501:                         size: 18,
+1502:                       ),
+1503:                     ),
+1504:                   );
+1505:                 },
+1506:               ),
+1507:             ),
+1508:             Expanded(
+1509:               child: LayoutBuilder(
+1510:                 builder: (context, constraints) {
+1511:                   final marqueeWidth = constraints.maxWidth;
+1512:                   final estimatedTextWidth = text.length * 7.5;
+1513:                   final scrollDistance = marqueeWidth + estimatedTextWidth;
+1514:                   
+1515:                   return ClipRect(
+1516:                     child: AnimatedBuilder(
+1517:                       animation: _scroll,
+1518:                       builder: (context, _) {
+1519:                         final xOffset = marqueeWidth - (_scroll.value * scrollDistance);
+1520:                         return Transform.translate(
+1521:                           offset: Offset(xOffset, 0),
+1522:                           child: Text(
+1523:                             text,
+1524:                             maxLines: 1,
+1525:                             overflow: TextOverflow.visible,
+1526:                             style: const TextStyle(
+1527:                               color: Color(0xFF1E293B),
+1528:                               fontSize: 12.5,
+1529:                               fontWeight: FontWeight.w600,
+1530:                             ),
+1531:                           ),
+1532:                         );
+1533:                       },
+1534:                     ),
+1535:                   );
+1536:                 },
+1537:               ),
+1538:             ),
+1539:           ],
+1540:         ),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

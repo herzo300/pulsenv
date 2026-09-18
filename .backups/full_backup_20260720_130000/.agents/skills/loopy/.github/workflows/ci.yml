@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: loop-library/worker/package-lock.json
+
+      - name: Install Worker dependencies
+        run: npm ci --prefix loop-library/worker
+
+      - name: Validate site and skill sources
+        run: |
+          node --check loop-library/site/script.js
+          node loop-library/scripts/check.mjs
+          python3 -m json.tool loop-library/site/.herenow/data.json >/dev/null
+          python3 -m json.tool loop-library/site/.herenow/proxy.json >/dev/null
+          python3 -m json.tool loop-library/scripts/seo-geo-query-benchmark.json >/dev/null
+          git diff --check
+
+      - name: Test form Worker
+        run: npm --prefix loop-library/worker run check

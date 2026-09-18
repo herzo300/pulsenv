@@ -1,0 +1,80 @@
+[project]
+name = "hermes-asset-pipeline"
+version = "0.1.0"
+description = "AI-driven asset pipeline orchestrator — bridges ComfyUI, Blender, and Godot 4.x through a Hermes Agent skill layer."
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.12"
+authors = [
+    {name = "Limbicnation", email = "gero@limbicnation.com"}
+]
+keywords = ["comfyui", "blender", "godot", "pipeline", "ai", "assets", "hermes"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "Pillow>=10.0.0",
+    "opencv-python>=4.8.0",
+    "numpy>=1.26.0",
+    "watchdog>=3.0.0",
+    "requests>=2.31.0",
+    "h5py>=3.10.0",
+    "trimesh>=4.0.0",
+    "pydantic>=2.5.0",
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "ruff>=0.1.0",
+    "mypy>=1.7.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Limbicnation/hermes-asset-pipeline"
+Repository = "https://github.com/Limbicnation/hermes-asset-pipeline"
+Issues = "https://github.com/Limbicnation/hermes-asset-pipeline/issues"
+
+[project.scripts]
+pipeline-orchestrator = "pipeline.skills.pipeline_orchestrator:main"
+asset-bridge = "pipeline.skills.asset_format_bridge:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pipeline"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

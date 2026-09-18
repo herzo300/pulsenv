@@ -1,0 +1,69 @@
+Created At: 2026-06-23T03:31:09Z
+Completed At: 2026-06-23T03:31:10Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1798
+Total Bytes: 74888
+Showing lines 890 to 950
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+890:     }
+891:     
+892:     return cards;
+893:   }
+894: 
+895:   @override
+896:   Widget build(BuildContext context) {
+897:     return Material(
+898:       color: Colors.black.withAlpha(widget.isNightMode ? 120 : 60),
+899:       child: Stack(
+900:         children: [
+901:           Positioned.fill(
+902:             child: AnimatedBuilder(
+903:               animation: _controller,
+904:               builder: (context, _) => CustomPaint(
+905:                 painter: _WeatherAmbientPainter(
+906:                   kind: _selectedKind,
+907:                   progress: _controller.value,
+908:                   isNight: widget.isNightMode,
+909:                   accent: widget.accent,
+910:                 ),
+911:               ),
+912:             ),
+913:           ),
+914:           SafeArea(
+915:             child: Padding(
+916:               padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+917:               child: Column(
+918:                 crossAxisAlignment: CrossAxisAlignment.start,
+919:                 children: [
+920:                   Align(
+921:                     alignment: Alignment.topRight,
+922:                     child: IconButton(
+923:                       onPressed: widget.onClose,
+924:                       icon: Icon(
+925:                         Icons.close_rounded,
+926:                         color: widget.isNightMode
+927:                             ? Colors.white70
+928:                             : Colors.black54,
+929:                       ),
+930:                     ),
+931:                   ),
+932:                   Text(
+933:                     'Нижневартовск',
+934:                     style: TextStyle(
+935:                       color: widget.isNightMode
+936:                           ? Colors.white60
+937:                           : Colors.black54,
+938:                       fontSize: 14,
+939:                       fontWeight: FontWeight.w600,
+940:                       letterSpacing: 0.6,
+941:                     ),
+942:                   ),
+943:                   const SizedBox(height: 12),
+944:                   _buildTabSelector(),
+945:                   const SizedBox(height: 16),
+946:                   Expanded(
+947:                     child: SingleChildScrollView(
+948:                       physics: const BouncingScrollPhysics(),
+949:                       child: _activeTab == 0
+950:                           ? Column(
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

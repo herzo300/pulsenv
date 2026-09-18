@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
+  <!-- 3D-двойник: изометрический дом -->
+  <defs>
+    <linearGradient id="pg" x1="6" y1="8" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00E5FF"/>
+      <stop offset="1" stop-color="#3B82F6"/>
+    </linearGradient>
+    <linearGradient id="night" x1="0" y1="0" x2="0" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#0B132B"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="44" height="44" rx="13" fill="url(#night)" stroke="url(#pg)" stroke-opacity="0.35" stroke-width="1.2"/>
+  <!-- изометрический куб-здание -->
+  <path d="M24 11l11 6.4v12.8L24 36.6 13 30.2V17.4z" fill="#16233F"/>
+  <path d="M24 11l11 6.4L24 24 13 17.4z" fill="#00E5FF" fill-opacity="0.85"/>
+  <path d="M24 24v12.6l11-6.4V17.4z" fill="#0EA5C9" fill-opacity="0.55"/>
+  <!-- сетка земли -->
+  <path d="M8 38h32M12 41h24" stroke="#00E5FF" stroke-opacity="0.25" stroke-width="1"/>
+</svg>

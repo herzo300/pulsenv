@@ -1,0 +1,124 @@
+Created At: 2026-06-23T09:56:32Z
+Completed At: 2026-06-23T09:56:32Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1848
+Total Bytes: 82475
+Showing lines 190 to 305
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+190:   @override
+191:   void initState() {
+192:     super.initState();
+193:     _controller = AnimationController(
+194:       vsync: this,
+195:       duration: const Duration(seconds: 6),
+196:     )..repeat();
+197:     _initDisplayData();
+198:   }
+199: 
+200:   void _initDisplayData() {
+201:     _selectedKind = widget.weather.kind;
+202:     _displayTemp = widget.weather.temperatureC?.round();
+203:     _displayFeels = widget.weather.feelsLikeC?.round();
+204:     _displayCondition = widget.weather.condition;
+205:     _displayAqiLevel = widget.weather.airQualityLevel;
+206:     _displayAqiSummary = widget.weather.airQualitySummary;
+207:     _displayAqiValue = widget.weather.europeanAqi;
+208:     _displayWindSpeed = widget.weather.windSpeedMs;
+209:     _displayWindGusts = widget.weather.windGustsMs;
+210:     _displayHumidity = widget.weather.humidityPct;
+211:     _displayPressure = widget.weather.pressureMmHg;
+212:     _displaySolarFlare = widget.weather.solarFlare;
+213:     _displaySchumannFreq = widget.weather.schumannFreqHz;
+214:     _displaySchumannAmp = widget.weather.schumannAmpPt;
+215:     _displaySeismicMagnitude = widget.weather.seismicMagnitude;
+216:     _displaySeismicDescription = widget.weather.seismicDescription;
+217:     _displayKpIndex = widget.weather.kpIndex;
+218:     _displayUvIndex = widget.weather.uvIndex;
+219:     _displayVisibilityM = widget.weather.visibilityM;
+220: 
+221:     // If API returned empty/missing, assign defaults of current kind
+222:     if (!widget.weather.available || _displayTemp == null) {
+223:       _selectCondition(_selectedKind, updateState: false);
+224:     }
+225: 
+226:     // Play alert sound if anomaly exists on load
+227:     WidgetsBinding.instance.addPostFrameCallback((_) {
+228:       if (_hasAnomaly) {
+229:         _playAlertSound();
+230:       }
+231:     });
+232:   }
+233: 
+234:   @override
+235:   void didUpdateWidget(WeatherOverlayPanel oldWidget) {
+236:     super.didUpdateWidget(oldWidget);
+237:     if (oldWidget.weather.kind != widget.weather.kind ||
+238:         oldWidget.weather.temperatureC != widget.weather.temperatureC) {
+239:       _initDisplayData();
+240:     }
+241:   }
+242: 
+243:   bool get _hasAnomaly {
+244:     if (_displaySchumannFreq != null && (_displaySchumannFreq! < 7.7 || _displaySchumannFreq! > 8.0)) return true;
+245:     if (_displayPressure != null && (_displayPressure! < 748 || _displayPressure! > 768)) return true;
+246:     if (_displaySolarFlare != null && (_displaySolarFlare!.startsWith('M') || _displaySolarFlare!.startsWith('X') || _displaySolarFlare!.startsWith('C'))) return true;
+247:     if (_displaySchumannAmp != null && _displaySchumannAmp! > 15.0) return true;
+248:     if (_displayWindSpeed != null && _displayWindSpeed! > 10.0) return true;
+249:     return false;
+250:   }
+251: 
+252: 
+253: 
+254:   void _playAlertSound() {
+255:     SystemSound.play(SystemSoundType.click);
+256:     Future.delayed(const Duration(milliseconds: 150), () {
+257:       SystemSound.play(SystemSoundType.click);
+258:     });
+259:     Future.delayed(const Duration(milliseconds: 300), () {
+260:       SystemSound.play(SystemSoundType.click);
+261:     });
+262:   }
+263: 
+264:   void _selectCondition(String kind, {bool updateState = true}) {
+265:     final demo = _demoConditions.firstWhere(
+266:       (e) => e['kind'] == kind,
+267:       orElse: () => _demoConditions.first,
+268:     );
+269:     void newState() {
+270:       _selectedKind = kind;
+271:       _displayTemp = demo['temp'];
+272:       _displayFeels = demo['feels'];
+273:       _displayCondition = demo['conditionText'];
+274:       _displayAqiLevel = demo['aqiText'];
+275:       _displayAqiSummary = demo['aqiSummary'];
+276:       _displayAqiValue = demo['aqi'];
+277:       _displayWindSpeed = demo['wind'];
+278:       _displayWindGusts = demo['gusts'];
+279:       _displayHumidity = demo['humidity'];
+280:       _displayPressure = demo['pressure'];
+281:       _displaySolarFlare = demo['flare'];
+282:       _displaySchumannFreq = demo['schumannFreq'];
+283:       _displaySchumannAmp = demo['schumannAmp'];
+284:       _displaySeismicMagnitude = 0.0;
+285:       _displaySeismicDescription = 'Сейсмическая активность в норме (нет событий)';
+286:       _displayKpIndex = 1.0;
+287:       _displayUvIndex = 1.0;
+288:       _displayVisibilityM = 10000.0;
+289:     }
+290: 
+291:     if (updateState) {
+292:       setState(newState);
+293:       if (_hasAnomaly) {
+294:         _playAlertSound();
+295:       }
+296:     } else {
+297:       newState();
+298:     }
+299:   }
+300: 
+301:   @override
+302:   void dispose() {
+303:     _controller.dispose();
+304:     super.dispose();
+305:   }
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

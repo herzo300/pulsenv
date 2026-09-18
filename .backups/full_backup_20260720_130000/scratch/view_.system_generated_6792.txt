@@ -1,0 +1,54 @@
+Created At: 2026-06-23T09:56:48Z
+Completed At: 2026-06-23T09:56:49Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1873
+Total Bytes: 84158
+Showing lines 845 to 890
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+845:     if (schumannFreq < 7.7 || schumannFreq > 8.0 || schumannAmp > 15.0) {
+846:       recs.add('🌀 Нестабильный резонанс Шумана (${schumannFreq.toStringAsFixed(2)} Гц, амплитуда ${schumannAmp.toStringAsFixed(1)} pT): может влиять на качество сна и вызывать необъяснимую тревожность. Рекомендуется медитация, ограничение гаджетов перед сном.');
+847:     }
+848: 
+849:     // 4. Температурный режим и перепады
+850:     if (temp > 28) {
+851:       recs.add('☀️ Сильная жара ($temp°C): высокая нагрузка на сердце и сосуды. Пейте больше воды, избегайте нахождения на открытом солнце в полуденные часы.');
+852:     } else if (temp < -20) {
+853:       recs.add('❄️ Сильный мороз ($temp°C): сужает сосуды, сгущает кровь. Сократите время на улице, одевайтесь тепло и многослойно.');
+854:     } else if ((temp - feels).abs() >= 6) {
+855:       recs.add('💨 Ощущаемая температура ($feels°C) значительно ниже фактической ($temp°C). Возможен спазм дыхательных путей и сосудов, одевайтесь ветрозащитно.');
+856:     }
+857: 
+858:     // 5. Влажность воздуха
+859:     if (humidity > 85 && temp < 10) {
+860:       recs.add('💧 Высокая влажность ($humidity%) при низких температурах: провоцирует суставные и невралгические боли. Одевайтесь теплее, держите ноги в сухости.');
+861:     }
+862: 
+863:     // 6. Скорость ветра
+864:     if (wind > 9.0) {
+865:       recs.add('🌬️ Сильный ветер (порывы до ${gusts.toStringAsFixed(1)} м/с): может спровоцировать приступы одышки, мигрень. Обязательно защищайте голову и шею от ветра.');
+866:     }
+867: 
+868:     // 7. Индекс ультрафиолета
+869:     if (uv > 5.0) {
+870:       recs.add('🧴 Высокое УФ-излучение ($uv): используйте солнцезащитный крем SPF 30+, носите очки и головной убор для защиты кожи и сетчатки глаз.');
+871:     }
+872: 
+873:     // 8. Качество воздуха
+874:     if (aqi > 60) {
+875:       recs.add('😷 Качество воздуха ухудшено ($aqi): астматикам и аллергикам рекомендуется ограничить время нахождения на улице и закрыть окна.');
+876:     }
+877: 
+878:     if (recs.isEmpty) {
+879:       return 'Все геофизические и погодные параметры находятся в пределах нормы. Специфических рекомендаций нет, день благоприятен для любой активности!';
+880:     }
+881: 
+882:     return recs.join('\n\n');
+883:   }
+884: 
+885:   @override
+886:   Widget build(BuildContext context) {
+887:     return Material(
+888:       color: Colors.black.withAlpha(widget.isNightMode ? 120 : 60),
+889:       child: Stack(
+890:         children: [
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

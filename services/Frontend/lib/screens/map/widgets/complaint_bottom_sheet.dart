@@ -13,7 +13,6 @@ import 'package:pdf/pdf.dart';
 import '../../../theme/pulse_colors.dart';
 import '../../../../services/sound_service.dart';
 import 'map_glass_panel.dart';
-import 'package:provider/provider.dart';
 import '../../../../theme/theme_provider.dart';
 import '../../../services/backend_api_service.dart';
 import '../../../../services/analytics_service.dart';
@@ -21,6 +20,9 @@ import '../../../utils/situation_helper.dart';
 import '../../../../widgets/aura_living_background.dart';
 import '../../../../core/living/aura_living_engine.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../services/uk_fallback_data.dart';
+import '../../../../services/gost_claim_generator_service.dart';
+import '../../../../services/passkey_service.dart';
 
 /// Shows the complaint details bottom sheet.
 /// Returns the updated complaint map (for likes sync).
@@ -230,6 +232,10 @@ void _generateOfficialComplaint(BuildContext context, Map<String, dynamic> compl
 Future<void> showComplaintBottomSheet({
   required BuildContext context,
   required Map<String, dynamic> complaint,
+  int signalIndex = 0,
+  int signalTotal = 0,
+  void Function()? onPrevSignal,
+  void Function()? onNextSignal,
   required Color categoryColor,
   required Color statusColor,
   required String statusText,
@@ -268,7 +274,7 @@ Future<void> showComplaintBottomSheet({
           final isLightTheme = Theme.of(contextInner).brightness == Brightness.light;
           final primaryTextColor = isLightTheme ? PulseColors.lightTextPrimary : PulseColors.textPrimary;
           final secondaryTextColor = isLightTheme ? PulseColors.lightTextSecondary : PulseColors.textSecondary;
-          final tertiaryTextColor = isLightTheme ? PulseColors.lightTextTertiary : PulseColors.textTertiary;
+          final tertiaryTextColor = isLightTheme ? const Color(0xFF475569) : PulseColors.textTertiary;
           final boxBgColor = isLightTheme ? PulseColors.lightSurface : PulseColors.surfaceSoft;
           final boxBorderColor = isLightTheme ? Colors.white : PulseColors.border;
 
@@ -282,12 +288,45 @@ Future<void> showComplaintBottomSheet({
               padding: EdgeInsets.zero,
               fillColor: isEvent
                   ? Colors.transparent
-                  : PulseColors.backgroundRaised.withAlpha(185),
+                  : (isLightTheme
+                      ? Colors.white.withAlpha(246)
+                      : const Color(0xFF0F172A).withAlpha(242)),
               blurSigma: isEvent ? 0 : 28,
+              borderColors: isLightTheme
+                  ? const [
+                      Color(0xFF00B8D4),
+                      Colors.white,
+                      Colors.white,
+                    ]
+                  : const [
+                      Color(0xFF00E5FF),
+                      Color(0xFF0F172A),
+                      Color(0xFF0F172A),
+                    ],
               child: Stack(
                 children: [
-                  if (isEvent)
-                    Positioned.fill(
+                  // Верхняя кромка в стиле бюро находок
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 1.5,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF00E5FF).withOpacity(0.0),
+                            const Color(0xFF00E5FF),
+                            const Color(0xFF00E5FF).withOpacity(0.0),
+                          ],
+                          stops: const [0.0, 0.5, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                                    // Живой фон под шторкой: у событий — насыщенный, у обычных
+                  // сигналов — деликатная вуаль (в светлой теме почти белая).
+Positioned.fill(
                       child: ClipRRect(
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
                         child: AuraLivingBackground(
@@ -304,9 +343,13 @@ Future<void> showComplaintBottomSheet({
                           interactive: true,
                           showConstellationVeil: false,
                           child: Container(
-                            color: isLightTheme
-                                ? Colors.white.withOpacity(0.60)
-                                : Colors.black.withOpacity(0.40),
+                            color: isEvent
+                                ? (isLightTheme
+                                    ? Colors.white.withOpacity(0.60)
+                                    : Colors.black.withOpacity(0.40))
+                                : (isLightTheme
+                                    ? Colors.white.withOpacity(0.86)
+                                    : Colors.black.withOpacity(0.24)),
                           ),
                         ),
                       ),
@@ -317,13 +360,42 @@ Future<void> showComplaintBottomSheet({
                       // Ручка
                       Container(
                         margin: const EdgeInsets.only(top: 12),
-                        width: 40,
+                        width: 44,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: Colors.white.withAlpha(60),
+                          color: isLightTheme ? Colors.black26 : Colors.white30,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
+                      // Перелистывание сигналов скроллом/кнопками
+                      if (signalTotal > 1)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _SignalNavButton(
+                                icon: Icons.chevron_left_rounded,
+                                onTap: onPrevSignal,
+                                enabled: onPrevSignal != null,
+                              ),
+                              Text(
+                                '${signalIndex + 1} / $signalTotal',
+                                style: TextStyle(
+                                  color: tertiaryTextColor,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                              _SignalNavButton(
+                                icon: Icons.chevron_right_rounded,
+                                onTap: onNextSignal,
+                                enabled: onNextSignal != null,
+                              ),
+                            ],
+                          ),
+                        ),
                       Flexible(
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.all(20),
@@ -395,7 +467,7 @@ Future<void> showComplaintBottomSheet({
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: Colors.white10,
+                                            color: isLightTheme ? Colors.black.withOpacity(0.06) : Colors.white10,
                                             borderRadius: BorderRadius.circular(6),
                                           ),
                                           child: Text(
@@ -494,10 +566,12 @@ Future<void> showComplaintBottomSheet({
                                               child: Image.network(
                                                 displayPhotoUrl,
                                                 fit: BoxFit.contain,
-                                                errorBuilder: (_, __, ___) => Image.asset(
-                                                  _getMemePath(category),
-                                                  fit: BoxFit.contain,
-                                                ),
+                                                errorBuilder: (_, __, ___) {
+                                                   final cTitle = complaint['title'] ?? complaint['description'] ?? category;
+                                                   final prompt = 'photorealistic detailed photo of $cTitle, $category in Nizhnevartovsk city, 8k, sharp details';
+                                                   final fallbackAiUrl = 'https://image.pollinations.ai/prompt/${Uri.encodeComponent(prompt)}?width=1280&height=720&model=flux&nologo=true';
+                                                   return Image.network(fallbackAiUrl, fit: BoxFit.contain);
+                                                 },
                                               ),
                                             ),
                                           ),
@@ -529,7 +603,7 @@ Future<void> showComplaintBottomSheet({
                                                   border: Border.all(color: Colors.white24),
                                                 ),
                                                 child: Text(
-                                                  hasRealPhoto ? '📷 Фото жителя (масштабируйте двумя пальцами)' : '✨ ИИ-иллюстрация Kimi K3 / Flux (зум доступен)',
+                                                  hasRealPhoto ? '📷 Фото жителя (масштабируйте двумя пальцами)' : '✨ ИИ-иллюстрация — не фото события (зум доступен)',
                                                   style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
                                                 ),
                                               ),
@@ -612,7 +686,7 @@ Future<void> showComplaintBottomSheet({
                                                 ),
                                                 const SizedBox(width: 5),
                                                 Text(
-                                                  hasRealPhoto ? 'ФОТО ЖИТЕЛЯ' : 'ИИ-ИЛЛЮСТРАЦИЯ (KIMI K3 / FLUX)',
+                                                  hasRealPhoto ? 'ФОТО ЖИТЕЛЯ' : 'ИИ-ИЛЛЮСТРАЦИЯ · НЕ ФОТО',
                                                   style: TextStyle(
                                                     color: hasRealPhoto ? const Color(0xFF10B981) : const Color(0xFF00E5FF),
                                                     fontSize: 9.5,
@@ -740,6 +814,7 @@ Future<void> showComplaintBottomSheet({
                                       ),
                                     ),
                                     const SizedBox(width: 8),
+                                    // Честный бейдж источника сигнала
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                                       decoration: BoxDecoration(
@@ -747,12 +822,15 @@ Future<void> showComplaintBottomSheet({
                                         borderRadius: BorderRadius.circular(10),
                                         border: Border.all(color: const Color(0xFF00E5FF).withOpacity(0.4)),
                                       ),
-                                      child: const Row(
+                                      child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(Icons.verified_rounded, color: Color(0xFF00E5FF), size: 13),
-                                          SizedBox(width: 4),
-                                          Text('ГЕРМЕС ИИ: 98%', style: TextStyle(color: Color(0xFF00E5FF), fontSize: 10, fontWeight: FontWeight.bold)),
+                                          const Icon(Icons.source_rounded, color: Color(0xFF00E5FF), size: 13),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            _sourceLabel(complaint['source'] as String?),
+                                            style: const TextStyle(color: Color(0xFF00E5FF), fontSize: 10, fontWeight: FontWeight.bold),
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -774,62 +852,116 @@ Future<void> showComplaintBottomSheet({
                                     ],
                                   ),
                                 ],
-                                if (complaint['uk_name'] != null || complaint['uk'] != null) ...[
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.apartment_rounded, color: Color(0xFF8B5CF6), size: 16),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          'Обслуживает: ${complaint['uk_name'] ?? complaint['uk']}',
-                                          style: TextStyle(color: secondaryTextColor, fontSize: 12),
+                                (() {
+                                  final addrStr = (complaint['address'] as String?) ?? '';
+                                  String? resolvedUk = (complaint['uk_name'] ?? complaint['uk']) as String?;
+                                  if (resolvedUk == null || resolvedUk.trim().isEmpty) {
+                                    if (addrStr.isNotEmpty) {
+                                      final ukModel = UkFallbackData.getUkForAddress(addrStr);
+                                      if (ukModel != null) {
+                                        resolvedUk = ukModel['name']?.toString() ?? ukModel['full_name']?.toString();
+                                      }
+                                    }
+                                  }
+                                  if (resolvedUk != null && resolvedUk.isNotEmpty) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF8B5CF6).withOpacity(0.18),
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.45)),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.apartment_rounded, color: Color(0xFFA78BFA), size: 16),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    'УПРАВЛЯЮЩАЯ КОМПАНИЯ (ОПРЕДЕЛЕНО)',
+                                                    style: TextStyle(color: Color(0xFFA78BFA), fontSize: 9, fontWeight: FontWeight.w900),
+                                                  ),
+                                                  Text(
+                                                    resolvedUk,
+                                                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ],
+                                    );
+                                  }
+                                  return const SizedBox.shrink();
+                                })(),
                               ],
                             ),
                           ),
 
                           const SizedBox(height: 16),
 
-                          // 4. ОПИСАНИЕ СИГНАЛА
+                          // 4. ОПИСАНИЕ СИГНАЛА (стиль бюро находок)
                           if (complaint['description'] != null) ...[
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  'ДЕТАЛИ И ОПИСАНИЕ',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white54,
-                                    letterSpacing: 1.0,
-                                  ),
-                                ),
-                              ],
+                            const Text(
+                              'ПОДРОБНОЕ ОПИСАНИЕ:',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white54,
+                                letterSpacing: 1.0,
+                              ),
                             ),
                             const SizedBox(height: 6),
                             Container(
-                              padding: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.04),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                                color: const Color(0xFF00E5FF).withOpacity(0.06),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: const Color(0xFF00E5FF).withOpacity(0.4)),
                               ),
-                              child: Text(
-                                _extractDescription(complaint['description'] as String? ?? ''),
-                                style: TextStyle(
-                                  color: primaryTextColor,
-                                  fontSize: 13.5,
-                                  height: 1.4,
-                                ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 6, right: 10),
+                                    width: 3,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF00E5FF),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      _extractDescription(complaint['description'] as String? ?? ''),
+                                      style: TextStyle(
+                                        color: primaryTextColor,
+                                        fontSize: 13.5,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             const SizedBox(height: 12),
                           ],
+
+                          // «Память места»: что здесь происходило раньше
+                          // (текущие сигналы + архив, включая повторяющиеся темы)
+                          _PlaceMemoryBlock(
+                            complaint: complaint,
+                            isLightTheme: isLightTheme,
+                            primaryTextColor: primaryTextColor,
+                            secondaryTextColor: secondaryTextColor,
+                            accent: categoryColor,
+                          ),
+                          const SizedBox(height: 12),
 
                           // Краткий анализ ИИ (спойлер с RAG-юристом ХМАО)
                           Builder(builder: (ctx) {
@@ -1001,10 +1133,11 @@ void _openGosuslugiPortal(BuildContext ctx, Map<String, dynamic> complaint) {
     portalUrl = 'https://pos.gosuslugi.ru/';
   }
 
+  final dialogIsLight = Theme.of(ctx).brightness == Brightness.light;
   showDialog(
     context: ctx,
     builder: (dialogCtx) => AlertDialog(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: dialogIsLight ? Colors.white : const Color(0xFF0F172A),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Row(
         children: const [
@@ -1071,12 +1204,15 @@ void _shareComplaint(BuildContext ctx, Map<String, dynamic> complaint) {
   final text = '❗️ $title\n\n$desc\n\nПриложение City Pulse Нижневартовск';
   AnalyticsService.trackEvent('share_success');
 
+  final shareIsLight = Theme.of(ctx).brightness == Brightness.light;
   showModalBottomSheet(
     context: ctx,
     backgroundColor: Colors.transparent,
     builder: (sheetCtx) => Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF0F172A).withOpacity(0.95),
+        color: shareIsLight
+            ? Colors.white.withOpacity(0.97)
+            : const Color(0xFF0F172A).withOpacity(0.95),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         border: Border.all(color: PulseColors.accentGold.withOpacity(0.3), width: 1.5),
       ),
@@ -1382,6 +1518,7 @@ class ReportMemeWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -1391,7 +1528,7 @@ class ReportMemeWidget extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             categoryColor.withOpacity(0.12),
-            const Color(0xFF0F172A),
+            isLight ? Colors.white : const Color(0xFF0F172A),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
@@ -1481,12 +1618,32 @@ class _SupportButtonWidgetState extends State<SupportButtonWidget> {
         return;
       }
       final res = await ApiClient().post('/api/reports/$id/actions', data: {'action': 'join'}, token: token);
-      if (res.statusCode == 200) {
-        final Map<String, dynamic> resData = jsonDecode(res.body);
-        setState(() {
-          _isSupported = true;
-          _supportersCount = resData['supporters'] ?? (_supportersCount + 1);
-        });
+      final newCount = _supportersCount + 1;
+      setState(() {
+        _isSupported = true;
+        _supportersCount = newCount;
+      });
+
+      if (newCount >= 10 && mounted) {
+        // Auto-generate collective class-action petition PDF
+        try {
+          final pdfPath = await GostClaimGeneratorService().generatePetitionPdf(
+            title: widget.complaint['title'] ?? 'Коллективное обращение граждан',
+            address: widget.complaint['address'] ?? 'г. Нижневартовск',
+            category: widget.complaint['category'] ?? 'ЖКХ',
+            description: widget.complaint['description'] ?? '',
+            supportersCount: newCount,
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              duration: const Duration(seconds: 5),
+              backgroundColor: const Color(0xFF10B981),
+              content: Text('🎉 Достигнуто 10 голосов! Сформировано коллективное обращение (PDF): ${pdfPath.split('/').last}'),
+            ),
+          );
+        } catch (pdfErr) {
+          debugPrint('Collective PDF generation error: $pdfErr');
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -1503,8 +1660,7 @@ class _SupportButtonWidgetState extends State<SupportButtonWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return InkWell(
       onTap: _supportReport,
@@ -1553,7 +1709,8 @@ class _SupportButtonWidgetState extends State<SupportButtonWidget> {
 }
 
 class AuthService {
-  Future<String?> getToken() async => 'dev_bypass_token';
+  /// Возвращает токен пользователя из passkey-хранилища, если авторизован.
+  Future<String?> getToken() async => PasskeyService().getStoredToken();
 }
 
 class ApiClient {
@@ -1787,17 +1944,364 @@ class _ExpandableAnalysisWidgetState extends State<_ExpandableAnalysisWidget> {
                 ),
               ] else if (_isExpanded) ...[
                 const SizedBox(height: 10),
-                Text(
-                  widget.analysisText,
-                  style: TextStyle(
-                    color: widget.isLightTheme ? Colors.black87 : Colors.white,
-                    fontSize: 13,
-                    height: 1.45,
-                  ),
-                ),
+                _buildLinkifiedText(widget.analysisText, widget.isLightTheme),
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLinkifiedText(String text, bool isLightTheme) {
+    final urlRegExp = RegExp(r'(https?:\/\/[^\s]+)');
+    final matches = urlRegExp.allMatches(text);
+    
+    if (matches.isEmpty) {
+      return Text(
+        text,
+        style: TextStyle(
+          color: isLightTheme ? Colors.black87 : Colors.white,
+          fontSize: 13,
+          height: 1.45,
+        ),
+      );
+    }
+
+    final List<InlineSpan> spans = [];
+    int currentPosition = 0;
+
+    for (final match in matches) {
+      if (match.start > currentPosition) {
+        spans.add(TextSpan(
+          text: text.substring(currentPosition, match.start),
+          style: TextStyle(
+            color: isLightTheme ? Colors.black87 : Colors.white,
+            fontSize: 13,
+            height: 1.45,
+          ),
+        ));
+      }
+      
+      final url = match.group(0)!;
+      String displayUrl = url;
+      try {
+        final uri = Uri.parse(url);
+        displayUrl = uri.host.replaceFirst('www.', '');
+      } catch (_) {}
+      
+      spans.add(
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: GestureDetector(
+            onTap: () async {
+              final uri = Uri.parse(url);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              decoration: BoxDecoration(
+                color: widget.categoryColor.withAlpha(isLightTheme ? 40 : 60),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: widget.categoryColor.withAlpha(isLightTheme ? 100 : 150), width: 0.5),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.link_rounded, size: 12, color: widget.categoryColor),
+                  const SizedBox(width: 4),
+                  Text(
+                    displayUrl,
+                    style: TextStyle(
+                      color: widget.categoryColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      currentPosition = match.end;
+    }
+
+    if (currentPosition < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(currentPosition),
+        style: TextStyle(
+          color: isLightTheme ? Colors.black87 : Colors.white,
+          fontSize: 13,
+          height: 1.45,
+        ),
+      ));
+    }
+
+    return RichText(
+      text: TextSpan(children: spans),
+    );
+  }
+}
+
+/// Человекочитаемая метка источника сигнала вместо фиктивного «ИИ 98%».
+String _sourceLabel(String? source) {
+  final s = (source ?? '').toLowerCase();
+  if (s.startsWith('tg:') || s.contains('telegram')) return 'ИЗ TELEGRAM';
+  if (s.startsWith('vk:')) return 'ИЗ VK';
+  if (s.contains('mobile') || s.contains('app')) return 'ОТ ЖИТЕЛЯ';
+  if (s.contains('sensor')) return 'МОНИТОРИНГ';
+  return 'ГОРОДСКОЙ СИГНАЛ';
+}
+
+
+/// «Память места» (killer-фича по аудиту Astra): история сигналов вокруг
+/// точки — текущие + архив. Показывает повторяющиеся проблемы.
+class _PlaceMemoryBlock extends StatefulWidget {
+  final Map<String, dynamic> complaint;
+  final bool isLightTheme;
+  final Color primaryTextColor;
+  final Color secondaryTextColor;
+  final Color accent;
+
+  const _PlaceMemoryBlock({
+    required this.complaint,
+    required this.isLightTheme,
+    required this.primaryTextColor,
+    required this.secondaryTextColor,
+    required this.accent,
+  });
+
+  @override
+  State<_PlaceMemoryBlock> createState() => _PlaceMemoryBlockState();
+}
+
+class _PlaceMemoryBlockState extends State<_PlaceMemoryBlock> {
+  List<Map<String, dynamic>> _items = [];
+  List<String> _recurring = [];
+  bool _loading = true;
+  bool _expanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final lat = widget.complaint['lat'] ?? widget.complaint['latitude'];
+      final lng = widget.complaint['lng'] ?? widget.complaint['longitude'];
+      if (lat == null || lng == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+      final resp = await http
+          .get(Uri.parse(
+              '${MapConfig.backendApiBaseUrl}/reports/place-history?lat=$lat&lng=$lng&radius_m=250&limit=12'))
+          .timeout(const Duration(seconds: 6));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        final items = (data['items'] as List<dynamic>? ?? [])
+            .whereType<Map>()
+            .map((m) => Map<String, dynamic>.from(
+                m.map((k, v) => MapEntry(k.toString(), v))))
+            .toList();
+        final selfId = widget.complaint['id']?.toString();
+        items.removeWhere((i) => i['id']?.toString() == selfId);
+        if (mounted) {
+          setState(() {
+            _items = items;
+            _recurring = (data['recurring_categories'] as List<dynamic>? ?? [])
+                .map((e) => e.toString())
+                .toList();
+            _loading = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _loading = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const SizedBox(
+        height: 20,
+        child: Center(
+          child: SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 1.5),
+          ),
+        ),
+      );
+    }
+    if (_items.isEmpty) return const SizedBox.shrink();
+
+    final border = widget.isLightTheme
+        ? Colors.black.withOpacity(0.10)
+        : Colors.white.withOpacity(0.12);
+    final fill = widget.isLightTheme
+        ? Colors.white
+        : Colors.white.withOpacity(0.04);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(Icons.history_rounded,
+                      size: 16, color: widget.accent),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Память места: ${_items.length} '
+                      '${_items.length == 1 ? 'сигнал' : 'сигналов'} рядом',
+                      style: TextStyle(
+                        color: widget.primaryTextColor,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (_recurring.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'ПОВТОРЯЕТСЯ',
+                        style: TextStyle(
+                          color: Color(0xFFF59E0B),
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ),
+                  Icon(
+                    _expanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: 18,
+                    color: widget.secondaryTextColor,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_expanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_recurring.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        'Повторяющиеся темы: ${_recurring.join(', ')}',
+                        style: TextStyle(
+                          color: widget.secondaryTextColor,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ..._items.take(6).map((item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(top: 5, right: 8),
+                              width: 5,
+                              height: 5,
+                              decoration: BoxDecoration(
+                                color: widget.accent.withOpacity(0.7),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                "${item['title'] ?? 'Сигнал'}"
+                                "${item['created_at'] != null ? ' · ${item['created_at'].toString().split('T').first}' : ''}",
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: widget.secondaryTextColor,
+                                  fontSize: 11.5,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Компактная кнопка перелистывания сигналов в шторке.
+class _SignalNavButton extends StatelessWidget {
+  const _SignalNavButton({
+    required this.icon,
+    required this.onTap,
+    required this.enabled,
+  });
+
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: 36,
+        height: 28,
+        decoration: BoxDecoration(
+          color: enabled
+              ? const Color(0xFF00E5FF).withOpacity(0.14)
+              : Colors.grey.withOpacity(0.10),
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(
+            color: enabled
+                ? const Color(0xFF00E5FF).withOpacity(0.5)
+                : Colors.grey.withOpacity(0.2),
+          ),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: enabled ? const Color(0xFF00E5FF) : Colors.grey,
         ),
       ),
     );

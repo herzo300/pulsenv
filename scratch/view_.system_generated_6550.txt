@@ -1,0 +1,44 @@
+Created At: 2026-06-23T09:42:39Z
+Completed At: 2026-06-23T09:42:39Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1807
+Total Bytes: 78527
+Showing lines 930 to 965
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+930:                               ),
+931:                             ),
+932:                           
+933:                           TiltWidget(
+934:                             child: _buildGlassCard(
+935:                               child: Column(
+936:                                 crossAxisAlignment: CrossAxisAlignment.start,
+937:                                 children: [
+938:                                   Text(
+939:                                     'Общий анализ погоды',
+940:                                     style: TextStyle(
+941:                                       color: widget.isNightMode
+942:                                           ? Colors.white70
+943:                                           : Colors.black54,
+944:                                       fontSize: 12,
+945:                                       fontWeight: FontWeight.w700,
+946:                                     ),
+947:                                   ),
+948:                                   const SizedBox(height: 8),
+949:                                   Text(
+950:                                     _weatherAnalysisSummary,
+951:                                     style: TextStyle(
+952:                                       color: widget.isNightMode
+953:                                           ? Colors.white
+954:                                           : const Color(0xFF0F2742),
+955:                                       fontSize: 13.5,
+956:                                       height: 1.45,
+957:                                     ),
+958:                                   ),
+959:                                 ],
+960:                               ),
+961:                             ),
+962:                           ),
+963:                           
+964:                           const SizedBox(height: 12),
+965:                           
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

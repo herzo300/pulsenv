@@ -1,0 +1,59 @@
+Created At: 2026-06-23T15:20:15Z
+Completed At: 2026-06-23T15:20:16Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1888
+Total Bytes: 84967
+Showing lines 1590 to 1640
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1590:   }
+1591: 
+1592:   @override
+1593:   bool shouldRepaint(covariant _WeatherAmbientPainter oldDelegate) =>
+1594:       oldDelegate.progress != progress || oldDelegate.kind != kind;
+1595: }
+1596: 
+1597: /// Bottom marquee for city alerts and weather warnings.
+1598: class CityAlertTicker extends StatefulWidget {
+1599:   const CityAlertTicker({
+1600:     super.key,
+1601:     required this.data,
+1602:     required this.isNightMode,
+1603:     required this.accent,
+1604:     this.useWeatherOnly = false,
+1605:     this.useCityOnly = false,
+1606:     this.selectedCategory,
+1607:     this.customWarningText,
+1608:   });
+1609: 
+1610:   final CityAlertTickerData data;
+1611:   final bool isNightMode;
+1612:   final Color accent;
+1613:   final bool useWeatherOnly;
+1614:   final bool useCityOnly;
+1615:   final String? selectedCategory;
+1616:   final String? customWarningText;
+1617: 
+1618:   @override
+1619:   State<CityAlertTicker> createState() => _CityAlertTickerState();
+1620: }
+1621: 
+1622: class _CityAlertTickerState extends State<CityAlertTicker>
+1623:     with SingleTickerProviderStateMixin {
+1624:   late final AnimationController _scroll;
+1625:   bool _visible = true;
+1626: 
+1627:   @override
+1628:   void initState() {
+1629:     super.initState();
+1630:     _scroll = AnimationController(
+1631:       vsync: this,
+1632:       duration: const Duration(seconds: 28),
+1633:     );
+1634:     _scroll.addStatusListener((status) {
+1635:       if (status == AnimationStatus.completed) {
+1636:         if (mounted) {
+1637:           setState(() {
+1638:             _visible = false;
+1639:           });
+1640:         }
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

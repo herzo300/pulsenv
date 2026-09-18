@@ -8,9 +8,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../core/app_router.dart';
 import '../map/map_config.dart';
 import '../theme/pulse_colors.dart';
-import '../theme/apple_springs.dart';
+import '../services/hermes_parking_monitor_service.dart';
 import '../widgets/app_ui.dart';
+import '../widgets/skeleton_loaders.dart';
 import 'map/widgets/video_dialog.dart';
+import '../widgets/hermes_chat_animations.dart';
 
 class CamerasScreen extends StatefulWidget {
   const CamerasScreen({super.key});
@@ -26,12 +28,7 @@ class _CamerasScreenState extends State<CamerasScreen> {
   bool _isVip = false;
   int _today3dCount = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadVipAnd3dCount();
-    _fetchCameras();
-  }
+
 
   Future<void> _loadVipAnd3dCount() async {
     final prefs = await SharedPreferences.getInstance();
@@ -63,25 +60,26 @@ class _CamerasScreenState extends State<CamerasScreen> {
     try {
       final response = await http.get(
         Uri.parse('${MapConfig.backendApiBaseUrl}/cameras?city=nizhnevartovsk'),
-      );
+      ).timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         final List<dynamic> cameraList = data['cameras'] ?? [];
-        
-        setState(() {
-          _cameras = cameraList.cast<Map<String, dynamic>>();
-          _isLoading = false;
-        });
-      } else {
-        throw Exception('Server returned status: ${response.statusCode}');
+        if (cameraList.isNotEmpty) {
+          setState(() {
+            _cameras = cameraList.cast<Map<String, dynamic>>();
+            _isLoading = false;
+          });
+          return;
+        }
       }
-    } catch (e) {
-      setState(() {
-        _error = 'Не удалось загрузить камеры: $e';
-        _isLoading = false;
-      });
-    }
+    } catch (_) {}
+
+    // Fallback: use pre-loaded offline camera list so cameras screen ALWAYS works
+    setState(() {
+      _cameras = MapConfig.loadedCameras;
+      _isLoading = false;
+    });
   }
 
   void _openCameraLive(Map<String, dynamic> camera) {
@@ -93,10 +91,17 @@ class _CamerasScreenState extends State<CamerasScreen> {
     showDialog<void>(
       context: context,
       barrierColor: Colors.black87,
-      builder: (context) => VideoPlayerDialog(
-        title: name,
-        url: streamUrl,
-      ),
+      builder: (context) {
+        final index = _cameras.indexOf(camera);
+        final heroTag = 'camera_hero_${camera['id'] ?? (index >= 0 ? index : 0)}';
+        return Hero(
+          tag: heroTag,
+          child: VideoPlayerDialog(
+            title: name,
+            url: streamUrl,
+          ),
+        );
+      },
     ).then((_) {
       _fetchCameras();
     });
@@ -104,10 +109,6 @@ class _CamerasScreenState extends State<CamerasScreen> {
 
   void _open3dGeneratorModal() {
     HapticFeedback.heavyImpact();
-    if (!_isVip) {
-      _showVipUpgradeDialog();
-      return;
-    }
 
     if (_today3dCount >= 3) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -217,6 +218,7 @@ class _CamerasScreenState extends State<CamerasScreen> {
                       height: 220,
                       width: double.infinity,
                       fit: BoxFit.cover,
+                      memCacheWidth: 880,
                       placeholder: (c, u) => Container(
                         height: 220,
                         color: Colors.black26,
@@ -308,6 +310,101 @@ class _CamerasScreenState extends State<CamerasScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _loadVipAnd3dCount();
+    _fetchCameras();
+    _checkFirstTimeStreamTutorial();
+  }
+
+  Future<void> _checkFirstTimeStreamTutorial() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('seen_camera_stream_tutorial') ?? false;
+    if (!seen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showStreamConnectionTutorial(context);
+      });
+      await prefs.setBool('seen_camera_stream_tutorial', true);
+    }
+  }
+
+  void _showStreamConnectionTutorial(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF0F172A),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.videocam_outlined, color: Color(0xFF00E5FF), size: 28),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Как подключить свой видеопоток',
+                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white54),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Вы можете транслировать вашу личную или дворовую камеру в City Pulse через универсальные программы и протоколы:',
+                style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              _buildTutorialItem('1. Поддерживаемые программы:', 'OBS Studio, iSpy / Agent DVR, MotionEye, Viseron NVR, Hikvision iVMS, Dahua SmartPSS.'),
+              _buildTutorialItem('2. Протоколы трансляции:', 'RTSP (rtsp://ip:554/stream1), HLS (.m3u8), WebRTC или RTMP.'),
+              _buildTutorialItem('3. Мобильный стриминг с телефона:', 'Приложения «IP Webcam» (Android) или «Live-Reporter» (iOS) создают ссылку RTSP в пару кликов.'),
+              _buildTutorialItem('4. Интеграция:', 'Передайте RTSP/HLS ссылку в управляющую компанию или отправьте заявку через бот @monitornv.'),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00E5FF),
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Понятно, продолжить', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTutorialItem(String title, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(color: Color(0xFF00E5FF), fontSize: 13, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 3),
+          Text(text, style: const TextStyle(color: Colors.white60, fontSize: 12, height: 1.3)),
+        ],
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
@@ -326,6 +423,11 @@ class _CamerasScreenState extends State<CamerasScreen> {
         leading: BackButton(color: PulseColors.primary),
         actions: [
           IconButton(
+            icon: const Icon(Icons.help_outline_rounded, color: Color(0xFF00E5FF)),
+            tooltip: 'Инструкция по подключению трансляции',
+            onPressed: () => _showStreamConnectionTutorial(context),
+          ),
+          IconButton(
             icon: Icon(Icons.refresh_rounded, color: PulseColors.primary),
             onPressed: _fetchCameras,
           ),
@@ -333,18 +435,18 @@ class _CamerasScreenState extends State<CamerasScreen> {
       ),
       body: Column(
         children: [
-          // Banner for 3D AI Illustration generator for VIP subscribers
+          // 3D ИИ-ИЛЛЮСТРАЦИИ И ДИЗАЙН БЛАГОУСТРОЙСТВА
           Container(
             margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF8B5CF6), Color(0xFFD946EF)],
+                colors: [Color(0xFF00E5FF), Color(0xFF8B5CF6)],
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFD946EF).withOpacity(0.35),
+                  color: const Color(0xFF8B5CF6).withOpacity(0.35),
                   blurRadius: 16,
                   spreadRadius: 1,
                 ),
@@ -366,15 +468,15 @@ class _CamerasScreenState extends State<CamerasScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        '3D ИИ-ИЛЛЮСТРАЦИИ',
+                        '3D ИИ-ДИЗАЙН БЛАГОУСТРОЙСТВА',
                         style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         _isVip
                             ? 'Лимит: $_today3dCount / 3 генераций сегодня'
-                            : '3D генерации для VIP (3 шт/день)',
-                        style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 11),
+                            : '3D генерации дворов и скверов (Pixar / Octane)',
+                        style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11),
                       ),
                     ],
                   ),
@@ -383,7 +485,7 @@ class _CamerasScreenState extends State<CamerasScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFF8B5CF6),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     elevation: 0,
                   ),
@@ -395,7 +497,14 @@ class _CamerasScreenState extends State<CamerasScreen> {
           ),
           Expanded(
             child: _isLoading
-                ? Center(child: CircularProgressIndicator(color: PulseColors.primary))
+                ? ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    itemCount: 4,
+                    itemBuilder: (context, index) => const Padding(
+                      padding: EdgeInsets.only(bottom: 12.0),
+                      child: CameraCardSkeleton(),
+                    ),
+                  )
                 : _error != null
                     ? Center(
                         child: Padding(
@@ -430,6 +539,8 @@ class _CamerasScreenState extends State<CamerasScreen> {
                             onRefresh: _fetchCameras,
                             color: PulseColors.primary,
                             child: ListView.builder(
+                              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                              cacheExtent: 700,
                               padding: const EdgeInsets.symmetric(horizontal: 16.0),
                               itemCount: _cameras.length,
                               itemBuilder: (context, index) {
@@ -441,53 +552,45 @@ class _CamerasScreenState extends State<CamerasScreen> {
                                 final statusColor = online ? const Color(0xFF10B981) : const Color(0xFFEF4444);
                                 final statusLabel = online ? 'ОНЛАЙН' : 'ОФЛАЙН';
 
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 12.0),
-                                  child: Hero(
-                                    tag: 'camera_hero_${cam['id'] ?? index}',
-                                    child: InkWell(
-                                      onTap: () => _openCameraLive(cam),
-                                      borderRadius: BorderRadius.circular(14),
-                                      child: AppPanel(
-                                        padding: const EdgeInsets.all(14),
-                                        style: PanelStyle.neo,
-                                        borderColor: online 
-                                            ? glowColor.withOpacity(0.4) 
-                                            : Colors.redAccent.withOpacity(0.3),
-                                        child: Row(
+                                return AnimatedBubbleEntry(
+                                  index: index,
+                                  child: RepaintBoundary(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 12.0),
+                                    child: Hero(
+                                      tag: 'camera_hero_${cam['id'] ?? index}',
+                                      child: InkWell(
+                                        onTap: () => _openCameraLive(cam),
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: AppPanel(
+                                          padding: const EdgeInsets.all(14),
+                                          style: PanelStyle.neo,
+                                          borderColor: online 
+                                              ? glowColor.withOpacity(0.4) 
+                                              : Colors.redAccent.withOpacity(0.3),
+                                          child: Row(
                                         children: [
                                           Stack(
                                             children: [
                                               Container(
-                                                width: 44,
-                                                height: 44,
+                                                width: 32,
+                                                height: 32,
                                                 decoration: BoxDecoration(
                                                   color: (online ? glowColor : Colors.grey).withOpacity(0.12),
-                                                  borderRadius: BorderRadius.circular(10),
+                                                  borderRadius: BorderRadius.circular(8),
                                                 ),
                                                 child: Icon(
                                                   Icons.videocam_rounded,
                                                   color: online ? glowColor : Colors.grey,
-                                                  size: 24,
+                                                  size: 14,
                                                 ),
                                               ),
                                               Positioned(
-                                                right: 0,
-                                                top: 0,
-                                                child: Container(
-                                                  width: 8,
-                                                  height: 8,
-                                                  decoration: BoxDecoration(
-                                                    color: statusColor,
-                                                    shape: BoxShape.circle,
-                                                    boxShadow: [
-                                                      BoxShadow(
-                                                        color: statusColor.withOpacity(0.7),
-                                                        blurRadius: 4,
-                                                        spreadRadius: 1,
-                                                      ),
-                                                    ],
-                                                  ),
+                                                right: -4,
+                                                top: -4,
+                                                child: LiveStatusDot(
+                                                  isOnline: online,
+                                                  size: 8,
                                                 ),
                                               ),
                                             ],
@@ -526,6 +629,65 @@ class _CamerasScreenState extends State<CamerasScreen> {
                                                       ),
                                                     ),
                                                     const SizedBox(width: 8),
+                                                    InkWell(
+                                                      onTap: () {
+                                                        final camId = (cam['id'] ?? index).toString();
+                                                        final isMon = HermesParkingMonitorService.instance.isMonitoring(camId);
+                                                        if (isMon) {
+                                                          HermesParkingMonitorService.instance.stopMonitoring(camId);
+                                                          ScaffoldMessenger.of(context).showSnackBar(
+                                                            SnackBar(content: Text('🛑 Мониторинг парковки на камере "$name" остановлен.')),
+                                                          );
+                                                        } else {
+                                                          HermesParkingMonitorService.instance.startMonitoring(
+                                                            cameraId: camId,
+                                                            cameraName: name,
+                                                            streamUrl: cam['stream_url']?.toString() ?? '',
+                                                            onStatusUpdate: (msg) {
+                                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                                SnackBar(
+                                                                  backgroundColor: const Color(0xFF0F172A),
+                                                                  content: Text(msg, style: const TextStyle(color: Colors.cyanAccent)),
+                                                                ),
+                                                              );
+                                                            },
+                                                          );
+                                                        }
+                                                        setState(() {});
+                                                      },
+                                                      child: Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                                        decoration: BoxDecoration(
+                                                          color: HermesParkingMonitorService.instance.isMonitoring((cam['id'] ?? index).toString())
+                                                              ? const Color(0xFF00E5FF).withOpacity(0.25)
+                                                              : const Color(0xFF8B5CF6).withOpacity(0.18),
+                                                          borderRadius: BorderRadius.circular(6),
+                                                          border: Border.all(
+                                                            color: HermesParkingMonitorService.instance.isMonitoring((cam['id'] ?? index).toString())
+                                                                ? const Color(0xFF00E5FF)
+                                                                : const Color(0xFF8B5CF6).withOpacity(0.4),
+                                                          ),
+                                                        ),
+                                                        child: Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            const Icon(Icons.local_parking_rounded, size: 11, color: Color(0xFF00E5FF)),
+                                                            const SizedBox(width: 3),
+                                                            Text(
+                                                              HermesParkingMonitorService.instance.isMonitoring((cam['id'] ?? index).toString())
+                                                                  ? 'Гермес: 5м'
+                                                                  : 'Гермес AI',
+                                                              style: const TextStyle(
+                                                                color: Color(0xFF00E5FF),
+                                                                fontSize: 9.5,
+                                                                fontWeight: FontWeight.bold,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 8),
                                                     Icon(
                                                       Icons.psychology_alt_rounded,
                                                       size: 13,
@@ -545,18 +707,20 @@ class _CamerasScreenState extends State<CamerasScreen> {
                                               ],
                                             ),
                                           ),
-                                          Icon(
-                                            Icons.arrow_forward_ios_rounded,
-                                            size: 14,
-                                            color: subColor.withOpacity(0.6),
+                                              Icon(
+                                                Icons.arrow_forward_ios_rounded,
+                                                size: 14,
+                                                color: subColor.withOpacity(0.6),
+                                              ),
+                                            ],
                                           ),
-                                        ],
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              );
-                            },
+                                 ),
+                                );
+                              },
                             ),
                           ),
           ),

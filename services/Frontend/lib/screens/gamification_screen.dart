@@ -7,6 +7,7 @@ import '../theme/pulse_colors.dart';
 import '../widgets/app_ui.dart';
 import '../widgets/wow_effects.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Gamification screen — XP, level, streak, achievements, quests.
 class GamificationScreen extends StatefulWidget {
@@ -22,6 +23,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
   Map<String, dynamic>? _profile;
   List<dynamic> _achievements = [];
   List<dynamic> _quests = [];
+  List<dynamic> _weeklyChallenges = [];
   Map<String, dynamic>? _leaderboard;
   bool _loading = true;
   String _selectedTab = 'profile';
@@ -51,13 +53,45 @@ class _GamificationScreenState extends State<GamificationScreen> {
         _achievements = data['achievements'] ?? [];
       }
 
+      final prefs = await SharedPreferences.getInstance();
+      final signalsToday = prefs.getInt('signals_today') ?? 0;
+      final jkhChecks = prefs.getInt('jkh_checks') ?? 0;
+      final camerasViewed = prefs.getInt('cameras_viewed') ?? 0;
+
       final questResp = await http.get(
         Uri.parse('$baseUrl/gamification/quests?telegram_id=${widget.telegramId}'),
       ).timeout(const Duration(seconds: 10));
       if (questResp.statusCode == 200) {
         final data = json.decode(utf8.decode(questResp.bodyBytes));
-        _quests = data['quests'] ?? [];
+        _weeklyChallenges = data['quests'] ?? [];
       }
+
+      _quests = [
+        {
+          'title': 'Подай 1 сигнал сегодня',
+          'desc': 'Сделай город лучше',
+          'progress': signalsToday,
+          'target': 1,
+          'completed': signalsToday >= 1,
+          'reward_xp': 50,
+        },
+        {
+          'title': 'Проверь статус ЖКХ дома',
+          'desc': 'Будь в курсе отключений',
+          'progress': jkhChecks,
+          'target': 1,
+          'completed': jkhChecks >= 1,
+          'reward_xp': 20,
+        },
+        {
+          'title': 'Посмотри 3 камеры города',
+          'desc': 'Проверь обстановку на улицах',
+          'progress': camerasViewed,
+          'target': 3,
+          'completed': camerasViewed >= 3,
+          'reward_xp': 30,
+        }
+      ];
 
       final lbResp = await http.get(
         Uri.parse('$baseUrl/gamification/leaderboard?limit=20'),
@@ -284,14 +318,21 @@ class _GamificationScreenState extends State<GamificationScreen> {
             ),
             const SizedBox(height: AppSpacing.lg),
             // Progress bar
-            ClipRRect(
-              borderRadius: AppRadii.sm,
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 8,
-                backgroundColor: PulseColors.surfaceSoft,
-                valueColor: AlwaysStoppedAnimation<Color>(PulseColors.primary),
-              ),
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0.0, end: progress),
+              duration: const Duration(milliseconds: 1200),
+              curve: Curves.elasticOut,
+              builder: (context, animatedProgress, _) {
+                return ClipRRect(
+                  borderRadius: AppRadii.sm,
+                  child: LinearProgressIndicator(
+                    value: animatedProgress.clamp(0.0, 1.0),
+                    minHeight: 8,
+                    backgroundColor: PulseColors.surfaceSoft,
+                    valueColor: AlwaysStoppedAnimation<Color>(PulseColors.primary),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: AppSpacing.xs),
             Row(
@@ -446,83 +487,155 @@ class _GamificationScreenState extends State<GamificationScreen> {
   }
 
   Widget _questsTab() {
-    if (_quests.isEmpty) {
-      return Center(
-        child: Text('Нет квестов на этой неделе', style: AppTextStyles.bodyMuted),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      itemCount: _quests.length,
-      itemBuilder: (context, index) {
-        final q = _quests[index];
-        final progress = (q['progress'] ?? 0) as num;
-        final target = (q['target'] ?? 1) as num;
-        final completed = q['completed'] ?? false;
-        final pct = target > 0 ? progress / target : 0.0;
+    // Build a flat list of all widgets so we can assign stagger indices
+    final List<Widget> allItems = [];
+    int staggerIndex = 0;
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-          child: AppPanel(
-            style: PanelStyle.standard,
-            borderColor: completed
-                ? PulseColors.success.withOpacity(0.3)
-                : PulseColors.borderStrong,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.checklist_rounded, size: 20, color: PulseColors.primary),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        q['title'] ?? '',
-                        style: AppTextStyles.cardTitle.copyWith(
-                          color: completed ? PulseColors.success : PulseColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    if (completed)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: PulseColors.success.withOpacity(0.15),
-                          borderRadius: AppRadii.sm,
-                        ),
-                        child: Text(
-                          '✅ +${q['reward_xp'] ?? 0} XP',
-                          style: AppTextStyles.mono.copyWith(
-                            color: PulseColors.success,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(q['desc'] ?? '', style: AppTextStyles.bodyMuted),
-                const SizedBox(height: AppSpacing.md),
-                ClipRRect(
-                  borderRadius: AppRadii.sm,
-                  child: LinearProgressIndicator(
-                    value: pct.clamp(0.0, 1.0),
-                    minHeight: 6,
-                    backgroundColor: PulseColors.surfaceSoft,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      completed ? PulseColors.success : PulseColors.accentViolet,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '$progress / $target',
-                  style: AppTextStyles.bodyMuted,
-                ),
-              ],
+    allItems.add(const Text(
+      'ЕЖЕДНЕВНЫЕ ЗАДАНИЯ',
+      style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.2),
+    ));
+    allItems.add(const SizedBox(height: AppSpacing.sm));
+
+    if (_quests.isEmpty) {
+      allItems.add(Center(child: Text('Нет квестов на сегодня', style: AppTextStyles.bodyMuted)));
+    } else {
+      for (final q in _quests) {
+        final idx = staggerIndex++;
+        allItems.add(
+          AnimationConfiguration.staggeredList(
+            position: idx,
+            duration: const Duration(milliseconds: 375),
+            child: SlideAnimation(
+              verticalOffset: 50.0,
+              child: FadeInAnimation(
+                child: _buildQuestCard(q),
+              ),
             ),
           ),
         );
-      },
+      }
+    }
+
+    allItems.add(const SizedBox(height: AppSpacing.lg));
+
+    allItems.add(const Text(
+      'НЕДЕЛЬНЫЕ ИСПЫТАНИЯ',
+      style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.2),
+    ));
+    allItems.add(const SizedBox(height: AppSpacing.sm));
+
+    if (_weeklyChallenges.isEmpty) {
+      allItems.add(Center(child: Text('Нет испытаний на этой неделе', style: AppTextStyles.bodyMuted)));
+    } else {
+      for (final q in _weeklyChallenges) {
+        final idx = staggerIndex++;
+        allItems.add(
+          AnimationConfiguration.staggeredList(
+            position: idx,
+            duration: const Duration(milliseconds: 375),
+            child: SlideAnimation(
+              verticalOffset: 50.0,
+              child: FadeInAnimation(
+                child: _buildQuestCard(q),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    return AnimationLimiter(
+      child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        children: allItems,
+      ),
+    );
+  }
+
+  Widget _buildQuestCard(dynamic q) {
+    final progress = (q['progress'] ?? 0) as num;
+    final target = (q['target'] ?? 1) as num;
+    final completed = q['completed'] ?? false;
+    final pct = target > 0 ? progress / target : 0.0;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: AppPanel(
+        style: PanelStyle.standard,
+        borderColor: completed
+            ? PulseColors.success.withOpacity(0.3)
+            : PulseColors.borderStrong,
+        child: Row(
+          children: [
+            SizedBox(
+              width: 50,
+              height: 50,
+              child: TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0, end: pct.clamp(0.0, 1.0).toDouble()),
+                duration: const Duration(seconds: 1),
+                builder: (context, value, child) {
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        value: value,
+                        backgroundColor: PulseColors.surfaceSoft,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          completed ? PulseColors.success : PulseColors.accentViolet,
+                        ),
+                        strokeWidth: 4,
+                      ),
+                      Icon(
+                        completed ? Icons.check_rounded : Icons.star_rounded,
+                        color: completed ? PulseColors.success : PulseColors.accentViolet,
+                        size: 20,
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    q['title'] ?? '',
+                    style: AppTextStyles.cardTitle.copyWith(
+                      color: completed ? PulseColors.success : PulseColors.textPrimary,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(q['desc'] ?? '', style: AppTextStyles.bodyMuted),
+                  const SizedBox(height: 6),
+                  Text(
+                    '$progress / $target',
+                    style: AppTextStyles.bodyMuted.copyWith(fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            if (completed)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: PulseColors.success.withOpacity(0.15),
+                  borderRadius: AppRadii.sm,
+                ),
+                child: Text(
+                  '✅ +${q['reward_xp'] ?? 0} XP',
+                  style: AppTextStyles.mono.copyWith(
+                    color: PulseColors.success,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 

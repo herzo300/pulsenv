@@ -1,0 +1,79 @@
+Created At: 2026-06-24T05:11:59Z
+Completed At: 2026-06-24T05:11:59Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1886
+Total Bytes: 84525
+Showing lines 1750 to 1820
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1750:         bg = const Color(0xDD8B5CF6); // Purple for crime/police
+1751:         border = const Color(0xFFDDD6FE);
+1752:         leadingIcon = Icons.local_police_rounded;
+1753:       }
+1754:     }
+1755: 
+1756:     bg = Colors.white; // Solid white color for marquee block
+1757:     border = Colors.black.withOpacity(0.12); // Subtle border
+1758: 
+1759:     text = text.trim();
+1760:     if (text.isEmpty) return const SizedBox.shrink();
+1761: 
+1762:     return AnimatedSlide(
+1763:       offset: _visible ? Offset.zero : const Offset(0.0, 1.2),
+1764:       duration: const Duration(milliseconds: 600),
+1765:       curve: Curves.easeIn,
+1766:       child: ClipRRect(
+1767:         borderRadius: BorderRadius.zero,
+1768:         child: Container(
+1769:           height: 38,
+1770:           decoration: BoxDecoration(
+1771:             color: bg,
+1772:             border: Border(
+1773:               top: BorderSide(
+1774:                 color: border,
+1775:               ),
+1776:             ),
+1777:           ),
+1778:           child: Row(
+1779:             children: [
+1780:               Container(
+1781:                 width: 38,
+1782:                 alignment: Alignment.center,
+1783:                 color: Colors.black.withOpacity(0.05),
+1784:                 child: AnimatedBuilder(
+1785:                   animation: _scroll,
+1786:                   builder: (context, _) {
+1787:                     final double angle = _scroll.value * 2 * math.pi;
+1788:                     final double scale = 1.0 + 0.15 * math.sin(_scroll.value * 2 * math.pi * 4);
+1789:                     return Transform.scale(
+1790:                       scale: scale,
+1791:                       child: Transform.rotate(
+1792:                         angle: angle,
+1793:                         child: Icon(
+1794:                           leadingIcon,
+1795:                           color: const Color(0xFF1E293B),
+1796:                           size: 18,
+1797:                         ),
+1798:                       ),
+1799:                     );
+1800:                   },
+1801:                 ),
+1802:               ),
+1803:               Expanded(
+1804:                 child: LayoutBuilder(
+1805:                   builder: (context, constraints) {
+1806:                     final marqueeWidth = constraints.maxWidth;
+1807:                     final estimatedTextWidth = text.length * 7.5;
+1808:                     final scrollDistance = marqueeWidth + estimatedTextWidth;
+1809:                     
+1810:                     return ClipRect(
+1811:                       child: AnimatedBuilder(
+1812:                         animation: _scroll,
+1813:                         builder: (context, _) {
+1814:                           final xOffset = marqueeWidth - (_scroll.value * scrollDistance);
+1815:                           return Transform.translate(
+1816:                             offset: Offset(xOffset, 0),
+1817:                             child: Text(
+1818:                               text,
+1819:                               maxLines: 1,
+1820:                               overflow: TextOverflow.visible,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

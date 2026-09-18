@@ -14,16 +14,22 @@ import '../services/city_provider.dart';
 import '../services/sound_service.dart';
 import '../theme/pulse_colors.dart';
 import '../theme/pulse_categories.dart';
-import '../utils/situation_helper.dart';
 import '../widgets/app_ui.dart';
 import '../widgets/dynamic_animated_background.dart';
 import '../widgets/hologram_effect.dart';
 import '../widgets/category_icon_3d.dart';
+import '../widgets/skeleton_loaders.dart';
 import 'dart:ui' as ui;
 import '../widgets/premium/index.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/aura_living_background.dart';
 import '../core/living/aura_living_engine.dart';
+import 'dart:async';
+import '../widgets/air_quality_card.dart';
+import '../widgets/sun_arc_uv_card.dart';
+import '../services/city_weather_service.dart';
+import '../utils/situation_helper.dart';
+import '../services/notification_service.dart';
 
 class AiDigestScreen extends StatefulWidget {
   const AiDigestScreen({super.key});
@@ -42,6 +48,7 @@ class _AiDigestScreenState extends State<AiDigestScreen> {
   String? _selectedCategory;
   bool _isSummaryExpanded = false;
   bool _isSpeakingDigest = false;
+  CityWeatherSnapshot _weatherSnapshot = CityWeatherSnapshot.empty();
 
   Color _selectedCategoryColor = const Color(0xFF130924);
 
@@ -106,14 +113,107 @@ class _AiDigestScreenState extends State<AiDigestScreen> {
     return data.sublist(0, (currentHour + 1).clamp(1, 25));
   }
 
+  Timer? _periodicNewsTimer;
+
   @override
   void initState() {
     super.initState();
     SoundService().playDigestClick();
     _fetchDigest();
+    _fetchWeather();
+    _checkFirstLaunchTutorial();
+    // Автоматическое обновление актуальных новостей каждые 15 минут
+    _periodicNewsTimer = Timer.periodic(const Duration(minutes: 15), (_) {
+      if (mounted) {
+        _fetchDigest();
+        _fetchWeather();
+      }
+    });
   }
 
-    void _applyFallbackDigest() {
+  @override
+  void dispose() {
+    _periodicNewsTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _checkFirstLaunchTutorial() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('seen_ai_digest_tutorial') ?? false;
+    if (!seen && mounted) {
+      await prefs.setBool('seen_ai_digest_tutorial', true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showAiDigestTutorialModal();
+      });
+    }
+  }
+
+  void _showAiDigestTutorialModal() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0F172A),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Color(0xFF00E5FF), width: 1.5),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.auto_awesome, color: Color(0xFF00E5FF), size: 26),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Обучение: ИИ-Дайджест',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Добро пожаловать в Ежедневный ИИ-Дайджест Нижневартовска!',
+              style: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              '• Нейросеть Гермес анализирует все городские сигналы за 24 часа.\n• Рассчитывается точный Пульс Качества Жизни.\n• Нажмите 🔊 для аудио-озвучки дайджеста.\n• Фильтруйте сводки по категориям (ЖКХ, Дороги, Безопасность).',
+              style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.5),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00E5FF),
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Понятно, начать!', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _fetchWeather() async {
+    try {
+      final snapshot = await CityWeatherService.instance.fetchWeather();
+      if (mounted) {
+        setState(() {
+          _weatherSnapshot = snapshot;
+        });
+        unawaited(NotificationService().scheduleMorningAktirovkaPushes(snapshot));
+      }
+    } catch (e) {
+      debugPrint('Error fetching weather snapshot: $e');
+    }
+  }
+
+  void _applyFallbackDigest() {
     if (!mounted) return;
     final cityName = CityProvider().activeCity.name;
     setState(() {
@@ -172,7 +272,7 @@ class _AiDigestScreenState extends State<AiDigestScreen> {
       final isVip = prefs.getBool('is_premium_vip') ?? prefs.getBool('is_vip') ?? false;
       if (mounted) {
         setState(() {
-          _isVip = isVip;
+          _isVip = true; // [Все функции открыты бесплатно]
         });
       }
       final cityParam = CityProvider().activeCity.backendCityParam;
@@ -295,7 +395,12 @@ class _AiDigestScreenState extends State<AiDigestScreen> {
           showScanLine: false,
           child: SafeArea(
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  children: const [
+                    ComplaintListSkeleton(count: 4),
+                  ],
+                )
               : _error.isNotEmpty
                   ? Center(
                       child: Padding(
@@ -341,86 +446,89 @@ class _AiDigestScreenState extends State<AiDigestScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Siri Audio Waveform & Readout Bar (Transparent Glass Style)
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: BackdropFilter(
-                                filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                            // 0. AI SUMMARY (collapsible)
+                            if (_summary.isNotEmpty) ...[
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _isSummaryExpanded = !_isSummaryExpanded;
+                                  });
+                                },
                                 child: Container(
                                   margin: const EdgeInsets.only(bottom: 16),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
-                                    color: PulseColors.surfaceGlass.withOpacity(0.18),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: const Color(0xFF00E5FF).withOpacity(0.4), width: 1.5),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(0xFF00E5FF).withOpacity(0.15),
-                                        blurRadius: 20,
-                                        spreadRadius: 1,
-                                      ),
-                                    ],
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        PulseColors.primary.withOpacity(0.12),
+                                        const Color(0xFF673AB7).withOpacity(0.08),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: PulseColors.primary.withOpacity(0.3)),
                                   ),
                                   child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(8),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF00E5FF).withOpacity(0.2),
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(Icons.record_voice_over_rounded, color: Color(0xFF00E5FF), size: 20),
-                                          ),
-                                          const SizedBox(width: 12),
+                                          Icon(Icons.auto_awesome_rounded, color: PulseColors.primary, size: 18),
+                                          const SizedBox(width: 8),
                                           Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  'Аудио-версия дайджеста',
-                                                  style: TextStyle(color: PulseColors.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
-                                                ),
-                                                Text(
-                                                  _isSpeakingDigest ? 'Идет зачитывание ИИ-сводки...' : 'Нажмите для слухового анализа',
-                                                  style: TextStyle(color: PulseColors.textSecondary, fontSize: 11),
-                                                ),
-                                              ],
+                                            child: Text(
+                                              'РЕЗЮМЕ ДНЯ ОТ AI',
+                                              style: TextStyle(
+                                                color: PulseColors.textSecondary,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 1.2,
+                                              ),
                                             ),
                                           ),
-                                          ElevatedButton.icon(
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: const Color(0xFF00E5FF),
-                                              foregroundColor: Colors.black,
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          AnimatedRotation(
+                                            turns: _isSummaryExpanded ? 0.5 : 0.0,
+                                            duration: const Duration(milliseconds: 300),
+                                            child: Icon(
+                                              Icons.keyboard_arrow_down_rounded,
+                                              color: PulseColors.textSecondary,
+                                              size: 22,
                                             ),
-                                            onPressed: () {
-                                              HapticFeedback.heavyImpact();
-                                              setState(() {
-                                                _isSpeakingDigest = !_isSpeakingDigest;
-                                              });
-                                              if (_isSpeakingDigest) {
-                                                final text = _summary.isNotEmpty
-                                                    ? _summary
-                                                    : 'Сводка по Нижневартовску: зарегистрировано $_totalReports новых сигналов.';
-                                                SoundService().speak(text);
-                                              } else {
-                                                SoundService().stopSpeak();
-                                              }
-                                            },
-                                            icon: Icon(_isSpeakingDigest ? Icons.stop_rounded : Icons.play_arrow_rounded, size: 18),
-                                            label: Text(_isSpeakingDigest ? 'СТОП' : 'СЛУШАТЬ'),
                                           ),
                                         ],
                                       ),
                                       const SizedBox(height: 10),
-                                      SiriWaveformWidget(isSpeaking: _isSpeakingDigest),
+                                      AnimatedCrossFade(
+                                        firstChild: Text(
+                                          _summary,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: PulseColors.textPrimary,
+                                            fontSize: 13,
+                                            height: 1.5,
+                                          ),
+                                        ),
+                                        secondChild: Text(
+                                          _summary,
+                                          style: TextStyle(
+                                            color: PulseColors.textPrimary,
+                                            fontSize: 13,
+                                            height: 1.5,
+                                          ),
+                                        ),
+                                        crossFadeState: _isSummaryExpanded
+                                            ? CrossFadeState.showSecond
+                                            : CrossFadeState.showFirst,
+                                        duration: const Duration(milliseconds: 300),
+                                        sizeCurve: Curves.easeInOut,
+                                      ),
                                     ],
                                   ),
                                 ),
-                              ),
-                            ),
+                              ).animate().fadeIn(duration: const Duration(milliseconds: 400)).slideY(begin: 0.05, end: 0, duration: const Duration(milliseconds: 400)),
+                            ],
                             // 1. ПОСЛЕДНИЕ СИГНАЛЫ (теперь на самом верху)
                             if (_preview.isNotEmpty) ...[
                               Row(
@@ -522,9 +630,16 @@ class _AiDigestScreenState extends State<AiDigestScreen> {
                                           },
                                           child: _buildReportTile(repo, scheme)
                                               .animate()
-                                              .fade(
-                                                delay: (50 + index * 60).ms,
-                                                duration: 400.ms,
+                                              .fadeIn(
+                                                delay: Duration(milliseconds: 50 * index),
+                                                duration: const Duration(milliseconds: 300),
+                                              )
+                                              .slideY(
+                                                begin: 0.1,
+                                                end: 0,
+                                                delay: Duration(milliseconds: 50 * index),
+                                                duration: const Duration(milliseconds: 300),
+                                                curve: Curves.easeOut,
                                               ),
                                         );
                                       }),

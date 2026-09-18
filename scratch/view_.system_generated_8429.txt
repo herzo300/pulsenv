@@ -1,0 +1,89 @@
+Created At: 2026-06-23T15:20:48Z
+Completed At: 2026-06-23T15:20:49Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1888
+Total Bytes: 84967
+Showing lines 1750 to 1830
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1750:         leadingIcon = Icons.car_crash_rounded;
+1751:       } else if (hasCrime) {
+1752:         bg = const Color(0xDD8B5CF6); // Purple for crime/police
+1753:         border = const Color(0xFFDDD6FE);
+1754:         leadingIcon = Icons.local_police_rounded;
+1755:       }
+1756:     }
+1757: 
+1758:     bg = Colors.white.withOpacity(0.92); // White color for marquee block
+1759:     border = Colors.black.withOpacity(0.12); // Subtle border
+1760: 
+1761:     text = text.trim();
+1762:     if (text.isEmpty) return const SizedBox.shrink();
+1763: 
+1764:     return AnimatedSlide(
+1765:       offset: _visible ? Offset.zero : const Offset(0.0, 1.2),
+1766:       duration: const Duration(milliseconds: 600),
+1767:       curve: Curves.easeIn,
+1768:       child: ClipRRect(
+1769:         borderRadius: BorderRadius.zero,
+1770:         child: Container(
+1771:           height: 38,
+1772:           decoration: BoxDecoration(
+1773:             color: bg,
+1774:             border: Border(
+1775:               top: BorderSide(
+1776:                 color: border,
+1777:               ),
+1778:             ),
+1779:           ),
+1780:           child: Row(
+1781:             children: [
+1782:               Container(
+1783:                 width: 38,
+1784:                 alignment: Alignment.center,
+1785:                 color: Colors.black.withOpacity(0.05),
+1786:                 child: AnimatedBuilder(
+1787:                   animation: _scroll,
+1788:                   builder: (context, _) {
+1789:                     final double angle = _scroll.value * 2 * math.pi;
+1790:                     final double scale = 1.0 + 0.15 * math.sin(_scroll.value * 2 * math.pi * 4);
+1791:                     return Transform.scale(
+1792:                       scale: scale,
+1793:                       child: Transform.rotate(
+1794:                         angle: angle,
+1795:                         child: Icon(
+1796:                           leadingIcon,
+1797:                           color: const Color(0xFF1E293B),
+1798:                           size: 18,
+1799:                         ),
+1800:                       ),
+1801:                     );
+1802:                   },
+1803:                 ),
+1804:               ),
+1805:               Expanded(
+1806:                 child: LayoutBuilder(
+1807:                   builder: (context, constraints) {
+1808:                     final marqueeWidth = constraints.maxWidth;
+1809:                     final estimatedTextWidth = text.length * 7.5;
+1810:                     final scrollDistance = marqueeWidth + estimatedTextWidth;
+1811:                     
+1812:                     return ClipRect(
+1813:                       child: AnimatedBuilder(
+1814:                         animation: _scroll,
+1815:                         builder: (context, _) {
+1816:                           final xOffset = marqueeWidth - (_scroll.value * scrollDistance);
+1817:                           return Transform.translate(
+1818:                             offset: Offset(xOffset, 0),
+1819:                             child: Text(
+1820:                               text,
+1821:                               maxLines: 1,
+1822:                               overflow: TextOverflow.visible,
+1823:                               style: const TextStyle(
+1824:                                 color: Color(0xFF1E293B),
+1825:                                 fontSize: 12.5,
+1826:                                 fontWeight: FontWeight.w600,
+1827:                               ),
+1828:                             ),
+1829:                           );
+1830:                         },
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

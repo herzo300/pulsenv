@@ -1,0 +1,33 @@
+# Единые правила кодировки и окончаний строк.
+# Защищает русскоязычные markdown/исходники от порчи кодировки (CP1251 vs UTF-8).
+
+* text=auto eol=lf
+
+# Текстовые файлы — строго UTF-8
+*.md        text eol=lf encoding=UTF-8
+*.py        text eol=lf encoding=UTF-8
+*.dart      text eol=lf encoding=UTF-8
+*.yaml      text eol=lf encoding=UTF-8
+*.yml       text eol=lf encoding=UTF-8
+*.json      text eol=lf encoding=UTF-8
+*.toml      text eol=lf encoding=UTF-8
+*.ini       text eol=lf encoding=UTF-8
+*.txt       text eol=lf encoding=UTF-8
+
+# Windows-скрипты — CRLF
+*.bat       text eol=crlf
+
+# Бинарники — не трогаем
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.webp      binary
+*.ico       binary
+*.apk       binary
+*.pt        binary
+*.onnx      binary
+*.db        binary
+*.session   binary
+*.pdf       binary
+*.ttf       binary
+*.otf       binary

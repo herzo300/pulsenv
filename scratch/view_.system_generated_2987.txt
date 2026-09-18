@@ -1,0 +1,64 @@
+Created At: 2026-06-22T07:50:41Z
+Completed At: 2026-06-22T07:50:41Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1587
+Total Bytes: 62310
+Showing lines 1490 to 1545
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1490:     }
+1491: 
+1492:     text = text.trim();
+1493:     if (text.isEmpty) return const SizedBox.shrink();
+1494: 
+1495:     return ClipRRect(
+1496:       borderRadius: BorderRadius.circular(14),
+1497:       child: Container(
+1498:         height: 38,
+1499:         decoration: BoxDecoration(
+1500:           color: bg,
+1501:           border: Border.all(
+1502:             color: border,
+1503:           ),
+1504:         ),
+1505:         child: Row(
+1506:           children: [
+1507:             Container(
+1508:               width: 38,
+1509:               alignment: Alignment.center,
+1510:               color: Colors.white.withOpacity(0.15),
+1511:               child: Icon(
+1512:                 leadingIcon,
+1513:                 color: Colors.white,
+1514:                 size: 18,
+1515:               ),
+1516:             ),
+1517:             Expanded(
+1518:               child: AnimatedBuilder(
+1519:                 animation: _scroll,
+1520:                 builder: (context, _) {
+1521:                   return Transform.translate(
+1522:                     offset: Offset(-_scroll.value * 600, 0),
+1523:                     child: Text(
+1524:                       '$text     $text',
+1525:                       maxLines: 1,
+1526:                       style: const TextStyle(
+1527:                         color: Colors.white,
+1528:                         fontSize: 12.5,
+1529:                         fontWeight: FontWeight.w600,
+1530:                       ),
+1531:                     ),
+1532:                   );
+1533:                 },
+1534:               ),
+1535:             ),
+1536:           ],
+1537:         ),
+1538:       ),
+1539:     );
+1540:   }
+1541: }
+1542: 
+1543: /// A custom widget that applies a 3D perspective tilt effect on drag/pan gestures.
+1544: class TiltWidget extends StatefulWidget {
+1545:   const TiltWidget({super.key, required this.child});
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -62,6 +62,17 @@
       transition: transform .3s ease;
     }
 
+    /* Уменьшение иконок боковой панели (scale 0.32) */
+    .toc .toc-logo span,
+    .toc a span,
+    .toc iconify-icon,
+    .toc svg,
+    .toc .icon {
+      transform: scale(0.32);
+      transform-origin: center;
+      display: inline-block;
+    }
+
     .toc-logo {
       padding: 0 20px 18px;
       font-size: .85rem;
@@ -675,6 +686,342 @@
       width: 65%;
     }
 
+    /* ═══ WEATHER & AIR (Astra redesign) ═══ */
+    .wx-now-row {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .wx-now {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .wx-now-icon {
+      font-size: 3.2rem;
+      line-height: 1;
+      filter: drop-shadow(0 0 14px rgba(0, 240, 255, .18));
+    }
+
+    .wx-now-temp {
+      font-size: 2.4rem;
+      font-weight: 800;
+      letter-spacing: -.02em;
+      line-height: 1.05;
+    }
+
+    .wx-now-desc {
+      font-size: .95rem;
+      color: var(--text);
+      margin-top: 4px;
+    }
+
+    .wx-now-sub {
+      font-size: .82rem;
+      color: #b6c2d4;
+      margin-top: 4px;
+    }
+
+    .wx-air {
+      border-left: 1px solid var(--glass-border);
+      padding-left: 24px;
+    }
+
+    .wx-air-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    .wx-air-label {
+      font-size: .74rem;
+      text-transform: none;
+      letter-spacing: .04em;
+      color: var(--text-dim);
+    }
+
+    .wx-air-val {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #f59e0b;
+    }
+
+    .wx-air-val small {
+      font-size: .68rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      margin-left: 4px;
+    }
+
+    .wx-air-scale {
+      position: relative;
+      height: 5px;
+      border-radius: 3px;
+      margin: 10px 0 8px;
+      background: linear-gradient(90deg, #22c55e 0%, #a3e635 25%, #f59e0b 50%, #ff6b35 75%, #c92a2a 100%);
+    }
+
+    .wx-air-marker {
+      position: absolute;
+      top: -4px;
+      width: 2px;
+      height: 13px;
+      background: #f0f4f8;
+      border-radius: 1px;
+      box-shadow: 0 0 0 2px rgba(10, 12, 16, .9);
+    }
+
+    .wx-scale-tick {
+      position: absolute;
+      top: 12px;
+      font-size: .6rem;
+      color: var(--text-dim);
+      transform: translateX(-50%);
+    }
+
+    .wx-air-status {
+      font-size: .78rem;
+      color: var(--text-dim);
+      margin-top: 14px;
+    }
+
+    /* ── Затмение: видео-анимация + событийная строка ── */
+    .wx-eclipse-video {
+      position: relative;
+      width: 116px;
+      min-width: 116px;
+      height: 66px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 215, 106, .25);
+      background: #060810;
+    }
+
+    .wx-eclipse-video video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .wx-eclipse-phase {
+      position: absolute;
+      right: 4px;
+      bottom: 4px;
+      padding: 2px 5px;
+      border-radius: 5px;
+      font-size: .56rem;
+      font-weight: 700;
+      line-height: 1.15;
+      text-align: center;
+      color: #ffd76a;
+      background: rgba(10, 12, 16, .78);
+      backdrop-filter: blur(4px);
+    }
+
+    /* ── Затмение: событийная строка ── */
+    .wx-eclipse {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 18px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      cursor: pointer;
+      background: linear-gradient(90deg, rgba(255, 215, 106, .07), rgba(124, 58, 237, .05));
+      border: 1px solid rgba(255, 215, 106, .18);
+      transition: border-color .2s, background .2s;
+    }
+
+    .wx-eclipse:hover {
+      border-color: rgba(255, 215, 106, .38);
+    }
+
+    .wx-eclipse-title {
+      font-weight: 700;
+      font-size: .95rem;
+    }
+
+    .wx-eclipse-meta {
+      font-size: .82rem;
+      color: #b6c2d4;
+      margin-top: 3px;
+    }
+
+    .wx-eclipse-arrow {
+      margin-left: auto;
+      font-size: 1.6rem;
+      color: var(--text-dim);
+      transition: transform .25s;
+    }
+
+    .wx-eclipse:hover .wx-eclipse-arrow {
+      transform: translateX(3px);
+      color: #ffd76a;
+    }
+
+    .wx-eclipse-detail {
+      display: none;
+      margin-top: 8px;
+      padding: 16px 18px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .03);
+      border: 1px solid rgba(255, 255, 255, .07);
+    }
+
+    .wx-eclipse-detail.open {
+      display: block;
+    }
+
+    .wx-eclipse-timeline {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .wx-etl {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: .78rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .wx-etl b {
+      color: var(--text);
+      font-size: .95rem;
+    }
+
+    .wx-etl-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #ffd76a;
+      box-shadow: 0 0 8px rgba(255, 215, 106, .5);
+    }
+
+    .wx-etl-line {
+      flex: 1;
+      height: 2px;
+      background: linear-gradient(90deg, rgba(255, 215, 106, .5), rgba(255, 215, 106, .15));
+      border-radius: 1px;
+    }
+
+    .wx-eclipse-facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 12px;
+      font-size: .8rem;
+      color: #b6c2d4;
+    }
+
+    .wx-eclipse-warn {
+      margin-top: 12px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: .76rem;
+      color: #ffd76a;
+      background: rgba(255, 215, 106, .07);
+      border: 1px solid rgba(255, 215, 106, .2);
+    }
+
+    /* ── 7 дней на всю ширину ── */
+    .wx-week {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--glass-border);
+    }
+
+    .wx-day {
+      text-align: center;
+      padding: 8px 2px;
+      border-radius: 10px;
+    }
+
+    .wx-day-today {
+      background: rgba(0, 240, 255, .05);
+      border: 1px solid rgba(0, 240, 255, .12);
+    }
+
+    .wx-day-name {
+      font-size: .68rem;
+      color: var(--text-dim);
+    }
+
+    .wx-day-ico {
+      font-size: 1.4rem;
+      margin: 7px 0 5px;
+    }
+
+    .wx-day-day {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .wx-day-night {
+      font-size: .8rem;
+      color: var(--text-dim);
+      margin-top: 1px;
+    }
+
+    .wx-day-pop {
+      font-size: .62rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .wx-week-caption {
+      margin-top: 12px;
+      font-size: .68rem;
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    .wx-eco-fold {
+      margin-top: 14px;
+      border: 1px solid rgba(255, 255, 255, .07);
+      border-radius: 12px;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, .02);
+    }
+
+    .wx-eco-fold summary {
+      cursor: pointer;
+      font-size: .82rem;
+      color: var(--text-dim);
+      font-weight: 600;
+      list-style-position: inside;
+    }
+
+    .wx-eco-fold summary:hover {
+      color: var(--text);
+    }
+
+    @media (max-width: 900px) {
+      .wx-now-row {
+        grid-template-columns: 1fr;
+      }
+
+      .wx-air {
+        border-left: none;
+        padding-left: 0;
+        border-top: 1px solid var(--glass-border);
+        padding-top: 14px;
+      }
+
+      .wx-week {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+      }
+    }
+
     /* ── People ── */
     .people-grid {
       display: grid;
@@ -919,7 +1266,7 @@
         <div class="kpi-label">Бюджет 2025</div>
         <div class="kpi-value" style="color:#f59e0b" data-target="29.5" data-suffix="" data-prefix="" data-separator=""
           data-decimal="1">0 <small style="font-size:.8rem">млрд</small></div>
-        <div class="kpi-sub">&#8595; -4.8% к 2024 году</div>
+        <div class="kpi-sub">&#8593; +62% к 2024 году</div>
         <div class="kpi-glow" style="background:radial-gradient(circle,rgba(245,158,11,.4),transparent 70%)"></div>
       </div>
       <div class="kpi fade-up" data-delay="160">
@@ -1198,116 +1545,137 @@
       </div>
     </div>
 
-    <!-- ECOLOGY & WEATHER -->
+    <!-- WEATHER & AIR (перекомпоновано по аудиту GPT-6-Astra: одна секция, прогноз на всю ширину, AQI числом+шкалой, ноль тяжёлых графиков) -->
     <div class="section fade-up" id="ecology">
-      <div class="s-title">&#127807; Экология, Воздух &amp; Погода</div>
-      <div class="three-col">
-        <div class="card">
-          <div class="chart-title">Индекс качества воздуха (AQI)</div>
-          <div id="chart-aqi" class="echart-sm"></div>
-          <div style="text-align:center;margin-top:8px;">
-            <div style="font-size:2rem;font-weight:800;color:#f59e0b">71</div>
-            <div style="font-size:.72rem;color:var(--text-dim)">Умеренный &mdash; O&#8323; доминирует</div>
-            <div class="mini-stats" style="margin-top:10px;">
-              <div class="ms">
-                <div class="ms-val" style="color:#ff6b35">59</div>
-                <div class="ms-lbl">PM2.5</div>
-              </div>
-              <div class="ms">
-                <div class="ms-val" style="color:#f59e0b">25</div>
-                <div class="ms-lbl">PM10</div>
-              </div>
-              <div class="ms">
-                <div class="ms-val" style="color:#22c55e">70.8</div>
-                <div class="ms-lbl">O&#8323;</div>
-              </div>
+      <div class="s-title">&#127807; Погода и Воздух</div>
+      <div class="card" style="padding:22px 24px;">
+
+        <!-- Строка 1: текущая погода (60%) + воздух (40%) -->
+        <div class="wx-now-row">
+          <div class="wx-now">
+            <div class="wx-now-icon">&#9925;</div>
+            <div class="wx-now-main">
+              <div class="wx-now-temp">&minus;5,6&deg;</div>
+              <div class="wx-now-desc">Облачно &middot; ощущается как &minus;12&deg;</div>
+              <div class="wx-now-sub">Ветер 6 м/с &middot; Осадки 10% &middot; Влажность 49%</div>
             </div>
           </div>
-        </div>
-        <div class="card">
-          <div class="chart-title">&#9728;&#65039; Прогноз погоды &mdash; 7 дней</div>
-          <div class="forecast-grid">
-            <div class="fc">
-              <div class="fc-date">29 мар</div>
-              <div class="fc-max">+3.5&#176;</div>
-              <div class="fc-min">-8.2&#176;</div>
-              <div class="fc-bar"></div>
+          <div class="wx-air">
+            <div class="wx-air-head">
+              <span class="wx-air-label">Воздух</span>
+              <span class="wx-air-val">71 <small>AQI</small></span>
             </div>
-            <div class="fc">
-              <div class="fc-date">30 мар</div>
-              <div class="fc-max">-1.6&#176;</div>
-              <div class="fc-min">-11.1&#176;</div>
-              <div class="fc-bar"></div>
+            <div class="wx-air-scale">
+              <div class="wx-air-marker" style="left:35.5%"></div>
+              <span class="wx-scale-tick" style="left:0">0</span>
+              <span class="wx-scale-tick" style="left:50%">150</span>
+              <span class="wx-scale-tick" style="left:100%">300</span>
             </div>
-            <div class="fc">
-              <div class="fc-date">31 мар</div>
-              <div class="fc-max">0&#176;</div>
-              <div class="fc-min">-6.9&#176;</div>
-              <div class="fc-bar"></div>
-            </div>
-            <div class="fc">
-              <div class="fc-date">1 апр</div>
-              <div class="fc-max">+1.6&#176;</div>
-              <div class="fc-min">-3.8&#176;</div>
-              <div class="fc-bar"></div>
-            </div>
-            <div class="fc">
-              <div class="fc-date">2 апр</div>
-              <div class="fc-max">+5.7&#176;</div>
-              <div class="fc-min">-2.0&#176;</div>
-              <div class="fc-bar"></div>
-            </div>
-            <div class="fc">
-              <div class="fc-date">3 апр</div>
-              <div class="fc-max">+3.5&#176;</div>
-              <div class="fc-min">-3.0&#176;</div>
-              <div class="fc-bar"></div>
-            </div>
-            <div class="fc">
-              <div class="fc-date">4 апр</div>
-              <div class="fc-max">+5.0&#176;</div>
-              <div class="fc-min">+2.3&#176;</div>
-              <div class="fc-bar"></div>
-            </div>
+            <div class="wx-air-status"><strong style="color:#f59e0b">Умеренный</strong> (шкала US AQI 0&ndash;300) &mdash; чувствительным группам быть внимательнее</div>
           </div>
-          <div
-            style="margin-top:12px;padding:10px;background:rgba(0,240,255,.04);border-radius:8px;font-size:.72rem;color:var(--text-dim);">
-            &#128167; Влажность: 49% &nbsp;&#128168; Ветер: 25.6 м/с &nbsp; Источник: Open-Meteo</div>
         </div>
-        <div class="card">
-          <div class="chart-title">&#35;&#9989; Отходы &amp; Экология</div>
-          <div class="mini-stats">
-            <div class="ms">
-              <div class="ms-val" style="color:#22c55e">71</div>
-              <div class="ms-lbl">AQI (умерен.)</div>
-            </div>
-            <div class="ms">
-              <div class="ms-val" style="color:#00f0ff">O&#8323;</div>
-              <div class="ms-lbl">Доминант</div>
-            </div>
-            <div class="ms">
-              <div class="ms-val" style="color:#f59e0b">3.6</div>
-              <div class="ms-lbl">SO&#8322;</div>
-            </div>
-            <div class="ms">
-              <div class="ms-val" style="color:#ff6b35">8.7</div>
-              <div class="ms-lbl">NO&#8322;</div>
-            </div>
-            <div class="ms">
-              <div class="ms-val" style="color:#7c3aed">4.6</div>
-              <div class="ms-lbl">CO</div>
-            </div>
-            <div class="ms">
-              <div class="ms-val" style="color:#22c55e">&#9890;</div>
-              <div class="ms-lbl">Река Обь</div>
-            </div>
+
+        <!-- Событийная строка: затмение + Blender-анимация -->
+        <div class="wx-eclipse" id="eclipse-strip" role="button" tabindex="0"
+             onclick="document.getElementById('eclipse-detail').classList.toggle('open')">
+          <div class="wx-eclipse-video">
+            <video autoplay loop muted playsinline preload="auto" poster="media/eclipse_poster.jpg" title="Визуализация затмения над Нижневартовском">
+              <source src="media/eclipse_nv.webm" type="video/webm">
+              <source src="media/eclipse_nv_1080x608.mp4" type="video/mp4">
+            </video>
+            <div class="wx-eclipse-phase">фаза<br>0.34</div>
           </div>
-          <div
-            style="margin-top:12px;padding:10px;background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.15);border-radius:8px;font-size:.72rem;color:var(--text-dim);">
-            &#127754; Паводковый сезон: апрель &ndash; июнь. Критический уровень Оби: <strong style="color:#22c55e">980
-              см</strong>.</div>
+          <div class="wx-eclipse-text">
+            <div class="wx-eclipse-title">Частное солнечное затмение</div>
+            <div class="wx-eclipse-meta">12 авг 2026 &middot; максимум 19:47 (UTC+5) &middot; фаза 0.34 &middot; видно из Нижневартовска</div>
+          </div>
+          <div class="wx-eclipse-arrow">&#8250;</div>
         </div>
+        <div class="wx-eclipse-detail" id="eclipse-detail">
+          <div class="wx-eclipse-timeline">
+            <div class="wx-etl"><span class="wx-etl-dot"></span><span>Начало</span><b>18:37</b></div>
+            <div class="wx-etl-line"></div>
+            <div class="wx-etl"><span class="wx-etl-dot"></span><span>Максимум</span><b>19:47</b></div>
+            <div class="wx-etl-line"></div>
+            <div class="wx-etl"><span class="wx-etl-dot"></span><span>Конец</span><b>20:52</b></div>
+          </div>
+          <div class="wx-eclipse-facts">
+            <span>Видимость: частично (фаза 0.34)</span>
+            <span>Облачность к максимуму: 40%</span>
+            <span>Все времена местные (UTC+5)</span>
+          </div>
+          <div class="wx-eclipse-warn">&#9888;&#65039; Для наблюдения Солнца нужны специальные очки от затмения. Обычные солнцезащитные не подходят!</div>
+        </div>
+
+        <!-- Строка 2: 7 дней на всю ширину, без рамок-плиток -->
+        <div class="wx-week">
+          <div class="wx-day wx-day-today">
+            <div class="wx-day-name">Сегодня</div>
+            <div class="wx-day-ico">&#9925;</div>
+            <div class="wx-day-day">&minus;5,6&deg;</div>
+            <div class="wx-day-night">&minus;11,1&deg;</div>
+            <div class="wx-day-pop">&#128167;10%</div>
+          </div>
+          <div class="wx-day">
+            <div class="wx-day-name">Вторник</div>
+            <div class="wx-day-ico">&#9728;&#65039;</div>
+            <div class="wx-day-day">&minus;1,6&deg;</div>
+            <div class="wx-day-night">&minus;11,1&deg;</div>
+            <div class="wx-day-pop">&#128167;5%</div>
+          </div>
+          <div class="wx-day">
+            <div class="wx-day-name">Среда</div>
+            <div class="wx-day-ico">&#9925;</div>
+            <div class="wx-day-day">0&deg;</div>
+            <div class="wx-day-night">&minus;6,9&deg;</div>
+            <div class="wx-day-pop">&#128167;20%</div>
+          </div>
+          <div class="wx-day">
+            <div class="wx-day-name">Четверг</div>
+            <div class="wx-day-ico">&#10052;&#65039;</div>
+            <div class="wx-day-day">+1,6&deg;</div>
+            <div class="wx-day-night">&minus;3,8&deg;</div>
+            <div class="wx-day-pop">&#10052;&#65039;60%</div>
+          </div>
+          <div class="wx-day">
+            <div class="wx-day-name">Пятница</div>
+            <div class="wx-day-ico">&#9728;&#65039;</div>
+            <div class="wx-day-day">+5,7&deg;</div>
+            <div class="wx-day-night">&minus;2,0&deg;</div>
+            <div class="wx-day-pop">&#128167;0%</div>
+          </div>
+          <div class="wx-day">
+            <div class="wx-day-name">Суббота</div>
+            <div class="wx-day-ico">&#9925;</div>
+            <div class="wx-day-day">+3,5&deg;</div>
+            <div class="wx-day-night">&minus;3,0&deg;</div>
+            <div class="wx-day-pop">&#128167;10%</div>
+          </div>
+          <div class="wx-day">
+            <div class="wx-day-name">Воскресенье</div>
+            <div class="wx-day-ico">&#9728;&#65039;</div>
+            <div class="wx-day-day">+5,0&deg;</div>
+            <div class="wx-day-night">+2,3&deg;</div>
+            <div class="wx-day-pop">&#128167;0%</div>
+          </div>
+        </div>
+        <div class="wx-week-caption">День / Ночь &mdash; максимальная и минимальная температура. Источник: Open-Meteo &middot; обновлено сегодня в 14:20</div>
       </div>
+
+      <!-- Долгосрочная городская экология — сворачиваемая строка -->
+      <details class="wx-eco-fold">
+        <summary>&#127757; Экология города &mdash; отходы, вода, загрязнители</summary>
+        <div class="mini-stats" style="margin-top:10px;">
+          <div class="ms"><div class="ms-val" style="color:#ff6b35">59</div><div class="ms-lbl">PM2.5 &mu;г/м&sup3;</div></div>
+          <div class="ms"><div class="ms-val" style="color:#f59e0b">25</div><div class="ms-lbl">PM10 &mu;г/м&sup3;</div></div>
+          <div class="ms"><div class="ms-val" style="color:#22c55e">70.8</div><div class="ms-lbl">O&#8323; &mu;г/м&sup3;</div></div>
+          <div class="ms"><div class="ms-val" style="color:#f59e0b">3.6</div><div class="ms-lbl">SO&#8322;</div></div>
+          <div class="ms"><div class="ms-val" style="color:#ff6b35">8.7</div><div class="ms-lbl">NO&#8322;</div></div>
+          <div class="ms"><div class="ms-val" style="color:#7c3aed">4.6</div><div class="ms-lbl">CO</div></div>
+        </div>
+        <div style="margin-top:12px;padding:10px;background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.15);border-radius:8px;font-size:.72rem;color:var(--text-dim);">
+          &#127754; Паводковый сезон: апрель &ndash; июнь. Критический уровень Оби: <strong style="color:#22c55e">980 см</strong>.</div>
+      </details>
     </div>
 
     <!-- SPORTS & FAMOUS PEOPLE -->
@@ -1644,9 +2012,11 @@
       window.addEventListener('resize', function () { c.resize(); });
     })();
 
-    // ── AQI GAUGE ──
+    // ── AQI GAUGE ── (убран по редизайну Astra: AQI теперь числом + шкалой в HTML)
     (function () {
-      var c = echarts.init(document.getElementById('chart-aqi'));
+      var el = document.getElementById('chart-aqi');
+      if (!el) return;
+      var c = echarts.init(el);
       c.setOption({
         backgroundColor: BG,
         series: [{

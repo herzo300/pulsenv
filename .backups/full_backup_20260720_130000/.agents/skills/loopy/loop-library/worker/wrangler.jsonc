@@ -1,0 +1,60 @@
+{
+  "name": "loop-library-forms",
+  "main": "src/index.js",
+  "compatibility_date": "2026-06-17",
+  "workers_dev": true,
+  "ratelimits": [
+    {
+      "name": "TURNSTILE_RATE_LIMITER",
+      "namespace_id": "31573134555896",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "FORM_GUARD",
+        "class_name": "FormGuard"
+      },
+      {
+        "name": "LOOP_CATALOG",
+        "class_name": "LoopCatalog"
+      },
+      {
+        "name": "VOTE_STORE",
+        "class_name": "VoteStore"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["FormGuard"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["LoopCatalog"]
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": ["VoteStore"]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "ALLOWED_ORIGINS": "https://signals.forwardfuture.com,http://localhost:4173,http://127.0.0.1:4173",
+    "ALLOWED_ORIGIN_SUFFIXES": ".here.now",
+    "BOOTSTRAP_CATALOG_DIGEST": "d87c8012d25a8563418a820718ef911b01e0ad5e6cb27544cfde9a833a4aba18",
+    "BOOTSTRAP_LOOP_COUNT": "50",
+    "PUBLIC_ORIGIN_URL": "https://calm-mortar-jtek.here.now/",
+    "PUBLIC_SHELL_URL": "https://calm-mortar-jtek.here.now/index.html",
+    "PUBLIC_SITE_HOSTNAME": "signals.forwardfuture.com",
+    "PUBLIC_SITE_PATH": "/loop-library",
+    "VOTING_UI_ENABLED": "true"
+  }
+}

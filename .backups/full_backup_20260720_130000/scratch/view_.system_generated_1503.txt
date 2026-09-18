@@ -1,0 +1,108 @@
+Created At: 2026-06-24T05:16:25Z
+Completed At: 2026-06-24T05:16:26Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1886
+Total Bytes: 84525
+Showing lines 1251 to 1350
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1251: class _WeatherAmbientPainter extends CustomPainter {
+1252:   _WeatherAmbientPainter({
+1253:     required this.kind,
+1254:     required this.progress,
+1255:     required this.isNight,
+1256:     required this.accent,
+1257:   });
+1258: 
+1259:   final String kind;
+1260:   final double progress;
+1261:   final bool isNight;
+1262:   final Color accent;
+1263: 
+1264:   @override
+1265:   void paint(Canvas canvas, Size size) {
+1266:     final List<Color> colors;
+1267:     if (isNight) {
+1268:       switch (kind) {
+1269:         case 'clear':
+1270:           colors = [const Color(0xFF030712), const Color(0xFF0F172A), const Color(0xFF1E1B4B)];
+1271:           break;
+1272:         case 'rain':
+1273:         case 'storm':
+1274:           colors = [const Color(0xFF090D16), const Color(0xFF0F172A)];
+1275:           break;
+1276:         case 'snow':
+1277:           colors = [const Color(0xFF0F172A), const Color(0xFF1E293B)];
+1278:           break;
+1279:         case 'wind':
+1280:         case 'fog':
+1281:           colors = [const Color(0xFF020617), const Color(0xFF0F172A)];
+1282:           break;
+1283:         default:
+1284:           colors = [const Color(0xFF020617), const Color(0xFF1E293B)];
+1285:       }
+1286:     } else {
+1287:       switch (kind) {
+1288:         case 'clear':
+1289:           colors = [const Color(0xFF38BDF8), const Color(0xFF7DD3FC), const Color(0xFFBAE6FD)];
+1290:           break;
+1291:         case 'rain':
+1292:         case 'storm':
+1293:           colors = [const Color(0xFF475569), const Color(0xFF334155)];
+1294:           break;
+1295:         case 'snow':
+1296:           colors = [const Color(0xFFE2E8F0), const Color(0xFFF1F5F9)];
+1297:           break;
+1298:         case 'wind':
+1299:         case 'fog':
+1300:           colors = [const Color(0xFF94A3B8), const Color(0xFFCBD5E1)];
+1301:           break;
+1302:         default:
+1303:           colors = [const Color(0xFF7DD3FC), const Color(0xFFE2E8F0)];
+1304:       }
+1305:     }
+1306: 
+1307:     final rect = Offset.zero & size;
+1308:     final bgPaint = Paint()
+1309:       ..shader = LinearGradient(
+1310:         begin: Alignment.topCenter,
+1311:         end: Alignment.bottomCenter,
+1312:         colors: colors,
+1313:       ).createShader(rect);
+1314:     canvas.drawRect(rect, bgPaint);
+1315: 
+1316:     // Dynamic Lightning Flash for Storm
+1317:     if (!isNight && kind == 'storm') {
+1318:       final flashVal = math.sin(progress * math.pi * 18);
+1319:       if (flashVal > 0.88) {
+1320:         canvas.drawRect(
+1321:           rect,
+1322:           Paint()..color = Colors.white.withOpacity(0.25 * ((flashVal - 0.88) / 0.12)),
+1323:         );
+1324:       }
+1325:     } else if (isNight && kind == 'storm') {
+1326:       final flashVal = math.sin(progress * math.pi * 14);
+1327:       if (flashVal > 0.9) {
+1328:         canvas.drawRect(
+1329:           rect,
+1330:           Paint()..color = accent.withOpacity(0.18 * ((flashVal - 0.9) / 0.1)),
+1331:         );
+1332:       }
+1333:     }
+1334: 
+1335:     // Twinkling stars for clear night
+1336:     if (isNight && kind == 'clear') {
+1337:       for (int i = 0; i < 40; i++) {
+1338:         final seed = i * 47.0;
+1339:         final x = (seed * 19) % size.width;
+1340:         final y = (seed * 37) % (size.height * 0.45);
+1341:         final starPulse = 0.3 + 0.7 * math.sin(progress * math.pi * 4 + seed);
+1342:         final starPaint = Paint()..color = Colors.white.withOpacity(0.4 * starPulse);
+1343:         canvas.drawCircle(Offset(x, y), 0.8 + (i % 2) * 0.6, starPaint);
+1344:         if (i % 8 == 0) {
+1345:           // Glow aura
+1346:           canvas.drawCircle(Offset(x, y), 3.0 + (i % 3), Paint()..color = Colors.white.withOpacity(0.08 * starPulse));
+1347:         }
+1348:       }
+1349:     }
+1350: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

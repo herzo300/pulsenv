@@ -1,0 +1,24 @@
+Created At: 2026-06-23T15:22:39Z
+Completed At: 2026-06-23T15:22:39Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1888
+Total Bytes: 84967
+Showing lines 1665 to 1680
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1665: 
+1666:   bool _isEmergencyAlert(Map<String, dynamic> item) {
+1667:     final cat = (item['category'] ?? '').toString().toLowerCase();
+1668:     final txt = (item['text'] ?? '').toString().toLowerCase();
+1669:     final hasEmergency = cat.contains('чп') || cat.contains('чрезвыч') || txt.contains('чп') || txt.contains('чрезвыч') || txt.contains('пожар') || txt.contains('взрыв');
+1670:     final hasAccident = cat.contains('авари') || cat.contains('дтп') || txt.contains('авари') || txt.contains('дтп') || txt.contains('столкн');
+1671:     final hasCrime = cat.contains('кримин') || cat.contains('преступ') || txt.contains('кримин') || txt.contains('преступ') || txt.contains('краж') || txt.contains('драка') || txt.contains('убий');
+1672:     return hasEmergency || hasAccident || hasCrime;
+1673:   }
+1674: 
+1675:   @override
+1676:   Widget build(BuildContext context) {
+1677:     String text = '';
+1678:     IconData leadingIcon = Icons.campaign_rounded;
+1679:     Color bg = widget.isNightMode ? const Color(0xB30A101C) : const Color(0xDDF0F8FF);
+1680:     Color border = widget.accent.withAlpha(90);
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

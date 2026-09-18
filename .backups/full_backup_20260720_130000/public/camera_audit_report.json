@@ -1,0 +1,1310 @@
+{
+  "total": 216,
+  "working_count": 187,
+  "broken_count": 29,
+  "errors": {
+    "HTTP 502": 7,
+    "HTTP 401": 19,
+    "HTTP 404": 3
+  },
+  "working": [
+    {
+      "name": "60 лет Октября, 10",
+      "url": "https://stream3.dantser.org/NV_60Let_10/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "60 лет Октября, 3",
+      "url": "https://stream3.dantser.org/NV_60Let_3/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "60 лет Октября, 54",
+      "url": "https://stream3.dantser.org/NV_60Let_54/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Героев Самотлора, в сторону Северная (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_geroi28_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Двор ул. Ленина 28 камера 1 (Прайд)",
+      "url": "https://nginx01.pride-net.ru/ln28_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Двор ул. Ленина 28 камера 2 (Прайд)",
+      "url": "https://nginx01.pride-net.ru/ln28_2/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Декабристов, 11",
+      "url": "https://stream3.dantser.org/NV_Dekabristov_11/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Излучинск, перекресток Пионерная - Таежная (Прайд)",
+      "url": "https://nginx03.pride-net.ru/taeg12/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Кольцо 60 лет Октября - Ханты-Мансийская (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_60let59/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Ленина, 21",
+      "url": "https://stream3.dantser.org/NV_Lenina_21/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Ленина, 37",
+      "url": "https://stream3.dantser.org/NV_Lenina_37/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Ленина, 39",
+      "url": "https://stream3.dantser.org/NV_Lenina_39/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мira, 24",
+      "url": "https://stream3.dantser.org/NV_Mira_24/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Маршала Жукова, 9",
+      "url": "https://stream3.dantser.org/NV_Zhukova_9/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мегион, Городская площадь (Прайд)",
+      "url": "https://nginx03.pride-net.ru/m_zar15i/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мегион, Перекресток Заречная - Губкина (Прайд)",
+      "url": "https://nginx03.pride-net.ru/zar_16/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мира, 13",
+      "url": "https://stream3.dantser.org/NV_Mira_13/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мира, 15",
+      "url": "https://stream3.dantser.org/NV_Mira_15/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мира, 25",
+      "url": "https://stream3.dantser.org/NV_Mira_25/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мира, 26",
+      "url": "https://stream3.dantser.org/NV_Mira_26/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мира, 32",
+      "url": "https://stream3.dantser.org/NV_Mira_32/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мира, 50",
+      "url": "https://stream3.dantser.org/NV_Mira_50/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мира, 54",
+      "url": "https://stream3.dantser.org/NV_Mira_54/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мира, 62",
+      "url": "https://stream3.dantser.org/NV_Mira_62/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мира, 66",
+      "url": "https://stream3.dantser.org/NV_Mira_66/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мира, 66А",
+      "url": "https://stream3.dantser.org/NV_Mira_66a/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мира, 93",
+      "url": "https://stream3.dantser.org/NV_Mira_93/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мира, 94",
+      "url": "https://stream3.dantser.org/NV_Mira_94/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мира, 95",
+      "url": "https://stream3.dantser.org/NV_Mira_95/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мира, 99",
+      "url": "https://stream3.dantser.org/NV_Mira_99/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, Интернациональная, в сторону Зимней (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_inter2g_i_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, Интернациональная, в сторону Северной (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_inter2g_i_2/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, Прибрежная зона 3 (Прайд)",
+      "url": "https://nginx03.pride-net.ru/cam_kurop1_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток Индустриальная - Ленина (Прайд)",
+      "url": "https://nginx01.pride-net.ru/industr20_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток Интернациональная - Северная Вид2 (Прайд)",
+      "url": "https://nginx04.pride-net.ru/geroi30_vario5_50/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток Ленина - Салманова (Прайд)",
+      "url": "https://nginx03.pride-net.ru/cam_ln41_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток Мусы Джалиля - Пикмана (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_60l44_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток Салманова - Мира (Прайд)",
+      "url": "https://nginx04.pride-net.ru/mr103_2_0280/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток Салманова - Московкина (Прайд)",
+      "url": "https://nginx04.pride-net.ru/mosk5_1_0280/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток Северная - Героев Самотлора (Прайд)",
+      "url": "https://nginx04.pride-net.ru/geroi30_1_0280/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток Северная - Зимняя (Прайд)",
+      "url": "https://nginx04.pride-net.ru/cam_sv48_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток ул. Северная (Прайд)",
+      "url": "https://nginx01.pride-net.ru/sv56_pass_poe/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Омская, 23",
+      "url": "https://stream3.dantser.org/NV_Omskaya_23/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Омская, 64",
+      "url": "https://stream3.dantser.org/NV_Omskaya_64/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Пермская, 4",
+      "url": "https://stream3.dantser.org/NV_Permskaya_4/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Прибрежная зона 2 (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_60l76_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Салманова, 4",
+      "url": "https://stream3.dantser.org/NV_Salmanova_4/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Салманова, 5",
+      "url": "https://stream3.dantser.org/NV_Salmanova_5/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Салманова, от Ленина в сторону Мира (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_salman3_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Салманова, от Мира в сторону Ленина (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_salman4_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Северная, 12",
+      "url": "https://stream3.dantser.org/NV_Severnaya_12/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Северная, 19Г",
+      "url": "https://stream3.dantser.org/NV_Severnaya_19g/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Северная, 48",
+      "url": "https://stream3.dantser.org/NV_Severnaya_48/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Северная, 70",
+      "url": "https://stream3.dantser.org/NV_Severnaya_70/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Северная, 72",
+      "url": "https://stream3.dantser.org/NV_Severnaya_72/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Северная, 84",
+      "url": "https://stream3.dantser.org/NV_Severnaya_84/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Учительский бульвар (Прайд)",
+      "url": "https://nginx03.pride-net.ru/geroi23/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Чапаева, 7",
+      "url": "https://stream3.dantser.org/NV_Chapaeva_7/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "кольцо Чапаева - Ленина (Прайд)",
+      "url": "https://nginx03.pride-net.ru/ln19/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекреcток Чапаева - 60 лет Октября (Прайд)",
+      "url": "https://nginx01.pride-net.ru/per60l46/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток 60 лет Октября - Кузоваткина (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_60l4_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток 60 лет Октября - Победы (Прайд)",
+      "url": "https://nginx03.pride-net.ru/60l12aii/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Героев Самотлора - Московкина (Прайд)",
+      "url": "https://nginx03.pride-net.ru/geroi25/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Героев Самотлора - Профсоюзная (Прайд)",
+      "url": "https://nginx03.pride-net.ru/prof9/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Зимняя - Интернациональная (Прайд)",
+      "url": "https://nginx03.pride-net.ru/inter2/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Интернациональная - Дзержинского (Прайд)",
+      "url": "https://nginx01.pride-net.ru/inter49iii/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Интернациональная - Нефтяников (Прайд)",
+      "url": "https://nginx03.pride-net.ru/int_nf/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Интернациональная - Пермская (Прайд)",
+      "url": "https://nginx03.pride-net.ru/int22/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Кузоваткина - Мира (Прайд)",
+      "url": "https://nginx03.pride-net.ru/mend29/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Ленина - Дзержинского (Прайд)",
+      "url": "https://nginx03.pride-net.ru/ln17/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Ленина - Дружбы Народов (Прайд)",
+      "url": "https://nginx03.pride-net.ru/DN22ii/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Ленина - Мусы Джалиля (Прайд)",
+      "url": "https://nginx03.pride-net.ru/musdz25/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Ленина - Нефтяников (Прайд)",
+      "url": "https://nginx03.pride-net.ru/nf44_4p/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Мира - Дружбы Народов (Прайд)",
+      "url": "https://nginx01.pride-net.ru/mira76_d_nar/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Мира - Маршала Жукова (Прайд)",
+      "url": "https://nginx03.pride-net.ru/mira26/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Мира - Нефтяников (Прайд)",
+      "url": "https://nginx01.pride-net.ru/mr50/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Мира - Нефтяников (Прайд)",
+      "url": "https://nginx01.pride-net.ru/mr50_2/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Мира - Пермская (Прайд)",
+      "url": "https://nginx01.pride-net.ru/mira76_x_mans/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Нововартовская - Героев Самотлора (Прайд)",
+      "url": "https://nginx03.pride-net.ru/novvart8/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Омская - Дружбы Народов (Прайд)",
+      "url": "https://nginx03.pride-net.ru/omsk62/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Омская - Нефтяников (Прайд)",
+      "url": "https://nginx03.pride-net.ru/omsk26/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Омская - Ханты-Мансийская (Прайд)",
+      "url": "https://nginx03.pride-net.ru/hm21i/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Романтиков - Восточный пр-д (Прайд)",
+      "url": "https://nginx03.pride-net.ru/hm26/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Северная - Маршала Жукова (Прайд)",
+      "url": "https://nginx03.pride-net.ru/gk40/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Спортивная - Дзержинского (Прайд)",
+      "url": "https://nginx01.pride-net.ru/sp13i/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Спортивная - Нефтяников (Прайд)",
+      "url": "https://nginx03.pride-net.ru/nf37/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Ханты-Мансийская - Профсоюзная (Прайд)",
+      "url": "https://nginx01.pride-net.ru/hm45_2_ext/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Чапаева - Мира (Прайд)",
+      "url": "https://nginx01.pride-net.ru/mira60ii/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Чапаева - Северная (Прайд)",
+      "url": "https://nginx01.pride-net.ru/sev70/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Чапаева - Таежная (Прайд)",
+      "url": "https://nginx03.pride-net.ru/Chap11/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Чапаева- Пикмана (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_60l48/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "ул Салманова в сторону ул Мира (Прайд)",
+      "url": "https://nginx04.pride-net.ru/sv118_1_0280/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "ул. Осенняя в сторону ул Рабочая (Прайд)",
+      "url": "https://nginx04.pride-net.ru/cam_osen7-1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "улица Интернациональная (Прайд)",
+      "url": "https://nginx01.pride-net.ru/inter49iii_2/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "улица Интернациональная (Прайд)",
+      "url": "https://nginx01.pride-net.ru/inter59/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "улица Мира (Прайд)",
+      "url": "https://nginx01.pride-net.ru/mira32/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "улица Нефтяников (Прайд)",
+      "url": "https://nginx01.pride-net.ru/mr50_3/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "улица Пермская (Прайд)",
+      "url": "https://nginx01.pride-net.ru/inter59a/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "улица Пермская (Прайд)",
+      "url": "https://nginx01.pride-net.ru/perm21_1p/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "улица Пермская (Прайд)",
+      "url": "https://nginx01.pride-net.ru/perm21_6p/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "улица Салманова в сторону улицы Московкина (Прайд)",
+      "url": "https://nginx04.pride-net.ru/mr103_1_0280/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "улица Северная в сторону Кузоваткина (Прайд)",
+      "url": "https://nginx01.pride-net.ru/sv16/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, Комсомольский бульвар, вид 1 (Прайд)",
+      "url": "https://nginx04.pride-net.ru/cam_mr27ii_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток Северная - Зимняя (Прайд)",
+      "url": "https://nginx04.pride-net.ru/cam_sv48_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток Интернациональная - Северная Вид2 (Прайд)",
+      "url": "https://nginx04.pride-net.ru/geroi30_vario5_50/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток Ленина - Салманова (Прайд)",
+      "url": "https://nginx03.pride-net.ru/cam_ln41_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток Салманова - Московкина (Прайд)",
+      "url": "https://nginx04.pride-net.ru/mosk5_1_0280/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток Салманова - Мира (Прайд)",
+      "url": "https://nginx04.pride-net.ru/mr103_2_0280/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "улица Салманова в сторону улицы Московкина (Прайд)",
+      "url": "https://nginx04.pride-net.ru/mr103_1_0280/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "ул Салманова в сторону ул Мира (Прайд)",
+      "url": "https://nginx04.pride-net.ru/sv118_1_0280/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток Северная - Героев Самотлора (Прайд)",
+      "url": "https://nginx04.pride-net.ru/geroi30_1_0280/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "ул. Осенняя в сторону ул Рабочая (Прайд)",
+      "url": "https://nginx04.pride-net.ru/cam_osen7-1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, Прибрежная зона 3 (Прайд)",
+      "url": "https://nginx03.pride-net.ru/cam_kurop1_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Сквер Учителей (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_rom12_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток Индустриальная - Ленина (Прайд)",
+      "url": "https://nginx01.pride-net.ru/industr20_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, Интернациональная, в сторону Северной (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_inter2g_i_2/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, Интернациональная, в сторону Зимней (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_inter2g_i_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток Мусы Джалиля - Пикмана (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_60l44_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Прибрежная зона 2 (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_60l76_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Прибрежная зона 1 (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_60l88_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Героев Самотлора, в сторону Северная (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_geroi28_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Салманова, от Мира в сторону Ленина (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_salman4_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Салманова, от Ленина в сторону Мира (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_salman3_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "проезд Восточный (Прайд)",
+      "url": "https://nginx03.pride-net.ru/cam_salm5_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Учительский бульвар (Прайд)",
+      "url": "https://nginx03.pride-net.ru/geroi23/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Нижневартовск, перекресток ул. Северная (Прайд)",
+      "url": "https://nginx01.pride-net.ru/sv56_pass_poe/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Излучинск, перекресток Пионерная - Таежная (Прайд)",
+      "url": "https://nginx03.pride-net.ru/taeg12/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мегион, Городская площадь (Прайд)",
+      "url": "https://nginx03.pride-net.ru/m_zar15i/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Излучинск, кольцо Энергетиков - Строителей (Прайд)",
+      "url": "https://nginx03.pride-net.ru/en11/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Мегион, Перекресток Заречная - Губкина (Прайд)",
+      "url": "https://nginx03.pride-net.ru/zar_16/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Чапаева - Спортивная (Прайд)",
+      "url": "https://nginx03.pride-net.ru/sport13iii/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Чапаева- Пикмана (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_60l48/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Ханты-Мансийская - Интернациональная (Прайд)",
+      "url": "https://nginx01.pride-net.ru/hm45_1_ext_ext/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток 60 лет Октября - Победы (Прайд)",
+      "url": "https://nginx03.pride-net.ru/60l12aii/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Омская - Кузоваткина (Прайд)",
+      "url": "https://nginx03.pride-net.ru/omsk2/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Ленина - Дзержинского (Прайд)",
+      "url": "https://nginx03.pride-net.ru/ln17/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "улица Мира (Прайд)",
+      "url": "https://nginx01.pride-net.ru/mira32/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Спортивная - Дзержинского (Прайд)",
+      "url": "https://nginx01.pride-net.ru/sp13i/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Омская - Нефтяников (Прайд)",
+      "url": "https://nginx03.pride-net.ru/omsk26/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Спортивная - Нефтяников (Прайд)",
+      "url": "https://nginx03.pride-net.ru/nf37/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Мира - Пермская (Прайд)",
+      "url": "https://nginx01.pride-net.ru/mira76_x_mans/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток 60 лет Октября - Дружбы Народов (Прайд)",
+      "url": "https://nginx03.pride-net.ru/dn7/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "улица Нефтяников (Прайд)",
+      "url": "https://nginx01.pride-net.ru/mr50_3/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "улица Пермская (Прайд)",
+      "url": "https://nginx01.pride-net.ru/perm21_6p/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "улица Пермская (Прайд)",
+      "url": "https://nginx01.pride-net.ru/perm21_1p/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "улица Интернациональная (Прайд)",
+      "url": "https://nginx01.pride-net.ru/inter49iii_2/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "улица Пермская (Прайд)",
+      "url": "https://nginx01.pride-net.ru/inter59a/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "улица Интернациональная (Прайд)",
+      "url": "https://nginx01.pride-net.ru/inter59/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Мира - Дружбы Народов (Прайд)",
+      "url": "https://nginx01.pride-net.ru/mira76_d_nar/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Мира - Романтиков (Прайд)",
+      "url": "https://nginx03.pride-net.ru/mira94/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Мусы Джалиля - 60 лет Октября (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_60let23_ext/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Романтиков - Восточный пр-д (Прайд)",
+      "url": "https://nginx03.pride-net.ru/hm26/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Ханты-Мансийская - Профсоюзная (Прайд)",
+      "url": "https://nginx01.pride-net.ru/hm45_2_ext/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток 60 лет Октября - Кузоваткина (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_60l4_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Героев Самотлора - Московкина (Прайд)",
+      "url": "https://nginx03.pride-net.ru/geroi25/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Героев Самотлора - Профсоюзная (Прайд)",
+      "url": "https://nginx03.pride-net.ru/prof9/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Мира - Героев Самотлора (Прайд)",
+      "url": "https://nginx03.pride-net.ru/mira98_ext/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Мира - Нефтяников (Прайд)",
+      "url": "https://nginx01.pride-net.ru/mr50_2/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Мира - Маршала Жукова (Прайд)",
+      "url": "https://nginx03.pride-net.ru/mira26/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Зимняя - Интернациональная (Прайд)",
+      "url": "https://nginx03.pride-net.ru/inter2/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Мира - проспект Победы (Прайд)",
+      "url": "https://nginx03.pride-net.ru/mira23/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Кольцо 60 лет Октября - Ханты-Мансийская (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_60let59/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Двор ул. Ленина 28 камера 2 (Прайд)",
+      "url": "https://nginx01.pride-net.ru/ln28_2/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Двор ул. Ленина 28 камера 1 (Прайд)",
+      "url": "https://nginx01.pride-net.ru/ln28_1/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Омская - Ханты-Мансийская (Прайд)",
+      "url": "https://nginx03.pride-net.ru/hm21i/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Ленина - Нефтяников (Прайд)",
+      "url": "https://nginx03.pride-net.ru/nf44_4p/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Омская - Дружбы Народов (Прайд)",
+      "url": "https://nginx03.pride-net.ru/omsk62/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Храм Рождества Христова (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_60l51/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Интернациональная - Дзержинского (Прайд)",
+      "url": "https://nginx01.pride-net.ru/inter49iii/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Интернациональная - Чапаева (Прайд)",
+      "url": "https://nginx03.pride-net.ru/inter49i/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Чапаева - Северная (Прайд)",
+      "url": "https://nginx01.pride-net.ru/sev70/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "кольцо Чапаева - Ленина (Прайд)",
+      "url": "https://nginx03.pride-net.ru/ln19/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекреcток Чапаева - 60 лет Октября (Прайд)",
+      "url": "https://nginx01.pride-net.ru/per60l46/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Кузоваткина - Мира (Прайд)",
+      "url": "https://nginx03.pride-net.ru/mend29/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Ленина - Ханты-Мансийской (Прайд)",
+      "url": "https://nginx03.pride-net.ru/hm21_2/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Чапаева - Мира (Прайд)",
+      "url": "https://nginx01.pride-net.ru/mira60ii/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Мира - Нефтяников (Прайд)",
+      "url": "https://nginx01.pride-net.ru/mr50/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Интернациональная - Нефтяников (Прайд)",
+      "url": "https://nginx03.pride-net.ru/int_nf/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Чапаева - Таежная (Прайд)",
+      "url": "https://nginx03.pride-net.ru/Chap11/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Ленина - Дружбы Народов (Прайд)",
+      "url": "https://nginx03.pride-net.ru/DN22ii/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Мира - Дзержинского (Прайд)",
+      "url": "https://nginx01.pride-net.ru/Mira60i/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Интернациональная - Северная (Прайд)",
+      "url": "https://nginx03.pride-net.ru/int13/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "перекресток Нефтяников - Северная (Прайд)",
+      "url": "https://nginx03.pride-net.ru/nf93/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Lenina 31",
+      "url": "https://stream3.dantser.org/NV_Lenina_31/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Permskaya 8",
+      "url": "https://stream3.dantser.org/NV_Permskaya_8/tracks-v1/mono.ts.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Камера 60l12aii (Прайд)",
+      "url": "https://nginx01.pride-net.ru/60l12aii/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    },
+    {
+      "name": "Камера industr20_2 (Прайд)",
+      "url": "https://nginx01.pride-net.ru/industr20_2/index.m3u8",
+      "status": 200,
+      "error": "OK"
+    }
+  ],
+  "broken": [
+    {
+      "name": "Нижневартовск, ТЦ Форт (Прайд)",
+      "url": "https://nginx02.pride-net.ru/cam_60l46_fort/index.m3u8",
+      "status": 502,
+      "error": "HTTP 502"
+    },
+    {
+      "name": "Нижневартовск, Ханты-Мансийская в сторону 60 лет Октября (Прайд)",
+      "url": "https://nginx02.pride-net.ru/cam_hm19_1/index.m3u8",
+      "status": 502,
+      "error": "HTTP 502"
+    },
+    {
+      "name": "Сквер Учителей (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_rom12_1/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "Чапаева, 53",
+      "url": "https://stream3.dantser.org/NV_Chapaeva_53/tracks-v1/mono.ts.m3u8",
+      "status": 404,
+      "error": "HTTP 404"
+    },
+    {
+      "name": "перекресток 60 лет Октября - Дружбы Народов (Прайд)",
+      "url": "https://nginx03.pride-net.ru/dn7/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "перекресток Интернациональная - Чапаева (Прайд)",
+      "url": "https://nginx03.pride-net.ru/inter49i/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "перекресток Ленина - Ханты-Мансийской (Прайд)",
+      "url": "https://nginx03.pride-net.ru/hm21_2/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "перекресток Ленина - героев Самотлора (Прайд)",
+      "url": "https://nginx02.pride-net.ru/geroi16/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "перекресток Мира - Дзержинского (Прайд)",
+      "url": "https://nginx01.pride-net.ru/Mira60i/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "перекресток Мира - Ханты-Мансийской (Прайд)",
+      "url": "https://nginx03.pride-net.ru/mira85/index.m3u8",
+      "status": 404,
+      "error": "HTTP 404"
+    },
+    {
+      "name": "перекресток Мира - проспект Победы (Прайд)",
+      "url": "https://nginx03.pride-net.ru/mira23/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "перекресток Мусы Джалиля - 60 лет Октября (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_60let23_ext/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "перекресток Ханты-Мансийская - Интернациональная (Прайд)",
+      "url": "https://nginx01.pride-net.ru/hm45_1_ext_ext/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "перекресток Чапаева - Спортивная (Прайд)",
+      "url": "https://nginx03.pride-net.ru/sport13iii/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "проезд Восточный (Прайд)",
+      "url": "https://nginx03.pride-net.ru/cam_salm5_1/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "Нижневартовск, улица Северная, в сторону улицы Маршала Жукова (Прайд)",
+      "url": "https://nginx02.pride-net.ru/cam_sev9/index.m3u8",
+      "status": 502,
+      "error": "HTTP 502"
+    },
+    {
+      "name": "Нижневартовск, ТЦ Форт (Прайд)",
+      "url": "https://nginx02.pride-net.ru/cam_60l46_fort/index.m3u8",
+      "status": 502,
+      "error": "HTTP 502"
+    },
+    {
+      "name": "Нижневартовск, Ханты-Мансийская в сторону 60 лет Октября (Прайд)",
+      "url": "https://nginx02.pride-net.ru/cam_hm19_1/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "улица Северная в сторону Кузоваткина (Прайд)",
+      "url": "https://nginx01.pride-net.ru/sv16/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "перекресток Нововартовская - Героев Самотлора (Прайд)",
+      "url": "https://nginx03.pride-net.ru/novvart8/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "перекресток Ленина - героев Самотлора (Прайд)",
+      "url": "https://nginx02.pride-net.ru/geroi16/index.m3u8",
+      "status": 502,
+      "error": "HTTP 502"
+    },
+    {
+      "name": "перекресток Героев Самотлора - Восточный проезд (Прайд)",
+      "url": "https://nginx02.pride-net.ru/geroi18/index.m3u8",
+      "status": 502,
+      "error": "HTTP 502"
+    },
+    {
+      "name": "перекресток Ленина - Мусы Джалиля (Прайд)",
+      "url": "https://nginx03.pride-net.ru/musdz25/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "Набережная реки Обь (Прайд)",
+      "url": "https://nginx01.pride-net.ru/cam_60l8/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "перекресток Интернациональная - Пермская (Прайд)",
+      "url": "https://nginx03.pride-net.ru/int22/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "перекресток Мира - Ханты-Мансийской (Прайд)",
+      "url": "https://nginx03.pride-net.ru/mira85/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "перекресток Нефтяников - 60 лет Октября (Прайд)",
+      "url": "https://nginx03.pride-net.ru/nf2/index.m3u8",
+      "status": 404,
+      "error": "HTTP 404"
+    },
+    {
+      "name": "перекресток Северная - Маршала Жукова (Прайд)",
+      "url": "https://nginx03.pride-net.ru/gk40/index.m3u8",
+      "status": 401,
+      "error": "HTTP 401"
+    },
+    {
+      "name": "Камера cam_osen7-1 (Прайд)",
+      "url": "https://nginx02.pride-net.ru/cam_osen7-1/index.m3u8",
+      "status": 502,
+      "error": "HTTP 502"
+    }
+  ]
+}

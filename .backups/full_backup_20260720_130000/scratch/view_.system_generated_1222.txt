@@ -1,0 +1,54 @@
+Created At: 2026-06-23T04:55:51Z
+Completed At: 2026-06-23T04:55:51Z
+File Path: `file:///C:/Users/%D1%80%D1%81/.gemini/antigravity/brain/aed93f9b-cd64-4600-9659-275a143be7fc/implementation_plan.md`
+Total Lines: 46
+Total Bytes: 2947
+Showing lines 1 to 46
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Implementation Plan - Weather Screen & UK Office Map Focus
+2: 
+3: This plan simplifies the weather screen to a single unified view, adds interactive explanations for space/atmosphere parameters based on their current values, removes wind gusts, and geocodes/shows the UK office address on the city map.
+4: 
+5: ## Proposed Changes
+6: 
+7: ### 1. Backend Endpoint for UK Office Geocoding
+8: #### [MODIFY] [uk_ratings.py](file:///c:/Soobshio_project/services/Backend/routers/uk_ratings.py)
+9: - Add a new endpoint `GET /api/uk/{uk_name}/office_coordinate`.
+10: - The endpoint will fetch the UK by name from the catalog, extract its office address, and resolve it to GPS coordinates using `get_coordinates` from `services.business.geo_service`.
+11: 
+12: ---
+13: 
+14: ### 2. Frontend Repository Method
+15: #### [MODIFY] [reports_repository.dart](file:///c:/Soobshio_project/services/Frontend/lib/services/reports_repository.dart)
+16: - Add a method `fetchUkOfficeCoordinate(String ukName)` to query the new backend endpoint and return coordinates and address.
+17: 
+18: ---
+19: 
+20: ### 3. UK Map Focus & Office Marker
+21: #### [MODIFY] [map_screen.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map_screen.dart)
+22: - Declare `Map<String, dynamic>? _ukOfficeFocused;` in state.
+23: - In `_applyUkMapFocus`, fetch office coordinates. If found, set `_ukOfficeFocused` and move the map camera to the office address.
+24: - In `MarkerLayer`, if `_ukOfficeFocused != null`, render a highlighted hexagon marker with `Icons.domain_rounded` at the office location. Tapping it will open the UK detail dialog.
+25: - Update `_showUkDetails` dialog to show the company's physical address.
+26: - Clear `_ukOfficeFocused` when the user resets the UK filter.
+27: 
+28: ---
+29: 
+30: ### 4. Weather Panel Simplification
+31: #### [MODIFY] [weather_overlay_panel.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart)
+32: - Remove `_activeTab` state and tab selector widgets. Combine "Реальные условия" and "Предупреждения" sections into a single scrollable viewport.
+33: - Remove information channels alerts completely (`_buildChannelWarnings`). Only show the meteorological/geostellar warnings (`_buildAnomalyWarnings()`) if anomalies are active.
+34: - Remove wind gusts ("Порывы") parameter from the parameters grid and clean up gusts mentions from warning texts.
+35: - Make the parameters grid interactive. On tapping a parameter, display a modern modal bottom sheet with a detailed description of the parameter's state tailored to its current value.
+36: 
+37: ## Verification Plan
+38: 
+39: ### Automated Tests
+40: - Run backend tests: `pytest`
+41: - Run frontend tests: `flutter test`
+42: 
+43: ### Manual Verification
+44: - Tap on a UK "На карте" button, verify the map centers on the UK office, shows the office marker, and displays the address in the detail card and SnackBar.
+45: - Open weather overlay, verify it's a single screen without tabs, wind gusts are removed, and tapping on parameters displays their descriptions.
+46: 
+The above content shows the entire, complete file contents of the requested file.

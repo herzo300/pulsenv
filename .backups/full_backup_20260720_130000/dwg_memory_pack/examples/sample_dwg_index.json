@@ -1,0 +1,73 @@
+{
+  "format": "dwg-memory-index-v1",
+  "metadata": {
+    "dwgname": "sample.dwg",
+    "dwgprefix": "C:/CAD/",
+    "acadver": "24.3",
+    "insunits": 4,
+    "extmin": [0.0, 0.0, 0.0],
+    "extmax": [100.0, 50.0, 0.0],
+    "exported_cdate": 20260524.204600
+  },
+  "layers": [
+    {"name": "0", "flags": 0, "color": 7, "linetype": "Continuous", "lineweight": -3},
+    {"name": "SURVEY_POINTS", "flags": 0, "color": 2, "linetype": "Continuous", "lineweight": -3},
+    {"name": "BOUNDARY", "flags": 0, "color": 1, "linetype": "Continuous", "lineweight": -3}
+  ],
+  "blocks": [
+    {"name": "*Model_Space", "flags": 0, "xref_path": null, "origin": [0.0, 0.0, 0.0]},
+    {"name": "POINT_LABEL", "flags": 0, "xref_path": null, "origin": [0.0, 0.0, 0.0]}
+  ],
+  "layouts": [
+    {"name": "Model", "tab_order": 1, "block_record": null}
+  ],
+  "entities": [
+    {
+      "handle": "1A2",
+      "type": "LWPOLYLINE",
+      "layer": "BOUNDARY",
+      "layout": "Model",
+      "space": 0,
+      "color": null,
+      "linetype": null,
+      "name": null,
+      "text": null,
+      "attributes": [],
+      "points": [
+        {"code": 10, "value": [0.0, 0.0]},
+        {"code": 10, "value": [100.0, 0.0]},
+        {"code": 10, "value": [100.0, 50.0]},
+        {"code": 10, "value": [0.0, 50.0]}
+      ],
+      "groups": [
+        {"code": 0, "value": "LWPOLYLINE"},
+        {"code": 5, "value": "1A2"},
+        {"code": 8, "value": "BOUNDARY"}
+      ]
+    },
+    {
+      "handle": "1B4",
+      "type": "INSERT",
+      "layer": "SURVEY_POINTS",
+      "layout": "Model",
+      "space": 0,
+      "color": null,
+      "linetype": null,
+      "name": "POINT_LABEL",
+      "text": null,
+      "attributes": [
+        {"handle": "1B5", "tag": "NUM", "text": "101", "layer": "SURVEY_POINTS"},
+        {"handle": "1B6", "tag": "ELEV", "text": "42.17", "layer": "SURVEY_POINTS"}
+      ],
+      "points": [
+        {"code": 10, "value": [25.0, 12.0, 0.0]}
+      ],
+      "groups": [
+        {"code": 0, "value": "INSERT"},
+        {"code": 5, "value": "1B4"},
+        {"code": 8, "value": "SURVEY_POINTS"},
+        {"code": 2, "value": "POINT_LABEL"}
+      ]
+    }
+  ]
+}

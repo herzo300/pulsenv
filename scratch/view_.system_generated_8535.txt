@@ -1,0 +1,49 @@
+Created At: 2026-06-23T15:28:47Z
+Completed At: 2026-06-23T15:28:47Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1886
+Total Bytes: 84587
+Showing lines 860 to 900
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+860:       recs.add('💧 Высокая влажность ($humidity%) при низких температурах: провоцирует суставные и невралгические боли. Одевайтесь теплее, держите ноги в сухости.');
+861:     }
+862: 
+863:     // 6. Скорость ветра
+864:     if (wind > 9.0) {
+865:       recs.add('🌬️ Сильный ветер (порывы до ${gusts.toStringAsFixed(1)} м/с): может спровоцировать приступы одышки, мигрень. Обязательно защищайте голову и шею от ветра.');
+866:     }
+867: 
+868:     // 7. Индекс ультрафиолета
+869:     if (uv > 5.0) {
+870:       recs.add('🧴 Высокое УФ-излучение ($uv): используйте солнцезащитный крем SPF 30+, носите очки и головной убор для защиты кожи и сетчатки глаз.');
+871:     }
+872: 
+873:     // 8. Качество воздуха
+874:     if (aqi > 60) {
+875:       recs.add('😷 Качество воздуха ухудшено ($aqi): астматикам и аллергикам рекомендуется ограничить время нахождения на улице и закрыть окна.');
+876:     }
+877: 
+878:     // 9. Лунный цикл и психика
+879:     if (_displayMoonPhaseName != null && _displayMoonInfluencePct != null) {
+880:       final moonName = _displayMoonPhaseName;
+881:       final moonPct = _displayMoonInfluencePct!.round();
+882:       final moonDesc = _displayMoonPhaseDesc ?? '';
+883:       recs.add('🌙 Лунный цикл: $moonName (влияние на психику $moonPct%).\n$moonDesc');
+884:     }
+885: 
+886:     if (recs.isEmpty) {
+887:       return 'Все геофизические и погодные параметры находятся в пределах нормы. Специфических рекомендаций нет, день благоприятен для любой активности!';
+888:     }
+889: 
+890:     return recs.join('\n\n');
+891:   }
+892: 
+893:   @override
+894:   Widget build(BuildContext context) {
+895:     return Material(
+896:       color: Colors.black.withAlpha(widget.isNightMode ? 120 : 60),
+897:       child: Stack(
+898:         children: [
+899:           Positioned.fill(
+900:             child: AnimatedBuilder(
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

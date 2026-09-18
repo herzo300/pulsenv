@@ -1,0 +1,808 @@
+Created At: 2026-06-23T09:39:43Z
+Completed At: 2026-06-23T09:39:43Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1807
+Total Bytes: 78527
+Showing lines 800 to 1599
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+800:     if (kp >= 4.0) {
+801:       sections.add('Геомагнитное поле возмущено (${kp.toStringAsFixed(1)} Kp), метеозависимым людям рекомендуется снизить физическую нагрузку.');
+802:     } else {
+803:       sections.add('Магнитный фон Земли стабилен.');
+804:     }
+805: 
+806:     if (uv > 5.0) {
+807:       sections.add('УФ-излучение высокое ($uv), рекомендуется использовать защитный крем.');
+808:     }
+809:     
+810:     if (aqi > 60) {
+811:       sections.add('Индекс качества воздуха умеренно повышен ($aqi), рекомендуется реже открывать окна.');
+812:     } else {
+813:       sections.add('Качество воздуха хорошее ($aqi), дышится легко.');
+814:     }
+815:     
+816:     return sections.join(' ');
+817:   }
+818: 
+819:   @override
+820:   Widget build(BuildContext context) {
+821:     return Material(
+822:       color: Colors.black.withAlpha(widget.isNightMode ? 120 : 60),
+823:       child: Stack(
+824:         children: [
+825:           Positioned.fill(
+826:             child: AnimatedBuilder(
+827:               animation: _controller,
+828:               builder: (context, _) => CustomPaint(
+829:                 painter: _WeatherAmbientPainter(
+830:                   kind: _selectedKind,
+831:                   progress: _controller.value,
+832:                   isNight: widget.isNightMode,
+833:                   accent: widget.accent,
+834:                 ),
+835:               ),
+836:             ),
+837:           ),
+838:           SafeArea(
+839:             child: Padding(
+840:               padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+841:               child: Column(
+842:                 crossAxisAlignment: CrossAxisAlignment.start,
+843:                 children: [
+844:                   Align(
+845:                     alignment: Alignment.topRight,
+846:                     child: IconButton(
+847:                       onPressed: widget.onClose,
+848:                       icon: Icon(
+849:                         Icons.close_rounded,
+850:                         color: widget.isNightMode
+851:                             ? Colors.white70
+852:                             : Colors.black54,
+853:                       ),
+854:                     ),
+855:                   ),
+856:                   Text(
+857:                     'Нижневартовск',
+858:                     style: TextStyle(
+859:                       color: widget.isNightMode
+860:                           ? Colors.white60
+861:                           : Colors.black54,
+862:                       fontSize: 14,
+863:                       fontWeight: FontWeight.w600,
+864:                       letterSpacing: 0.6,
+865:                     ),
+866:                   ),
+867:                   const SizedBox(height: 16),
+868:                   Expanded(
+869:                     child: SingleChildScrollView(
+870:                       physics: const BouncingScrollPhysics(),
+871:                       child: Column(
+872:                         crossAxisAlignment: CrossAxisAlignment.start,
+873:                         children: [
+874:                           Row(
+875:                             crossAxisAlignment: CrossAxisAlignment.end,
+876:                             children: [
+877:                               Text(
+878:                                 _displayTemp == null ? '—' : '$_displayTemp°',
+879:                                 style: TextStyle(
+880:                                   color: widget.isNightMode
+881:                                       ? Colors.white
+882:                                       : const Color(0xFF0A2540),
+883:                                   fontSize: 76,
+884:                                   fontWeight: FontWeight.w200,
+885:                                   height: 0.95,
+886:                                   letterSpacing: -2,
+887:                                 ),
+888:                               ),
+889:                               const SizedBox(width: 12),
+890:                               Padding(
+891:                                 padding: const EdgeInsets.only(bottom: 8),
+892:                                 child: Column(
+893:                                   crossAxisAlignment: CrossAxisAlignment.start,
+894:                                   children: [
+895:                                     Text(
+896:                                       _displayCondition,
+897:                                       style: TextStyle(
+898:                                         color: widget.accent,
+899:                                         fontSize: 18,
+900:                                         fontWeight: FontWeight.w700,
+901:                                       ),
+902:                                     ),
+903:                                     if (_displayHumidity != null) ...[
+904:                                       const SizedBox(height: 2),
+905:                                       Text(
+906:                                         'Влажность $_displayHumidity%',
+907:                                         style: TextStyle(
+908:                                           color: widget.isNightMode ? Colors.white70 : Colors.black54,
+909:                                           fontSize: 13,
+910:                                           fontWeight: FontWeight.w600,
+911:                                         ),
+912:                                       ),
+913:                                     ],
+914:                                   ],
+915:                                 ),
+916:                               ),
+917:                             ],
+918:                           ),
+919:                           if (_displayFeels != null)
+920:                             Padding(
+921:                               padding: const EdgeInsets.only(top: 4, bottom: 16),
+922:                               child: Text(
+923:                                 'Ощущается как $_displayFeels°',
+924:                                 style: TextStyle(
+925:                                   color: widget.isNightMode
+926:                                       ? Colors.white54
+927:                                       : Colors.black45,
+928:                                   fontSize: 13,
+929:                                 ),
+930:                               ),
+931:                             ),
+932:                           
+933:                           TiltWidget(
+934:                             child: _buildGlassCard(
+935:                               child: Column(
+936:                                 crossAxisAlignment: CrossAxisAlignment.start,
+937:                                 children: [
+938:                                   Text(
+939:                                     'Общий анализ погоды',
+940:                                     style: TextStyle(
+941:                                       color: widget.isNightMode
+942:                                           ? Colors.white70
+943:                                           : Colors.black54,
+944:                                       fontSize: 12,
+945:                                       fontWeight: FontWeight.w700,
+946:                                     ),
+947:                                   ),
+948:                                   const SizedBox(height: 8),
+949:                                   Text(
+950:                                     _weatherAnalysisSummary,
+951:                                     style: TextStyle(
+952:                                       color: widget.isNightMode
+953:                                           ? Colors.white
+954:                                           : const Color(0xFF0F2742),
+955:                                       fontSize: 13.5,
+956:                                       height: 1.45,
+957:                                     ),
+958:                                   ),
+959:                                 ],
+960:                               ),
+961:                             ),
+962:                           ),
+963:                           
+964:                           const SizedBox(height: 12),
+965:                           
+966:                           TiltWidget(
+967:                             child: _buildGlassCard(
+968:                               child: Column(
+969:                                 crossAxisAlignment: CrossAxisAlignment.start,
+970:                                 children: [
+971:                                   Text(
+972:                                     'Качество воздуха',
+973:                                     style: TextStyle(
+974:                                       color: widget.isNightMode
+975:                                           ? Colors.white70
+976:                                           : Colors.black54,
+977:                                       fontSize: 12,
+978:                                       fontWeight: FontWeight.w700,
+979:                                     ),
+980:                                   ),
+981:                                   const SizedBox(height: 6),
+982:                                   Text(
+983:                                     _displayAqiLevel.toUpperCase(),
+984:                                     style: TextStyle(
+985:                                       color: _aqColor(_displayAqiValue),
+986:                                       fontSize: 26,
+987:                                       fontWeight: FontWeight.w800,
+988:                                     ),
+989:                                   ),
+990:                                   if (_displayAqiSummary.isNotEmpty)
+991:                                     Padding(
+992:                                       padding: const EdgeInsets.only(top: 6),
+993:                                       child: Text(
+994:                                         _displayAqiSummary,
+995:                                         style: TextStyle(
+996:                                           color: widget.isNightMode
+997:                                               ? Colors.white60
+998:                                               : Colors.black54,
+999:                                           fontSize: 12,
+1000:                                           height: 1.4,
+1001:                                         ),
+1002:                                       ),
+1003:                                     ),
+1004:                                 ],
+1005:                               ),
+1006:                             ),
+1007:                           ),
+1008:                           
+1009:                           const SizedBox(height: 12),
+1010:                           
+1011:                           TiltWidget(
+1012:                             child: _buildGlassCard(
+1013:                               child: Column(
+1014:                                 crossAxisAlignment: CrossAxisAlignment.start,
+1015:                                 children: [
+1016:                                   Text(
+1017:                                     'Параметры атмосферы и космоса',
+1018:                                     style: TextStyle(
+1019:                                       color: widget.isNightMode
+1020:                                           ? Colors.white70
+1021:                                           : Colors.black54,
+1022:                                       fontSize: 12,
+1023:                                       fontWeight: FontWeight.w700,
+1024:                                     ),
+1025:                                   ),
+1026:                                   const SizedBox(height: 12),
+1027:                                   Row(
+1028:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1029:                                     children: [
+1030:                                       _spaceParam(
+1031:                                         Icons.compress_rounded,
+1032:                                         'Давление',
+1033:                                         _displayPressure != null ? '${_displayPressure!.round()} мм рт. ст.' : '—',
+1034:                                         _explainPressure,
+1035:                                       ),
+1036:                                       _spaceParam(
+1037:                                         Icons.wb_sunny_rounded,
+1038:                                         'Вспышки',
+1039:                                         _displaySolarFlare != null ? 'Класс $_displaySolarFlare' : '—',
+1040:                                         _explainSolarFlare,
+1041:                                       ),
+1042:                                     ],
+1043:                                   ),
+1044:                                   const Divider(height: 24, color: Colors.white10),
+1045:                                   Row(
+1046:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1047:                                     children: [
+1048:                                       _spaceParam(
+1049:                                         Icons.waves_rounded,
+1050:                                         'Резонанс Шумана',
+1051:                                         _displaySchumannFreq != null
+1052:                                             ? '$_displaySchumannFreq Гц'
+1053:                                             : '—',
+1054:                                         _explainSchumannFreq,
+1055:                                       ),
+1056:                                       _spaceParam(
+1057:                                         Icons.flash_on_rounded,
+1058:                                         'Амплитуда',
+1059:                                         _displaySchumannAmp != null
+1060:                                             ? '$_displaySchumannAmp pT'
+1061:                                             : '—',
+1062:                                         _explainSchumannAmp,
+1063:                                       ),
+1064:                                     ],
+1065:                                   ),
+1066:                                   const Divider(height: 24, color: Colors.white10),
+1067:                                   Row(
+1068:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1069:                                     children: [
+1070:                                       _spaceParam(
+1071:                                         Icons.air_rounded,
+1072:                                         'Ветер',
+1073:                                         _displayWindSpeed != null
+1074:                                             ? '${_displayWindSpeed!.toStringAsFixed(0)} м/с'
+1075:                                             : '—',
+1076:                                         _explainWind,
+1077:                                       ),
+1078:                                       _spaceParam(
+1079:                                         Icons.query_stats_rounded,
+1080:                                         'Сейсмоактивность',
+1081:                                         _displaySeismicMagnitude != null && _displaySeismicMagnitude! > 0
+1082:                                             ? '${_displaySeismicMagnitude!.toStringAsFixed(1)} M'
+1083:                                             : 'Норма',
+1084:                                         _explainSeismic,
+1085:                                       ),
+1086:                                     ],
+1087:                                   ),
+1088:                                   const Divider(height: 24, color: Colors.white10),
+1089:                                   Row(
+1090:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1091:                                     children: [
+1092:                                       _spaceParam(
+1093:                                         Icons.flare_rounded,
+1094:                                         'Kp-индекс',
+1095:                                         _displayKpIndex != null
+1096:                                             ? '${_displayKpIndex!.toStringAsFixed(1)} Kp'
+1097:                                             : '—',
+1098:                                         _explainKpIndex,
+1099:                                       ),
+1100:                                       _spaceParam(
+1101:                                         Icons.light_mode_rounded,
+1102:                                         'УФ-индекс',
+1103:                                         _displayUvIndex != null
+1104:                                             ? '${_displayUvIndex!.toStringAsFixed(1)}'
+1105:                                             : '—',
+1106:                                         _explainUvIndex,
+1107:                                       ),
+1108:                                     ],
+1109:                                   ),
+1110:                                   const Divider(height: 24, color: Colors.white10),
+1111:                                   Row(
+1112:                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+1113:                                     children: [
+1114:                                       _spaceParam(
+1115:                                         Icons.visibility_rounded,
+1116:                                         'Видимость',
+1117:                                         _displayVisibilityM != null
+1118:                                             ? '${(_displayVisibilityM! / 1000).toStringAsFixed(0)} км'
+1119:                                             : '—',
+1120:                                         _explainVisibility,
+1121:                                       ),
+1122:                                       const Expanded(child: SizedBox.shrink()),
+1123:                                     ],
+1124:                                   ),
+1125:                                 ],
+1126:                               ),
+1127:                             ),
+1128:                           ),
+1129:                           if (_hasAnomaly) ...[
+1130:                             const SizedBox(height: 16),
+1131:                             Text(
+1132:                               'Погодные предупреждения',
+1133:                               style: TextStyle(
+1134:                                 fontSize: 12,
+1135:                                 fontWeight: FontWeight.w700,
+1136:                                 color: widget.isNightMode ? Colors.white60 : Colors.black54,
+1137:                               ),
+1138:                             ),
+1139:                             const SizedBox(height: 8),
+1140:                             TiltWidget(
+1141:                               child: Column(
+1142:                                 children: _buildAnomalyWarnings(),
+1143:                               ),
+1144:                             ),
+1145:                           ],
+1146:                         ],
+1147:                       ),
+1148:                     ),
+1149:                   ),
+1150:                 ],
+1151:               ),
+1152:             ),
+1153:           ),
+1154:         ],
+1155:       ),
+1156:     );
+1157:   }
+1158: 
+1159:   Color _aqColor(num? aqi) {
+1160:     if (aqi == null) return widget.accent;
+1161:     if (aqi <= 40) return const Color(0xFF34D399);
+1162:     if (aqi <= 60) return const Color(0xFFFBBF24);
+1163:     if (aqi <= 80) return const Color(0xFFFB923C);
+1164:     return const Color(0xFFEF4444);
+1165:   }
+1166: 
+1167: 
+1168: }
+1169: 
+1170: class _WeatherAmbientPainter extends CustomPainter {
+1171:   _WeatherAmbientPainter({
+1172:     required this.kind,
+1173:     required this.progress,
+1174:     required this.isNight,
+1175:     required this.accent,
+1176:   });
+1177: 
+1178:   final String kind;
+1179:   final double progress;
+1180:   final bool isNight;
+1181:   final Color accent;
+1182: 
+1183:   @override
+1184:   void paint(Canvas canvas, Size size) {
+1185:     final List<Color> colors;
+1186:     if (isNight) {
+1187:       switch (kind) {
+1188:         case 'clear':
+1189:           colors = [const Color(0xFF030712), const Color(0xFF0F172A), const Color(0xFF1E1B4B)];
+1190:           break;
+1191:         case 'rain':
+1192:         case 'storm':
+1193:           colors = [const Color(0xFF090D16), const Color(0xFF0F172A)];
+1194:           break;
+1195:         case 'snow':
+1196:           colors = [const Color(0xFF0F172A), const Color(0xFF1E293B)];
+1197:           break;
+1198:         case 'wind':
+1199:         case 'fog':
+1200:           colors = [const Color(0xFF020617), const Color(0xFF0F172A)];
+1201:           break;
+1202:         default:
+1203:           colors = [const Color(0xFF020617), const Color(0xFF1E293B)];
+1204:       }
+1205:     } else {
+1206:       switch (kind) {
+1207:         case 'clear':
+1208:           colors = [const Color(0xFF38BDF8), const Color(0xFF7DD3FC), const Color(0xFFBAE6FD)];
+1209:           break;
+1210:         case 'rain':
+1211:         case 'storm':
+1212:           colors = [const Color(0xFF475569), const Color(0xFF334155)];
+1213:           break;
+1214:         case 'snow':
+1215:           colors = [const Color(0xFFE2E8F0), const Color(0xFFF1F5F9)];
+1216:           break;
+1217:         case 'wind':
+1218:         case 'fog':
+1219:           colors = [const Color(0xFF94A3B8), const Color(0xFFCBD5E1)];
+1220:           break;
+1221:         default:
+1222:           colors = [const Color(0xFF7DD3FC), const Color(0xFFE2E8F0)];
+1223:       }
+1224:     }
+1225: 
+1226:     final rect = Offset.zero & size;
+1227:     final bgPaint = Paint()
+1228:       ..shader = LinearGradient(
+1229:         begin: Alignment.topCenter,
+1230:         end: Alignment.bottomCenter,
+1231:         colors: colors,
+1232:       ).createShader(rect);
+1233:     canvas.drawRect(rect, bgPaint);
+1234: 
+1235:     // Dynamic Lightning Flash for Storm
+1236:     if (!isNight && kind == 'storm') {
+1237:       final flashVal = math.sin(progress * math.pi * 18);
+1238:       if (flashVal > 0.88) {
+1239:         canvas.drawRect(
+1240:           rect,
+1241:           Paint()..color = Colors.white.withOpacity(0.25 * ((flashVal - 0.88) / 0.12)),
+1242:         );
+1243:       }
+1244:     } else if (isNight && kind == 'storm') {
+1245:       final flashVal = math.sin(progress * math.pi * 14);
+1246:       if (flashVal > 0.9) {
+1247:         canvas.drawRect(
+1248:           rect,
+1249:           Paint()..color = accent.withOpacity(0.18 * ((flashVal - 0.9) / 0.1)),
+1250:         );
+1251:       }
+1252:     }
+1253: 
+1254:     // Twinkling stars for clear night
+1255:     if (isNight && kind == 'clear') {
+1256:       for (int i = 0; i < 40; i++) {
+1257:         final seed = i * 47.0;
+1258:         final x = (seed * 19) % size.width;
+1259:         final y = (seed * 37) % (size.height * 0.45);
+1260:         final starPulse = 0.3 + 0.7 * math.sin(progress * math.pi * 4 + seed);
+1261:         final starPaint = Paint()..color = Colors.white.withOpacity(0.4 * starPulse);
+1262:         canvas.drawCircle(Offset(x, y), 0.8 + (i % 2) * 0.6, starPaint);
+1263:         if (i % 8 == 0) {
+1264:           // Glow aura
+1265:           canvas.drawCircle(Offset(x, y), 3.0 + (i % 3), Paint()..color = Colors.white.withOpacity(0.08 * starPulse));
+1266:         }
+1267:       }
+1268:     }
+1269: 
+1270:     switch (kind) {
+1271:       case 'clear':
+1272:         _paintSunOrMoon(canvas, size);
+1273:         break;
+1274:       case 'rain':
+1275:       case 'storm':
+1276:         _paintRain(canvas, size, heavy: kind == 'storm');
+1277:         break;
+1278:       case 'snow':
+1279:         _paintSnow(canvas, size);
+1280:         break;
+1281:       case 'wind':
+1282:         _paintWind(canvas, size);
+1283:         break;
+1284:       case 'fog':
+1285:         _paintFog(canvas, size);
+1286:         break;
+1287:       default:
+1288:         _paintClouds(canvas, size);
+1289:     }
+1290:   }
+1291: 
+1292:   void _paintSunOrMoon(Canvas canvas, Size size) {
+1293:     final center = Offset(size.width * 0.72, size.height * 0.22);
+1294:     if (isNight) {
+1295:       // Crescent Moon
+1296:       final moonPaint = Paint()
+1297:         ..color = const Color(0xFFE2E8F0)
+1298:         ..style = PaintingStyle.fill;
+1299:       
+1300:       // Moon path
+1301:       final moonPath = Path()
+1302:         ..addArc(Rect.fromCircle(center: center, radius: 32), -math.pi / 2.2, math.pi * 1.5);
+1303:       final cutPath = Path()
+1304:         ..addArc(Rect.fromCircle(center: center - const Offset(8, -4), radius: 28), -math.pi / 2, math.pi * 1.5);
+1305:       final finalMoon = Path.combine(PathOperation.difference, moonPath, cutPath);
+1306:       
+1307:       // Glow
+1308:       final glow = Paint()
+1309:         ..shader = RadialGradient(colors: [
+1310:           const Color(0xFF94A3B8).withOpacity(0.3),
+1311:           Colors.transparent,
+1312:         ]).createShader(Rect.fromCircle(center: center, radius: 80));
+1313:       canvas.drawCircle(center, 80, glow);
+1314:       canvas.drawPath(finalMoon, moonPaint);
+1315:     } else {
+1316:       // Rotating Sunrays
+1317:       final rayPaint = Paint()
+1318:         ..color = const Color(0xFFFFF3B0).withOpacity(0.08)
+1319:         ..style = PaintingStyle.fill;
+1320:       
+1321:       canvas.save();
+1322:       canvas.translate(center.dx, center.dy);
+1323:       canvas.rotate(progress * 2 * math.pi * 0.05); // Slow rotation
+1324:       
+1325:       for (int i = 0; i < 8; i++) {
+1326:         final angle = i * math.pi / 4;
+1327:         final path = Path()
+1328:           ..moveTo(0, 0)
+1329:           ..lineTo(50 * math.cos(angle - 0.2), 50 * math.sin(angle - 0.2))
+1330:           ..lineTo(220 * math.cos(angle), 220 * math.sin(angle))
+1331:           ..lineTo(50 * math.cos(angle + 0.2), 50 * math.sin(angle + 0.2))
+1332:           ..close();
+1333:         canvas.drawPath(path, rayPaint);
+1334:       }
+1335:       canvas.restore();
+1336: 
+1337:       // Sun body and inner glow
+1338:       final glow = Paint()
+1339:         ..shader = RadialGradient(colors: [
+1340:           const Color(0xFFFFD54F).withOpacity(0.6),
+1341:           Colors.transparent,
+1342:         ]).createShader(Rect.fromCircle(center: center, radius: 110));
+1343:       canvas.drawCircle(center, 110, glow);
+1344:       canvas.drawCircle(center, 40, Paint()..color = const Color(0xFFFFCA28));
+1345:       canvas.drawCircle(center, 30, Paint()..color = const Color(0xFFFFF176));
+1346:     }
+1347:   }
+1348: 
+1349:   void _paintRain(Canvas canvas, Size size, {bool heavy = false}) {
+1350:     final paint = Paint()
+1351:       ..color = (heavy ? accent : Colors.white).withOpacity(heavy ? 0.6 : 0.45)
+1352:       ..strokeWidth = heavy ? 2.4 : 1.4
+1353:       ..strokeCap = StrokeCap.round;
+1354:     
+1355:     final count = heavy ? 90 : 54;
+1356:     for (int i = 0; i < count; i++) {
+1357:       final seed = i * 29.0;
+1358:       final speedMult = 1.6 + (i % 3) * 0.4;
+1359:       final x = (seed * 41 + progress * speedMult * size.width * 0.8) % size.width;
+1360:       final y = (seed * 17 + progress * speedMult * size.height * 1.8) % size.height;
+1361:       canvas.drawLine(Offset(x, y), Offset(x - 6, y + 16), paint);
+1362:       
+1363:       // Draw splash when raindrops hit the bottom area
+1364:       if (y > size.height * 0.78 && i % 4 == 0) {
+1365:         final splashProgress = (y - size.height * 0.78) / (size.height * 0.22);
+1366:         final splashPaint = Paint()
+1367:           ..color = Colors.white.withOpacity(0.28 * (1 - splashProgress))
+1368:           ..style = PaintingStyle.stroke
+1369:           ..strokeWidth = 0.8;
+1370:         canvas.drawArc(
+1371:           Rect.fromCenter(
+1372:             center: Offset(x, y + 16),
+1373:             width: 14 * splashProgress,
+1374:             height: 4 * splashProgress,
+1375:           ),
+1376:           0,
+1377:           math.pi * 2,
+1378:           false,
+1379:           splashPaint,
+1380:         );
+1381:       }
+1382:     }
+1383:   }
+1384: 
+1385:   void _paintSnow(Canvas canvas, Size size) {
+1386:     // Beautiful drifting snowflakes with sine movement
+1387:     final paint = Paint()..color = Colors.white.withOpacity(0.8);
+1388:     for (int i = 0; i < 70; i++) {
+1389:       final seed = i * 31.0;
+1390:       final speedMult = 0.6 + (i % 3) * 0.25;
+1391:       final waveFreq = 2.0 + (i % 2) * 1.5;
+1392:       
+1393:       final y = (seed * 19 + progress * speedMult * size.height * 0.8) % size.height;
+1394:       // Sideways drift
+1395:       final drift = math.sin((y / size.height) * waveFreq * math.pi + progress * math.pi) * 12;
+1396:       final x = (seed * 29 + drift) % size.width;
+1397:       
+1398:       final radius = 1.5 + (i % 4) * 0.8;
+1399:       canvas.drawCircle(Offset(x, y), radius, paint);
+1400:       
+1401:       // Draw larger custom snowflake structure for a few items
+1402:       if (i % 12 == 0) {
+1403:         final linePaint = Paint()
+1404:           ..color = Colors.white.withOpacity(0.4)
+1405:           ..strokeWidth = 0.8;
+1406:         final len = radius * 2.2;
+1407:         canvas.drawLine(Offset(x - len, y), Offset(x + len, y), linePaint);
+1408:         canvas.drawLine(Offset(x, y - len), Offset(x, y + len), linePaint);
+1409:       }
+1410:     }
+1411:   }
+1412: 
+1413:   void _paintWind(Canvas canvas, Size size) {
+1414:     // Flows with colors and particles
+1415:     final paint = Paint()
+1416:       ..color = accent.withOpacity(0.25)
+1417:       ..strokeWidth = 2.5
+1418:       ..style = PaintingStyle.stroke;
+1419:     
+1420:     // Draw wind trails
+1421:     for (int i = 0; i < 15; i++) {
+1422:       final y = size.height * (0.12 + i * 0.055);
+1423:       final path = Path();
+1424:       final seed = i * 13.0;
+1425:       for (double x = 0; x <= size.width; x += 10) {
+1426:         final dy = math.sin((x / 50) + progress * math.pi * 2 + seed) * (8 + (i % 3) * 4);
+1427:         if (x == 0) {
+1428:           path.moveTo(x, y + dy);
+1429:         } else {
+1430:           path.lineTo(x, y + dy);
+1431:         }
+1432:       }
+1433:       canvas.drawPath(path, paint);
+1434:     }
+1435: 
+1436:     // Draw blowing leaf/wind particles
+1437:     final particlePaint = Paint()..color = (isNight ? accent : const Color(0xFF10B981)).withOpacity(0.48);
+1438:     for (int i = 0; i < 12; i++) {
+1439:       final seed = i * 43.0;
+1440:       final speed = 1.2 + (i % 3) * 0.3;
+1441:       final x = (seed * 19 + progress * speed * size.width * 1.4) % size.width;
+1442:       final y = (seed * 27 + math.sin(progress * math.pi * 2 + seed) * 30) % size.height;
+1443:       
+1444:       canvas.save();
+1445:       canvas.translate(x, y);
+1446:       canvas.rotate(progress * math.pi * 2 + seed);
+1447:       
+1448:       // Small leaf shape
+1449:       final path = Path()
+1450:         ..moveTo(-6, 0)
+1451:         ..quadraticBezierTo(0, -3, 6, 0)
+1452:         ..quadraticBezierTo(0, 3, -6, 0);
+1453:       canvas.drawPath(path, particlePaint);
+1454:       canvas.restore();
+1455:     }
+1456:   }
+1457: 
+1458:   void _paintFog(Canvas canvas, Size size) {
+1459:     // Volumetric mist layer effects
+1460:     for (int i = 0; i < 8; i++) {
+1461:       final y = size.height * (0.2 + i * 0.09);
+1462:       final speed = 0.15 + (i % 2) * 0.1;
+1463:       final offset = (progress * speed * size.width) % size.width;
+1464:       
+1465:       final rect = Rect.fromLTWH(
+1466:         -size.width * 0.4 + offset,
+1467:         y + math.sin(progress * math.pi * 2 + i) * 6,
+1468:         size.width * 1.5,
+1469:         32 + (i % 3) * 10,
+1470:       );
+1471:       
+1472:       canvas.drawOval(
+1473:         rect,
+1474:         Paint()
+1475:           ..shader = LinearGradient(
+1476:             colors: [
+1477:               Colors.white.withOpacity(0.0),
+1478:               Colors.white.withOpacity(0.12 + (i % 2) * 0.06),
+1479:               Colors.white.withOpacity(0.0),
+1480:             ],
+1481:           ).createShader(rect),
+1482:       );
+1483:     }
+1484:   }
+1485: 
+1486:   void _paintClouds(Canvas canvas, Size size) {
+1487:     // Multi-layered parallax clouds
+1488:     final cloudCount = 6;
+1489:     for (int i = 0; i < cloudCount; i++) {
+1490:       final speed = 0.2 + (i % 3) * 0.15;
+1491:       final scale = 0.75 + (i % 2) * 0.35;
+1492:       final cx = (size.width * (0.1 + i * 0.18) + progress * speed * 80) % (size.width + 120) - 60;
+1493:       final cy = size.height * (0.15 + (i % 3) * 0.045);
+1494:       
+1495:       final cloudOpacity = isNight ? 0.26 : 0.65;
+1496:       final shadowColor = Colors.black.withOpacity(isNight ? 0.38 : 0.08);
+1497:       
+1498:       // Volumetric cloud drawing
+1499:       final basePaint = Paint()..color = Colors.white.withOpacity(cloudOpacity * (scale > 1.0 ? 1.0 : 0.8));
+1500:       
+1501:       // Draw subtle shadow behind clouds for depth
+1502:       canvas.drawCircle(Offset(cx + 2, cy + 4), 32 * scale, Paint()..color = shadowColor..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+1503:       
+1504:       // Main cloud body circles
+1505:       canvas.drawCircle(Offset(cx, cy), 32 * scale, basePaint);
+1506:       canvas.drawCircle(Offset(cx + 24 * scale, cy + 6 * scale), 24 * scale, basePaint);
+1507:       canvas.drawCircle(Offset(cx - 20 * scale, cy + 8 * scale), 20 * scale, basePaint);
+1508:     }
+1509:   }
+1510: 
+1511:   @override
+1512:   bool shouldRepaint(covariant _WeatherAmbientPainter oldDelegate) =>
+1513:       oldDelegate.progress != progress || oldDelegate.kind != kind;
+1514: }
+1515: 
+1516: /// Bottom marquee for city alerts and weather warnings.
+1517: class CityAlertTicker extends StatefulWidget {
+1518:   const CityAlertTicker({
+1519:     super.key,
+1520:     required this.data,
+1521:     required this.isNightMode,
+1522:     required this.accent,
+1523:     this.useWeatherOnly = false,
+1524:     this.useCityOnly = false,
+1525:     this.selectedCategory,
+1526:     this.customWarningText,
+1527:   });
+1528: 
+1529:   final CityAlertTickerData data;
+1530:   final bool isNightMode;
+1531:   final Color accent;
+1532:   final bool useWeatherOnly;
+1533:   final bool useCityOnly;
+1534:   final String? selectedCategory;
+1535:   final String? customWarningText;
+1536: 
+1537:   @override
+1538:   State<CityAlertTicker> createState() => _CityAlertTickerState();
+1539: }
+1540: 
+1541: class _CityAlertTickerState extends State<CityAlertTicker>
+1542:     with SingleTickerProviderStateMixin {
+1543:   late final AnimationController _scroll;
+1544:   bool _visible = true;
+1545: 
+1546:   @override
+1547:   void initState() {
+1548:     super.initState();
+1549:     _scroll = AnimationController(
+1550:       vsync: this,
+1551:       duration: const Duration(seconds: 28),
+1552:     );
+1553:     _scroll.addStatusListener((status) {
+1554:       if (status == AnimationStatus.completed) {
+1555:         if (mounted) {
+1556:           setState(() {
+1557:             _visible = false;
+1558:           });
+1559:         }
+1560:       }
+1561:     });
+1562:     _scroll.forward();
+1563:   }
+1564: 
+1565:   @override
+1566:   void didUpdateWidget(covariant CityAlertTicker oldWidget) {
+1567:     super.didUpdateWidget(oldWidget);
+1568:     if (oldWidget.data.marquee != widget.data.marquee ||
+1569:         oldWidget.selectedCategory != widget.selectedCategory ||
+1570:         oldWidget.customWarningText != widget.customWarningText) {
+1571:       setState(() {
+1572:         _visible = true;
+1573:       });
+1574:       _scroll.reset();
+1575:       _scroll.forward();
+1576:     }
+1577:   }
+1578: 
+1579:   @override
+1580:   void dispose() {
+1581:     _scroll.dispose();
+1582:     super.dispose();
+1583:   }
+1584: 
+1585:   bool _isEmergencyAlert(Map<String, dynamic> item) {
+1586:     final cat = (item['category'] ?? '').toString().toLowerCase();
+1587:     final txt = (item['text'] ?? '').toString().toLowerCase();
+1588:     final hasEmergency = cat.contains('чп') || cat.contains('чрезвыч') || txt.contains('чп') || txt.contains('чрезвыч') || txt.contains('пожар') || txt.contains('взрыв');
+1589:     final hasAccident = cat.contains('авари') || cat.contains('дтп') || txt.contains('авари') || txt.contains('дтп') || txt.contains('столкн');
+1590:     final hasCrime = cat.contains('кримин') || cat.contains('преступ') || txt.contains('кримин') || txt.contains('преступ') || txt.contains('краж') || txt.contains('драка') || txt.contains('убий');
+1591:     return hasEmergency || hasAccident || hasCrime;
+1592:   }
+1593: 
+1594:   @override
+1595:   Widget build(BuildContext context) {
+1596:     String text = '';
+1597:     IconData leadingIcon = Icons.campaign_rounded;
+1598:     Color bg = widget.isNightMode ? const Color(0xB30A101C) : const Color(0xDDF0F8FF);
+1599:     Color border = widget.accent.withAlpha(90);
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

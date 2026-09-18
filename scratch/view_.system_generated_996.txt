@@ -1,0 +1,38 @@
+Created At: 2026-06-23T03:31:19Z
+Completed At: 2026-06-23T03:31:19Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1798
+Total Bytes: 74888
+Showing lines 1151 to 1180
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1151:                                   const SizedBox(height: 8),
+1152:                                   TiltWidget(
+1153:                                     child: Column(
+1154:                                       children: _buildAnomalyWarnings(),
+1155:                                     ),
+1156:                                   ),
+1157:                                   const SizedBox(height: 12),
+1158:                                 ],
+1159:                                 Text(
+1160:                                   'Информационные каналы',
+1161:                                   style: TextStyle(
+1162:                                     fontSize: 12,
+1163:                                     fontWeight: FontWeight.w700,
+1164:                                     color: widget.isNightMode ? Colors.white60 : Colors.black54,
+1165:                                   ),
+1166:                                 ),
+1167:                                 const SizedBox(height: 8),
+1168:                                 ..._buildChannelWarnings(),
+1169:                               ],
+1170:                             ),
+1171:                     ),
+1172:                   ),
+1173:                 ],
+1174:               ),
+1175:             ),
+1176:           ),
+1177:         ],
+1178:       ),
+1179:     );
+1180:   }
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

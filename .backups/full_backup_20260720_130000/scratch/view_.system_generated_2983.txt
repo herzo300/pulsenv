@@ -1,0 +1,98 @@
+Created At: 2026-06-22T07:50:23Z
+Completed At: 2026-06-22T07:50:23Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1587
+Total Bytes: 62310
+Showing lines 1481 to 1570
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1481:       } else if (hasAccident) {
+1482:         bg = const Color(0xDDEAB308); // Yellow/Gold for accidents
+1483:         border = const Color(0xFFFEF08A);
+1484:         leadingIcon = Icons.car_crash_rounded;
+1485:       } else if (hasCrime) {
+1486:         bg = const Color(0xDD8B5CF6); // Purple for crime/police
+1487:         border = const Color(0xFFDDD6FE);
+1488:         leadingIcon = Icons.local_police_rounded;
+1489:       }
+1490:     }
+1491: 
+1492:     text = text.trim();
+1493:     if (text.isEmpty) return const SizedBox.shrink();
+1494: 
+1495:     return ClipRRect(
+1496:       borderRadius: BorderRadius.circular(14),
+1497:       child: Container(
+1498:         height: 38,
+1499:         decoration: BoxDecoration(
+1500:           color: bg,
+1501:           border: Border.all(
+1502:             color: border,
+1503:           ),
+1504:         ),
+1505:         child: Row(
+1506:           children: [
+1507:             Container(
+1508:               width: 38,
+1509:               alignment: Alignment.center,
+1510:               color: Colors.white.withOpacity(0.15),
+1511:               child: Icon(
+1512:                 leadingIcon,
+1513:                 color: Colors.white,
+1514:                 size: 18,
+1515:               ),
+1516:             ),
+1517:             Expanded(
+1518:               child: AnimatedBuilder(
+1519:                 animation: _scroll,
+1520:                 builder: (context, _) {
+1521:                   return Transform.translate(
+1522:                     offset: Offset(-_scroll.value * 600, 0),
+1523:                     child: Text(
+1524:                       '$text     $text',
+1525:                       maxLines: 1,
+1526:                       style: const TextStyle(
+1527:                         color: Colors.white,
+1528:                         fontSize: 12.5,
+1529:                         fontWeight: FontWeight.w600,
+1530:                       ),
+1531:                     ),
+1532:                   );
+1533:                 },
+1534:               ),
+1535:             ),
+1536:           ],
+1537:         ),
+1538:       ),
+1539:     );
+1540:   }
+1541: }
+1542: 
+1543: /// A custom widget that applies a 3D perspective tilt effect on drag/pan gestures.
+1544: class TiltWidget extends StatefulWidget {
+1545:   const TiltWidget({super.key, required this.child});
+1546:   final Widget child;
+1547: 
+1548:   @override
+1549:   State<TiltWidget> createState() => _TiltWidgetState();
+1550: }
+1551: 
+1552: class _TiltWidgetState extends State<TiltWidget> {
+1553:   double _xAngle = 0.0;
+1554:   double _yAngle = 0.0;
+1555: 
+1556:   @override
+1557:   Widget build(BuildContext context) {
+1558:     return GestureDetector(
+1559:       onPanUpdate: (details) {
+1560:         setState(() {
+1561:           _yAngle += details.delta.dx * 0.002;
+1562:           _xAngle -= details.delta.dy * 0.002;
+1563:           _xAngle = _xAngle.clamp(-0.25, 0.25);
+1564:           _yAngle = _yAngle.clamp(-0.25, 0.25);
+1565:         });
+1566:       },
+1567:       onPanEnd: (_) => _resetTilt(),
+1568:       onPanCancel: () => _resetTilt(),
+1569:       child: Transform(
+1570:         transform: Matrix4.identity()
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

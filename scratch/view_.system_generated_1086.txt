@@ -1,0 +1,79 @@
+Created At: 2026-06-23T03:42:34Z
+Completed At: 2026-06-23T03:42:34Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1648
+Total Bytes: 67540
+Showing lines 615 to 685
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+615:   }
+616: 
+617:   Widget _buildTabSelector() {
+618:     return Container(
+619:       padding: const EdgeInsets.all(4),
+620:       decoration: BoxDecoration(
+621:         color: widget.isNightMode
+622:             ? Colors.white.withOpacity(0.06)
+623:             : Colors.black.withOpacity(0.04),
+624:         borderRadius: BorderRadius.circular(99),
+625:         border: Border.all(
+626:           color: widget.isNightMode
+627:               ? Colors.white.withOpacity(0.1)
+628:               : Colors.black.withOpacity(0.06),
+629:         ),
+630:       ),
+631:       child: Row(
+632:         children: [
+633:           Expanded(
+634:             child: _buildTabButton(0, 'Реальные условия'),
+635:           ),
+636:           Expanded(
+637:             child: _buildTabButton(1, 'Предупреждения'),
+638:           ),
+639:         ],
+640:       ),
+641:     );
+642:   }
+643: 
+644:   Widget _buildTabButton(int index, String label) {
+645:     final isSelected = _activeTab == index;
+646:     return GestureDetector(
+647:       onTap: () {
+648:         setState(() {
+649:           _activeTab = index;
+650:         });
+651:       },
+652:       child: AnimatedContainer(
+653:         duration: const Duration(milliseconds: 200),
+654:         padding: const EdgeInsets.symmetric(vertical: 8),
+655:         decoration: BoxDecoration(
+656:           color: isSelected
+657:               ? widget.accent.withOpacity(widget.isNightMode ? 0.22 : 0.8)
+658:               : Colors.transparent,
+659:           borderRadius: BorderRadius.circular(99),
+660:         ),
+661:         child: Center(
+662:           child: Text(
+663:             label,
+664:             style: TextStyle(
+665:               color: isSelected
+666:                   ? Colors.white
+667:                   : (widget.isNightMode ? Colors.white60 : Colors.black87),
+668:               fontSize: 12,
+669:               fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+670:             ),
+671:           ),
+672:         ),
+673:       ),
+674:     );
+675:   }
+676: 
+677:   List<Widget> _buildAnomalyWarnings() {
+678:     final List<Widget> warnings = [];
+679:     if (_displayPressure != null && (_displayPressure! < 748 || _displayPressure! > 768)) {
+680:       warnings.add(_buildWarningCard(
+681:         Icons.compress_rounded,
+682:         'Атмосферное давление',
+683:         'Атмосферное давление составляет ${_displayPressure!.round()} мм рт. ст. (норма 748-768). Рекомендуется соблюдать спокойный режим при повышенной чувствительности к перепадам давления.',
+684:       ));
+685:     }
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

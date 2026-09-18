@@ -29,10 +29,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Runtime dependencies only.
 # libpq5 is the shared library needed by psycopg2 at runtime (no -dev, no compilers).
+# docker.io-cli + curl: CLI для Hermes Sandbox (запуск заданий в изолированных
+# контейнерах через смонтированный /var/run/docker.sock).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     libpq5 \
     libglib2.0-0 \
+    git \
+    docker.io \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -51,6 +56,8 @@ COPY main.py /app/main.py
 COPY start_all_monitoring.py /app/start_all_monitoring.py
 COPY start_camera_probe.py /app/start_camera_probe.py
 COPY scripts/maintenance/ /app/scripts/maintenance/
+COPY scripts/lost_found_daily_pipeline.py /app/scripts/lost_found_daily_pipeline.py
+COPY scripts/hermes_city_changes_monitor.py /app/scripts/hermes_city_changes_monitor.py
 COPY models/ /app/models/
 COPY requirements.txt /app/requirements.txt
 COPY data/uk_catalog.json /app/data/uk_catalog.json

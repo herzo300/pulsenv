@@ -1,0 +1,206 @@
+/**
+ * City Pulse Design Tokens — CSS Custom Properties
+ * Auto-generated from design-tokens/*.json
+ * DO NOT EDIT MANUALLY. Use JSON tokens as source of truth.
+ */
+
+:root {
+   /* ═══════════════════════════════════════════
+     BACKGROUNDS
+     ═══════════════════════════════════════════ */
+   --cp-bg: #020617;
+   --cp-bg-raised: #08111F;
+   --cp-bg-light: #F5FAFF;
+   --cp-bg-light-raised: #E8F2FB;
+
+   /* ═══════════════════════════════════════════
+     SURFACES
+     ═══════════════════════════════════════════ */
+   --cp-surface: #0C1628;
+   --cp-surface-soft: #112036;
+   --cp-surface-elevated: #16263D;
+   --cp-surface-glass: rgba(17, 28, 49, 0.8);
+   --cp-surface-light: #FFFFFF;
+   --cp-surface-light-soft: #F0F6FC;
+   --cp-surface-light-glass: rgba(255, 255, 255, 0.8);
+
+   /* ═══════════════════════════════════════════
+     TEXT COLORS
+     ═══════════════════════════════════════════ */
+   --cp-text: #E6FAFF;
+   --cp-text-secondary: #8EAFC2;
+   --cp-text-tertiary: #66849A;
+   --cp-text-light: #0A2540;
+   --cp-text-light-secondary: #4A6B8A;
+   --cp-text-light-tertiary: #7A96B2;
+
+   /* ═══════════════════════════════════════════
+     PRIMARY ACCENT
+     ═══════════════════════════════════════════ */
+   --cp-primary: #00E5FF;
+   --cp-primary-soft: #7DF2FF;
+   --cp-primary-deep: #0EA5C7;
+
+   /* ═══════════════════════════════════════════
+     ACCENT COLORS
+     ═══════════════════════════════════════════ */
+   --cp-accent-violet: #7C4DFF;
+   --cp-accent-gold: #FFC857;
+
+   /* ═══════════════════════════════════════════
+     SEMANTIC COLORS
+     ═══════════════════════════════════════════ */
+   --cp-success: #00E676;
+   --cp-warning: #FFC857;
+   --cp-negative: #FF3D00;
+   --cp-neutral: #90A4AE;
+
+   /* ═══════════════════════════════════════════
+     BORDERS
+     ═══════════════════════════════════════════ */
+   --cp-border: rgba(63, 216, 248, 0.16);
+   --cp-border-strong: rgba(63, 216, 248, 0.28);
+   --cp-border-light: rgba(14, 165, 199, 0.2);
+   --cp-border-light-strong: rgba(14, 165, 199, 0.4);
+
+   /* ═══════════════════════════════════════════
+     SHADOWS
+     ═══════════════════════════════════════════ */
+   --cp-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.15);
+   --cp-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.25);
+   --cp-shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.42);
+   --cp-shadow-glass: 0 24px 80px rgba(0, 0, 0, 0.42), 0 0 30px rgba(0, 229, 255, 0.08);
+
+   /* ═══════════════════════════════════════════
+     SPACING
+     ═══════════════════════════════════════════ */
+   --cp-space-xxs: 4px;
+   --cp-space-xs: 8px;
+   --cp-space-sm: 12px;
+   --cp-space-md: 16px;
+   --cp-space-lg: 20px;
+   --cp-space-xl: 24px;
+   --cp-space-xxl: 32px;
+
+   /* ═══════════════════════════════════════════
+     BORDER RADIUS
+     ═══════════════════════════════════════════ */
+   --cp-radius-sm: 12px;
+   --cp-radius-md: 18px;
+   --cp-radius-lg: 24px;
+   --cp-radius-xl: 30px;
+   --cp-radius-pill: 999px;
+
+   /* ═══════════════════════════════════════════
+     BREAKPOINTS
+     ═══════════════════════════════════════════ */
+   --cp-bp-phone: 600px;
+   --cp-bp-tablet: 900px;
+   --cp-bp-desktop: 1200px;
+   --cp-bp-wide: 1440px;
+
+   /* ═══════════════════════════════════════════
+     CONTAINERS
+     ═══════════════════════════════════════════ */
+   --cp-container-narrow: 800px;
+   --cp-container: 1200px;
+   --cp-container-wide: 1400px;
+
+   /* ═══════════════════════════════════════════
+     BLUR
+     ═══════════════════════════════════════════ */
+   --cp-blur-sm: 8px;
+   --cp-blur-md: 16px;
+   --cp-blur-lg: 22px;
+
+   /* ═══════════════════════════════════════════
+     TRANSITIONS
+     ═══════════════════════════════════════════ */
+   --cp-transition-fast: 150ms ease-out;
+   --cp-transition-normal: 250ms ease-in-out;
+   --cp-transition-slow: 400ms ease-in-out;
+
+   /* ═══════════════════════════════════════════
+     FONT FAMILIES
+     ═══════════════════════════════════════════ */
+   --cp-font-heading: 'Exo 2', sans-serif;
+   --cp-font-body: 'Manrope', sans-serif;
+   --cp-font-mono: 'JetBrains Mono', monospace;
+   --cp-font-utility: 'IBM Plex Sans', sans-serif;
+
+   /* ═══════════════════════════════════════════
+     FONT SIZES
+     ═══════════════════════════════════════════ */
+   --cp-fs-hero: 38px;
+   --cp-fs-title: 30px;
+   --cp-fs-section: 18px;
+   --cp-fs-card-title: 16px;
+   --cp-fs-subtitle: 15px;
+   --cp-fs-body: 14px;
+   --cp-fs-body-sm: 13px;
+   --cp-fs-button: 15px;
+   --cp-fs-overline: 11px;
+   --cp-fs-mono: 12px;
+
+   /* ═══════════════════════════════════════════
+     LINE HEIGHTS
+     ═══════════════════════════════════════════ */
+   --cp-lh-tight: 0.95;
+   --cp-lh-normal: 1.4;
+   --cp-lh-relaxed: 1.6;
+
+   /* ═══════════════════════════════════════════
+     TEXT STYLES (shorthand)
+     ═══════════════════════════════════════════ */
+   --cp-text-hero: 900 38px/0.95 var(--cp-font-heading);
+   --cp-text-title: 800 30px/1.02 var(--cp-font-heading);
+   --cp-text-section: 700 18px/1.12 var(--cp-font-heading);
+   --cp-text-card-title: 700 16px/1.15 var(--cp-font-heading);
+   --cp-text-subtitle: 600 15px/1.3 var(--cp-font-body);
+   --cp-text-body: 500 14px/1.48 var(--cp-font-body);
+   --cp-text-body-sm: 500 13px/1.46 var(--cp-font-body);
+   --cp-text-button: 800 15px/1.1 var(--cp-font-body);
+   --cp-text-overline: 600 11px/1.1 var(--cp-font-utility);
+   --cp-text-mono: 600 12px/1.35 var(--cp-font-mono);
+   --cp-text-metric: 800 30px/0.98 var(--cp-font-heading);
+}
+
+/* ═══════════════════════════════════════════
+   BACKWARD COMPATIBILITY ALIASES
+   Maps legacy variable names to new tokens.
+   Safe to remove after all pages migrate.
+   ═══════════════════════════════════════════ */
+:root {
+   /* Legacy aliases — these pages still use old names */
+   --bg: var(--cp-bg);
+   --bg-raised: var(--cp-bg-raised);
+   --surface: var(--cp-surface);
+   --surface-strong: var(--cp-surface-elevated);
+   --surface-soft: var(--cp-surface-soft);
+   --text: var(--cp-text);
+   --text-secondary: var(--cp-text-secondary);
+   --text-tertiary: var(--cp-text-tertiary);
+   --primary: var(--cp-primary);
+   --primary-deep: var(--cp-primary-deep);
+   --accent: var(--cp-accent-gold);
+   --success: var(--cp-success);
+   --danger: var(--cp-negative);
+   --border: var(--cp-border);
+   --border-strong: var(--cp-border-strong);
+   --shadow: var(--cp-shadow-lg);
+   --radius-xl: var(--cp-radius-xl);
+   --radius-lg: var(--cp-radius-lg);
+   --radius-md: var(--cp-radius-md);
+   --container: var(--cp-container);
+   
+   /* Spacing aliases */
+   --space-xxs: var(--cp-space-xxs);
+   --space-xs: var(--cp-space-xs);
+   --space-sm: var(--cp-space-sm);
+   --space-md: var(--cp-space-md);
+   --space-lg: var(--cp-space-lg);
+   --space-xl: var(--cp-space-xl);
+   --space-xxl: var(--cp-space-xxl);
+}  
+  
+  

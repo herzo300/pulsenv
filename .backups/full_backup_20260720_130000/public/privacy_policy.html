@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Политика конфиденциальности — Пульс города</title>
+
+  <!-- Design System Tokens -->
+  <link rel="stylesheet" href="/css/design-tokens.css">
+  <link rel="stylesheet" href="/css/components.css">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700;800&family=IBM+Plex+Sans:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    /* Page-specific styles — tokens from design-tokens.css */
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-deep: var(--cp-bg);
+      --bg-surface: var(--cp-surface);
+      --bg-elevated: var(--cp-surface-elevated);
+      --text-primary: var(--cp-text);
+      --text-secondary: var(--cp-text-secondary);
+      --text-muted: var(--cp-text-tertiary);
+      --accent-cyan: var(--cp-primary);
+      --accent-violet: var(--cp-accent-violet);
+      --accent-orange: var(--cp-negative);
+      --glass-border: var(--cp-border);
+      --glass-bg: var(--cp-surface-glass);
+      --radius-md: var(--cp-radius-md);
+      --radius-lg: var(--cp-radius-lg);
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--cp-font-body);
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      line-height: 1.7;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* === Background gradient orbs === */
+    body::before,
+    body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.12;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::before {
+      width: 600px;
+      height: 600px;
+      background: var(--accent-cyan);
+      top: -200px;
+      right: -100px;
+    }
+
+    body::after {
+      width: 500px;
+      height: 500px;
+      background: var(--accent-violet);
+      bottom: -150px;
+      left: -100px;
+    }
+
+    /* === Layout === */
+    .page-wrapper {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 32px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    /* === TOC Sidebar === */
+    .toc-sidebar {
+      position: sticky;
+      top: 24px;
+      align-self: start;
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+      padding: 24px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+    }
+
+    .toc-sidebar h3 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      letter-spacing: 1.5px;
+      color: var(--accent-cyan);
+      margin-bottom: 16px;
+      text-transform: uppercase;
+    }
+
+    .toc-list {
+      list-style: none;
+      counter-reset: toc-counter;
+    }
+
+    .toc-list li {
+      counter-increment: toc-counter;
+      margin-bottom: 4px;
+    }
+
+    .toc-list li::before {
+      content: counter(toc-counter, decimal-leading-zero) ".";
+      display: inline-block;
+      width: 28px;
+      color: var(--accent-violet);
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .toc-list a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s, padding-left 0.2s;
+      display: block;
+      padding: 4px 0 4px 4px;
+      border-radius: 6px;
+    }
+
+    .toc-list a:hover,
+    .toc-list a.active {
+      color: var(--accent-cyan);
+      padding-left: 10px;
+    }
+
+    /* === Main content === */
+    .main-content {
+      min-width: 0;
+    }
+
+    /* === Top bar === */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 14px;
+      transition: all 0.25s;
+    }
+
+    .back-btn:hover {
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.15);
+    }
+
+    .version-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(0, 240, 255, 0.1));
+      border: 1px solid rgba(124, 58, 237, 0.3);
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* === Search === */
+    .search-box {
+      margin-bottom: 32px;
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 12px 16px 12px 44px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-family: 'Exo 2', 'Inter', sans-serif;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.25s;
+    }
+
+    .search-box input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .search-box input:focus {
+      border-color: var(--accent-cyan);
+    }
+
+    .search-box .search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+      font-size: 16px;
+    }
+
+    .search-results-info {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--text-muted);
+      min-height: 20px;
+    }
+
+    mark.search-highlight {
+      background: rgba(0, 240, 255, 0.25);
+      color: var(--accent-cyan);
+      border-radius: 2px;
+      padding: 0 2px;
+    }
+
+    /* === Page header === */
+    .page-header {
+      margin-bottom: 40px;
+    }
+
+    .page-header h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(32px, 5vw, 48px);
+      letter-spacing: 2px;
+      line-height: 1.1;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+
+    .page-header .subtitle {
+      color: var(--text-secondary);
+      font-size: 15px;
+      max-width: 640px;
+    }
+
+    /* === Section cards === */
+    .section-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .section-card:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 4px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .section-card h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 24px;
+      letter-spacing: 1px;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-card h2 .section-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+      border-radius: 8px;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--bg-deep);
+      flex-shrink: 0;
+    }
+
+    .section-card p {
+      color: var(--text-secondary);
+      font-size: 15px;
+      margin-bottom: 12px;
+      text-align: justify;
+    }
+
+    .section-card p:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-card strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .section-card ul {
+      list-style: none;
+      margin: 8px 0;
+      padding-left: 0;
+    }
+
+    .section-card ul li {
+      position: relative;
+      padding-left: 20px;
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    .section-card ul li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      opacity: 0.6;
+    }
+
+    /* === Footer === */
+    .site-footer {
+      margin-top: 48px;
+      padding: 32px 0;
+      border-top: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .footer-logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      color: var(--bg-deep);
+    }
+
+    .footer-text {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .footer-text span {
+      color: var(--text-secondary);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .footer-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: var(--accent-cyan);
+    }
+
+    /* === Scroll to top === */
+    .scroll-top-btn {
+      position: fixed;
+      bottom: 32px;
+      right: 32px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+      border: none;
+      color: var(--bg-deep);
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(10px);
+      transition: all 0.3s;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 240, 255, 0.3);
+    }
+
+    .scroll-top-btn.visible {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .scroll-top-btn:hover {
+      box-shadow: 0 6px 28px rgba(0, 240, 255, 0.5);
+      transform: translateY(-2px);
+    }
+
+    /* === Mobile TOC toggle === */
+    .toc-toggle {
+      display: none;
+      position: fixed;
+      bottom: 32px;
+      left: 32px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--bg-elevated);
+      border: 1px solid var(--glass-border);
+      color: var(--text-primary);
+      font-size: 18px;
+      cursor: pointer;
+      z-index: 101;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    /* === Responsive === */
+    @media (max-width: 860px) {
+      .page-wrapper {
+        grid-template-columns: 1fr;
+        padding: 16px;
+        gap: 20px;
+      }
+
+      .toc-sidebar {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 200;
+        max-height: none;
+        border-radius: 0;
+        padding: 60px 24px 24px;
+        overflow-y: auto;
+      }
+
+      .toc-sidebar.open {
+        display: block;
+      }
+
+      .toc-close {
+        display: block;
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: none;
+        border: none;
+        color: var(--text-primary);
+        font-size: 24px;
+        cursor: pointer;
+      }
+
+      .toc-toggle {
+        display: flex;
+      }
+
+      .section-card {
+        padding: 20px;
+      }
+
+      .site-footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+
+    @media (min-width: 861px) {
+      .toc-close {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="page-wrapper">
+    <!-- TOC Sidebar -->
+    <aside class="toc-sidebar" id="tocSidebar">
+      <button class="toc-close" id="tocClose" aria-label="Закрыть">&times;</button>
+      <h3>Содержание</h3>
+      <ol class="toc-list" id="tocList">
+        <li><a href="#section-1">Какую информацию мы собираем</a></li>
+        <li><a href="#section-2">Цели обработки данных</a></li>
+        <li><a href="#section-3">Искусственный интеллект и приватность</a></li>
+        <li><a href="#section-4">Хранение и безопасность</a></li>
+        <li><a href="#section-5">Ваши права</a></li>
+      </ol>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Top bar -->
+      <div class="top-bar">
+        <a href="/" class="back-btn">&#8592; На главную</a>
+        <span class="version-badge">Версия 1.0 &middot; 28 марта 2026</span>
+      </div>
+
+      <!-- Search -->
+      <div class="search-box">
+        <span class="search-icon">&#128269;</span>
+        <input type="text" id="searchInput" placeholder="Поиск по тексту документа…" autocomplete="off">
+        <div class="search-results-info" id="searchInfo"></div>
+      </div>
+
+      <!-- Page header -->
+      <div class="page-header">
+        <h1>Политика обработки персональных данных</h1>
+        <p class="subtitle">Настоящая Политика действует в отношении всей информации, которую Сервис «Пульс города» может
+          получить о Пользователе во время использования им программного комплекса и бота в Telegram.</p>
+      </div>
+
+      <!-- Sections -->
+      <div class="section-card" id="section-1">
+        <h2><span class="section-num">1</span> Какую информацию мы собираем</h2>
+        <p>1.1. Мы собираем только те данные, которые необходимы для предоставления качественного Сервиса:</p>
+        <ul>
+          <li>Идентификатор пользователя в Telegram (Telegram ID);</li>
+          <li>Номер телефона (если предоставлен добровольно);</li>
+          <li>История ИИ-Задач и поисковых запросов;</li>
+          <li>Техническая информация (тип устройства, куки-файлы) для улучшения работы приложения.</li>
+        </ul>
+      </div>
+
+      <div class="section-card" id="section-2">
+        <h2><span class="section-num">2</span> Цели обработки данных</h2>
+        <p>2.1. Данные используются для:</p>
+        <ul>
+          <li>Идентификации Пользователя в системе;</li>
+          <li>Отправки уведомлений о результатах работы ИИ-патруля;</li>
+          <li>Обработки платежей через сторонние платежные шлюзы (YooKassa и др.);</li>
+          <li>Технической поддержки Пользователей.</li>
+        </ul>
+      </div>
+
+      <div class="section-card" id="section-3">
+        <h2><span class="section-num">3</span> Искусственный интеллект и приватность третьих лиц</h2>
+        <p>3.1. Алгоритмы Сервиса обрабатывают открытые видеопотоки в реальном времени. Мы <strong>НЕ собираем</strong>,
+          <strong>НЕ храним</strong> и <strong>НЕ передаем</strong> биометрические данные третьих лиц (распознавание лиц
+          лиц, не являющихся пользователями Сервиса).
+        </p>
+        <p>3.2. Результаты AI-обработки предоставляются Пользователю в виде статичных скриншотов с указанием времени и
+          локации совпадения объекта по визуальным метаданным.</p>
+      </div>
+
+      <div class="section-card" id="section-4">
+        <h2><span class="section-num">4</span> Хранение и безопасность</h2>
+        <p>4.1. Данные хранятся на защищенных серверах с использованием шифрования.</p>
+        <p>4.2. Мы не передаем ваши персональные данные третьим лицам, за исключением случаев, предусмотренных
+          законодательством РФ.</p>
+      </div>
+
+      <div class="section-card" id="section-5">
+        <h2><span class="section-num">5</span> Ваши права</h2>
+        <p>5.1. Вы имеете право в любой момент запросить удаление вашего аккаунта и связанных с ним данных через
+          Telegram-бота или службу поддержки.</p>
+      </div>
+
+      <!-- Footer -->
+      <footer class="site-footer">
+        <div class="footer-brand">
+          <div class="footer-logo">CP</div>
+          <div class="footer-text">
+            <span>Пульс города</span> &middot; Нижневартовск<br>
+            Опубликовано 28 марта 2026 г.
+          </div>
+        </div>
+        <div class="footer-links">
+          <a href="/">Главная</a>
+          <a href="/user_agreement.html">Пользовательское соглашение</a>
+          <a href="javascript:history.back()">Назад</a>
+        </div>
+      </footer>
+
+      <section class="legal-card" id="geo-photo-data">
+        <h2>Геолокация и фотографии как персональные данные</h2>
+        <p>Согласно ст. 3 Закона № 152-ФЗ, к персональным данным относится любая информация, относящаяся к определённому физическому лицу. В Сервисе таковыми являются:</p>
+        <ul>
+          <li><strong>Геолокация Пользователя</strong> — собирается при активном согласии, используется для: привязки обращений к карте, поиска ближайших инцидентов в радиусе 500 м, отправки гео-push-уведомлений (опционально). Хранится в обезличенном виде (округлённые координаты);</li>
+          <li><strong>Фотографии</strong> — обрабатываются через Real-ESRGAN (улучшение x4), OCR-движок Tesseract, VLM-анализатор. На фото могут случайно попасть люди и госномера — Администрация не несёт ответственности за случайную фиксацию третьих лиц в публичных пространствах;</li>
+          <li><strong>IP-адрес</strong> — логируется 30 дней для защиты от DDoS, ботов и соблюдения anti-spam rate-limiting;</li>
+          <li><strong>Идентификатор устройства</strong> — генерируется случайным образом, не связан с IMEI/UDID, используется для геймификации (XP, уровни, достижения).</li>
+        </ul>
+      </section>
+
+      <section class="legal-card" id="legal-basis-152fz">
+        <h2>Правовое основание обработки (ст. 6 Закона № 152-ФЗ)</h2>
+        <p>Обработка персональных данных Пользователей осуществляется на следующих правовых основаниях:</p>
+        <ul>
+          <li><strong>п. 1 ч. 1 ст. 6</strong> — согласие Пользователя, данное при акцепте Пользовательского соглашения;</li>
+          <li><strong>п. 2 ч. 1 ст. 6</strong> — обработка необходима для достижения целей, предусмотренных законом (ФЗ-59 «О порядке рассмотрения обращений граждан», ФЗ-210 об организации предоставления гос. услуг);</li>
+          <li><strong>п. 5 ч. 1 ст. 6</strong> — обработка необходима для исполнения обязанностей и полномочий администрации города.</li>
+        </ul>
+        <p>Согласие Пользователя может быть отозвано в любой момент через направление письменного заявления на email Администрации.</p>
+      </section>
+
+      <section class="legal-card" id="age-limit">
+        <h2>Возраст Пользователей и согласие законных представителей</h2>
+        <p>В соответствии со ст. 9 Закона № 152-ФЗ:</p>
+        <ul>
+          <li>Согласие на обработку персональных данных лиц <strong>от 18 лет</strong> даётся ими самостоятельно;</li>
+          <li>Для лиц <strong>от 16 до 18 лет</strong> согласие даётся ими самостоятельно с учётом их полной дееспособности (эмансипация, брак);</li>
+          <li>Для лиц <strong>от 14 до 16 лет</strong> требуется письменное согласие одного из родителей или законных представителей;</li>
+          <li>Использование Сервиса лицами <strong>моложе 14 лет</strong> не допускается.</li>
+        </ul>
+      </section>
+
+      <section class="legal-card" id="cookies-policy">
+        <h2>Файлы cookie и localStorage</h2>
+        <p>Сервис использует следующие типы хранилищ на устройстве Пользователя:</p>
+        <ul>
+          <li><strong>HTTP-cookie</strong> — идентификатор сессии, флаг акцепта соглашения, JWT-токен авторизации (HttpOnly, Secure). Срок жизни — до 1 года;</li>
+          <li><strong>localStorage</strong> — настройки карты (выбранные категории, фильтры, последний город, last_route). Хранится бессрочно;</li>
+          <li><strong>IndexedDB</strong> — кэш оффлайн-обращений и фото для синхронизации при восстановлении сети;</li>
+          <li><strong>Service Worker cache</strong> — статики (HTML, JS, шрифты) для PWA-работы без интернета.</li>
+        </ul>
+        <p>Сервис <strong>не использует</strong> рекламные cookie Google DoubleClick, Yandex Metrica target, Facebook Pixel. Аналитика посещаемости обезличена. Очистка cookie возможна в настройках браузера.</p>
+      </section>
+
+      <section class="legal-card" id="subject-rights">
+        <h2>Права субъекта персональных данных (ст. 14-17 Закона № 152-ФЗ)</h2>
+        <p>Пользователь имеет право:</p>
+        <ul>
+          <li>Получить информацию об обрабатываемых данных (ст. 14);</li>
+          <li>Требовать уточнения, блокирования или уничтожения данных (ст. 15);</li>
+          <li>Отозвать согласие на обработку (ст. 9 ч. 2);</li>
+          <li>Обжаловать действия Администрации в Роскомнадзор или суд.</li>
+        </ul>
+        <p>Запросы направляются на email Администрации. Срок ответа — 30 дней согласно ст. 17 Закона.</p>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Scroll to top -->
+  <button class="scroll-top-btn" id="scrollTopBtn" aria-label="Наверх">&#9650;</button>
+
+  <!-- Mobile TOC toggle -->
+  <button class="toc-toggle" id="tocToggle" aria-label="Содержание">&#9776;</button>
+
+  <script>
+    (function () {
+      // Scroll to top button
+      const scrollBtn = document.getElementById('scrollTopBtn');
+      window.addEventListener('scroll', function () {
+        scrollBtn.classList.toggle('visible', window.scrollY > 400);
+      }, { passive: true });
+      scrollBtn.addEventListener('click', function () {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      // Mobile TOC
+      const tocSidebar = document.getElementById('tocSidebar');
+      const tocToggle = document.getElementById('tocToggle');
+      const tocClose = document.getElementById('tocClose');
+      if (tocToggle) {
+        tocToggle.addEventListener('click', function () {
+          tocSidebar.classList.toggle('open');
+        });
+      }
+      if (tocClose) {
+        tocClose.addEventListener('click', function () {
+          tocSidebar.classList.remove('open');
+        });
+      }
+      // Close TOC on link click (mobile)
+      document.querySelectorAll('.toc-list a').forEach(function (a) {
+        a.addEventListener('click', function () {
+          tocSidebar.classList.remove('open');
+        });
+      });
+
+      // Active TOC link on scroll
+      const sections = document.querySelectorAll('.section-card[id]');
+      const tocLinks = document.querySelectorAll('.toc-list a');
+      window.addEventListener('scroll', function () {
+        let current = '';
+        sections.forEach(function (section) {
+          const rect = section.getBoundingClientRect();
+          if (rect.top <= 120) current = section.id;
+        });
+        tocLinks.forEach(function (link) {
+          link.classList.remove('active');
+          if (link.getAttribute('href') === '#' + current) {
+            link.classList.add('active');
+          }
+        });
+      }, { passive: true });
+
+      // Search functionality
+      const searchInput = document.getElementById('searchInput');
+      const searchInfo = document.getElementById('searchInfo');
+      let originalContent = {};
+
+      searchInput.addEventListener('input', function () {
+        const query = searchInput.value.trim();
+
+        // Restore previous highlights
+        document.querySelectorAll('.section-card').forEach(function (card) {
+          if (originalContent[card.id] !== undefined) {
+            card.innerHTML = originalContent[card.id];
+          }
+        });
+        originalContent = {};
+
+        if (!query) {
+          searchInfo.textContent = '';
+          return;
+        }
+
+        let totalMatches = 0;
+        const regex = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+
+        document.querySelectorAll('.section-card').forEach(function (card) {
+          originalContent[card.id] = card.innerHTML;
+          const html = card.innerHTML;
+          const newHtml = html.replace(regex, '<mark class="search-highlight">$1</mark>');
+          const matches = (html.match(regex) || []).length;
+          totalMatches += matches;
+          if (matches > 0) {
+            card.innerHTML = newHtml;
+          }
+        });
+
+        if (totalMatches > 0) {
+          searchInfo.textContent = 'Найдено совпадений: ' + totalMatches;
+        } else {
+          searchInfo.textContent = 'Совпадений не найдено';
+        }
+      });
+    })();
+  </script>
+</body>
+
+</html>

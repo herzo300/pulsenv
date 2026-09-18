@@ -1,0 +1,108 @@
+Created At: 2026-06-23T05:12:14Z
+Completed At: 2026-06-23T05:12:14Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1590
+Total Bytes: 65733
+Showing lines 335 to 434
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+335:   void _showParamExplanation(String title, String currentText, String explanation) {
+336:     showModalBottomSheet<void>(
+337:       context: context,
+338:       isScrollControlled: true,
+339:       backgroundColor: Colors.transparent,
+340:       builder: (context) {
+341:         final isDark = widget.isNightMode;
+342:         final bgColor = isDark ? const Color(0xFF0F172A) : Colors.white;
+343:         final titleColor = isDark ? Colors.white : const Color(0xFF0F2742);
+344:         final textColor = isDark ? Colors.white70 : Colors.black87;
+345:         
+346:         return Container(
+347:           decoration: BoxDecoration(
+348:             color: bgColor,
+349:             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+350:             boxShadow: [
+351:               BoxShadow(
+352:                 color: Colors.black.withOpacity(0.3),
+353:                 blurRadius: 16,
+354:                 spreadRadius: 2,
+355:               )
+356:             ],
+357:           ),
+358:           padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+359:           child: Column(
+360:             mainAxisSize: MainAxisSize.min,
+361:             crossAxisAlignment: CrossAxisAlignment.start,
+362:             children: [
+363:               Center(
+364:                 child: Container(
+365:                   width: 36,
+366:                   height: 4,
+367:                   decoration: BoxDecoration(
+368:                     color: (isDark ? Colors.white24 : Colors.black12),
+369:                     borderRadius: BorderRadius.circular(2),
+370:                   ),
+371:                 ),
+372:               ),
+373:               const SizedBox(height: 20),
+374:               Text(
+375:                 title,
+376:                 style: TextStyle(
+377:                   fontSize: 20,
+378:                   fontWeight: FontWeight.w800,
+379:                   color: titleColor,
+380:                   letterSpacing: 0.3,
+381:                 ),
+382:               ),
+383:               const SizedBox(height: 8),
+384:               Container(
+385:                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+386:                 decoration: BoxDecoration(
+387:                   color: widget.accent.withOpacity(0.1),
+388:                   borderRadius: BorderRadius.circular(10),
+389:                   border: Border.all(color: widget.accent.withOpacity(0.2)),
+390:                 ),
+391:                 child: Text(
+392:                   'Текущее значение: $currentText',
+393:                   style: TextStyle(
+394:                     fontSize: 13,
+395:                     fontWeight: FontWeight.bold,
+396:                     color: widget.accent,
+397:                   ),
+398:                 ),
+399:               ),
+400:               const SizedBox(height: 16),
+401:               Text(
+402:                 explanation,
+403:                 style: TextStyle(
+404:                   fontSize: 14.5,
+405:                   height: 1.5,
+406:                   color: textColor,
+407:                 ),
+408:               ),
+409:               const SizedBox(height: 24),
+410:               SizedBox(
+411:                 width: double.infinity,
+412:                 child: TextButton(
+413:                   onPressed: () => Navigator.pop(context),
+414:                   style: TextButton.styleFrom(
+415:                     backgroundColor: widget.accent.withOpacity(isDark ? 0.2 : 0.1),
+416:                     padding: const EdgeInsets.symmetric(vertical: 14),
+417:                     shape: RoundedRectangleBorder(
+418:                       borderRadius: BorderRadius.circular(16),
+419:                     ),
+420:                   ),
+421:                   child: Text(
+422:                     'Понятно',
+423:                     style: TextStyle(
+424:                       color: isDark ? Colors.white : widget.accent,
+425:                       fontSize: 14,
+426:                       fontWeight: FontWeight.bold,
+427:                     ),
+428:                   ),
+429:                 ),
+430:               ),
+431:             ],
+432:           ),
+433:         );
+434:       },
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

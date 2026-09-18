@@ -84,6 +84,12 @@ VENUE_COORDS: dict[str, dict[str, Any]] = {
         "lng": 76.5558084,
         "address": "ул. Ленина, 8, Нижневартовск",
     },
+    "грин парк": {
+        "name": "МФК Green Park",
+        "lat": 60.9384798,
+        "lng": 76.5558084,
+        "address": "ул. Ленина, 8, Нижневартовск",
+    },
     "ленина, 8": {
         "name": "МФК Green Park",
         "lat": 60.9384798,
@@ -92,21 +98,93 @@ VENUE_COORDS: dict[str, dict[str, Any]] = {
     },
     "дворец культуры октябрь": {
         "name": "Дворец культуры «Октябрь»",
-        "lat": 60.931723,
-        "lng": 76.561754,
-        "address": "ул. Чапаева, 31, Нижневартовск",
+        "lat": 60.9298,
+        "lng": 76.5492,
+        "address": "ул. 60 лет Октября, 11/2, Нижневартовск",
     },
     "дк октябрь": {
         "name": "Дворец культуры «Октябрь»",
-        "lat": 60.931723,
-        "lng": 76.561754,
-        "address": "ул. Чапаева, 31, Нижневартовск",
+        "lat": 60.9298,
+        "lng": 76.5492,
+        "address": "ул. 60 лет Октября, 11/2, Нижневартовск",
     },
     "дворец культуры «октябрь»": {
         "name": "Дворец культуры «Октябрь»",
-        "lat": 60.931723,
-        "lng": 76.561754,
-        "address": "ул. Чапаева, 31, Нижневартовск",
+        "lat": 60.9298,
+        "lng": 76.5492,
+        "address": "ул. 60 лет Октября, 11/2, Нижневартовск",
+    },
+    "югра молл": {
+        "name": "ТРК «Югра Молл»",
+        "lat": 60.9422,
+        "lng": 76.5710,
+        "address": "ул. Ленина, 15п, Нижневартовск",
+    },
+    "трк югра молл": {
+        "name": "ТРК «Югра Молл»",
+        "lat": 60.9422,
+        "lng": 76.5710,
+        "address": "ул. Ленина, 15п, Нижневартовск",
+    },
+    "сити центр": {
+        "name": "ТЦ «Сити-Центр»",
+        "lat": 60.9380,
+        "lng": 76.5530,
+        "address": "ул. Ленина, 8а, Нижневартовск",
+    },
+    "ледовый дворец": {
+        "name": "Ледовый дворец спорта",
+        "lat": 60.9272,
+        "lng": 76.5415,
+        "address": "ул. 60 лет Октября, 12б, Нижневартовск",
+    },
+    "парк победы": {
+        "name": "Парк Победы",
+        "lat": 60.9400,
+        "lng": 76.5480,
+        "address": "Парк Победы, Нижневартовск",
+    },
+    "комсомольское озеро": {
+        "name": "Комсомольское озеро",
+        "lat": 60.9450,
+        "lng": 76.5500,
+        "address": "Комсомольское озеро, Нижневартовск",
+    },
+    "набережная": {
+        "name": "Набережная р. Обь",
+        "lat": 60.9300,
+        "lng": 76.5500,
+        "address": "ул. Пикмана, Набережная, Нижневартовск",
+    },
+    "краеведческий музей": {
+        "name": "Нижневартовский краеведческий музей",
+        "lat": 60.9398,
+        "lng": 76.5615,
+        "address": "ул. Ленина, 9/1, Нижневартовск",
+    },
+    "центральная библиотека": {
+        "name": "Центральная городская библиотека им. М.К. Анисимковой",
+        "lat": 60.9431,
+        "lng": 76.5772,
+        "address": "ул. Дружбы Народов, 22, Нижневартовск",
+    },
+    "администрация": {
+        "name": "Администрация города Нижневартовска",
+        "lat": 60.9372,
+        "lng": 76.5531,
+        "address": "ул. Таежная, 24, Нижневартовск",
+    },
+    "стадион нефтяник": {
+        "name": "Центральный стадион",
+        "lat": 60.9255,
+        "lng": 76.5360,
+        "address": "ул. 60 лет Октября, 20/1, Нижневартовск",
+    },
+    "центральный стадион": {
+        "name": "Центральный стадион",
+        "lat": 60.9255,
+        "lng": 76.5360,
+        "address": "ул. 60 лет Октября, 20/1, Нижневартовск",
     },
 }
 
@@ -286,14 +364,17 @@ def _dedupe_marker_records(markers: list[dict[str, Any]]) -> list[dict[str, Any]
         coords = _marker_coords_bucket(marker.get("lat"), marker.get("lng"))
 
         candidate_keys: list[tuple[Any, ...]] = []
+        # Primary: address + category alone is enough to be a duplicate
+        if address:
+            candidate_keys.append(("addr_cat", category, address))
+        # Secondary: same coords bucket + category
+        if coords:
+            candidate_keys.append(("coords_cat", category, coords))
+        # Tertiary: address + summary for text-level dedup
         if address and summary:
-            candidate_keys.append((category, address, summary))
+            candidate_keys.append(("full", category, address, summary))
         if coords and summary:
-            candidate_keys.append((category, coords, summary))
-        if not candidate_keys and address:
-            candidate_keys.append((category, address))
-        if not candidate_keys and coords:
-            candidate_keys.append((category, coords))
+            candidate_keys.append(("full_coords", category, coords, summary))
 
         if candidate_keys and any(key in seen for key in candidate_keys):
             continue
@@ -789,11 +870,9 @@ async def _fetch_local_reports(
                 | (Report.source.like("telegram:%"))
             )
 
-        if city == "novosibirsk":
-            query = query.filter(Report.city == "novosibirsk")
-        else:
-            from sqlalchemy import or_
-            query = query.filter(or_(Report.city == "nizhnevartovsk", Report.city == None, Report.city == ""))
+        # Приложение работает только с Нижневартовском
+        from sqlalchemy import or_
+        query = query.filter(or_(Report.city == "nizhnevartovsk", Report.city == None, Report.city == ""))
 
         reports = query.order_by(Report.created_at.desc()).limit(limit).all()
         return [
@@ -808,6 +887,7 @@ async def _fetch_local_reports(
                 "category": _normalize_category(report.category),
                 "status": report.status,
                 "source": report.source,
+                "city": report.city,
                 "created_at": report.created_at.isoformat()
                 if report.created_at
                 else None,
@@ -823,10 +903,24 @@ async def _fetch_local_reports(
         db.close()
 
 
+def _city_viewbox(report_city: str) -> str | None:
+    """Viewbox города из _CITY_PROFILES (None — если профиль не найден)."""
+    try:
+        from services.Backend.comprehensive_marker_geofix import (
+            _CITY_PROFILES,
+            _city_key,
+        )
+
+        city_key = _city_key(report_city, "")
+        profile = _CITY_PROFILES.get(city_key)
+        return profile["viewbox"] if profile else None
+    except Exception:
+        return None
+
+
 async def _ensure_report_address(
     report: dict[str, Any], lat: Any, lng: Any
 ) -> None:
-    """Fill missing address from coordinates so map feed can show the marker."""
     if _normalize_report_address(report) is not None:
         return
     if lat is None or lng is None:
@@ -847,6 +941,7 @@ async def _ensure_report_address(
 async def _enrich_report(report: dict[str, Any]) -> dict[str, Any] | None:
     source = str(report.get("source") or "")
     source_lower = source.lower()
+    report_city = str(report.get("city") or "").strip().lower() or "nizhnevartovsk"
     if source_lower.startswith("tg:") or source_lower.startswith("telegram:") or source_lower.startswith("vk:"):
         text = "\n".join(filter(None, [report.get("title"), report.get("description")]))
         if _is_weather_post(text):
@@ -865,40 +960,100 @@ async def _enrich_report(report: dict[str, Any]) -> dict[str, Any] | None:
             text=text,
             ai_address=normalized_address,
             location_hints=normalized_address,
+            city=report_city,
         )
         lat = geo.get("lat")
         lng = geo.get("lng")
         if geo.get("address"):
             report["address"] = geo["address"]
             normalized_address = _normalize_report_address(report)
+        # Персистим только координаты внутри viewbox города — мусор из
+        # геопарсинга не должен «замораживаться» в БД как доверенный
         if lat is not None and lng is not None and report.get("id") is not None:
-            await asyncio.to_thread(
-                _persist_report_geo,
-                int(report["id"]),
-                float(lat),
-                float(lng),
-                normalized_address,
-            )
+            try:
+                flat, flng = float(lat), float(lng)
+                viewbox = _city_viewbox(report_city)
+                if viewbox is None:
+                    lon_min, lat_min, lon_max, lat_max = 76.42, 60.85, 76.70, 61.02
+                else:
+                    lon_min, lat_min, lon_max, lat_max = (
+                        float(v) for v in viewbox.split(",")
+                    )
+                if lat_min <= flat <= lat_max and lon_min <= flng <= lon_max:
+                    await asyncio.to_thread(
+                        _persist_report_geo,
+                        int(report["id"]),
+                        flat,
+                        flng,
+                        normalized_address,
+                    )
+                else:
+                    lat = lng = None
+            except (TypeError, ValueError):
+                lat = lng = None
 
     await _ensure_report_address(report, lat, lng)
     normalized_address = _normalize_report_address(report)
-    if lat is not None and lng is not None and report.get("id") is not None:
-        await asyncio.to_thread(
-            _persist_report_geo,
-            int(report["id"]),
-            float(lat),
-            float(lng),
-            report.get("address"),
-        )
 
-    if lat is None or lng is None:
-        report_id = int(report.get("id") or 1)
-        city_str = str(report.get("city") or "nizhnevartovsk").lower()
-        base_lat, base_lng = (55.0302, 82.9204) if "novosibirsk" in city_str else (60.9344, 76.5531)
-        lat = base_lat + (((report_id * 17) % 120) - 60) * 0.0006
-        lng = base_lng + (((report_id * 31) % 120) - 60) * 0.0006
-        report["lat"] = lat
-        report["lng"] = lng
+    title_val = str(report.get("title") or report.get("summary") or "")
+    desc_val = str(report.get("description") or "")
+    addr_val = str(report.get("address") or normalized_address or "")
+
+    from services.Backend.comprehensive_marker_geofix import (
+        _CITY_PROFILES,
+        _city_key,
+        haversine_distance_m,
+        load_knowledge_base,
+        resolve_with_city,
+    )
+
+    city_key = _city_key(report_city, addr_val)
+    profile = _CITY_PROFILES.get(city_key, _CITY_PROFILES["nizhnevartovsk"])
+
+    # Координаты из БД считаем валидными, если они внутри viewbox своего города
+    # и не совпадают с дефолтным центром другого города (след старого бага,
+    # когда NSK-маркеры затирались центром Нижневартовска).
+    coords_valid = False
+    if lat is not None and lng is not None:
+        try:
+            flat, flng = float(lat), float(lng)
+            lon_min, lat_min, lon_max, lat_max = (
+                float(v) for v in profile["viewbox"].split(",")
+            )
+            in_viewbox = lat_min <= flat <= lat_max and lon_min <= flng <= lon_max
+            is_foreign_default = any(
+                key != city_key
+                and haversine_distance_m(flat, flng, p["center"][0], p["center"][1]) < 50.0
+                for key, p in _CITY_PROFILES.items()
+            )
+            coords_valid = in_viewbox and not is_foreign_default
+        except (TypeError, ValueError):
+            coords_valid = False
+
+    if not coords_valid:
+        houses_kb, inst_kb, street_kb = load_knowledge_base()
+        (target_lat, target_lng), _geo_src = resolve_with_city(
+            addr_val, title_val, desc_val, city_key, houses_kb, inst_kb, street_kb
+        )
+        if _geo_src != "city_center_default":
+            lat = target_lat
+            lng = target_lng
+            report["lat"] = lat
+            report["lng"] = lng
+            if report.get("id") is not None:
+                await asyncio.to_thread(
+                    _persist_report_geo,
+                    int(report["id"]),
+                    float(lat),
+                    float(lng),
+                    report.get("address"),
+                )
+        else:
+            # Нераспознанный адрес: центр города — лишь отображаемый фолбэк,
+            # не подставляем и не персистим его, иначе маркер навсегда
+            # «прилипнет» к центру и никогда не переисправится.
+            report["lat"] = None
+            report["lng"] = None
 
     if _cleanup_reason(report) is not None:
         return None
@@ -921,8 +1076,23 @@ async def _enrich_report(report: dict[str, Any]) -> dict[str, Any] | None:
         rep_cat = report.get("category") or "Город"
         seed = (hash(f"{rep_id}_{rep_title}") & 0x7fffffff) % 1000 + 1
         import urllib.parse
-        encoded_prompt = urllib.parse.quote(f"photorealistic 3d icon of {rep_title}, category {rep_cat}, Nizhnevartovsk city, high resolution render")
-        images = [f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=600&height=400&seed={seed}&nologo=true"]
+        # Build a detailed prompt for realistic city infrastructure photos (1:1 square to prevent squishing)
+        cat_context = {
+            "ЖКХ": "broken utility infrastructure, damaged pipes or heating in a residential area",
+            "Дороги": "pothole or cracked asphalt on a city road",
+            "Благоустройство": "neglected public space, overgrown grass, broken bench or playground",
+            "Безопасность": "dark unlit street or broken streetlight in a residential area",
+            "Мусор": "overflowing garbage container near an apartment building",
+            "Парковки": "illegally parked cars blocking a sidewalk",
+            "Транспорт": "bus stop in poor condition or traffic issue",
+        }.get(rep_cat, "urban infrastructure issue in a city")
+        photo_prompt = (
+            f"ultra photorealistic documentary photo, {cat_context}, {rep_title}, "
+            f"shot on Sony A7IV 35mm f/1.8 lens, natural outdoor daylight, "
+            f"authentic Siberian city Nizhnevartovsk, detailed textures, 8k resolution, raw photo style"
+        )
+        encoded_prompt = urllib.parse.quote(photo_prompt)
+        images = [f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=2048&height=2048&seed={seed}&nologo=true&model=flux-realism"]
 
     return {
         "id": f"report-{report.get('id')}",
@@ -1020,8 +1190,7 @@ def _is_weather_post(text: str) -> bool:
     weather_keywords = [
         "прогноз погоды", "градус", "синоптик", "погод", 
         "температур", "осадки", "пасмурно", "облачно", 
-        "ветер до", "м/с", "в нижневартовске ожидает",
-        "в новосибирске ожидает"
+        "ветер до", "м/с", "в нижневартовске ожидает"
     ]
     # Check if text contains multiple weather markers (e.g. forecast list)
     matches = sum(1 for kw in weather_keywords if kw in text_lower)
@@ -1080,11 +1249,9 @@ def _fetch_tg_event_reports(days: int = 30, city: str = "nizhnevartovsk") -> lis
                 | Report.source.like("telegram:%")
             ),
         )
-        if city == "novosibirsk":
-            query = query.filter(Report.city == "novosibirsk")
-        else:
-            from sqlalchemy import or_
-            query = query.filter(or_(Report.city == "nizhnevartovsk", Report.city == None, Report.city == ""))
+        # Приложение работает только с Нижневартовском
+        from sqlalchemy import or_
+        query = query.filter(or_(Report.city == "nizhnevartovsk", Report.city == None, Report.city == ""))
 
         rows = query.order_by(Report.created_at.desc()).limit(400).all()
         return [
@@ -1347,7 +1514,7 @@ async def _load_city_events_uncached(city: str = "nizhnevartovsk") -> dict[str, 
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
-        gz_city = "novosibirsk" if city == "novosibirsk" else "nizhnevartovsk"
+        gz_city = "nizhnevartovsk"
         async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, headers=headers) as client:
             response = await client.get(f"https://gorodzovet.ru/{gz_city}/")
             response.raise_for_status()
@@ -1810,6 +1977,8 @@ async def _build_map_feed(
     merged_event_rows = _dedupe_marker_records([*filtered_event_rows, *filtered_tg_events])
     if isinstance(events, dict):
         events = {**events, "today": [e for e in merged_event_rows if e.get("event_date") == today_date.isoformat()]}
+    # Объекты строительства/ремонта больше не рисуются маркерами на карте —
+    # они живут в отдельной вкладке «Паспорта объектов» (endpoint /api/v1/road-works).
     markers = [*reports, *merged_event_rows]
 
     markers = _filter_layers(markers, layers)

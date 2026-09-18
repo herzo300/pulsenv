@@ -1,0 +1,18 @@
+{
+  "success": true,
+  "generated_at": "2026-06-15T17:27:25.977793",
+  "cache_ttl_seconds": 20,
+  "counts": {
+    "markers": 0,
+    "public_reports": 0,
+    "events_today": 0,
+    "high_confidence": 0
+  },
+  "markers": [],
+  "reports": [],
+  "events": {
+    "today": [],
+    "meta": {}
+  },
+  "cache_hit": false
+}

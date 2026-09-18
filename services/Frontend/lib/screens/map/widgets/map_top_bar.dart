@@ -27,8 +27,11 @@ class MapTopBar extends StatelessWidget {
   final VoidCallback onToggleMapStyle;
   final bool showLostFound;
   final VoidCallback onToggleLostFound;
+  final bool showRadar;
+  final VoidCallback? onToggleRadar;
   final VoidCallback? onToggleTheme;
   final VoidCallback onMapMenuSheet;
+  final VoidCallback? onOpenHermes;
   final ValueChanged<CityConfig>? onCityChanged;
   final String? latestSignalCategory;
 
@@ -53,6 +56,9 @@ class MapTopBar extends StatelessWidget {
     required this.onMapMenuSheet,
     required this.showLostFound,
     required this.onToggleLostFound,
+    this.showRadar = false,
+    this.onToggleRadar,
+    this.onOpenHermes,
     this.onToggleTheme,
     this.onCityChanged,
     this.latestSignalCategory,
@@ -75,67 +81,20 @@ class MapTopBar extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(6, 1, 4, 1),
             child: Row(
               children: [
-                PopupMenuButton<CityConfig>(
-                  onSelected: (city) {
-                    HapticFeedback.selectionClick();
-                    onCityChanged?.call(city);
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.mediumImpact();
+                    onToggleTheme?.call();
                   },
-                  offset: const Offset(0, 36),
-                  color: uiPanelFill.withOpacity(0.95),
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  itemBuilder: (context) => CityConfig.all.map((city) {
-                    final isActive = city.id == CityProvider().activeCity.id;
-                    return PopupMenuItem<CityConfig>(
-                      value: city,
-                      height: 38,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(city.emoji, style: const TextStyle(fontSize: 14)),
-                          const SizedBox(width: 8),
-                          Text(
-                            city.name,
-                            style: TextStyle(
-                              color: isActive ? uiAccent : uiTextPrimary.withOpacity(0.85),
-                              fontSize: 13,
-                              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                            ),
-                          ),
-                          if (isActive) ...[
-                            const SizedBox(width: 8),
-                            Icon(Icons.check_rounded, color: uiAccent, size: 14),
-                          ],
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.swap_horiz_rounded,
-                        color: uiAccent,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 4),
-                      GestureDetector(
-                        onTap: () {
-                          HapticFeedback.mediumImpact();
-                          onToggleTheme?.call();
-                        },
-                        child: AnimatedBuilder(
-                          animation: CityProvider(),
-                          builder: (context, _) => PulseAppBadge(
-                            isNightMode: isNightMode,
-                            accent: uiAccent,
-                            textPrimary: uiTextPrimary,
-                            cityName: CityProvider().activeCity.name,
-                            category: latestSignalCategory,
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: AnimatedBuilder(
+                    animation: CityProvider(),
+                    builder: (context, _) => PulseAppBadge(
+                      isNightMode: isNightMode,
+                      accent: uiAccent,
+                      textPrimary: uiTextPrimary,
+                      cityName: 'Нижневартовск 📍',
+                      category: latestSignalCategory,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -174,12 +133,11 @@ class MapTopBar extends StatelessWidget {
                           onPressed: onToggleLostFound,
                           label: 'Слой «Найдено и потеряно»',
                         ),
-
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 GestureDetector(
                   onTap: () {
                     HapticFeedback.mediumImpact();

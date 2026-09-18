@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../core/app_router.dart';
 import '../screens/map/widgets/map_glass_panel.dart';
 import '../services/notification_catalog.dart';
 import '../theme/pulse_colors.dart';
@@ -14,7 +13,7 @@ import 'image_lightbox.dart';
 import 'safe_image_widget.dart';
 import '../services/pdf_complaint_service.dart';
 
-/// Р”РµС‚Р°Р»СЊРЅС‹Р№ РїСЂРѕСЃРјРѕС‚СЂ СЃРёРіРЅР°Р»Р° СЃ РєСЂР°С‚РєРёРј РР-Р°РЅР°Р»РёР·РѕРј Рё РїСЂРѕР»РёСЃС‚С‹РІР°РЅРёРµРј.
+/// Детальный просмотр сигнала с кратким ИИ-анализом и пролистыванием.
 Future<void> showSwipeableReportDetail({
   required BuildContext context,
   required List<dynamic> reports,
@@ -173,20 +172,50 @@ class _ReportDetailPage extends StatelessWidget {
 
   final dynamic report;
 
+  static Future<Set<String>> _loadGlobalVotedSignals() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('global_voted_signal_ids') ?? [];
+      return list.toSet();
+    } catch (_) {
+      return {};
+    }
+  }
+
+  static Future<void> _voteGlobalSignal(String signalId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = (prefs.getStringList('global_voted_signal_ids') ?? []).toSet();
+      list.add(signalId);
+      await prefs.setStringList('global_voted_signal_ids', list.toList());
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
-    final category = (report['category'] ?? 'РџСЂРѕС‡РµРµ') as String;
+    final category = (report['category'] ?? 'Прочее') as String;
     final descriptor = NotificationCatalog.describe(category);
     final itemColor = descriptor.color;
-    final title = report['title']?.toString() ?? 'Р‘РµР· Р·Р°РіРѕР»РѕРІРєР°';
-    final address = report['address']?.toString() ?? 'Р‘РµР· Р°РґСЂРµСЃР°';
+    final title = report['title']?.toString() ?? 'Без заголовка';
+    final address = report['address']?.toString() ?? 'Без адреса';
     final descText = (report['description'] ?? report['summary'] ?? '').toString();
     final cleanDesc = SituationHelper.cleanDescription(descText, title);
     final imageUrls = SituationHelper.extractImageUrls(report);
 
+    final status = report['status']?.toString() ?? 'in_progress';
+    final statusText = report['status_text']?.toString() ?? (status == 'resolved' ? 'Решено' : 'В работе');
+    final isResolved = status == 'resolved';
+    final statusColor = isResolved ? const Color(0xFF10B981) : (status == 'accepted' ? const Color(0xFF38BDF8) : const Color(0xFFFFB800));
+    final timeText = report['time']?.toString() ?? 'Сегодня';
+    // Реальный счётчик лайков с сервера; дефолт 0 вместо фиктивной «пятёрки»
+    final likesCount = (report['likes'] as int?) ?? (report['likes_count'] as int?) ?? 0;
+    final supportersCount = (report['supporters'] as int?) ?? 0;
+
     final lat = report['lat']?.toString() ?? report['latitude']?.toString();
     final lng = report['lng']?.toString() ?? report['longitude']?.toString();
-    final reportId = report['id']?.toString() ?? '';
+    final latDouble = double.tryParse(lat ?? '');
+    final lngDouble = double.tryParse(lng ?? '');
+    final reportId = report['id']?.toString() ?? '${title}_$address';
     final hasCoords = lat != null && lng != null;
 
     return SingleChildScrollView(
@@ -194,6 +223,70 @@ class _ReportDetailPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ─── Status & AI badge strip (JKH-style) ───
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: statusColor.withOpacity(0.4)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: statusColor)),
+                    const SizedBox(width: 5),
+                    Text(
+                      statusText,
+                      style: TextStyle(color: statusColor, fontSize: 10.5, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.4)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.source_rounded, size: 11, color: Color(0xFFA78BFA)),
+                    const SizedBox(width: 4),
+                    Text(
+                      _reportSourceLabel(report['source']?.toString()),
+                      style: const TextStyle(color: Color(0xFFA78BFA), fontSize: 9.5, fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              Text(
+                timeText,
+                style: TextStyle(color: PulseColors.textSecondary, fontSize: 11),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // ─── Фотоматериалы сигнала (галерея, ранее мёртвый код) ───
+          if (imageUrls.isNotEmpty) ...[
+            _buildReportPhotoWidget(
+              context: context,
+              imageUrls: imageUrls,
+              category: category,
+              color: itemColor,
+              lat: latDouble,
+              lng: lngDouble,
+            ),
+            const SizedBox(height: 12),
+          ],
+
           Row(
             children: [
               Container(
@@ -393,7 +486,117 @@ class _ReportDetailPage extends StatelessWidget {
             description: descText,
             accentColor: itemColor,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+
+          // ─── JKH-Style Support & Emergency Hotline Footer Bar ───
+          StatefulBuilder(
+            builder: (ctx, setVoteState) {
+              return FutureBuilder<Set<String>>(
+                future: _loadGlobalVotedSignals(),
+                builder: (c, snap) {
+                  final votedSet = snap.data ?? {};
+                  final isVoted = votedSet.contains(reportId);
+                  final dynamicLikes = isVoted ? likesCount + 1 : likesCount;
+
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white.withOpacity(0.05)
+                          : const Color(0xFF0F172A).withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : Colors.black12,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        // Support / Upvote button (Single vote per user/address)
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () async {
+                            if (isVoted) return;
+                            HapticFeedback.heavyImpact();
+                            await _voteGlobalSignal(reportId);
+                            setVoteState(() {});
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isVoted
+                                  ? const Color(0xFF10B981).withOpacity(0.2)
+                                  : const Color(0xFF00E5FF).withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isVoted
+                                    ? const Color(0xFF10B981).withOpacity(0.5)
+                                    : const Color(0xFF00E5FF).withOpacity(0.35),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isVoted ? Icons.check_circle_rounded : Icons.thumb_up_alt_rounded,
+                                  size: 14,
+                                  color: isVoted ? const Color(0xFF10B981) : const Color(0xFF00E5FF),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  isVoted ? 'Поддержано ($dynamicLikes)' : 'Поддержать ($dynamicLikes)',
+                                  style: TextStyle(
+                                    color: isVoted ? const Color(0xFF10B981) : const Color(0xFF00E5FF),
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Quick Emergency Hotline Call Action
+                        Expanded(
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () async {
+                              final uri = Uri.parse('tel:112');
+                              if (await canLaunchUrl(uri)) {
+                                await launchUrl(uri);
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF59E0B).withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.35)),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.phone_in_talk_rounded, color: Color(0xFFF59E0B), size: 14),
+                                  SizedBox(width: 5),
+                                  Flexible(
+                                    child: Text(
+                                      'Служба 112 / ЖКХ',
+                                      style: TextStyle(color: Color(0xFFF59E0B), fontSize: 11, fontWeight: FontWeight.bold),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+          const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -788,7 +991,7 @@ class _ReportDetailPage extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'РЎРР“РќРђР›: ${category.toUpperCase()}',
+                          'СИГНАЛ: ${category.toUpperCase()}',
                           style: TextStyle(
                             color: color,
                             fontSize: 11,
@@ -798,7 +1001,7 @@ class _ReportDetailPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Р¤РѕС‚РѕРјР°С‚РµСЂРёР°Р»С‹ Р·Р°С‰РёС‰РµРЅС‹ Р°РІС‚РѕСЂСЃРєРёРј РїСЂР°РІРѕРј. Р—Р°РїРёСЃСЊ РїСЂРѕРІРµСЂРµРЅР° РіРѕСЂРѕРґСЃРєРѕР№ СЃРёСЃС‚РµРјРѕР№.',
+                          'Фотоматириалы недоступны для этой записи.',
                           style: TextStyle(
                             color: PulseColors.textPrimary.withOpacity(0.7),
                             fontSize: 11,
@@ -808,7 +1011,7 @@ class _ReportDetailPage extends StatelessWidget {
                         if (lat != null && lng != null) ...[
                           const SizedBox(height: 8),
                           Text(
-                            'РљРѕРѕСЂРґРёРЅР°С‚С‹: ${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}',
+                            'Координаты: ${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}',
                             style: TextStyle(
                               color: PulseColors.textSecondary,
                               fontSize: 9,
@@ -885,11 +1088,9 @@ class _LegalAnalysisWidgetState extends State<_LegalAnalysisWidget> {
   }
 
   Future<void> _checkVipStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final vip = prefs.getBool('is_premium_vip') ?? prefs.getBool('is_vip') ?? false;
     if (mounted) {
       setState(() {
-        _isVip = vip;
+        _isVip = true; // AI situation analysis unlocked for all users
       });
     }
   }
@@ -1205,4 +1406,13 @@ class _LegalAnalysisWidgetState extends State<_LegalAnalysisWidget> {
       ),
     );
   }
+}
+/// Человекочитаемая метка источника сигнала вместо фиктивного «ИИ-контроль».
+String _reportSourceLabel(String? source) {
+  final s = (source ?? '').toLowerCase();
+  if (s.startsWith('tg:') || s.contains('telegram')) return 'ИЗ TELEGRAM';
+  if (s.startsWith('vk:')) return 'ИЗ VK';
+  if (s.contains('mobile') || s.contains('app')) return 'ОТ ЖИТЕЛЯ';
+  if (s.contains('sensor')) return 'МОНИТОРИНГ';
+  return 'ГОРОДСКОЙ СИГНАЛ';
 }

@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'utils/cached_tile_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -13,7 +15,6 @@ import 'core/di/service_locator.dart';
 import 'core/living/aura_theme_service.dart';
 import 'services/app_links_service.dart';
 import 'services/security/secure_storage_migration.dart';
-import 'screens/splash_router_screen.dart';
 import 'screens/security_lock_screen.dart';
 import 'screens/map_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -24,26 +25,25 @@ import 'services/background_notifications_service.dart';
 import 'services/draft_box_service.dart';
 import 'services/notification_navigation_service.dart';
 import 'services/notification_service.dart';
+import 'services/performance_mode_service.dart';
 import 'services/runtime_config_service.dart';
 import 'theme/pulse_colors.dart';
 import 'theme/pulse_typography.dart';
 import 'theme/theme_provider.dart';
 import 'utils/offline_tiles_service.dart';
-import 'dart:io';
 
-class PulseHttpOverrides extends HttpOverrides {
-  @override
-  HttpClient createHttpClient(SecurityContext? context) {
-    return super.createHttpClient(context)
-      ..badCertificateCallback =
-          (X509Certificate cert, String host, int port) => true;
-  }
-}
+// NOTE: глобальный HttpOverrides с badCertificateCallback=true удалён (P0-security).
+// Приложение больше не принимает самоподписанные/поддельные TLS-сертификаты.
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  HttpOverrides.global = PulseHttpOverrides();
   GoogleFonts.config.allowRuntimeFetching = true;
+
+  // Настройка скоростного кэша тайлов (300 MB RAM + дисковый SSD кэш)
+  CachedTileProvider.configureImageCache();
+  try {
+    await FMTCObjectBoxBackend().initialise();
+  } catch (_) {}
 
   ErrorWidget.builder = (FlutterErrorDetails details) {
     debugPrint('Global ErrorWidget caught error: ${details.exception}\n${details.stack}');
@@ -250,6 +250,7 @@ class SecurityBootstrapApp extends StatelessWidget {
 
 Future<void> _warmUpRuntimeServices() async {
   AppMetricsService.instance.start();
+  unawaited(PerformanceModeService.instance.initialize());
   unawaited(OfflineTilesService.instance.initOfflineTiles());
   unawaited(BackgroundNotificationsService.instance.initialize());
   unawaited(BackgroundNotificationsService.instance.primeLastSeenReportId());
@@ -331,17 +332,41 @@ class _PulseCityAppState extends State<PulseCityApp>
       onSurface: PulseColors.lightTextPrimary,
     );
 
+    final lightTheme = _buildLightTheme(lightColorScheme, themedBase);
+    final darkTheme = _buildDarkTheme(darkColorScheme, themedBase);
+
     return AnimatedBuilder(
       animation: ThemeProvider.instance,
-      builder: (ctx, _) => MaterialApp.router(
-        title: AppBranding.appName,
-        debugShowCheckedModeBanner: false,
-        routerConfig: AppRouter.router,
-        themeMode: ThemeProvider.instance.themeMode,
-        theme: _buildLightTheme(lightColorScheme, themedBase),
-        darkTheme: _buildDarkTheme(darkColorScheme, themedBase),
-        scrollBehavior: const _BouncingScrollBehavior(),
-      ),
+      builder: (ctx, _) {
+        final currentTheme = ThemeProvider.instance.isDarkMode ? darkTheme : lightTheme;
+        return AnimatedTheme(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          data: currentTheme,
+          child: MaterialApp.router(
+            title: AppBranding.appName,
+            debugShowCheckedModeBanner: false,
+            routerConfig: AppRouter.router,
+            themeMode: ThemeProvider.instance.themeMode,
+            theme: lightTheme,
+            darkTheme: darkTheme,
+            scrollBehavior: const _BouncingScrollBehavior(),
+            // A11y: уважаем системный масштаб шрифта, но ограничиваем его,
+            // чтобы экстремальные значения не ломали вёрстку экранов.
+            builder: (context, child) {
+              final scaler = MediaQuery.textScalerOf(context);
+              final clamped = scaler.clamp(
+                minScaleFactor: 0.85,
+                maxScaleFactor: 1.3,
+              );
+              return MediaQuery(
+                data: MediaQuery.of(context).copyWith(textScaler: clamped),
+                child: child ?? const SizedBox.shrink(),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 

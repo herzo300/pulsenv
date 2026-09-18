@@ -1,0 +1,11 @@
+[Unit]
+Description=Soobshio Runtime Health Check Timer
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+Persistent=true
+Unit=soobshio-healthcheck.service
+
+[Install]
+WantedBy=timers.target

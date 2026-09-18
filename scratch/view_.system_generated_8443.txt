@@ -1,0 +1,49 @@
+Created At: 2026-06-23T15:22:19Z
+Completed At: 2026-06-23T15:22:19Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1888
+Total Bytes: 84967
+Showing lines 1004 to 1044
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1004:                               ),
+1005:                             ),
+1006:                           
+1007:                           TiltWidget(
+1008:                             child: _buildGlassCard(
+1009:                               child: Column(
+1010:                                 crossAxisAlignment: CrossAxisAlignment.start,
+1011:                                 children: [
+1012:                                   Text(
+1013:                                     'Рекомендации метеозависимым',
+1014:                                     style: TextStyle(
+1015:                                       color: widget.isNightMode
+1016:                                           ? Colors.white70
+1017:                                           : Colors.black54,
+1018:                                       fontSize: 12,
+1019:                                       fontWeight: FontWeight.w700,
+1020:                                     ),
+1021:                                   ),
+1022:                                   const SizedBox(height: 8),
+1023:                                   Text(
+1024:                                     _weatherAnalysisSummary,
+1025:                                     style: TextStyle(
+1026:                                       color: widget.isNightMode
+1027:                                           ? Colors.white
+1028:                                           : const Color(0xFF0F2742),
+1029:                                       fontSize: 13.5,
+1030:                                       height: 1.45,
+1031:                                     ),
+1032:                                   ),
+1033:                                 ],
+1034:                               ),
+1035:                             ),
+1036:                           ),
+1037:                           
+1038:                           const SizedBox(height: 12),
+1039:                           
+1040:                           TiltWidget(
+1041:                             child: _buildGlassCard(
+1042:                               child: Column(
+1043:                                 crossAxisAlignment: CrossAxisAlignment.start,
+1044:                                 children: [
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

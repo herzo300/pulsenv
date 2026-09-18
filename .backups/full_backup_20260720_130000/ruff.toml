@@ -1,0 +1,32 @@
+target-version = "py312"
+line-length = 120
+
+exclude = [
+    ".agent",
+    ".git",
+    "pulsenv",
+    "venv",
+    "env",
+    ".venv",
+    "__pycache__",
+    "node_modules",
+    "public"
+]
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "S", "T20", "C90"]
+# Ignore specific rules
+ignore = ["E402", "E701", "E741"]
+
+[lint.per-file-ignores]
+# Debug/deploy scripts can have print statements and broader exception handling
+"debug_*.py" = ["T201"]
+"deploy_*.py" = ["T201"]
+"sync_*.py" = ["T201"]
+"test_*.py" = ["T201"]
+"scripts/**/*.py" = ["T201"]
+"services/Backend/routers/map_data.py" = ["C901", "E501", "S110", "S112"]
+
+[lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.params.Depends", "fastapi.Query", "fastapi.params.Query", "fastapi.Header", "fastapi.params.Header"]
+

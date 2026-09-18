@@ -187,7 +187,7 @@
 
     async tryStartAudio() {
       const audioEl = this.getAudioElement();
-      if (!audioEl || !this.audioEnabled || this.audioStarted) {
+      if (!audioEl || !this.audioEnabled || this.audioStarted || !audioEl.src || audioEl.src === window.location.href) {
         return;
       }
 

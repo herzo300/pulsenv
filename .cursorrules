@@ -1,0 +1,20 @@
+# Cursor AI System & Design Engineering Rules
+
+This repository follows strict design engineering, clean coding, and modular architecture rules inspired by the best practices of `emilkowalski/skills` and City Pulse standards.
+
+## 1. Design Aesthetics & Visuals
+- **Zero Raw Colors**: Never use default raw colors (like `Colors.red` or `Colors.blue`). Use HSL-tailored custom palettes, smooth gradients, and theme-aware semantic tokens.
+- **Physics-Based Transitions**: All UI animations must use realistic physics (curves like `Curves.easeInOutCubic` or spring animations) rather than linear interpolations. Keep durations crisp (150ms to 400ms).
+- **Curated Typography**: Ensure typography utilizes readable hierarchy, high contrast, and clean fonts (like Outfit, Inter, or system-native defaults). Avoid browser/framework fallback defaults.
+- **Micro-Interactions**: Every clickable element should have visible, responsive hover/press states (e.g. scale down on press, tilt effects via `TiltWidget`, glow variations).
+
+## 2. Code Quality & Formatting
+- **Encapsulated Modules**: Keep implementation details hidden behind clean, minimal public APIs. Prefer deep, cohesive interfaces over shallow, fragmented abstractions.
+- **Explicit Types**: Always declare return types for functions, argument types, and avoid using generic types (like `dynamic` in Dart or `any` in TypeScript) unless strictly necessary and documented.
+- **Const Constructors**: In Flutter/Dart, always use `const` constructors where possible to minimize widget rebuilding and optimize rendering performance.
+- **No Placeholders**: Never use placeholder text or mock assets in production code. If an image is missing, write a proper fallback generator or use defined custom assets.
+
+## 3. Flutter & Dart Best Practices
+- **Material Ancestors**: Ensure any Material-based widget (like `InkWell`, `ActionChip`, `TextField`) has a proper `Material` ancestor widget in the tree to prevent layout assertion exceptions.
+- **Theme-Awareness**: Check `Theme.of(context).brightness == Brightness.dark` to color text, borders, and backgrounds dynamically. Avoid hardcoded colors that cause readability bugs in light theme.
+- **Silent Background Logic**: Periodic updates or background processes should run silently (no blocking progress indicators) unless it is the initial load or explicitly requested by the user.

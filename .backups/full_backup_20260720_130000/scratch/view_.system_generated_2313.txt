@@ -1,0 +1,23 @@
+Created At: 2026-06-23T05:19:19Z
+Completed At: 2026-06-23T05:19:19Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1800
+Total Bytes: 78167
+Showing lines 1751 to 1765
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1751:       ),
+1752:     );
+1753:   }
+1754: }
+1755: 
+1756: /// A custom widget that applies a 3D perspective tilt effect on drag/pan gestures.
+1757: class TiltWidget extends StatefulWidget {
+1758:   const TiltWidget({super.key, required this.child});
+1759:   final Widget child;
+1760: 
+1761:   @override
+1762:   State<TiltWidget> createState() => _TiltWidgetState();
+1763: }
+1764: 
+1765: class _TiltWidgetState extends State<TiltWidget> {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

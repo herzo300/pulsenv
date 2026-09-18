@@ -1,0 +1,26 @@
+[
+  {
+    "route_number": "1",
+    "start_station": "Аэропорт",
+    "end_station": "Железнодорожный вокзал",
+    "interval_minutes": "10-15",
+    "operator": "Домтрансавто",
+    "bus_type": "ЛиАЗ (Метан)"
+  },
+  {
+    "route_number": "3",
+    "start_station": "Старовартовск",
+    "end_station": "ПАТП-2",
+    "interval_minutes": "8-12",
+    "operator": "Домтрансавто",
+    "bus_type": "ЛиАЗ (Метан)"
+  },
+  {
+    "route_number": "15",
+    "start_station": "ул. Северная",
+    "end_station": "Рынок Славтэк",
+    "interval_minutes": "12-20",
+    "operator": "Домтрансавто",
+    "bus_type": "Газель City"
+  }
+]

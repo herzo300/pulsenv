@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import '../engine/aurae_render_governor.dart';
 import '../engine/shader_engine.dart';
+import '../services/performance_mode_service.dart';
 
 /// Universal GPU shader background.
 /// Loads [shaderAsset] (e.g. 'shaders/liquid.frag') and calls [onSetUniforms]
@@ -39,6 +40,9 @@ class _GpuShaderBackgroundState extends State<GpuShaderBackground> {
     _load();
     _ticker = Ticker((elapsed) {
       if (!mounted || !TickerMode.of(context)) return;
+      // Бюджет эффектов: в eco/авто-режиме при системном «уменьшить анимацию»
+      // тяжёлый шейдер не перерисовывается — показывается статичный фон.
+      if (!PerformanceModeService.instance.effectsEnabled(context)) return;
       final reduced =
           MediaQuery.maybeOf(context)?.accessibleNavigation ?? false;
       final interval = AuraeRenderGovernor.instance.frameInterval(

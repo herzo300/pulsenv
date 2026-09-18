@@ -1,0 +1,89 @@
+Created At: 2026-06-23T05:08:05Z
+Completed At: 2026-06-23T05:08:05Z
+File Path: `file:///C:/Users/%D1%80%D1%81/.gemini/antigravity/brain/aed93f9b-cd64-4600-9659-275a143be7fc/implementation_plan.md`
+Total Lines: 81
+Total Bytes: 4195
+Showing lines 1 to 81
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Implementation Plan - City Pulse Upgrades & Fixes
+2: 
+3: This plan implements:
+4: 1. Geocoding concurrent speedup on FastAPI and OSM pin markers for UK houses.
+5: 2. Infographics redesign with charts and OpenRouter AI analysis of industries.
+6: 3. Full-width marquee at the bottom of the map that hides once it finishes scrolling.
+7: 4. Auto-opening the nearest working camera if a push notification is in its view.
+8: 5. Camera audit report on working, broken, and total cameras.
+9: 6. Weather panel consolidation with seismic activity and other environmental telemetry.
+10: 
+11: ## User Review Required
+12: 
+13: > [!IMPORTANT]
+14: > The OpenRouter API key `OPENAI_API_KEY` is loaded from `.env` and used to query `openai/gpt-4o-mini` during infographic synchronization.
+15: 
+16: ## Proposed Changes
+17: 
+18: ### 1. Concurrent Geocoding & VPS Cache Sync
+19: #### [MODIFY] [uk_ratings.py](file:///c:/Soobshio_project/services/Backend/routers/uk_ratings.py)
+20: - Refactor `get_uk_houses_coordinates` to geocode all houses concurrently via `asyncio.gather(*tasks, return_exceptions=True)`.
+21: 
+22: #### [MODIFY] [geo_service.py](file:///c:/Soobshio_project/services/business/geo_service.py)
+23: - Add `_geo_semaphore = asyncio.Semaphore(3)` to serialize external HTTP queries and prevent rate limits.
+24: 
+25: #### [MODIFY] [_deploy_now.py](file:///c:/Soobshio_project/scripts/deployment/_deploy_now.py)
+26: - Point `REMOTE_DIR` to `/opt/soobshio` (the live container volume source).
+27: - Copy `data/geocode_cache.json` during deployment.
+28: 
+29: ---
+30: 
+31: ### 2. OSM Pin Markers for UK Houses
+32: #### [MODIFY] [uk_companies_screen.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/uk_companies_screen.dart)
+33: - Replace circular dot markers with a beautiful location pin using `Icons.location_on_rounded` and a white home icon inside, with a drop shadow underneath the tip.
+34: 
+35: ---
+36: 
+37: ### 3. Infographics Redesign
+38: #### [MODIFY] [infographic_sync.py](file:///c:/Soobshio_project/services/business/infographic_sync.py)
+39: - Fetch development analyses for each industry concurrently from OpenRouter using `openai/gpt-4o-mini` with rule-based fallback.
+40: 
+41: #### [MODIFY] [info.html](file:///c:/Soobshio_project/public/info.html) & [info_script_v2.js](file:///c:/Soobshio_project/public/info_script_v2.js)
+42: - Update layout to show full-width charts and the AI analyses clearly.
+43: 
+44: ---
+45: 
+46: ### 4. Full-Width Marquee with Hide Transition
+47: #### [MODIFY] [weather_overlay_panel.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart)
+48: - Adjust `CityAlertTicker` to support zero border radius (full-width) and fade/slide out of view when `_scroll` finishes its loop (AnimationStatus.completed).
+49: 
+50: #### [MODIFY] [map_screen.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map_screen.dart)
+51: - Position the `CityAlertTicker` at `bottom: 0`, `left: 0`, `right: 0`.
+52: 
+53: ---
+54: 
+55: ### 5. Auto-open Camera on Push Notification
+56: #### [MODIFY] [map_screen.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map_screen.dart)
+57: - Store loaded cameras in `_camerasList`.
+58: - In `_applyPendingNotificationFocus`, calculate proximity to nearest camera. If an incident is within 150m, auto-open that camera.
+59: 
+60: ---
+61: 
+62: ### 6. Weather Screen Consolidation & Telemetry
+63: #### [MODIFY] [weather_service.py](file:///c:/Soobshio_project/services/business/weather_service.py)
+64: - Retrieve UV index and visibility from Open-Meteo, seismic activity from USGS, and Kp planetary index from NOAA.
+65: 
+66: #### [MODIFY] [city_weather_service.dart](file:///c:/Soobshio_project/services/Frontend/lib/services/city_weather_service.dart)
+67: - Expose new weather metrics (seismicMagnitude, seismicDescription, kpIndex, uvIndex, visibilityM).
+68: 
+69: #### [MODIFY] [weather_overlay_panel.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart)
+70: - Remove simulation selector. Show only actual weather.
+71: - Add an "Общий анализ погоды" text block.
+72: - Add new telemetry params (seismic activity, kp-index, UV index, visibility) to the grid card.
+73: 
+74: ## Verification Plan
+75: 
+76: ### Automated Tests
+77: - Run `flutter test` to ensure widget/unit tests pass.
+78: 
+79: ### Manual Verification
+80: - Test local API endpoints: `/api/weather/current` and `/api/uk/{uk}/houses_coordinates`.
+81: 
+The above content shows the entire, complete file contents of the requested file.

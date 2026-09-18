@@ -29,21 +29,28 @@ import '../theme/pulse_colors.dart';
 import '../theme/theme_provider.dart';
 import '../services/draft_box_service.dart';
 import '../services/geocoding_service.dart';
+import '../data/nizhnevartovsk_houses.dart';
 import '../widgets/ai_scan_preview.dart';
 import '../widgets/app_ui.dart';
 import '../widgets/wow_effects.dart';
+import '../widgets/neutral_animated_form_background.dart';
 import 'complaint/widgets/index.dart';
-import 'ar_camera_screen.dart';
 
 class ComplaintFormScreen extends StatefulWidget {
   const ComplaintFormScreen({
     super.key,
     this.initialCenter,
     this.initialDraftId,
+    this.initialAddress,
+    this.initialCategory,
+    this.initialDescription,
   });
 
   final LatLng? initialCenter;
   final String? initialDraftId;
+  final String? initialAddress;
+  final String? initialCategory;
+  final String? initialDescription;
 
   @override
   State<ComplaintFormScreen> createState() => _ComplaintFormScreenState();
@@ -145,6 +152,15 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
   void initState() {
     super.initState();
     _initializeObjectDetection();
+    if (widget.initialAddress != null && widget.initialAddress!.isNotEmpty) {
+      _addressController.text = widget.initialAddress!;
+    }
+    if (widget.initialDescription != null && widget.initialDescription!.isNotEmpty) {
+      _descriptionController.text = widget.initialDescription!;
+    }
+    if (widget.initialCategory != null && widget.initialCategory!.isNotEmpty) {
+      _category = widget.initialCategory!;
+    }
     _titleController.addListener(_handleDraftChanged);
     _descriptionController.addListener(_handleDraftChanged);
     _addressController.addListener(_handleDraftChanged);
@@ -198,6 +214,9 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
         if (result.failure != null && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text(result.failure!.userMessage)));
+          // GPS выключен в телефоне — сразу открываем настройки местоположения
+          await DeviceLocationService.instance
+              .openFailureSettings(result.failure!);
         }
         return;
       }
@@ -915,30 +934,6 @@ List<int> _compressImageIsolate(List<int> inputBytes) {
 
   Future<void> _pickImage(ImageSource source) async {
     try {
-      if (source == ImageSource.camera) {
-        final resultFile = await Navigator.of(context).push<XFile?>(
-          MaterialPageRoute(
-            builder: (context) => const ArCameraScreen(),
-          ),
-        );
-        if (resultFile != null) {
-          final bytes = await resultFile.readAsBytes();
-          setState(() {
-            _selectedImage = File(resultFile.path);
-            _clearDetectionState();
-            _scanProgress = const AiScanProgress(
-                stage: AiScanStage.scanning,
-                value: 0.04,
-                active: true,
-                title: 'Кадр принят',
-                subtitle:
-                    'Запускаем AI-сканирование и собираем первичные признаки.');
-          });
-          await _analyzeSelectedImage(bytes);
-        }
-        return;
-      }
-
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(
           source: source, maxWidth: 1024, maxHeight: 1024, imageQuality: 70);
@@ -1138,6 +1133,36 @@ List<int> _compressImageIsolate(List<int> inputBytes) {
       _submitError = null;
     });
 
+    // Перепроверка координат по OSM-реестру домов (astra P0): snap к
+    // центроиду дома только если дом найден по адресу И находится рядом
+    // (<= 300 м от исходной точки). Иначе сохраняем точку пользователя —
+    // центроид дальнего дома испортил бы привязку дворов/дорог.
+    final addressText = _addressController.text.trim();
+    if (addressText.isNotEmpty &&
+        _latitude != null &&
+        _longitude != null) {
+      final house = NizhnevartovskHousesData.findByAddress(addressText);
+      if (house != null) {
+        final hLat = (house['lat'] as num?)?.toDouble();
+        final hLng = (house['lng'] as num?)?.toDouble();
+        if (hLat != null && hLng != null) {
+          const earthR = 6371000.0;
+          final dLat = (_latitude! - hLat) * math.pi / 180;
+          final dLng = (_longitude! - hLng) * math.pi / 180;
+          final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+              math.cos(_latitude! * math.pi / 180) *
+                  math.cos(hLat * math.pi / 180) *
+                  math.sin(dLng / 2) *
+                  math.sin(dLng / 2);
+          final distM = earthR * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+          if (distM <= 300) {
+            _latitude = hLat;
+            _longitude = hLng;
+          }
+        }
+      }
+    }
+
     String? uploadedImageUrl;
     try {
       uploadedImageUrl = await _uploadSelectedImageToStorage();
@@ -1192,9 +1217,74 @@ List<int> _compressImageIsolate(List<int> inputBytes) {
         }
         if (!mounted) return;
         AnalyticsService.trackEvent('complaint_submitted');
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Обращение отправлено')));
-        Navigator.of(context).pop(createdData ?? true);
+        HapticFeedback.heavyImpact();
+        // Show animated success overlay before popping
+        await showDialog<void>(
+          context: context,
+          barrierColor: Colors.black54,
+          builder: (ctx) => TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.elasticOut,
+            builder: (context, value, child) => Transform.scale(
+              scale: value,
+              child: child,
+            ),
+            child: Dialog(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child: Container(
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A).withOpacity(0.95),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: const Color(0xFF10B981), width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF10B981).withOpacity(0.3),
+                      blurRadius: 30,
+                      spreadRadius: 4,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 800),
+                      curve: Curves.easeOutBack,
+                      builder: (context, v, _) => Transform.scale(
+                        scale: v,
+                        child: Container(
+                          width: 72, height: 72,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withOpacity(0.15),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFF10B981).withOpacity(0.5)),
+                          ),
+                          child: const Icon(Icons.check_rounded, color: Color(0xFF10B981), size: 40),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Сигнал отправлен!',
+                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Спасибо за вклад в улучшение города',
+                      style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        if (mounted) Navigator.of(context).pop(createdData ?? true);
         return;
       }
       await _saveToDraftBox(
@@ -1370,8 +1460,7 @@ List<int> _compressImageIsolate(List<int> inputBytes) {
             onPressed: () => Navigator.of(context).pop()),
       ),
       bottomNavigationBar: _buildBottomActionBar(),
-      body: AppScreenBackground(
-        accent: PulseColors.primary,
+      body: NeutralAnimatedFormBackground(
         child: Form(
           key: _formKey,
           child: ListView(
@@ -1451,7 +1540,9 @@ List<int> _compressImageIsolate(List<int> inputBytes) {
                   checkingSimilar: _checkingSimilar,
                   similarReport: _similarReport,
                   defaultCategory: _defaultCategory,
-                  onSupport: _supportSameIssue),
+                  onSupport: _supportSameIssue,
+                  latitude: _latitude,
+                  longitude: _longitude),
               const SizedBox(height: 12.0),
               GpsLocationWidget(
                   latitude: _latitude,

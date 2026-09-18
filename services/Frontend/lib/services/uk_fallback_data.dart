@@ -1254,7 +1254,7 @@ abstract final class UkFallbackData {
       ],
     },
     {
-      'name': 'ТСЖ "Сосна',
+      'name': 'ТСЖ "Сосна"',
       'full_name': 'Товарищество собственнико жилья "Сосна"',
       'phone': '(3466) 42-27-02',
       'email': 'tsj-sosna@mail.ru',
@@ -1743,5 +1743,90 @@ abstract final class UkFallbackData {
         },
       ],
     },
+    {
+      'name': 'ООО "УК «Комфорт-Сервис»"',
+      'full_name': 'Общество с ограниченной ответственностью «Управляющая компания «Комфорт-Сервис»',
+      'phone': '(3466) 49-11-22',
+      'email': 'komfort-nv@mail.ru',
+      'address': 'ул. Интернациональная, д. 19В, офис 4',
+      'url': 'https://komfort-nv.ru/',
+      'director': 'Михайлов Сергей Владимирович',
+      'work_time': 'Понедельник-пятница 08:30 - 17:00, перерыв 12:30 - 13:30',
+      'houses_count': 18,
+      'streets_count': 4,
+      'streets_preview': ['улица Интернациональная', 'улица Северная', 'улица Чапаева', 'улица Ленина'],
+      'buildings_count': 4,
+      'overall_score': 4.6,
+      'grade': 'A',
+      'total_complaints': 5,
+      'resolved_complaints': 5,
+      'resolve_percent': 100.0,
+      'citizen_score': 4.7,
+      'citizen_votes': 48,
+      'mkd': [
+        {
+          'street': 'улица Интернациональная',
+          'buildings': ['19', '19а', '19в', '21'],
+        },
+        {
+          'street': 'улица Северная',
+          'buildings': ['46', '48', '50'],
+        },
+      ],
+    },
   ];
+
+  static Map<String, dynamic>? getUkForAddress(String address) {
+    if (address.isEmpty) return null;
+    final lower = address.toLowerCase().replaceAll('ё', 'е');
+
+    Map<String, dynamic>? streetFallback;
+
+    for (final comp in companies) {
+      final mkdList = comp['mkd'] as List<dynamic>?;
+      if (mkdList != null) {
+        for (final m in mkdList) {
+          if (m is Map) {
+            final street = (m['street']?.toString() ?? '').toLowerCase().replaceAll('ё', 'е');
+            final cleanStreet = street.replaceAll('улица ', '').replaceAll('проспект ', '').replaceAll('ул. ', '').replaceAll('пр-кт ', '').trim();
+            if (cleanStreet.isNotEmpty && lower.contains(cleanStreet)) {
+              final blds = m['buildings'] as List<dynamic>?;
+              if (blds != null) {
+                for (final b in blds) {
+                  final bStr = b.toString().toLowerCase().trim();
+                  if (lower.contains(' $bStr') || lower.endsWith('$bStr') || lower.contains(', $bStr') || lower.contains('д. $bStr') || lower.contains('дом $bStr')) {
+                    return comp;
+                  }
+                }
+              }
+              // Номер дома не распознан: запоминаем кандидата по улице,
+              // но не возвращаем сразу — точное совпадение номера в другой УК
+              // приоритетнее (см. бэкенд-логику find_uk_by_address).
+              streetFallback ??= comp;
+            }
+          }
+        }
+      }
+    }
+
+    if (streetFallback != null) return streetFallback;
+
+    // Fallback based on streets preview
+    for (final comp in companies) {
+      final streets = comp['streets_preview'] as List<dynamic>?;
+      if (streets != null) {
+        for (final s in streets) {
+          final sName = s.toString().toLowerCase().replaceAll('улица ', '').replaceAll('проспект ', '').trim();
+          if (sName.isNotEmpty && lower.contains(sName)) {
+            return comp;
+          }
+        }
+      }
+    }
+
+    // Адрес не распознан: НЕ подставляем первую УК — иначе житель увидит
+    // чужую управляющую компанию как «свою».
+    return null;
+  }
 }
+

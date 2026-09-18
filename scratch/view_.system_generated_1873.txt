@@ -1,0 +1,32 @@
+Created At: 2026-06-23T05:08:03Z
+Completed At: 2026-06-23T05:08:03Z
+File Path: `file:///C:/Users/%D1%80%D1%81/.gemini/antigravity/brain/aed93f9b-cd64-4600-9659-275a143be7fc/task.md`
+Total Lines: 24
+Total Bytes: 2503
+Showing lines 1 to 24
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Tasks
+2: 
+3: - [ ] Geocoding concurrent speedup on FastAPI and OSM pin markers for UK houses
+4:   - [ ] Refactor `/houses_coordinates` router in [uk_ratings.py](file:///c:/Soobshio_project/services/Backend/routers/uk_ratings.py)
+5:   - [ ] Add rate-limiting Semaphore in [geo_service.py](file:///c:/Soobshio_project/services/business/geo_service.py)
+6:   - [ ] Update `_deploy_now.py` to point to `/opt/soobshio` and copy cache file
+7:   - [ ] Replace house markers with OSM pin style in [uk_companies_screen.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/uk_companies_screen.dart)
+8: - [ ] Infographics Redesign
+9:   - [ ] Update [infographic_sync.py](file:///c:/Soobshio_project/services/business/infographic_sync.py) to fetch AI analysis of each industry via OpenRouter
+10:   - [ ] Update web views [info.html](file:///c:/Soobshio_project/public/info.html) and [info_script_v2.js](file:///c:/Soobshio_project/public/info_script_v2.js) to display charts and AI analysis cleanly
+11: - [ ] Marquee (Бегущая строка) repositioning and slide down transition
+12:   - [ ] Make `CityAlertTicker` full-width and support sliding down when animation completes in [weather_overlay_panel.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart)
+13:   - [ ] Position the ticker at the bottom-most coordinate in [map_screen.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map_screen.dart)
+14: - [ ] Push Notifications camera actions
+15:   - [ ] Store loaded cameras inside `_camerasList` in [map_screen.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map_screen.dart)
+16:   - [ ] Auto-open nearest working camera if push is within 150m in [map_screen.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map_screen.dart)
+17: - [ ] Weather Screen consolidation with telemetry parameters
+18:   - [ ] Fetch UV index, visibility, seismic activity, and Kp index in [weather_service.py](file:///c:/Soobshio_project/services/business/weather_service.py)
+19:   - [ ] Expose new telemetry fields in [city_weather_service.dart](file:///c:/Soobshio_project/services/Frontend/lib/services/city_weather_service.dart)
+20:   - [ ] Hide simulation condition selector, display analysis text, and add parameters to grid in [weather_overlay_panel.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart)
+21: - [ ] Deploy and compile APK
+22:   - [ ] Run `_deploy_now.py` to deploy changes to VPS
+23:   - [ ] Build arm64 Android APK to the Desktop
+24: 
+The above content shows the entire, complete file contents of the requested file.

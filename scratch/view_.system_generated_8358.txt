@@ -1,0 +1,59 @@
+Created At: 2026-06-23T15:19:34Z
+Completed At: 2026-06-23T15:19:36Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1888
+Total Bytes: 84967
+Showing lines 800 to 850
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+800:           ),
+801:         ],
+802:       ),
+803:     );
+804:   }
+805: 
+806: 
+807: 
+808:   String get _weatherAnalysisSummary {
+809:     final temp = _displayTemp ?? 0;
+810:     final feels = _displayFeels ?? temp;
+811:     final humidity = _displayHumidity ?? 50;
+812:     final pressure = _displayPressure;
+813:     final kp = _displayKpIndex ?? 1.0;
+814:     final flare = _displaySolarFlare;
+815:     final schumannFreq = _displaySchumannFreq ?? 7.83;
+816:     final schumannAmp = _displaySchumannAmp ?? 10.0;
+817:     final wind = _displayWindSpeed ?? 0.0;
+818:     final gusts = _displayWindGusts ?? wind;
+819:     final uv = _displayUvIndex ?? 0.0;
+820:     final aqi = _displayAqiValue ?? 30;
+821: 
+822:     final List<String> recs = [];
+823: 
+824:     // 1. Атмосферное давление
+825:     if (pressure != null) {
+826:       if (pressure < 748) {
+827:         recs.add('⬇️ Низкое давление (${pressure.round()} мм рт. ст.): возможны слабость, сонливость, гипотония. Рекомендуется пить больше воды, избегать резких движений.');
+828:       } else if (pressure > 768) {
+829:         recs.add('⬆️ Высокое давление (${pressure.round()} мм рт. ст.): риск спазмов и гипертонии. Контролируйте артериальное давление, ограничьте кофеин и физические нагрузки.');
+830:       } else {
+831:         recs.add('🟢 Атмосферное давление в норме (${pressure.round()} мм рт. ст.) — дополнительная нагрузка на сосудистую систему отсутствует.');
+832:       }
+833:     }
+834: 
+835:     // 2. Геомагнитная обстановка
+836:     final bool hasSolarFlare = flare != null && (flare.startsWith('M') || flare.startsWith('X'));
+837:     if (kp >= 4.0 || hasSolarFlare) {
+838:       String flareText = hasSolarFlare ? ' (вспышка класса $flare)' : '';
+839:       recs.add('⚠️ Магнитная буря (Kp = ${kp.toStringAsFixed(1)}$flareText): вероятны головные боли, мигрени, скачки давления. Снизьте физическую активность, держите под рукой прописанные лекарства.');
+840:     } else {
+841:       recs.add('🟢 Геомагнитный фон спокойный — магнитное поле Земли не оказывает негативного влияния на организм.');
+842:     }
+843: 
+844:     // 3. Резонанс Шумана
+845:     if (schumannFreq < 7.7 || schumannFreq > 8.0 || schumannAmp > 15.0) {
+846:       recs.add('🌀 Нестабильный резонанс Шумана (${schumannFreq.toStringAsFixed(2)} Гц, амплитуда ${schumannAmp.toStringAsFixed(1)} pT): может влиять на качество сна и вызывать необъяснимую тревожность. Рекомендуется медитация, ограничение гаджетов перед сном.');
+847:     }
+848: 
+849:     // 4. Температурный режим и перепады
+850:     if (temp > 28) {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

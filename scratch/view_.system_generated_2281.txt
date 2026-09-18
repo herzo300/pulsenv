@@ -1,0 +1,29 @@
+Created At: 2026-06-23T05:18:00Z
+Completed At: 2026-06-23T05:18:00Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1605
+Total Bytes: 66465
+Showing lines 520 to 540
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+520:     }
+521:     _showParamExplanation('Ветер', wind != null ? '${wind.toStringAsFixed(1)} м/с' : '—', text);
+522:   }
+523: 
+524:   Widget _buildConditionSelector() {
+525:     final themeBg = widget.isNightMode
+526:         ? Colors.white.withAlpha(20)
+527:         : Colors.black.withAlpha(12);
+528: 
+529:     return Container(
+530:       height: 72,
+531:       width: double.infinity,
+532:       decoration: BoxDecoration(
+533:         color: themeBg,
+534:         borderRadius: BorderRadius.circular(20),
+535:         border: Border.all(
+536:           color: widget.accent.withAlpha(60),
+537:         ),
+538:       ),
+539:       child: ClipRRect(
+540:         borderRadius: BorderRadius.circular(20),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

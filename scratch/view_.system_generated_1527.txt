@@ -1,0 +1,24 @@
+Created At: 2026-06-23T04:55:49Z
+Completed At: 2026-06-23T04:55:49Z
+File Path: `file:///C:/Users/%D1%80%D1%81/.gemini/antigravity/brain/aed93f9b-cd64-4600-9659-275a143be7fc/task.md`
+Total Lines: 16
+Total Bytes: 1205
+Showing lines 1 to 16
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Tasks - Weather Screen & UK Office Map Focus
+2: 
+3: - [x] Add backend endpoint GET `/api/uk/{uk_name}/office_coordinate` in [uk_ratings.py](file:///c:/Soobshio_project/services/Backend/routers/uk_ratings.py)
+4: - [x] Add frontend method `fetchUkOfficeCoordinate` in [reports_repository.dart](file:///c:/Soobshio_project/services/Frontend/lib/services/reports_repository.dart)
+5: - [x] Update map screen [map_screen.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map_screen.dart):
+6:   - [x] Support `_ukOfficeFocused` state and marker mapping
+7:   - [x] Geocode and focus on office in `_applyUkMapFocus`
+8:   - [x] Add address details in `_showUkDetails` dialog
+9:   - [x] Clear `_ukOfficeFocused` on map filter reset
+10: - [x] Simplify weather card [weather_overlay_panel.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart):
+11:   - [x] Remove tabs/activeTab state and combine sections into a single view
+12:   - [x] Remove info/social channels list from notifications
+13:   - [x] Remove wind gusts parameter and wind gusts sub-warnings
+14:   - [x] Implement interactive tap listeners on parameters to show modal descriptions
+15: - [x] Verify everything: run tests and compile APK
+16: 
+The above content shows the entire, complete file contents of the requested file.

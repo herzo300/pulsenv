@@ -1,0 +1,64 @@
+Created At: 2026-06-23T03:30:38Z
+Completed At: 2026-06-23T03:30:39Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1615
+Total Bytes: 63668
+Showing lines 280 to 335
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+280:         _playAlertSound();
+281:       }
+282:     } else {
+283:       newState();
+284:     }
+285:   }
+286: 
+287:   @override
+288:   void dispose() {
+289:     _controller.dispose();
+290:     super.dispose();
+291:   }
+292: 
+293:   Widget _spaceParam(IconData icon, String label, String value) {
+294:     return Expanded(
+295:       child: Row(
+296:         children: [
+297:           Icon(icon, size: 20, color: widget.accent),
+298:           const SizedBox(width: 8),
+299:           Expanded(
+300:             child: Column(
+301:               crossAxisAlignment: CrossAxisAlignment.start,
+302:               children: [
+303:                 Text(
+304:                   label,
+305:                   style: TextStyle(
+306:                     color: widget.isNightMode ? Colors.white54 : Colors.black45,
+307:                     fontSize: 11,
+308:                   ),
+309:                 ),
+310:                 Text(
+311:                   value,
+312:                   style: TextStyle(
+313:                     color: widget.isNightMode ? Colors.white : Colors.black87,
+314:                     fontSize: 13,
+315:                     fontWeight: FontWeight.w700,
+316:                   ),
+317:                 ),
+318:               ],
+319:             ),
+320:           ),
+321:         ],
+322:       ),
+323:     );
+324:   }
+325: 
+326:   Widget _buildConditionSelector() {
+327:     final themeBg = widget.isNightMode
+328:         ? Colors.white.withAlpha(20)
+329:         : Colors.black.withAlpha(12);
+330: 
+331:     return Container(
+332:       height: 72,
+333:       width: double.infinity,
+334:       decoration: BoxDecoration(
+335:         color: themeBg,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

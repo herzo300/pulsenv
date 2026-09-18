@@ -1,0 +1,39 @@
+Created At: 2026-06-24T07:03:51Z
+Completed At: 2026-06-24T07:03:51Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1886
+Total Bytes: 82013
+Showing lines 240 to 270
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+240:   @override
+241:   void didUpdateWidget(WeatherOverlayPanel oldWidget) {
+242:     super.didUpdateWidget(oldWidget);
+243:     if (oldWidget.weather.kind != widget.weather.kind ||
+244:         oldWidget.weather.temperatureC != widget.weather.temperatureC) {
+245:       _initDisplayData();
+246:     }
+247:   }
+248: 
+249:   bool get _hasAnomaly {
+250:     if (_displaySchumannFreq != null && (_displaySchumannFreq! < 7.7 || _displaySchumannFreq! > 8.0)) return true;
+251:     if (_displayPressure != null && (_displayPressure! < 748 || _displayPressure! > 768)) return true;
+252:     if (_displaySolarFlare != null && (_displaySolarFlare!.startsWith('M') || _displaySolarFlare!.startsWith('X'))) return true;
+253:     if (_displaySchumannAmp != null && _displaySchumannAmp! > 15.0) return true;
+254:     if (_displayWindSpeed != null && _displayWindSpeed! > 10.0) return true;
+255:     return false;
+256:   }
+257: 
+258: 
+259: 
+260:   void _playAlertSound() {
+261:     SystemSound.play(SystemSoundType.click);
+262:     Future.delayed(const Duration(milliseconds: 150), () {
+263:       SystemSound.play(SystemSoundType.click);
+264:     });
+265:     Future.delayed(const Duration(milliseconds: 300), () {
+266:       SystemSound.play(SystemSoundType.click);
+267:     });
+268:   }
+269: 
+270:   void _selectCondition(String kind, {bool updateState = true}) {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

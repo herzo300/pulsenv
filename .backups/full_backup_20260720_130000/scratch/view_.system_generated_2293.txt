@@ -1,0 +1,169 @@
+Created At: 2026-06-23T05:18:23Z
+Completed At: 2026-06-23T05:18:23Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1703
+Total Bytes: 73325
+Showing lines 820 to 980
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+820:   Widget build(BuildContext context) {
+821:     return Material(
+822:       color: Colors.black.withAlpha(widget.isNightMode ? 120 : 60),
+823:       child: Stack(
+824:         children: [
+825:           Positioned.fill(
+826:             child: AnimatedBuilder(
+827:               animation: _controller,
+828:               builder: (context, _) => CustomPaint(
+829:                 painter: _WeatherAmbientPainter(
+830:                   kind: _selectedKind,
+831:                   progress: _controller.value,
+832:                   isNight: widget.isNightMode,
+833:                   accent: widget.accent,
+834:                 ),
+835:               ),
+836:             ),
+837:           ),
+838:           SafeArea(
+839:             child: Padding(
+840:               padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+841:               child: Column(
+842:                 crossAxisAlignment: CrossAxisAlignment.start,
+843:                 children: [
+844:                   Align(
+845:                     alignment: Alignment.topRight,
+846:                     child: IconButton(
+847:                       onPressed: widget.onClose,
+848:                       icon: Icon(
+849:                         Icons.close_rounded,
+850:                         color: widget.isNightMode
+851:                             ? Colors.white70
+852:                             : Colors.black54,
+853:                       ),
+854:                     ),
+855:                   ),
+856:                   Text(
+857:                     'Нижневартовск',
+858:                     style: TextStyle(
+859:                       color: widget.isNightMode
+860:                           ? Colors.white60
+861:                           : Colors.black54,
+862:                       fontSize: 14,
+863:                       fontWeight: FontWeight.w600,
+864:                       letterSpacing: 0.6,
+865:                     ),
+866:                   ),
+867:                   const SizedBox(height: 16),
+868:                   Expanded(
+869:                     child: SingleChildScrollView(
+870:                       physics: const BouncingScrollPhysics(),
+871:                       child: Column(
+872:                         crossAxisAlignment: CrossAxisAlignment.start,
+873:                         children: [
+874:                           Row(
+875:                             crossAxisAlignment: CrossAxisAlignment.end,
+876:                             children: [
+877:                               Text(
+878:                                 _displayTemp == null ? '—' : '$_displayTemp°',
+879:                                 style: TextStyle(
+880:                                   color: widget.isNightMode
+881:                                       ? Colors.white
+882:                                       : const Color(0xFF0A2540),
+883:                                   fontSize: 76,
+884:                                   fontWeight: FontWeight.w200,
+885:                                   height: 0.95,
+886:                                   letterSpacing: -2,
+887:                                 ),
+888:                               ),
+889:                               const SizedBox(width: 12),
+890:                               Padding(
+891:                                 padding: const EdgeInsets.only(bottom: 8),
+892:                                 child: Column(
+893:                                   crossAxisAlignment: CrossAxisAlignment.start,
+894:                                   children: [
+895:                                     Text(
+896:                                       _displayCondition,
+897:                                       style: TextStyle(
+898:                                         color: widget.accent,
+899:                                         fontSize: 18,
+900:                                         fontWeight: FontWeight.w700,
+901:                                       ),
+902:                                     ),
+903:                                     if (_displayHumidity != null) ...[
+904:                                       const SizedBox(height: 2),
+905:                                       Text(
+906:                                         'Влажность $_displayHumidity%',
+907:                                         style: TextStyle(
+908:                                           color: widget.isNightMode ? Colors.white70 : Colors.black54,
+909:                                           fontSize: 13,
+910:                                           fontWeight: FontWeight.w600,
+911:                                         ),
+912:                                       ),
+913:                                     ],
+914:                                   ],
+915:                                 ),
+916:                               ),
+917:                             ],
+918:                           ),
+919:                           if (_displayFeels != null)
+920:                             Padding(
+921:                               padding: const EdgeInsets.only(top: 4, bottom: 16),
+922:                               child: Text(
+923:                                 'Ощущается как $_displayFeels°',
+924:                                 style: TextStyle(
+925:                                   color: widget.isNightMode
+926:                                       ? Colors.white54
+927:                                       : Colors.black45,
+928:                                   fontSize: 13,
+929:                                 ),
+930:                               ),
+931:                             ),
+932:                           
+933:                           // Interactive weather animation selector
+934:                           _buildConditionSelector(),
+935:                           
+936:                           const SizedBox(height: 16),
+937:                           
+938:                           TiltWidget(
+939:                             child: _buildGlassCard(
+940:                               child: Column(
+941:                                 crossAxisAlignment: CrossAxisAlignment.start,
+942:                                 children: [
+943:                                   Text(
+944:                                     'Качество воздуха',
+945:                                     style: TextStyle(
+946:                                       color: widget.isNightMode
+947:                                           ? Colors.white70
+948:                                           : Colors.black54,
+949:                                       fontSize: 12,
+950:                                       fontWeight: FontWeight.w700,
+951:                                     ),
+952:                                   ),
+953:                                   const SizedBox(height: 6),
+954:                                   Text(
+955:                                     _displayAqiLevel.toUpperCase(),
+956:                                     style: TextStyle(
+957:                                       color: _aqColor(_displayAqiValue),
+958:                                       fontSize: 26,
+959:                                       fontWeight: FontWeight.w800,
+960:                                     ),
+961:                                   ),
+962:                                   if (_displayAqiSummary.isNotEmpty)
+963:                                     Padding(
+964:                                       padding: const EdgeInsets.only(top: 6),
+965:                                       child: Text(
+966:                                         _displayAqiSummary,
+967:                                         style: TextStyle(
+968:                                           color: widget.isNightMode
+969:                                               ? Colors.white60
+970:                                               : Colors.black54,
+971:                                           fontSize: 12,
+972:                                           height: 1.4,
+973:                                         ),
+974:                                       ),
+975:                                     ),
+976:                                 ],
+977:                               ),
+978:                             ),
+979:                           ),
+980:                           
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,6 @@
+@echo off
+echo Closing existing Antigravity IDE instances...
+taskkill /F /IM "Antigravity IDE.exe"
+echo Launching Antigravity IDE with remote debugging enabled on port 9004...
+start "" "C:\Users\Karloz\AppData\Local\Programs\Antigravity IDE\Antigravity IDE.exe" --remote-debugging-port=9004
+echo Done!

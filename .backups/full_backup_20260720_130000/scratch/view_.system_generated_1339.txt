@@ -1,0 +1,68 @@
+Created At: 2026-06-24T05:11:32Z
+Completed At: 2026-06-24T05:11:32Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1886
+Total Bytes: 84525
+Showing lines 1651 to 1710
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1651:         oldWidget.customWarningText != widget.customWarningText) {
+1652:       setState(() {
+1653:         _visible = true;
+1654:       });
+1655:       _scroll.reset();
+1656:       _scroll.forward();
+1657:     }
+1658:   }
+1659: 
+1660:   @override
+1661:   void dispose() {
+1662:     _scroll.dispose();
+1663:     super.dispose();
+1664:   }
+1665: 
+1666:   bool _isEmergencyAlert(Map<String, dynamic> item) {
+1667:     final cat = (item['category'] ?? '').toString().toLowerCase();
+1668:     final txt = (item['text'] ?? '').toString().toLowerCase();
+1669:     final hasEmergency = cat.contains('чп') || cat.contains('чрезвыч') || txt.contains('чп') || txt.contains('чрезвыч') || txt.contains('пожар') || txt.contains('взрыв');
+1670:     return hasEmergency;
+1671:   }
+1672: 
+1673:   @override
+1674:   Widget build(BuildContext context) {
+1675:     String text = '';
+1676:     IconData leadingIcon = Icons.campaign_rounded;
+1677:     Color bg = widget.isNightMode ? const Color(0xB30A101C) : const Color(0xDDF0F8FF);
+1678:     Color border = widget.accent.withAlpha(90);
+1679: 
+1680:     if (widget.customWarningText != null && widget.customWarningText!.isNotEmpty) {
+1681:       text = widget.customWarningText!;
+1682:       leadingIcon = Icons.warning_amber_rounded;
+1683:       bg = const Color(0xDDF97316); // Amber/Orange warning
+1684:       border = const Color(0xFFFED7AA);
+1685:     } else if (widget.useWeatherOnly) {
+1686:       text = widget.data.weatherMarquee;
+1687:       leadingIcon = Icons.wb_cloudy_rounded;
+1688:     } else if (widget.useCityOnly) {
+1689:       final List<Map<String, dynamic>> itemsToProcess = widget.selectedCategory != null
+1690:           ? widget.data.items.where((i) {
+1691:               if (i['type'] != 'channel') return false;
+1692:               final cat = (i['category'] ?? 'Прочее').toString().trim().toLowerCase();
+1693:               final sel = widget.selectedCategory!.trim().toLowerCase();
+1694:               return cat == sel;
+1695:             }).toList()
+1696:           : widget.data.items;
+1697: 
+1698:       // Filter to only include ЧП (emergencies), accidents (аварии), and crimes (преступления)
+1699:       final filtered = itemsToProcess.where(_isEmergencyAlert).toList();
+1700: 
+1701:       if (filtered.isEmpty) {
+1702:         return const SizedBox.shrink(); // Hide the ticker block completely
+1703:       }
+1704: 
+1705:       text = filtered.map((i) => i['text'].toString()).join('   •   ');
+1706: 
+1707:       // Determine category-specific color & icon
+1708:       final hasSeriousEmergency = filtered.any((i) =>
+1709:           i['severity'].toString().toLowerCase() == 'high' &&
+1710:           (i['category'].toString().toLowerCase().contains('чп') ||
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

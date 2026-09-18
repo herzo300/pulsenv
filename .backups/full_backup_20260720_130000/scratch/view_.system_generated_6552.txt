@@ -1,0 +1,54 @@
+Created At: 2026-06-23T09:42:42Z
+Completed At: 2026-06-23T09:42:42Z
+File Path: `file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart`
+Total Lines: 1807
+Total Bytes: 78527
+Showing lines 780 to 825
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+780: 
+781: 
+782: 
+783:   String get _weatherAnalysisSummary {
+784:     final temp = _displayTemp ?? 0;
+785:     final cond = _displayCondition;
+786:     final wind = _displayWindSpeed ?? 0.0;
+787:     final uv = _displayUvIndex ?? 0.0;
+788:     final kp = _displayKpIndex ?? 0.0;
+789:     final aqi = _displayAqiValue ?? 30;
+790: 
+791:     final List<String> sections = [];
+792:     sections.add('В Нижневартовске сейчас $cond, температура воздуха составляет $temp°C.');
+793:     
+794:     if (wind > 8.0) {
+795:       sections.add('Наблюдается сильный, порывистый ветер (${wind.toStringAsFixed(1)} м/с), соблюдайте осторожность.');
+796:     } else {
+797:       sections.add('Ветер слабый и спокойный (${wind.toStringAsFixed(1)} м/с).');
+798:     }
+799:     
+800:     if (kp >= 4.0) {
+801:       sections.add('Геомагнитное поле возмущено (${kp.toStringAsFixed(1)} Kp), метеозависимым людям рекомендуется снизить физическую нагрузку.');
+802:     } else {
+803:       sections.add('Магнитный фон Земли стабилен.');
+804:     }
+805: 
+806:     if (uv > 5.0) {
+807:       sections.add('УФ-излучение высокое ($uv), рекомендуется использовать защитный крем.');
+808:     }
+809:     
+810:     if (aqi > 60) {
+811:       sections.add('Индекс качества воздуха умеренно повышен ($aqi), рекомендуется реже открывать окна.');
+812:     } else {
+813:       sections.add('Качество воздуха хорошее ($aqi), дышится легко.');
+814:     }
+815:     
+816:     return sections.join(' ');
+817:   }
+818: 
+819:   @override
+820:   Widget build(BuildContext context) {
+821:     return Material(
+822:       color: Colors.black.withAlpha(widget.isNightMode ? 120 : 60),
+823:       child: Stack(
+824:         children: [
+825:           Positioned.fill(
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

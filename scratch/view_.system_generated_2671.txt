@@ -1,0 +1,49 @@
+Created At: 2026-06-23T05:49:09Z
+Completed At: 2026-06-23T05:49:16Z
+File Path: `file:///c:/Users/%D1%80%D1%81/.gemini/antigravity/brain/aed93f9b-cd64-4600-9659-275a143be7fc/walkthrough.md`
+Total Lines: 41
+Total Bytes: 2887
+Showing lines 1 to 41
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Walkthrough - Weather Screen Simplification & UK Office Mapping Focus
+2: 
+3: We have successfully simplified the weather screen to a single, unified view, added interactive health/geophysical context modals for atmospheric parameters, removed wind gusts, and geocoded/focused on the Management Company (УК) office address on the map when tapped.
+4: 
+5: ## Changes Made
+6: 
+7: ### 1. Backend Endpoint for UK Office Geocoding
+8: - **File**: [uk_ratings.py](file:///c:/Soobshio_project/services/Backend/routers/uk_ratings.py)
+9: - **Detail**: Added a new endpoint `GET /api/uk/{uk_name}/office_coordinate` which extracts the UK's physical office address and resolves it to geographic coordinates via the backend geocoding service.
+10: 
+11: ### 2. Frontend Repository & Map Mapping
+12: - **File**: [reports_repository.dart](file:///c:/Soobshio_project/services/Frontend/lib/services/reports_repository.dart)
+13: - **Detail**: Added `fetchUkOfficeCoordinate` to query the new geocoding endpoint.
+14: - **File**: [map_screen.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map_screen.dart)
+15: - **Detail**:
+16:   - Updated `_applyUkMapFocus` to request coordinates of the UK office address.
+17:   - If geocoding is successful, the camera is focused directly on the office coordinate, and a special highlighted marker (`Icons.domain_rounded`) is rendered at the office location.
+18:   - Tapping this marker displays the details of the УК.
+19:   - Added the office address display inside the detail dialog and SnackBar.
+20:   - Resetting the map filter clears the office focus and marker.
+21: 
+22: ### 3. Weather Screen Simplification
+23: - **File**: [weather_overlay_panel.dart](file:///c:/Soobshio_project/services/Frontend/lib/screens/map/widgets/weather_overlay_panel.dart)
+24: - **Detail**:
+25:   - Combined the "Реальные условия" and "Предупреждения" screens into a single scrollable view and removed the tab switcher.
+26:   - Removed info/social channels list (`_buildChannelWarnings`) to show only actual meteorological and space anomaly warnings.
+27:   - Removed wind gusts ("Порывы") parameter from the atmospheric parameter grid and warning cards.
+28:   - Made atmospheric/space parameters interactive: tapping on any parameter opens a bottom sheet with a detailed description of its current value and health impact.
+29: 
+30: ## Verification
+31: 
+32: ### 1. Automated Tests
+33: - Ran `flutter test`: 13 out of 13 widget tests passed successfully!
+34: 
+35: ### 2. Server Deployment
+36: - Ran `.venv\Scripts\python scripts/deployment/_deploy_now.py`: Uploaded 59 files, compiled updated routers, and restarted Docker containers successfully.
+37: 
+38: ### 3. Desktop APK Compile
+39: - Compiled release APK: `powershell -ExecutionPolicy Bypass -File scripts/build_hardened_android_arm64.ps1 -BackendBaseUrl "http://45.153.68.59" -AllowInsecureDebugSigningForRelease`
+40: - Copied output to [soobshio-release-arm64.apk](file:///C:/Users/рс/Desktop/soobshio-release-arm64.apk).
+41: 
+The above content shows the entire, complete file contents of the requested file.

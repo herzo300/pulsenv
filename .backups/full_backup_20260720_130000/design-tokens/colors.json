@@ -1,0 +1,149 @@
+{
+  "$schema": "https://github.com/design-tokens/community-group/blob/main/schema.json",
+  "name": "City Pulse Design Tokens",
+  "version": "1.0.0",
+  "description": "Единая дизайн-система для City Pulse (Soobshio) — Нижневартовск",
+  
+  "colors": {
+    "background": {
+      "default": {
+        "value": "#020617",
+        "description": "Основной фон (dark mode)"
+      },
+      "raised": {
+        "value": "#08111F",
+        "description": "Приподнятый фон"
+      },
+      "light": {
+        "value": "#F5FAFF",
+        "description": "Основной фон (light mode)"
+      },
+      "lightRaised": {
+        "value": "#E8F2FB",
+        "description": "Приподнятый фон (light mode)"
+      }
+    },
+
+    "surface": {
+      "default": {
+        "value": "#0C1628",
+        "description": "Поверхность карточек"
+      },
+      "soft": {
+        "value": "#112036",
+        "description": "Мягкая поверхность"
+      },
+      "elevated": {
+        "value": "#16263D",
+        "description": "Приподнятая поверхность"
+      },
+      "glass": {
+        "value": "#CC111C31",
+        "description": "Стеклянная поверхность (с прозрачностью)"
+      },
+      "light": {
+        "value": "#FFFFFF",
+        "description": "Поверхность (light mode)"
+      },
+      "lightSoft": {
+        "value": "#F0F6FC",
+        "description": "Мягкая поверхность (light mode)"
+      },
+      "lightGlass": {
+        "value": "#CCFFFFFF",
+        "description": "Стеклянная поверхность (light mode)"
+      }
+    },
+
+    "text": {
+      "primary": {
+        "value": "#E6FAFF",
+        "description": "Основной текст"
+      },
+      "secondary": {
+        "value": "#8EAFC2",
+        "description": "Вторичный текст"
+      },
+      "tertiary": {
+        "value": "#66849A",
+        "description": "Третичный текст"
+      },
+      "lightPrimary": {
+        "value": "#0A2540",
+        "description": "Основной текст (light mode)"
+      },
+      "lightSecondary": {
+        "value": "#4A6B8A",
+        "description": "Вторичный текст (light mode)"
+      },
+      "lightTertiary": {
+        "value": "#7A96B2",
+        "description": "Третичный текст (light mode)"
+      }
+    },
+
+    "primary": {
+      "default": {
+        "value": "#00E5FF",
+        "description": "Основной акцент (cyan)"
+      },
+      "soft": {
+        "value": "#7DF2FF",
+        "description": "Мягкий primary"
+      },
+      "deep": {
+        "value": "#0EA5C7",
+        "description": "Глубокий primary"
+      }
+    },
+
+    "accent": {
+      "violet": {
+        "value": "#7C4DFF",
+        "description": "Фиолетовый акцент"
+      },
+      "gold": {
+        "value": "#FFC857",
+        "description": "Золотой акцент"
+      }
+    },
+
+    "semantic": {
+      "success": {
+        "value": "#00E676",
+        "description": "Успех"
+      },
+      "warning": {
+        "value": "#FFC857",
+        "description": "Предупреждение"
+      },
+      "negative": {
+        "value": "#FF3D00",
+        "description": "Ошибка"
+      },
+      "neutral": {
+        "value": "#90A4AE",
+        "description": "Нейтральный"
+      }
+    },
+
+    "border": {
+      "default": {
+        "value": "#223FD8F8",
+        "description": "Граница (с прозрачностью)"
+      },
+      "strong": {
+        "value": "#443FD8F8",
+        "description": "Усиленная граница"
+      },
+      "light": {
+        "value": "#330EA5C7",
+        "description": "Граница (light mode)"
+      },
+      "lightStrong": {
+        "value": "#660EA5C7",
+        "description": "Усиленная граница (light mode)"
+      }
+    }
+  }
+}

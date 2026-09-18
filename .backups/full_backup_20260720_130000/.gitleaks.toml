@@ -1,0 +1,15 @@
+title = "Soobshio gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ignore vendored skills, scratch scripts, and local env files"
+paths = [
+  '''\.agents/''',
+  '''scratch/''',
+  '''node_modules/''',
+  '''\.venv/''',
+  '''\.env$''',
+  '''\.env\.runtime$''',
+]
