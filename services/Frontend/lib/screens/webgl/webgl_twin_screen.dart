@@ -1,0 +1,500 @@
+import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter/services.dart';
+
+/// WebGL-двойник Нижневартовска: настоящая Three.js-сцена с
+/// текстурированными фасадами (панель/кирпич/штукатурка), рекой Обь
+/// с шейдерным течением и огнями окон в сумерках.
+/// Здания грузятся из того же API, что и canvas-версия.
+class WebglTwinScreen extends StatefulWidget {
+  const WebglTwinScreen({super.key});
+
+  @override
+  State<WebglTwinScreen> createState() => _WebglTwinScreenState();
+}
+
+class _WebglTwinScreenState extends State<WebglTwinScreen> {
+  late final WebViewController _controller;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0xFF030712))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (_) {
+            if (mounted) setState(() => _isLoading = false);
+          },
+        ),
+      )
+      ..loadHtmlString(kWebglTwinHtml, baseUrl: 'https://cdn.jsdelivr.net/');
+  }
+
+  @override
+  void dispose() {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF030712),
+      body: Stack(
+        children: [
+          WebViewWidget(controller: _controller),
+          if (_isLoading)
+            const Positioned.fill(
+              child: ColoredBox(
+                color: Color(0xFF030712),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: CircularProgressIndicator(
+                            color: Color(0xFF00E5FF), strokeWidth: 2.5),
+                      ),
+                      SizedBox(height: 16),
+                      Text('Строим WebGL-модель Нижневартовска…',
+                          style: TextStyle(
+                              color: Color(0xFFF8FAFC),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          // Кнопка выхода
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 54,
+            right: 12,
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF1B2F49), Color(0xFF0D1626)],
+                  ),
+                  border: Border.all(
+                      color: const Color(0xFF00E5FF).withOpacity(0.4),
+                      width: 1.1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.35),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.arrow_back_rounded,
+                    color: Color(0xFF00E5FF), size: 22),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── HTML сцены ────────────────────────────────────────────────────────────
+// Держим в отдельной константе: без Dart-интерполяции, чтобы JS ${} не ломались.
+const String kWebglTwinHtml = '''
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Нижневартовск — WebGL двойник</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#030712;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;touch-action:none}
+  canvas{display:block;width:100vw;height:100vh}
+  #hud{position:fixed;top:14px;left:50%;transform:translateX(-50%);
+    background:rgba(10,20,36,.72);border:1px solid rgba(0,229,255,.35);color:#eaf6ff;
+    padding:8px 20px;border-radius:24px;font-size:12px;font-weight:700;letter-spacing:.6px;
+    backdrop-filter:blur(12px);box-shadow:0 4px 24px rgba(0,0,0,.4);pointer-events:none;z-index:10;white-space:nowrap}
+  #hint{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
+    background:rgba(10,20,36,.6);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.75);
+    padding:6px 16px;border-radius:14px;font-size:11px;backdrop-filter:blur(8px);pointer-events:none;z-index:10}
+  #timeSlider{position:fixed;bottom:52px;left:50%;transform:translateX(-50%);width:min(70vw,340px);
+    z-index:11;accent-color:#00e5ff}
+  #err{position:fixed;inset:0;display:none;align-items:center;justify-content:center;color:#94a3b8;font-size:13px}
+</style>
+</head>
+<body>
+<div id="hud">🏙️ НИЖНЕВАРТОВСК · WEBGL-ДВОЙНИК · <span id="cnt">…</span></div>
+<div id="hint">1 палец — вращение · 2 пальца — зум · слайдер — время суток</div>
+<input id="timeSlider" type="range" min="0" max="24" step="0.25" value="14">
+<div id="err">Не удалось загрузить модель города</div>
+<canvas id="c"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+<script>
+const API = '__API_BASE__';
+
+// ═══ СЦЕНА ═══
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x030712);
+scene.fog = new THREE.Fog(0x030712, 300, 1400);
+
+const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 1, 3000);
+const renderer = new THREE.WebGLRenderer({canvas:document.getElementById('c'), antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// ═══ ОСВЕЩЕНИЕ (день/ночь управляются слайдером) ═══
+const hemi = new THREE.HemisphereLight(0x9db8d6, 0x1a2332, 0.9);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffffff, 1.4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 10; sun.shadow.camera.far = 1600;
+sun.shadow.camera.left = -700; sun.shadow.camera.right = 700;
+sun.shadow.camera.top = 700; sun.shadow.camera.bottom = -700;
+scene.add(sun);
+const moonAmb = new THREE.AmbientLight(0x1b2a45, 0.0);
+scene.add(moonAmb);
+
+// ═══ ЗВЁЗДЫ ═══
+(function(){
+  const g = new THREE.BufferGeometry();
+  const N = 900, pos = new Float32Array(N*3);
+  for(let i=0;i<N*3;i++) pos[i] = (Math.random()-0.5)*2400;
+  g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  const m = new THREE.PointsMaterial({color:0xdbe7f3, size:1.6, transparent:true, opacity:0.8, sizeAttenuation:false});
+  const stars = new THREE.Points(g,m); stars.position.y = 500;
+  scene.add(stars);
+  window.__stars = stars;
+})();
+
+// ═══ ПРОЦЕДУРНЫЕ ТЕКСТУРЫ ФАСАДОВ ═══
+// Панель/кирпич/штукатурка + сетка окон с эмиссией (часть окон светится)
+function facadeTexture(baseHex, kind, litSeed){
+  const S = 512, c = document.createElement('canvas');
+  c.width = c.height = S;
+  const x = c.getContext('2d');
+  const base = '#'+baseHex.toString(16).padStart(6,'0');
+  x.fillStyle = base; x.fillRect(0,0,S,S);
+  for(let i=0;i<900;i++){
+    x.fillStyle = 'rgba(0,0,0,'+(Math.random()*0.05)+')';
+    x.fillRect(Math.random()*S, Math.random()*S, 24, 8);
+  }
+  const rows = 9, cols = 12;
+  const cw = S/cols, ch = S/rows;
+  if(kind==='panel'){
+    for(let r=0;r<=rows;r++){ x.fillStyle='rgba(0,0,0,.16)'; x.fillRect(0,r*ch-1,S,2); }
+    for(let cCol=0;cCol<=cols;cCol++){ x.fillStyle='rgba(0,0,0,.10)'; x.fillRect(cCol*cw-1,0,2,S); }
+  } else if(kind==='brick'){
+    for(let r=0;r<rows*4;r++){
+      x.fillStyle='rgba(0,0,0,.07)';
+      x.fillRect(0, r*(ch/4), S, 1);
+      const off = (r%2)*(cw/2);
+      for(let cc=0;cc<cols*2;cc++) x.fillRect(off+cc*(cw/2), r*(ch/4), 1, ch/4);
+    }
+  }
+  let rnd = litSeed;
+  const rand = ()=>{ rnd = (rnd*16807)%2147483647; return rnd/2147483647; };
+  const litC = document.createElement('canvas');
+  litC.width = litC.height = S;
+  const lx = litC.getContext('2d');
+  lx.fillStyle = '#000'; lx.fillRect(0,0,S,S);
+  for(let r=0;r<rows;r++){
+    for(let cc=0;cc<cols;cc++){
+      const wx = cc*cw + cw*0.22, wy = r*ch + ch*0.22;
+      const ww = cw*0.56, wh = ch*0.5;
+      x.fillStyle = 'rgba(20,28,40,.85)';
+      x.fillRect(wx-2, wy-2, ww+4, wh+4);
+      x.fillStyle = '#1d2b3d';
+      x.fillRect(wx, wy, ww, wh);
+      x.fillStyle = 'rgba(160,190,220,.18)';
+      x.fillRect(wx, wy, ww, wh*0.35);
+      if(rand() < 0.62){
+        const warm = rand();
+        const col = warm<0.72 ? '#ffc879' : (warm<0.9 ? '#ffe7bc' : '#c7ddf2');
+        lx.fillStyle = col;
+        lx.fillRect(wx, wy, ww, wh);
+        if(rand()<0.3){ lx.fillStyle='rgba(255,255,255,.35)'; lx.fillRect(wx,wy,ww,wh*0.3); }
+      }
+    }
+  }
+  const map = new THREE.CanvasTexture(c);
+  const emap = new THREE.CanvasTexture(litC);
+  [map,emap].forEach(t=>{t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=4;});
+  return {map:map, emap:emap};
+}
+
+// Палитры фактических материалов НВ (по камерам/Гермесу)
+const MATERIALS = {
+  panelCream: {base:0xd8cfc0, kind:'panel'},
+  panelGrey:  {base:0xc9c5bc, kind:'panel'},
+  brick:      {base:0xc4886b, kind:'brick'},
+  brick2:     {base:0xb07a5e, kind:'brick'},
+  stuccoHi:   {base:0x7f9bb3, kind:'stucco'},
+  stuccoWarm: {base:0xb0693f, kind:'stucco'},
+  industrial: {base:0x8d9398, kind:'panel'},
+  wooden:     {base:0xa98f76, kind:'stucco'},
+};
+
+function pickMaterial(h, category, seed){
+  const cat = (category||'').toLowerCase();
+  if(cat.includes('жилой')||cat.includes('мкд')){
+    return h>=34 ? MATERIALS.stuccoHi : MATERIALS.panelCream;
+  }
+  if(cat.includes('5-этаж')) return MATERIALS.brick;
+  if(cat.includes('высотн')) return MATERIALS.stuccoWarm;
+  if(cat.includes('пром')||cat.includes('склад')||cat.includes('гараж')) return MATERIALS.industrial;
+  if(cat.includes('образ')||cat.includes('детск')) return MATERIALS.stuccoHi;
+  if(h>=34) return MATERIALS.stuccoWarm;
+  if(h>=21) return seed%3===0 ? MATERIALS.panelGrey : MATERIALS.panelCream;
+  if(h>=12) return seed%2===0 ? MATERIALS.brick : MATERIALS.brick2;
+  return MATERIALS.wooden;
+}
+
+// ═══ ЗДАНИЯ ═══
+const buildingsGroup = new THREE.Group();
+scene.add(buildingsGroup);
+
+function ringToLocal(ring, lng0, lat0, cosLat0){
+  const R = 6378137, deg = Math.PI/180;
+  return ring.map(function(p){ return [R*(p[0]-lng0)*deg*cosLat0, R*(p[1]-lat0)*deg]; });
+}
+
+function addBuilding(ringM, h, category, seed){
+  if(ringM.length < 3 || h < 3) return;
+  const shape = new THREE.Shape();
+  shape.moveTo(ringM[0][0], -ringM[0][1]);
+  for(let i=1;i<ringM.length;i++) shape.lineTo(ringM[i][0], -ringM[i][1]);
+  shape.closePath();
+  const geo = new THREE.ExtrudeGeometry(shape, {depth:h, bevelEnabled:false});
+  geo.rotateX(-Math.PI/2);
+
+  const mat = pickMaterial(h, category, seed);
+  const tex = facadeTexture(mat.base, mat.kind, (seed%99991)+7);
+  let perim = 0;
+  for(let i=0;i<ringM.length;i++){
+    const p=ringM[i], q=ringM[(i+1)%ringM.length];
+    perim += Math.hypot(p[0]-q[0], p[1]-q[1]);
+  }
+  const wRep = Math.max(1, Math.round(perim/14));
+  const hRep = Math.max(1, Math.round(h/28));
+  tex.map.repeat.set(wRep, hRep);
+  tex.emap.repeat.set(wRep, hRep);
+
+  const wallMat = new THREE.MeshStandardMaterial({
+    map: tex.map,
+    emissiveMap: tex.emap,
+    emissive: new THREE.Color(0xffffff),
+    emissiveIntensity: 0.0,
+    roughness: 0.82,
+    metalness: 0.04,
+  });
+  const mesh = new THREE.Mesh(geo, wallMat);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData.wallMat = wallMat;
+  buildingsGroup.add(mesh);
+
+  const roofMat = new THREE.MeshStandardMaterial({
+    color: seed%3===0 ? 0x4a504e : 0x3c4240, roughness: 0.95,
+  });
+  const top = new THREE.Mesh(new THREE.ShapeGeometry(shape), roofMat);
+  top.rotateX(-Math.PI/2);
+  top.position.y = h - 0.2;
+  top.receiveShadow = true;
+  buildingsGroup.add(top);
+}
+
+// ═══ РЕКА ОБЬ С ТЕЧЕНИЕМ (шейдер) ═══
+var water = null;
+function addRiver(){
+  const g = new THREE.PlaneGeometry(2600, 520, 64, 12);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:   {value: 0},
+      uFlow:   {value: new THREE.Color(0x9fe0f5)},
+      uDeep:   {value: new THREE.Color(0x123a5c)},
+      uSun:    {value: 0.0},
+    },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+    fragmentShader: [
+      'uniform float uTime; uniform vec3 uFlow; uniform vec3 uDeep; uniform float uSun;',
+      'varying vec2 vUv;',
+      'float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }',
+      'void main(){',
+      '  float y = vUv.y * 7.0;',
+      '  float lane = floor(y);',
+      '  float fy = fract(y);',
+      '  float speed = 0.28 - abs(lane-3.0)*0.035;',
+      '  float x = vUv.x + uTime*speed + lane*0.37;',
+      '  float streak = smoothstep(0.12, 0.5, fy) * (1.0-smoothstep(0.5, 0.88, fy));',
+      '  float noise = hash(vec2(floor(x*40.0), lane));',
+      '  streak *= 0.55 + 0.45*noise;',
+      '  vec3 col = mix(uDeep, uFlow, streak*0.55);',
+      '  col += uFlow * uSun * 0.35 * streak;',
+      '  float bank = smoothstep(0.0,0.08,vUv.y)*(1.0-smoothstep(0.92,1.0,vUv.y));',
+      '  col *= 0.55 + 0.45*bank;',
+      '  gl_FragColor = vec4(col, 0.94);',
+      '}'
+    ].join('\n'),
+    transparent: true,
+  });
+  water = new THREE.Mesh(g, mat);
+  water.rotation.x = -Math.PI/2;
+  water.position.set(0, 0.15, 900);
+  scene.add(water);
+}
+
+// ═══ ЗЕМЛЯ ═══
+function addGround(){
+  const g = new THREE.PlaneGeometry(4000, 4000);
+  const m = new THREE.MeshStandardMaterial({color: 0x33413a, roughness: 1});
+  const ground = new THREE.Mesh(g, m);
+  ground.rotation.x = -Math.PI/2;
+  ground.position.y = -0.3;
+  ground.receiveShadow = true;
+  scene.add(ground);
+}
+
+// ═══ УПРАВЛЕНИЕ ═══
+const ctrl = {
+  angle: Math.PI/5, elev: 0.46, dist: 620, target: new THREE.Vector3(0,40,0),
+  update: function(){
+    const ce = Math.cos(this.elev);
+    camera.position.set(
+      this.target.x + this.dist*ce*Math.sin(this.angle),
+      this.target.y + this.dist*Math.sin(this.elev),
+      this.target.z + this.dist*ce*Math.cos(this.angle));
+    camera.lookAt(this.target);
+  }
+};
+var lastX=0,lastY=0,mode=null,pinch=0;
+var pts = new Map();
+const cv = renderer.domElement;
+cv.addEventListener('pointerdown', function(e){ pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pts.size===1){ mode='orbit'; lastX=e.clientX; lastY=e.clientY; }
+  cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', function(e){
+  if(!pts.has(e.pointerId)) return;
+  pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pts.size===2){
+    const a=[...pts.values()];
+    const d=Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y);
+    if(pinch>0) ctrl.dist=Math.min(1500,Math.max(90,ctrl.dist-(d-pinch)*2.2));
+    pinch=d; mode=null;
+  } else if(mode==='orbit'){
+    ctrl.angle -= (e.clientX-lastX)*0.0045;
+    ctrl.elev = Math.min(1.35, Math.max(0.12, ctrl.elev+(e.clientY-lastY)*0.004));
+    lastX=e.clientX; lastY=e.clientY;
+  }});
+function endP(e){ pts.delete(e.pointerId); if(pts.size<2) pinch=0; if(pts.size===0) mode=null; }
+cv.addEventListener('pointerup', endP); cv.addEventListener('pointercancel', endP);
+cv.addEventListener('wheel', function(e){ e.preventDefault();
+  ctrl.dist=Math.min(1500,Math.max(90,ctrl.dist+e.deltaY*0.8)); },{passive:false});
+
+// ═══ ВРЕМЯ СУТОК ═══
+const slider = document.getElementById('timeSlider');
+var dayHour = 14;
+slider.addEventListener('input', function(){ dayHour = parseFloat(slider.value); applyTime(); });
+
+function applyTime(){
+  const elev = Math.sin((dayHour-6)/15*Math.PI) * 45;
+  const az = ((dayHour-12)/12)*Math.PI + Math.PI;
+  const dayK = Math.max(0, Math.min(1, (elev+6)/18));
+  const nightK = 1-dayK;
+  sun.position.set(Math.sin(az)*600, Math.max(30, elev*12), Math.cos(az)*600);
+  sun.intensity = 0.15 + 1.3*dayK;
+  sun.color.setHSL(0.09+0.04*dayK, 0.6*(1-dayK*0.7), 0.55+0.35*dayK);
+  hemi.intensity = 0.25 + 0.8*dayK;
+  moonAmb.intensity = 0.55*nightK;
+  const glow = Math.min(1, Math.max(0, (10-elev)/12));
+  buildingsGroup.children.forEach(function(m){
+    if(m.userData.wallMat) m.userData.wallMat.emissiveIntensity = glow*1.35;
+  });
+  const skyDay = new THREE.Color(0x8fc3e8), skyNight = new THREE.Color(0x0a1024);
+  const sky = skyNight.clone().lerp(skyDay, dayK);
+  if(elev>0 && elev<14){ sky.lerp(new THREE.Color(0xf0a868), (14-elev)/14*0.4*dayK); }
+  scene.background = sky; scene.fog.color = sky;
+  if(water) water.material.uniforms.uSun.value = dayK*(elev<14?0.8:0.3);
+  if(window.__stars) window.__stars.material.opacity = nightK*0.9;
+}
+
+// ═══ ЗАГРУЗКА ГОРОДА ═══
+async function loadCity(){
+  try{
+    const r = await fetch(API+'/api/v1/3d-twin/buildings');
+    const fc = await r.json();
+    const feats = fc.features||[];
+    var mnLa=90,mxLa=-90,mnLo=180,mxLo=-180;
+    feats.forEach(function(f){
+      const g=f.geometry; if(!g) return;
+      var cs=g.coordinates||[]; if(g.type==='MultiPolygon') cs=cs[0]||[];
+      if(!cs[0]) return;
+      cs[0].forEach(function(p){
+        mnLa=Math.min(mnLa,p[1]); mxLa=Math.max(mxLa,p[1]);
+        mnLo=Math.min(mnLo,p[0]); mxLo=Math.max(mxLo,p[0]); });
+    });
+    const lat0=(mnLa+mxLa)/2, lng0=(mnLo+mxLo)/2, cosL0=Math.cos(lat0*Math.PI/180);
+    var count=0, seed=1;
+    feats.forEach(function(f){
+      const g=f.geometry; if(!g) return;
+      var cs=g.coordinates||[]; if(g.type==='MultiPolygon') cs=cs[0]||[];
+      if(!cs[0]||cs[0].length<3) return;
+      const ring=ringToLocal(cs[0],lng0,lat0,cosL0);
+      const h=parseFloat((f.properties&&f.properties.render_height)||12);
+      const cat=(f.properties&&f.properties.category)||'';
+      var rad=0;
+      for(var i=0;i<ring.length;i++){
+        var p=ring[i], q=ring[(i+1)%ring.length];
+        rad=Math.max(rad, Math.hypot(p[0]-q[0],p[1]-q[1]));
+      }
+      if(feats.length>2500 && rad<14) return;
+      seed=(seed*2654435761)%4294967296;
+      addBuilding(ring,h,cat,seed);
+      count++;
+    });
+    document.getElementById('cnt').textContent = count+' зданий';
+    addRiver(); addGround(); applyTime(); ctrl.update();
+  }catch(e){
+    console.error(e);
+    document.getElementById('err').style.display='flex';
+  }
+}
+loadCity();
+
+// ═══ АНИМАЦИЯ ═══
+var t0 = performance.now();
+function animate(){
+  requestAnimationFrame(animate);
+  const t = (performance.now()-t0)/1000;
+  if(water) water.material.uniforms.uTime.value = t;
+  ctrl.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', function(){
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
+
+''';

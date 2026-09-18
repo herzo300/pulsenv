@@ -25,6 +25,13 @@ abstract final class PulseIcons {
   static const profile = 'assets/icons/profile.svg';
   static const qr = 'assets/icons/qr.svg';
   static const receipt = 'assets/icons/receipt.svg';
+
+  // Фирменный набор «Пульс Города»: ночной градиент 0F172A→0B132B,
+  // циановая обводка #00E5FF с акцентными градиентами.
+  static const signal = 'assets/icons/pulse_signal.svg';
+  static const hermes = 'assets/icons/pulse_hermes.svg';
+  static const lostFound = 'assets/icons/pulse_lost.svg';
+  static const twin = 'assets/icons/pulse_twin.svg';
 }
 
 /// Виджет фирменной иконки.

@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../theme/pulse_colors.dart';
 import '../../../widgets/aura_living_background.dart';
@@ -25,6 +26,8 @@ import '../../ar_markers_screen.dart';
 import '../../gamification_screen.dart';
 import '../../ai_digest_screen.dart';
 import '../../ai_assistant_screen.dart';
+import '../../digital_twin_3d_screen.dart';
+import '../../webgl/webgl_twin_screen.dart';
 import '../../../widgets/aura_theme_picker.dart';
 
 
@@ -61,6 +64,7 @@ class MapMenuSheet extends StatelessWidget {
     this.onOpenPanorama,
     this.onOpenAr,
     this.onOpenGamification,
+    this.onOpenRoadWorks,
   });
 
   final bool isNightMode;
@@ -91,6 +95,7 @@ class MapMenuSheet extends StatelessWidget {
   final MapMenuVoidCallback? onOpenPanorama;
   final MapMenuVoidCallback? onOpenAr;
   final MapMenuVoidCallback? onOpenGamification;
+  final MapMenuVoidCallback? onOpenRoadWorks;
 
   static Future<void> show({
     required BuildContext context,
@@ -109,6 +114,18 @@ class MapMenuSheet extends StatelessWidget {
     final bright = !isNightMode;
     final border = uiGlow.withOpacity(bright ? 0.2 : 0.34);
 
+    // Боковое меню не должно перекрывать блоки карты (ЖКХ и др.) и не
+    // растягиваться во весь экран: ограничиваем высоту 78% и делаем
+    // контент скроллируемым (запрос пользователя).
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.78,
+      ),
+      child: _buildSheetBody(context, bright, border),
+    );
+  }
+
+  Widget _buildSheetBody(BuildContext context, bool bright, Color border) {
     final scene = AuraLivingEngine.resolve(
       mood: 0,
       streak: 5,
@@ -156,7 +173,10 @@ class MapMenuSheet extends StatelessWidget {
             top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-              child: Column(
+              // Скролл внутри шита: длинный список пунктов больше не
+              // перекрывает блоки карты и всегда доступен целиком.
+              child: SingleChildScrollView(
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -264,51 +284,69 @@ class MapMenuSheet extends StatelessWidget {
                     builder: (context) {
                       final List<Widget> gridItems = [
                         _menuTile(
-                          label: 'Геймификация',
-                          subtitle: 'Достижения и рейтинг',
-                          kind: PulseUiIconKind.profile,
-                          color: Colors.amber,
+                          label: '3D Двойник',
+                          subtitle: 'Digital Twin Нижневартовска',
+                          assetPath: 'assets/icons/pulse_twin.svg',
+                          color: const Color(0xFF00E5FF),
                           onTap: () {
-                            if (onOpenGamification != null) {
-                              onOpenGamification!();
-                            } else {
-                              Navigator.push(context, MaterialPageRoute(builder: (_) => const GamificationScreen()));
-                            }
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const DigitalTwin3DScreen()));
+                          },
+                        ),
+                        _menuTile(
+                          label: 'WebGL Двойник',
+                          subtitle: 'Фотореалистичная сцена с текстурами',
+                          assetPath: 'assets/icons/pulse_twin.svg',
+                          color: const Color(0xFF7DD3FC),
+                          onTap: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const WebglTwinScreen()));
+                          },
+                        ),
+                        _menuTile(
+                          label: 'Погода',
+                          subtitle: 'Живое небо и прогноз',
+                          customIcon: Icons.wb_sunny_rounded,
+                          color: const Color(0xFFF59E0B),
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            context.push('/weather');
+                          },
+                        ),
+                        _menuTile(
+                          label: 'Ремонт & Паспорта',
+                          subtitle: 'Объекты BKD & тротуары',
+                          customIcon: Icons.construction_rounded,
+                          color: const Color(0xFFFF9100),
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            onOpenRoadWorks?.call();
                           },
                         ),
                         _menuTile(
                           label: 'Настройки',
                           subtitle: 'Параметры и вид',
-                          kind: PulseUiIconKind.settings,
+                          customIcon: Icons.tune_rounded,
                           color: PulseColors.primary,
                           onTap: onOpenSettings,
                         ),
                         _menuTile(
-                          label: 'УК города',
-                          subtitle: '42 компании',
-                          kind: PulseUiIconKind.uk,
-                          color: PulseColors.accentViolet,
-                          onTap: onOpenUk,
-                        ),
-                        _menuTile(
                           label: 'Меш сеть',
                           subtitle: 'P2P автономность',
-                          kind: PulseUiIconKind.mesh,
+                          customIcon: Icons.hub_rounded,
                           color: PulseColors.success,
                           onTap: onOpenMesh,
                         ),
                         _menuTile(
                           label: 'Профиль',
                           subtitle: 'ID горожанина',
-                          kind: PulseUiIconKind.profile,
+                          customIcon: Icons.badge_rounded,
                           color: const Color(0xFF06B6D4),
                           onTap: onOpenProfile,
                         ),
                         _menuTile(
                           label: 'О проекте',
                           subtitle: 'City Pulse 2026',
-                          kind: PulseUiIconKind.about,
-                          color: const Color(0xFFF59E0B),
+                          customIcon: Icons.info_outline_rounded,
+                          color: const Color(0xFF38BDF8),
                           onTap: onOpenAbout,
                         ),
                       ];
@@ -330,6 +368,7 @@ class MapMenuSheet extends StatelessWidget {
 
                   ),
                 ],
+              ),
               ),
             ),
           ),
@@ -372,7 +411,9 @@ class MapMenuSheet extends StatelessWidget {
   Widget _menuTile({
     required String label,
     required String subtitle,
-    required PulseUiIconKind kind,
+    PulseUiIconKind? kind,
+    IconData? customIcon,
+    String? assetPath,
     required Color color,
     required VoidCallback onTap,
   }) {
@@ -380,6 +421,8 @@ class MapMenuSheet extends StatelessWidget {
       label: label,
       subtitle: subtitle,
       kind: kind,
+      customIcon: customIcon,
+      assetPath: assetPath,
       color: color,
       onTap: onTap,
       isNightMode: isNightMode,
@@ -548,6 +591,7 @@ class _MenuTile extends StatefulWidget {
   final String subtitle;
   final PulseUiIconKind? kind;
   final IconData? customIcon;
+  final String? assetPath;
   final Color color;
   final VoidCallback onTap;
   final bool isNightMode;
@@ -559,6 +603,7 @@ class _MenuTile extends StatefulWidget {
     required this.subtitle,
     this.kind,
     this.customIcon,
+    this.assetPath,
     required this.color,
     required this.onTap,
     required this.isNightMode,
@@ -691,10 +736,10 @@ class _MenuTileState extends State<_MenuTile> with SingleTickerProviderStateMixi
                   ),
                   const SizedBox(width: 6),
                   Container(
-                    width: 34,
-                    height: 34,
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(9),
+                      borderRadius: BorderRadius.circular(11),
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -718,14 +763,27 @@ class _MenuTileState extends State<_MenuTile> with SingleTickerProviderStateMixi
                       child: (widget.customIcon != null
                           ? Icon(
                               widget.customIcon,
-                              size: 19,
+                              size: 21,
                               color: Colors.white,
                             )
-                          : PulseUiIcon(
-                              kind: widget.kind ?? PulseUiIconKind.settings,
-                              size: 17,
-                              color: Colors.white,
-                            ))
+                          : (widget.kind != null
+                              ? PulseUiIcon(
+                                  kind: widget.kind!,
+                                  size: 20,
+                                  color: Colors.white,
+                                )
+                              : (widget.assetPath != null
+                                  ? Image.asset(
+                                      widget.assetPath!,
+                                      width: 22,
+                                      height: 22,
+                                      fit: BoxFit.contain,
+                                    )
+                                  : const Icon(
+                                      Icons.category_rounded,
+                                      size: 21,
+                                      color: Colors.white,
+                                    ))))
                           .animate(onPlay: (controller) => controller.repeat(reverse: true))
                           .scale(
                             delay: 400.ms,

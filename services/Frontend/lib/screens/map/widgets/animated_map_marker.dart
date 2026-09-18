@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 enum MarkerShell {
   circle,
@@ -99,40 +98,332 @@ class AnimatedMapMarker extends StatelessWidget {
     if (!animate) {
       child = _buildMarkerBody(phase: 0.42);
       return RepaintBoundary(
-        child: child
-            .animate()
-            .fadeIn(duration: 250.ms)
-            .scale(
-              duration: 250.ms,
-              begin: const Offset(0.8, 0.8),
-              curve: Curves.easeOut,
-            ),
+        child: child,
       );
     } else {
+      // Static-части (3D-иконка, иконка категории) вынесены из AnimatedBuilder:
+      // пульсирует только дешёвый оверлей Transform/Opacity, а не всё поддерево.
+      final staticBody = _buildStaticBody();
       child = AnimatedBuilder(
         animation: animation,
         builder: (context, _) {
           final phase = (animation.value + seed) % 1.0;
-          return _buildMarkerBody(phase: phase);
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              staticBody,
+              _buildPulseOverlay(phase: phase),
+            ],
+          );
         },
       );
       return RepaintBoundary(
-        child: child
-            .animate()
-            .fadeIn(duration: 350.ms)
-            .scale(
-              duration: 450.ms,
-              begin: const Offset(0.3, 0.3),
-              curve: Curves.easeOutBack,
-            ),
+        child: child,
       );
     }
+  }
+
+  /// Неанимируемая часть маркера: тень, glow-подложка, 3D-иконка, иконка.
+  Widget _buildStaticBody() {
+    final scale = highlighted ? 1.08 : 1.0;
+
+    if (shell == MarkerShell.circle) {
+      final iconWidget = Icon(
+        icon,
+        color: isDayMode ? const Color(0xFF04243C) : Colors.white,
+        size: size * 0.34,
+      );
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Center(
+          child: _buildShell(
+            size: size * 0.72,
+            shell: shell,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                color.withAlpha(highlighted ? 255 : (isDayMode ? 226 : 255)),
+                color.withAlpha(highlighted ? 230 : (isDayMode ? 144 : 210)),
+              ],
+            ),
+            borderColor: Colors.white.withAlpha(
+              highlighted ? 255 : (isDayMode ? 190 : 245),
+            ),
+            borderWidth: highlighted ? 1.8 : 1.4,
+            shadow: BoxShadow(
+              color: Colors.black.withAlpha(highlighted ? 60 : (isDayMode ? 22 : 80)),
+              blurRadius: highlighted ? 12 : (isDayMode ? 8 : 10),
+              spreadRadius: highlighted ? 1 : (isDayMode ? 0 : 1),
+            ),
+            child: heroTag != null
+                ? Hero(
+                    tag: heroTag!,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: iconWidget,
+                    ),
+                  )
+                : iconWidget,
+          ),
+        ),
+      );
+    }
+
+    // 3D-маркер (проблемы и мероприятия)
+    final assetPath = _resolve3dAsset();
+    final isCustom3d = _isCustom3dAsset(assetPath);
+
+    final iconWidget = Icon(
+      icon,
+      color: Colors.white,
+      size: size * 0.28,
+      shadows: const [
+        Shadow(
+          color: Colors.black54,
+          blurRadius: 4,
+          offset: Offset(0, 1),
+        ),
+      ],
+    );
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Овальная тень под 3D-булавкой (на поверхности карты)
+          Positioned(
+            bottom: size * 0.08,
+            child: Transform.scale(
+              scale: 1.05,
+              child: Opacity(
+                opacity: highlighted ? 0.26 : 0.13,
+                child: Container(
+                  width: size * 0.55,
+                  height: size * 0.22,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.all(Radius.elliptical(size * 0.28, size * 0.11)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withOpacity(0.6),
+                        blurRadius: highlighted ? 14 : 7,
+                        spreadRadius: highlighted ? 2 : 0.5,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (isCustom3d)
+            // Неоновая подложка цвета категории — отрыв от тёмной карты
+            Transform.scale(
+              scale: scale * 1.05,
+              child: Container(
+                width: size * 0.62,
+                height: size * 0.62,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withOpacity(highlighted ? 0.6 : 0.3),
+                      blurRadius: highlighted ? 22 : 12,
+                      spreadRadius: highlighted ? 4.0 : 1.5,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          Transform.scale(
+            scale: scale,
+            child: Image.asset(
+              assetPath,
+              width: size * 0.92,
+              height: size * 0.92,
+              fit: BoxFit.contain,
+            ),
+          ),
+          if (!isCustom3d)
+            Positioned(
+              top: size * 0.14,
+              child: Transform.scale(
+                scale: scale,
+                child: heroTag != null
+                    ? Hero(
+                        tag: heroTag!,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: iconWidget,
+                        ),
+                      )
+                    : iconWidget,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Лёгкий анимируемый оверлей: концентрические волны + shimmer выделения.
+  /// Только Transform/Opacity — без пересборки контейнеров и картинок.
+  Widget _buildPulseOverlay({required double phase}) {
+    final wave = (math.sin(phase * math.pi * 2) + 1) / 2;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          for (int i = 0; i < 3; i++)
+            Builder(
+              builder: (context) {
+                final wavePhase = (phase + i * 0.33) % 1.0;
+                final waveScale = 0.5 + wavePhase * 1.6;
+                final waveOpacity = (1.0 - wavePhase) * (highlighted ? 0.6 : 0.32);
+                return Transform.scale(
+                  scale: waveScale,
+                  child: Opacity(
+                    opacity: waveOpacity,
+                    child: Container(
+                      width: size * 0.8,
+                      height: size * 0.8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: color,
+                          width: 1.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          if (highlighted)
+            Transform.scale(
+              scale: 1 + wave * 0.05,
+              child: Opacity(
+                opacity: 0.12 + wave * 0.08,
+                child: Container(
+                  width: size * 0.56,
+                  height: size * 0.56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        Colors.white.withOpacity(0.35),
+                        Colors.white.withOpacity(0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _resolve3dAsset() {
+    if (custom3dAsset != null) return custom3dAsset!;
+    if (icon == Icons.smartphone_rounded ||
+        icon == Icons.phone_android_rounded ||
+        icon == Icons.phone_iphone_rounded) {
+      return 'assets/3d_icons/smartphone_3d.webp';
+    } else if (icon == Icons.warning_rounded ||
+        icon == Icons.local_fire_department_rounded ||
+        icon == Icons.fire_extinguisher_rounded) {
+      return 'assets/3d_icons/chp_3d.webp';
+    } else if (icon == Icons.plumbing_rounded || icon == Icons.home_work_rounded) {
+      return 'assets/3d_icons/gkh_3d.webp';
+    } else if (icon == Icons.edit_road_rounded) {
+      return 'assets/3d_icons/dorogi_3d.webp';
+    } else if (icon == Icons.lightbulb_rounded || icon == Icons.lightbulb_outline_rounded) {
+      return 'assets/3d_icons/light_3d.png';
+    } else if (icon == Icons.commute_rounded || icon == Icons.directions_bus_rounded) {
+      return 'assets/3d_icons/transport_3d.webp';
+    } else if (icon == Icons.eco_rounded) {
+      return 'assets/3d_icons/ecology_3d.webp';
+    } else if (icon == Icons.shield_rounded) {
+      return 'assets/3d_icons/security_3d.webp';
+    } else if (icon == Icons.ac_unit_rounded) {
+      return 'assets/3d_icons/snow_3d.webp';
+    } else if (icon == Icons.medical_services_rounded) {
+      return 'assets/3d_icons/medicine_3d.webp';
+    } else if (icon == Icons.school_rounded) {
+      return 'assets/3d_icons/education_3d.webp';
+    } else if (icon == Icons.local_parking_rounded ||
+        icon == Icons.car_crash_rounded ||
+        icon == Icons.directions_car_rounded) {
+      return 'assets/3d_icons/parking_3d.webp';
+    } else if (icon == Icons.engineering_rounded) {
+      return 'assets/3d_icons/construction_3d.webp';
+    } else if (icon == Icons.pets_rounded) {
+      return 'assets/3d_icons/animals_3d.webp';
+    } else if (icon == Icons.shopping_bag_rounded ||
+        icon == Icons.inventory_2_outlined ||
+        icon == Icons.inventory_2_rounded) {
+      return 'assets/3d_icons/items_3d.webp';
+    } else if (icon == Icons.celebration_rounded ||
+        icon == Icons.local_activity_rounded ||
+        icon == Icons.event_rounded) {
+      return 'assets/3d_icons/event_3d.webp';
+    } else if (icon == Icons.more_horiz_rounded ||
+        icon == Icons.info_rounded ||
+        icon == Icons.info_outline_rounded ||
+        icon == Icons.info) {
+      return 'assets/3d_icons/other_3d.webp';
+    } else if (icon == Icons.videocam_rounded || icon == Icons.star_rounded) {
+      return 'assets/3d_icons/other_3d.webp';
+    } else if (icon == Icons.warning_amber_rounded) {
+      return 'assets/3d_icons/chp_3d.webp';
+    } else if (icon == Icons.local_gas_station_rounded) {
+      return 'assets/3d_icons/gas_station_3d.png';
+    } else if (icon == Icons.delete_sweep_rounded ||
+        icon == Icons.delete_outline_rounded ||
+        icon == Icons.delete_rounded) {
+      return 'assets/3d_icons/garbage_3d.webp';
+    } else if (icon == Icons.thermostat_rounded) {
+      return 'assets/3d_icons/heating_3d.webp';
+    } else if (icon == Icons.sensors_rounded) {
+      return 'assets/3d_icons/telecom_3d.webp';
+    } else if (icon == Icons.child_care_rounded) {
+      return 'assets/3d_icons/playground_3d.webp';
+    } else if (icon == Icons.sports_rounded) {
+      return 'assets/3d_icons/sport_3d.webp';
+    } else if (icon == Icons.forest_rounded) {
+      return 'assets/3d_icons/parks_3d.webp';
+    } else if (icon == Icons.elevator_rounded) {
+      return 'assets/3d_icons/elevator_3d.webp';
+    } else if (icon == Icons.people_alt_rounded) {
+      return 'assets/3d_icons/social_3d.webp';
+    } else if (icon == Icons.storefront_rounded) {
+      return 'assets/3d_icons/trade_3d.webp';
+    } else if (icon == Icons.badge_rounded) {
+      return 'assets/3d_icons/labor_3d.webp';
+    } else if (icon == Icons.manage_search_rounded) {
+      return 'assets/3d_icons/lostfound_3d.webp';
+    } else if (icon == Icons.gas_meter_rounded) {
+      return 'assets/3d_icons/gas_3d.webp';
+    } else if (color.red < 100 && color.green > 150 && color.blue < 150) {
+      return 'assets/3d_pin_green.webp';
+    } else if (color == const Color(0xFF8B5CF6) || color.blue > 200 && color.red < 100) {
+      return 'assets/3d_pin_blue.webp';
+    }
+    return 'assets/3d_pin_red.webp';
+  }
+
+  bool _isCustom3dAsset(String assetPath) {
+    return assetPath.contains('3d_icons/');
   }
 
   Widget _buildMarkerBody({required double phase}) {
     if (shell == MarkerShell.circle) {
       // Keep original circle vector marker for cameras
-      final wave = (math.sin(phase * math.pi * 2) + 1) / 2;
+      final wave = animate ? (math.sin(phase * math.pi * 2) + 1) / 2 : 0.0;
       final ringBoost = highlighted ? 0.22 : 0.0;
       final ringScale = 1 + wave * (0.38 + ringBoost);
       final glowOpacity = highlighted
@@ -156,32 +447,33 @@ class AnimatedMapMarker extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // "City Pulse" concentric waves (Circle shell)
-            for (int i = 0; i < 3; i++)
-              Builder(
-                builder: (context) {
-                  final wavePhase = (phase + i * 0.33) % 1.0;
-                  final waveScale = 0.5 + wavePhase * 1.5;
-                  final waveOpacity = (1.0 - wavePhase) * (highlighted ? 0.55 : 0.28);
-                  return Transform.scale(
-                    scale: waveScale,
-                    child: Opacity(
-                      opacity: waveOpacity,
-                      child: Container(
-                        width: size * 0.8,
-                        height: size * 0.8,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: color,
-                            width: 1.2,
+            // "City Pulse" concentric waves (Circle shell) - only when animated
+            if (animate)
+              for (int i = 0; i < 3; i++)
+                Builder(
+                  builder: (context) {
+                    final wavePhase = (phase + i * 0.33) % 1.0;
+                    final waveScale = 0.5 + wavePhase * 1.5;
+                    final waveOpacity = (1.0 - wavePhase) * (highlighted ? 0.55 : 0.28);
+                    return Transform.scale(
+                      scale: waveScale,
+                      child: Opacity(
+                        opacity: waveOpacity,
+                        child: Container(
+                          width: size * 0.8,
+                          height: size * 0.8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: color,
+                              width: 1.2,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                },
-              ),
+                    );
+                  },
+                ),
             if (highlighted)
               Transform.scale(
                 scale: 1 + wave * 0.62,

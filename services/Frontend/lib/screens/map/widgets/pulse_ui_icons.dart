@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
-/// Custom pictograms for map chrome — crisp at any DPI, no emoji.
+/// Custom pictograms for map chrome and inner screens — crisp at any DPI, no emoji.
 enum PulseUiIconKind {
   pulseMark,
   signals,
@@ -23,6 +23,14 @@ enum PulseUiIconKind {
   about,
   secret,
   chevron,
+  navigation,
+  weather,
+  lostAndFound,
+  aiAssistant,
+  jkh,
+  petitions,
+  security,
+  gamification,
 }
 
 class PulseUiIcon extends StatelessWidget {
@@ -249,6 +257,78 @@ class _PulseUiIconPainter extends CustomPainter {
           ..lineTo(s * 0.62, s * 0.5)
           ..lineTo(s * 0.38, s * 0.72);
         canvas.drawPath(p, paint);
+      case PulseUiIconKind.navigation:
+        final nav = Path()
+          ..moveTo(s * 0.5, s * 0.18)
+          ..lineTo(s * 0.8, s * 0.8)
+          ..lineTo(s * 0.5, s * 0.64)
+          ..lineTo(s * 0.2, s * 0.8)
+          ..close();
+        canvas.drawPath(nav, paint);
+      case PulseUiIconKind.weather:
+        canvas.drawCircle(Offset(s * 0.4, s * 0.44), s * 0.18, paint);
+        final cloud = Path()
+          ..moveTo(s * 0.26, s * 0.72)
+          ..lineTo(s * 0.74, s * 0.72)
+          ..addArc(Rect.fromCircle(center: Offset(s * 0.68, s * 0.62), radius: s * 0.12), -math.pi * 0.5, math.pi)
+          ..addArc(Rect.fromCircle(center: Offset(s * 0.48, s * 0.54), radius: s * 0.16), -math.pi, math.pi * 1.2);
+        canvas.drawPath(cloud, paint);
+      case PulseUiIconKind.lostAndFound:
+        canvas.drawCircle(Offset(s * 0.42, s * 0.42), s * 0.22, paint);
+        canvas.drawLine(Offset(s * 0.58, s * 0.58), Offset(s * 0.8, s * 0.8), paint..strokeWidth = s * 0.09);
+        canvas.drawCircle(Offset(s * 0.42, s * 0.42), s * 0.08, fill);
+      case PulseUiIconKind.aiAssistant:
+        final head = RRect.fromRectAndRadius(
+          Rect.fromLTWH(s * 0.24, s * 0.32, s * 0.52, s * 0.44),
+          Radius.circular(s * 0.12),
+        );
+        canvas.drawRRect(head, paint);
+        canvas.drawCircle(Offset(s * 0.38, s * 0.52), s * 0.05, fill);
+        canvas.drawCircle(Offset(s * 0.62, s * 0.52), s * 0.05, fill);
+        canvas.drawLine(Offset(s * 0.5, s * 0.18), Offset(s * 0.5, s * 0.32), paint);
+        canvas.drawCircle(Offset(s * 0.5, s * 0.16), s * 0.04, fill);
+      case PulseUiIconKind.jkh:
+        final house = Path()
+          ..moveTo(s * 0.5, s * 0.18)
+          ..lineTo(s * 0.82, s * 0.45)
+          ..lineTo(s * 0.82, s * 0.82)
+          ..lineTo(s * 0.18, s * 0.82)
+          ..lineTo(s * 0.18, s * 0.45)
+          ..close();
+        canvas.drawPath(house, paint);
+        canvas.drawRect(Rect.fromLTWH(s * 0.4, s * 0.56, s * 0.2, s * 0.26), paint);
+      case PulseUiIconKind.petitions:
+        final doc = RRect.fromRectAndRadius(
+          Rect.fromLTWH(s * 0.24, s * 0.2, s * 0.52, s * 0.64),
+          Radius.circular(s * 0.06),
+        );
+        canvas.drawRRect(doc, paint);
+        canvas.drawLine(Offset(s * 0.34, s * 0.38), Offset(s * 0.66, s * 0.38), paint);
+        canvas.drawLine(Offset(s * 0.34, s * 0.52), Offset(s * 0.66, s * 0.52), paint);
+        canvas.drawLine(Offset(s * 0.34, s * 0.66), Offset(s * 0.54, s * 0.66), paint);
+      case PulseUiIconKind.security:
+        final shield = Path()
+          ..moveTo(s * 0.5, s * 0.18)
+          ..lineTo(s * 0.8, s * 0.28)
+          ..lineTo(s * 0.8, s * 0.56)
+          ..quadraticBezierTo(s * 0.8, s * 0.8, s * 0.5, s * 0.88)
+          ..quadraticBezierTo(s * 0.2, s * 0.8, s * 0.2, s * 0.56)
+          ..lineTo(s * 0.2, s * 0.28)
+          ..close();
+        canvas.drawPath(shield, paint);
+      case PulseUiIconKind.gamification:
+        final star = Path();
+        for (var i = 0; i < 5; i++) {
+          final a1 = -math.pi / 2 + i * math.pi * 2 / 5;
+          final a2 = a1 + math.pi / 5;
+          final p1 = c + Offset(math.cos(a1), math.sin(a1)) * s * 0.36;
+          final p2 = c + Offset(math.cos(a2), math.sin(a2)) * s * 0.18;
+          if (i == 0) star.moveTo(p1.dx, p1.dy);
+          else star.lineTo(p1.dx, p1.dy);
+          star.lineTo(p2.dx, p2.dy);
+        }
+        star.close();
+        canvas.drawPath(star, paint);
     }
   }
 

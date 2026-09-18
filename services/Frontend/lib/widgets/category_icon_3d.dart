@@ -19,9 +19,20 @@ class CategoryIcon3D extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final config = _CategoryIcon3DConfig.forCategory(category, title);
-    return CustomPaint(
-      size: Size(size, size),
-      painter: _Icon3DPainter(config: config, isActive: isActive),
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.88, end: isActive ? 1.0 : 0.92),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutBack,
+      builder: (context, scale, child) {
+        return Transform.scale(
+          scale: scale,
+          child: child,
+        );
+      },
+      child: CustomPaint(
+        size: Size(size, size),
+        painter: _Icon3DPainter(config: config, isActive: isActive),
+      ),
     );
   }
 }
@@ -504,38 +515,38 @@ class _Icon3DPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 3;
 
-    // === Outer glow ===
+    // === 1. Outer dynamic aura glow ===
     if (isActive) {
-      final glowPaint = Paint()
-        ..color = config.shadowColor.withOpacity(0.4)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-      canvas.drawCircle(center, radius + 2, glowPaint);
+      final auraPaint = Paint()
+        ..color = config.shadowColor.withOpacity(0.55)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+      canvas.drawCircle(center, radius + 3, auraPaint);
     }
 
-    // === Shadow disc (3D depth effect) ===
+    // === 2. Sub-surface Contact Shadow (3D Depth) ===
     final shadowPaint = Paint()
-      ..color = config.shadowColor.withOpacity(0.3)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+      ..color = config.shadowColor.withOpacity(0.4)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
     canvas.drawOval(
       Rect.fromCenter(
-        center: Offset(center.dx + 3, center.dy + 5),
+        center: Offset(center.dx, center.dy + radius * 0.75),
         width: radius * 1.8,
-        height: radius * 0.5,
+        height: radius * 0.45,
       ),
       shadowPaint,
     );
 
-    // === Main sphere body ===
+    // === 3. Volumetric Spherical Body (Gemstone / Glass SSS) ===
     final gradient = RadialGradient(
-      center: const Alignment(-0.3, -0.4),
-      radius: 0.9,
+      center: const Alignment(-0.35, -0.45),
+      radius: 0.95,
       colors: [
-        config.highlightColor.withOpacity(0.95),
+        config.highlightColor.withOpacity(0.98),
         config.gradient[0],
         config.gradient[1],
         config.gradient[2],
       ],
-      stops: const [0.0, 0.25, 0.6, 1.0],
+      stops: const [0.0, 0.28, 0.65, 1.0],
     );
 
     final bodyPaint = Paint()
@@ -544,43 +555,59 @@ class _Icon3DPainter extends CustomPainter {
       );
     canvas.drawCircle(center, radius, bodyPaint);
 
-    // === Rim light (bottom-right bright edge) ===
-    final rimGradient = RadialGradient(
-      center: const Alignment(0.6, 0.6),
-      radius: 0.55,
+    // === 4. Caustic Bottom Refraction Arc (Light bounce) ===
+    final causticGradient = RadialGradient(
+      center: const Alignment(0.35, 0.55),
+      radius: 0.65,
       colors: [
-        config.gradient[0].withOpacity(0.6),
+        config.highlightColor.withOpacity(0.55),
+        config.gradient[0].withOpacity(0.2),
         Colors.transparent,
       ],
+      stops: const [0.0, 0.4, 1.0],
     );
-    final rimPaint = Paint()
-      ..shader = rimGradient.createShader(
+    final causticPaint = Paint()
+      ..shader = causticGradient.createShader(
         Rect.fromCircle(center: center, radius: radius),
       );
-    canvas.drawCircle(center, radius, rimPaint);
+    canvas.drawCircle(center, radius, causticPaint);
 
-    // === Specular highlight (top-left bright spot) ===
-    final highlightCenter = Offset(
-      center.dx - radius * 0.28,
-      center.dy - radius * 0.32,
+    // === 5. Dual Specular Glare (Top-Left primary + Micro-accent) ===
+    final hlCenter1 = Offset(
+      center.dx - radius * 0.32,
+      center.dy - radius * 0.36,
     );
-    final highlightGradient = RadialGradient(
-      colors: [
-        Colors.white.withOpacity(0.7),
-        Colors.white.withOpacity(0.0),
-      ],
-    );
-    final hlPaint = Paint()
-      ..shader = highlightGradient.createShader(
-        Rect.fromCircle(center: highlightCenter, radius: radius * 0.4),
+    final hlPaint1 = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          Colors.white.withOpacity(0.95),
+          Colors.white.withOpacity(0.3),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.45, 1.0],
+      ).createShader(
+        Rect.fromCircle(center: hlCenter1, radius: radius * 0.38),
       );
-    canvas.drawCircle(highlightCenter, radius * 0.4, hlPaint);
+    canvas.drawCircle(hlCenter1, radius * 0.38, hlPaint1);
 
-    // === Border ring ===
+    // Micro sharp pinpoint specular
+    final microCenter = Offset(hlCenter1.dx - 1.5, hlCenter1.dy - 1.5);
+    final microPaint = Paint()..color = Colors.white.withOpacity(0.9);
+    canvas.drawCircle(microCenter, radius * 0.08, microPaint);
+
+    // === 6. Beveled Glass Border Ring ===
     final borderPaint = Paint()
-      ..color = config.gradient[0].withOpacity(0.5)
+      ..shader = SweepGradient(
+        colors: [
+          Colors.white.withOpacity(0.8),
+          config.gradient[0].withOpacity(0.6),
+          config.gradient[2].withOpacity(0.3),
+          Colors.white.withOpacity(0.8),
+        ],
+        stops: const [0.0, 0.4, 0.75, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: radius))
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
+      ..strokeWidth = 1.35;
     canvas.drawCircle(center, radius, borderPaint);
   }
 
@@ -589,7 +616,7 @@ class _Icon3DPainter extends CustomPainter {
       old.config != config || old.isActive != isActive;
 }
 
-/// Wrapper that combines 3D sphere + emoji icon overlay
+/// Wrapper that combines 3D sphere + emoji / vector icon overlay
 class Category3DBadge extends StatelessWidget {
   final String category;
   final String? title;
@@ -607,7 +634,7 @@ class Category3DBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final config = _CategoryIcon3DConfig.forCategory(category, title);
-    final iconSize = size * 0.42;
+    final iconSize = size * 0.44;
     return SizedBox(
       width: size,
       height: size,
@@ -619,12 +646,16 @@ class Category3DBadge extends StatelessWidget {
             config.emoji,
             style: TextStyle(
               fontSize: iconSize,
-              // Slight top-left shadow to simulate 3D depth
               shadows: [
                 Shadow(
-                  color: config.shadowColor.withOpacity(0.5),
-                  offset: const Offset(1.5, 2),
-                  blurRadius: 3,
+                  color: Colors.black.withOpacity(0.65),
+                  offset: const Offset(1.5, 2.5),
+                  blurRadius: 4,
+                ),
+                Shadow(
+                  color: config.shadowColor.withOpacity(0.6),
+                  offset: const Offset(0, 0),
+                  blurRadius: 8,
                 ),
               ],
             ),
