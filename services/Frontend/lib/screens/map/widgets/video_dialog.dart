@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:video_player/video_player.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,6 +10,8 @@ import '../../../core/app_router.dart';
 import '../../../map/map_config.dart';
 import '../../../services/favorite_cameras_service.dart';
 import '../../../services/sound_service.dart';
+
+import '../../complaint_form_screen.dart';
 
 /// Video player dialog for live camera streams. Includes AI analysis & favorites support.
 class VideoPlayerDialog extends StatefulWidget {
@@ -82,61 +85,7 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
   }
 
   Future<void> _runAiAnalysis() async {
-    final prefs = await SharedPreferences.getInstance();
-    final seen = prefs.getBool('seen_camera_ai_onboarding') ?? false;
-
-    if (!seen) {
-      if (!mounted) return;
-      // Show onboarding card
-      final proceed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: const Color(0xFF1E1E24),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
-            children: [
-              Icon(Icons.auto_awesome, color: Colors.yellowAccent),
-              SizedBox(width: 8),
-              Text('ИИ Анализ Камеры', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          content: const Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Добро пожаловать в систему ИИ-аналитики города!',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-              SizedBox(height: 8),
-              Text(
-                '• Нейросеть Gemini и YOLO проанализируют текущий кадр с камеры.\n'
-                '• Система распознает объекты (люди, транспорт, ямы, мусор, ДТП).\n'
-                '• Будет составлен текстовый отчет по дорожной и общественной ситуации.\n'
-                '• Результат будет озвучен приятным жизнеутверждающим голосом.',
-                style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Отмена', style: TextStyle(color: Colors.white54)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                await prefs.setBool('seen_camera_ai_onboarding', true);
-                if (ctx.mounted) Navigator.of(ctx).pop(true);
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.yellowAccent.shade700),
-              child: const Text('Понятно', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      );
-      if (proceed != true) return;
-    }
-
+    // ИИ-анализ запускается сразу — без диалога-описания
     setState(() {
       _isAnalyzing = true;
       _analysisResult = null;
@@ -160,10 +109,11 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
             _isAnalyzing = false;
             if (data['success'] == true || data['report'] != null) {
               _analysisResult = data['report']?.toString();
-              _speechText = data['speech_text']?.toString() ?? _analysisResult;
+              final rawSpeech = data['speech_text']?.toString() ?? _analysisResult ?? '';
+              _speechText = rawSpeech.replaceAll(RegExp(r'^Оператор системы мониторинга[^\n]*\n*'), '').trim();
               if (_analysisResult != null && _analysisResult!.isNotEmpty && !_isTtsMuted) {
                 _isSpeaking = true;
-                SoundService().speak(_speechText ?? _analysisResult!).then((_) {
+                SoundService().speak(_speechText!.isNotEmpty ? _speechText! : _analysisResult!).then((_) {
                   if (mounted) setState(() => _isSpeaking = false);
                 });
               }
@@ -294,52 +244,8 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
 
   Future<void> _run3dRedesignModal() async {
     final prefs = await SharedPreferences.getInstance();
-    final isVip = prefs.getBool('is_premium_vip') ?? prefs.getBool('is_vip') ?? false;
-
-    if (!isVip) {
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: const Color(0xFF0F172A),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.amber)),
-          title: const Row(
-            children: [
-              Icon(Icons.workspace_premium_rounded, color: Colors.amber),
-              SizedBox(width: 8),
-              Text('VIP PREMIUM', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          content: const Text(
-            '3D ИИ-перепланировка кадра (детские площадки, воркаут, скверы) доступна для VIP-подписчиков (3 шт/день).',
-            style: TextStyle(color: Colors.white70, fontSize: 13),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена', style: TextStyle(color: Colors.white54))),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
-              onPressed: () {
-                Navigator.pop(ctx);
-                AppRouter.goToProfile(context: context);
-              },
-              child: const Text('Включить VIP', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
     final todayKey = '3d_gen_${DateTime.now().year}_${DateTime.now().month}_${DateTime.now().day}';
     final count = prefs.getInt(todayKey) ?? 0;
-    if (count >= 3) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('⚠️ Вы исчерпали дневной лимит (3 из 3 3D-перепланировок на сегодня).')),
-      );
-      return;
-    }
-
     final promptController = TextEditingController(text: '3D детская площадка в стиле Pixar с качелями и горками');
 
     if (!mounted) return;
@@ -412,14 +318,63 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
                     
                     await prefs.setInt(todayKey, count + 1);
                     final userPrompt = promptController.text.trim();
-                    final fullPrompt = 'photorealistic 3d architectural visualization of $userPrompt added into urban city yard, matching street perspective, octane 3d render, daytime lighting, 8k resolution, highly detailed';
-                    final imgUrl = 'https://image.pollinations.ai/prompt/${Uri.encodeComponent(fullPrompt)}?width=1024&height=768&seed=${DateTime.now().millisecondsSinceEpoch}&model=flux';
-                    
-                    if (mounted) {
-                      setState(() {
-                        _isGeneratingRedesign = false;
-                        _redesignImageUrl = imgUrl;
-                      });
+
+                    try {
+                      var response = await http.post(
+                        Uri.parse('${MapConfig.backendApiBaseUrl}/cameras/redesign'),
+                        headers: {'Content-Type': 'application/json; charset=utf-8'},
+                        body: jsonEncode({
+                          'camera_id': widget.title.hashCode.abs().toString(),
+                          'camera_url': widget.url,
+                          'camera_name': widget.title,
+                          'prompt': userPrompt,
+                        }),
+                      ).timeout(const Duration(seconds: 25));
+
+                      if (response.statusCode != 200) {
+                        // Fallback attempt
+                        response = await http.post(
+                          Uri.parse('${MapConfig.backendApiBaseUrl}/api/cameras/redesign'),
+                          headers: {'Content-Type': 'application/json; charset=utf-8'},
+                          body: jsonEncode({
+                            'camera_id': widget.title.hashCode.abs().toString(),
+                            'camera_url': widget.url,
+                            'camera_name': widget.title,
+                            'prompt': userPrompt,
+                          }),
+                        ).timeout(const Duration(seconds: 15));
+                      }
+
+                      if (response.statusCode == 200) {
+                        final data = jsonDecode(utf8.decode(response.bodyBytes));
+                        if (data['success'] == false && data['message'] != null) {
+                          if (mounted) {
+                            setState(() {
+                              _isGeneratingRedesign = false;
+                              _errorMsg = data['message'];
+                            });
+                          }
+                        } else if (mounted) {
+                          setState(() {
+                            _isGeneratingRedesign = false;
+                            _redesignImageUrl = data['image_base64'] ?? data['image_url'];
+                          });
+                        }
+                      } else {
+                        if (mounted) {
+                          setState(() {
+                            _isGeneratingRedesign = false;
+                            _errorMsg = 'Не удалось сгенерировать 3D перепланировку.';
+                          });
+                        }
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        setState(() {
+                          _isGeneratingRedesign = false;
+                          _errorMsg = 'Ошибка 3D визуализации.';
+                        });
+                      }
                     }
                   },
                   label: const Text('Сгенерировать и наложить 3D дизайн'),
@@ -427,6 +382,298 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  String _overlayMode = 'split'; // 'split', 'blend', 'seamless', 'full'
+  double _splitPos = 0.5; // 0.0 .. 1.0 for before/after wipe
+  double _blendOpacity = 0.8; // 0.0 .. 1.0 for transparency mode
+
+  Widget _buildRedesignImageOverlay(String imgSource, {BoxFit fit = BoxFit.cover}) {
+    if (imgSource.startsWith('data:image')) {
+      final base64String = imgSource.split(',').last;
+      return Image.memory(
+        base64Decode(base64String),
+        fit: fit,
+        filterQuality: FilterQuality.high,
+      );
+    }
+    final effectiveUrl = imgSource.startsWith('http')
+        ? imgSource
+        : '${MapConfig.backendApiBaseUrl.replaceAll('/api/v1', '')}$imgSource';
+    return CachedNetworkImage(
+      imageUrl: effectiveUrl,
+      fit: fit,
+      fadeInDuration: const Duration(milliseconds: 350),
+      placeholder: (context, url) => Container(
+        color: Colors.transparent,
+        child: const Center(
+          child: CircularProgressIndicator(color: Color(0xFF00E5FF), strokeWidth: 2.5),
+        ),
+      ),
+      errorWidget: (_, __, ___) => Container(
+        color: Colors.transparent,
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A).withOpacity(0.85),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.amber.withOpacity(0.5)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.auto_awesome_rounded, color: Colors.amber, size: 18),
+                SizedBox(width: 8),
+                Text('Синтез 3D-благоустройства...', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompositeCameraView(BoxConstraints constraints) {
+    final width = constraints.maxWidth;
+    final height = constraints.maxHeight;
+
+    if (_redesignImageUrl == null) {
+      return _SimpleCameraPlayer(url: widget.url);
+    }
+
+    if (_overlayMode == 'full') {
+      return _buildRedesignImageOverlay(_redesignImageUrl!);
+    }
+
+    if (_overlayMode == 'blend') {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          _SimpleCameraPlayer(url: widget.url),
+          Opacity(
+            opacity: _blendOpacity,
+            child: _buildRedesignImageOverlay(_redesignImageUrl!),
+          ),
+        ],
+      );
+    }
+
+    if (_overlayMode == 'seamless') {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          _SimpleCameraPlayer(url: widget.url),
+          ShaderMask(
+            shaderCallback: (rect) {
+              return const RadialGradient(
+                center: Alignment.center,
+                radius: 0.95,
+                colors: [Colors.black, Colors.black87, Colors.transparent],
+                stops: [0.4, 0.75, 1.0],
+              ).createShader(rect);
+            },
+            blendMode: BlendMode.dstIn,
+            child: Opacity(
+              opacity: _blendOpacity,
+              child: _buildRedesignImageOverlay(_redesignImageUrl!),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Default: 'split' interactive before/after wipe
+    final splitX = (width * _splitPos).clamp(10.0, width - 10.0);
+
+    return GestureDetector(
+      onHorizontalDragUpdate: (details) {
+        setState(() {
+          _splitPos = (details.localPosition.dx / width).clamp(0.05, 0.95);
+        });
+      },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background: Live Camera feed (Left side visible)
+          Positioned.fill(
+            child: _SimpleCameraPlayer(url: widget.url),
+          ),
+          // Foreground: 3D AI Design Photo (Clipped to right side)
+          Positioned.fill(
+            child: ClipRect(
+              clipper: _RightSplitClipper(_splitPos),
+              child: _buildRedesignImageOverlay(_redesignImageUrl!),
+            ),
+          ),
+          // Splitter Divider Line
+          Positioned(
+            left: splitX - 1.5,
+            top: 0,
+            bottom: 0,
+            child: Container(
+              width: 3,
+              decoration: BoxDecoration(
+                color: const Color(0xFF00E5FF),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF00E5FF).withOpacity(0.8),
+                    blurRadius: 8,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Splitter Center Handle
+          Positioned(
+            left: splitX - 16,
+            top: (height / 2) - 16,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF00E5FF), width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.6),
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: Icon(Icons.code_rounded, color: Color(0xFF00E5FF), size: 16),
+              ),
+            ),
+          ),
+          // Left Badge: "КАМЕРА"
+          Positioned(
+            top: 8,
+            left: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.65),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.white24),
+              ),
+              child: const Text(
+                '📷 КАМЕРА',
+                style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          // Right Badge: "3D ДИЗАЙН"
+          Positioned(
+            top: 8,
+            right: 42,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8B5CF6).withOpacity(0.85),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFF00E5FF)),
+              ),
+              child: const Text(
+                '✨ 3D ДИЗАЙН',
+                style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverlayControls() {
+    if (_redesignImageUrl == null) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E24),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.3)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildModeButton('split', '✂️ Шторка', Icons.compare_arrows_rounded),
+              _buildModeButton('blend', '🌫 Смешивание', Icons.opacity_rounded),
+              _buildModeButton('seamless', '🔮 Мягкое', Icons.blur_on_rounded),
+              _buildModeButton('full', '🖼 Только 3D', Icons.image_rounded),
+            ],
+          ),
+          if (_overlayMode == 'blend' || _overlayMode == 'seamless') ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.opacity_rounded, size: 14, color: Colors.white54),
+                const SizedBox(width: 6),
+                Text('Прозрачность: ${(_blendOpacity * 100).toInt()}%',
+                    style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                Expanded(
+                  child: SliderTheme(
+                    data: SliderThemeData(
+                      thumbColor: const Color(0xFF00E5FF),
+                      activeTrackColor: const Color(0xFF8B5CF6),
+                      inactiveTrackColor: Colors.white12,
+                      trackHeight: 2,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    ),
+                    child: Slider(
+                      value: _blendOpacity,
+                      min: 0.1,
+                      max: 1.0,
+                      onChanged: (v) => setState(() => _blendOpacity = v),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModeButton(String mode, String label, IconData icon) {
+    final active = _overlayMode == mode;
+    return InkWell(
+      onTap: () => setState(() => _overlayMode = mode),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFF8B5CF6).withOpacity(0.3) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: active ? const Color(0xFF00E5FF) : Colors.white12,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: active ? const Color(0xFF00E5FF) : Colors.white60),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: active ? Colors.white : Colors.white60,
+                fontSize: 10.5,
+                fontWeight: active ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -465,7 +712,7 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
                 onClose: () => Navigator.of(context).pop(),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
                 child: AspectRatio(
                   aspectRatio: 16 / 9,
                   child: ClipRRect(
@@ -473,40 +720,11 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
                     child: Stack(
                       children: [
                         Positioned.fill(
-                          child: _SimpleCameraPlayer(url: widget.url),
-                        ),
-                        if (_redesignImageUrl != null)
-                          Positioned.fill(
-                            child: Image.network(
-                              _redesignImageUrl!,
-                              fit: BoxFit.cover,
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Container(
-                                  color: Colors.black87,
-                                  child: Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        const CircularProgressIndicator(color: Color(0xFF8B5CF6)),
-                                        const SizedBox(height: 12),
-                                        Text(
-                                          'Рендеринг 3D дизайна над камерой... ${loadingProgress.expectedTotalBytes != null ? "${(loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! * 100).toInt()}%" : ""}',
-                                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                              errorBuilder: (_, __, ___) => Container(
-                                color: Colors.black87,
-                                child: const Center(
-                                  child: Text('Ошибка загрузки 3D кадра', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                                ),
-                              ),
-                            ),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) =>
+                                _buildCompositeCameraView(constraints),
                           ),
+                        ),
                         if (_isGeneratingRedesign)
                           Positioned.fill(
                             child: Container(
@@ -518,12 +736,12 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
                                     CircularProgressIndicator(color: Color(0xFF8B5CF6)),
                                     SizedBox(height: 12),
                                     Text(
-                                      'ИИ генерирует 3D перепланировку...',
+                                      'ИИ генерирует фотореалистичный 3D дизайн...',
                                       style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
                                     ),
                                     SizedBox(height: 4),
                                     Text(
-                                      'Это займет около 3-5 секунд',
+                                      'Наложение на камеру в ультра-качестве Flux 8K',
                                       style: TextStyle(color: Colors.white54, fontSize: 10),
                                     ),
                                   ],
@@ -560,36 +778,44 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
                   ),
                 ),
               ),
+              _buildOverlayControls(),
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                child: Row(
+                child: Column(
                   children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF59E0B),
-                          foregroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                    Row(
+                      children: [
+                        // ИИ-сетка проблем удалена по запросу пользователя:
+                        // осталась функциональная связка — ИИ-анализ кадра и
+                        // генерация 3D-дизайна поверх живого превью камеры.
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF59E0B),
+                              foregroundColor: Colors.black,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                            ),
+                            icon: const Icon(Icons.auto_awesome, size: 16),
+                            onPressed: _runAiAnalysis,
+                            label: const Text('ИИ-Анализ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
+                          ),
                         ),
-                        icon: const Icon(Icons.auto_awesome, size: 16),
-                        onPressed: _runAiAnalysis,
-                        label: const Text('ИИ-Анализ (VLM)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF8B5CF6),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF8B5CF6),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                            ),
+                            icon: const Icon(Icons.brush_rounded, size: 16),
+                            onPressed: _run3dRedesignModal,
+                            label: const Text('3D Дизайн', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
+                          ),
                         ),
-                        icon: const Icon(Icons.brush_rounded, size: 16),
-                        onPressed: _run3dRedesignModal,
-                        label: const Text('3D ИИ-Дизайн', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                      ),
+                      ],
                     ),
                   ],
                 ),
@@ -838,6 +1064,9 @@ class _SimpleCameraPlayerState extends State<_SimpleCameraPlayer> {
   VideoPlayerController? _videoPlayerController;
   ChewieController? _chewieController;
   bool _hasError = false;
+  bool _useSnapshotFallback = false;
+  int _snapshotKey = 0;
+  var _snapshotTimer;
 
   @override
   void initState() {
@@ -846,14 +1075,21 @@ class _SimpleCameraPlayerState extends State<_SimpleCameraPlayer> {
   }
 
   Future<void> _initializePlayer() async {
-    setState(() {
-      _hasError = false;
-      _chewieController = null;
-    });
+    _snapshotTimer?.cancel();
+    if (mounted) {
+      setState(() {
+        _hasError = false;
+        _useSnapshotFallback = false;
+        _chewieController = null;
+      });
+    }
 
     try {
+      final rawTarget = MapConfig.cameraAnalysisUrl(widget.url);
+      final playUrl = MapConfig.cameraPlaybackUrl(rawTarget);
+
       final Map<String, String> headers = {};
-      final lowerUrl = widget.url.toLowerCase();
+      final lowerUrl = playUrl.toLowerCase();
       if (lowerUrl.contains('pride-net.ru')) {
         headers['Referer'] = 'https://nv86.ru/cam/';
         headers['User-Agent'] = 'PulsGorodaCameraProbe/1.2';
@@ -862,15 +1098,22 @@ class _SimpleCameraPlayerState extends State<_SimpleCameraPlayer> {
         headers['User-Agent'] = 'PulsGorodaCameraProbe/1.2';
       }
 
-      _videoPlayerController =
-          VideoPlayerController.networkUrl(
-            Uri.parse(widget.url),
-            httpHeaders: headers,
-            formatHint: widget.url.toLowerCase().contains('.m3u8')
-                ? VideoFormat.hls
-                : null,
-          );
-      await _videoPlayerController!.initialize();
+      _videoPlayerController = VideoPlayerController.networkUrl(
+        Uri.parse(playUrl),
+        httpHeaders: headers,
+        formatHint: (playUrl.contains('.m3u8') || rawTarget.contains('.m3u8'))
+            ? VideoFormat.hls
+            : null,
+      );
+
+      // Add 7-second timeout for video init before fallback
+      await _videoPlayerController!.initialize().timeout(
+        const Duration(seconds: 7),
+        onTimeout: () {
+          throw Exception('Video stream timeout, switching to live snapshot');
+        },
+      );
+
       _chewieController = ChewieController(
         videoPlayerController: _videoPlayerController!,
         autoPlay: true,
@@ -885,59 +1128,128 @@ class _SimpleCameraPlayerState extends State<_SimpleCameraPlayer> {
           backgroundColor: Colors.white10,
         ),
         errorBuilder: (context, errorMessage) {
-          return Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.videocam_off_rounded,
-                  color: Colors.white38,
-                  size: 42,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  errorMessage,
-                  style: const TextStyle(color: Colors.white70),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          );
+          return _buildSnapshotFallbackWidget();
         },
       );
       if (mounted) {
         setState(() {});
       }
     } catch (e) {
-      debugPrint('Video initialized error: $e');
+      debugPrint('Video initialized error: $e. Using live snapshot fallback.');
+      _startSnapshotFallback();
+    }
+  }
+
+  void _startSnapshotFallback() {
+    if (!mounted) return;
+    setState(() {
+      _useSnapshotFallback = true;
+      _hasError = false;
+    });
+
+    _snapshotTimer?.cancel();
+    // Auto-refresh snapshot every 3 seconds for continuous live stream feel
+    _snapshotTimer = Stream.periodic(const Duration(seconds: 3)).listen((_) {
       if (mounted) {
         setState(() {
-          _hasError = true;
+          _snapshotKey++;
         });
       }
-    }
+    });
   }
 
   @override
   void dispose() {
+    _snapshotTimer?.cancel();
     _chewieController?.dispose();
     _videoPlayerController?.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (_hasError) {
-      return Container(
-        color: Colors.black,
-        child: const Center(
-          child: Text(
-            'Поток недоступен',
-            style: TextStyle(color: Colors.white70),
+  Widget _buildSnapshotFallbackWidget() {
+    final rawTarget = MapConfig.cameraAnalysisUrl(widget.url);
+    final snapshotUrl = '${MapConfig.backendApiBaseUrl}/cameras/snapshot?url=${Uri.encodeComponent(rawTarget)}&t=$_snapshotKey';
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        CachedNetworkImage(
+          key: ValueKey('cam_snap_${rawTarget}_$_snapshotKey'),
+          imageUrl: snapshotUrl,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => Container(
+            color: Colors.black,
+            child: const Center(
+              child: CircularProgressIndicator(color: Color(0xFF00E5FF), strokeWidth: 2),
+            ),
+          ),
+          errorWidget: (_, __, ___) => Container(
+            color: Colors.black,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.videocam_off_rounded, color: Colors.white38, size: 40),
+                const SizedBox(height: 10),
+                const Text(
+                  'Прямой эфир временно недоступен',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+                const SizedBox(height: 10),
+                TextButton.icon(
+                  onPressed: _initializePlayer,
+                  icon: const Icon(Icons.refresh_rounded, color: Color(0xFF00E5FF), size: 16),
+                  label: const Text('Переподключиться', style: TextStyle(color: Color(0xFF00E5FF), fontSize: 12)),
+                ),
+              ],
+            ),
           ),
         ),
-      );
+        Positioned(
+          top: 8,
+          left: 8,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.85),
+              borderRadius: BorderRadius.circular(6),
+              boxShadow: [
+                BoxShadow(color: Colors.red.withOpacity(0.4), blurRadius: 6),
+              ],
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.fiber_manual_record, color: Colors.white, size: 10),
+                SizedBox(width: 4),
+                Text(
+                  'LIVE КАДРЫ',
+                  style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w900),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: 8,
+          right: 8,
+          child: IconButton(
+            tooltip: 'Попробовать видеопоток',
+            icon: const Icon(Icons.videocam_rounded, color: Colors.white70, size: 20),
+            onPressed: _initializePlayer,
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_useSnapshotFallback) {
+      return _buildSnapshotFallbackWidget();
+    }
+
+    if (_hasError) {
+      return _buildSnapshotFallbackWidget();
     }
 
     if (_chewieController == null ||
@@ -945,7 +1257,7 @@ class _SimpleCameraPlayerState extends State<_SimpleCameraPlayer> {
       return Container(
         color: Colors.black,
         child: const Center(
-          child: CircularProgressIndicator(color: Colors.redAccent),
+          child: CircularProgressIndicator(color: Color(0xFF00E5FF)),
         ),
       );
     }
@@ -954,5 +1266,22 @@ class _SimpleCameraPlayerState extends State<_SimpleCameraPlayer> {
       decoration: const BoxDecoration(color: Colors.black),
       child: Chewie(controller: _chewieController!),
     );
+  }
+}
+
+class _RightSplitClipper extends CustomClipper<Rect> {
+  final double splitFraction;
+
+  _RightSplitClipper(this.splitFraction);
+
+  @override
+  Rect getClip(Size size) {
+    final left = size.width * splitFraction;
+    return Rect.fromLTRB(left, 0, size.width, size.height);
+  }
+
+  @override
+  bool shouldReclip(_RightSplitClipper oldClipper) {
+    return oldClipper.splitFraction != splitFraction;
   }
 }

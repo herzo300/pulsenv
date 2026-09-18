@@ -43,157 +43,107 @@ class _CityPanoramaScreenState extends State<CityPanoramaScreen> {
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
-      background: #020817; 
+      background: #030712; 
       overflow: hidden; 
-      font-family: 'Segoe UI', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      touch-action: none;
     }
     canvas { display: block; width: 100vw; height: 100vh; }
     #info {
       position: fixed;
       top: 16px; left: 50%;
       transform: translateX(-50%);
-      background: rgba(2,8,23,0.8);
-      border: 1px solid rgba(0,229,255,0.3);
-      color: rgba(0,229,255,0.9);
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(0, 229, 255, 0.4);
+      color: #00E5FF;
       padding: 8px 18px;
       border-radius: 20px;
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 700;
       letter-spacing: 0.5px;
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 4px 20px rgba(0, 229, 255, 0.2);
       pointer-events: none;
+      z-index: 10;
     }
-    #compass {
+    #hud {
       position: fixed;
-      bottom: 80px; right: 20px;
-      width: 52px; height: 52px;
-      background: rgba(2,8,23,0.75);
-      border: 1px solid rgba(0,229,255,0.3);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #00E5FF;
-      font-size: 22px;
-      backdrop-filter: blur(8px);
-    }
-    #controls {
-      position: fixed;
-      bottom: 20px; left: 50%;
+      bottom: 24px; left: 50%;
       transform: translateX(-50%);
-      color: rgba(255,255,255,0.4);
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.8);
+      padding: 6px 14px;
+      border-radius: 12px;
       font-size: 11px;
-      text-align: center;
+      backdrop-filter: blur(8px);
       pointer-events: none;
+      z-index: 10;
     }
   </style>
 </head>
 <body>
-  <div id="info">⚡ 16-й микрорайон • Нижневартовск 3D</div>
-  <div id="compass">🧭</div>
-  <div id="controls">Перетащите для вращения • Прокрутите для зума</div>
-  
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
-  
+  <div id="info">🏙️ 16-й микрорайон • 3D ИИ-Дизайн</div>
+  <div id="hud">Вращайте пальцем для 3D обзора сцены</div>
+  <canvas id="c"></canvas>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
   <script>
+    // ══════════════════════════════════════════
+    // СЦЕНА, КАМЕРА, РЕНДЕРЕР
+    // ══════════════════════════════════════════
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x020817);
-    scene.fog = new THREE.FogExp2(0x020817, 0.018);
+    scene.background = new THREE.Color(0x030712);
+    scene.fog = new THREE.Fog(0x030712, 60, 180);
 
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 18, 32);
+    const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 500);
+    camera.position.set(0, 28, 52);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
-    document.body.appendChild(renderer.domElement);
-
-    const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.06;
-    controls.maxPolarAngle = Math.PI / 2.1;
-    controls.minDistance = 10;
-    controls.maxDistance = 80;
-    controls.target.set(0, 3, 0);
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.5;
 
     // ══════════════════════════════════════════
-    // GROUND
+    // ФУНКЦИЯ СОЗДАНИЯ ДОМА С ОКНАМИ
     // ══════════════════════════════════════════
-    const groundGeo = new THREE.PlaneGeometry(160, 160, 32, 32);
-    const groundMat = new THREE.MeshStandardMaterial({
-      color: 0x0A1628,
-      roughness: 0.9,
-      metalness: 0.1,
-    });
-    const ground = new THREE.Mesh(groundGeo, groundMat);
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    scene.add(ground);
+    function createBuilding(x, z, w, d, h, wallColor, windowColor) {
+      const bGeo = new THREE.BoxGeometry(w, h, d);
+      const bMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.85 });
+      const building = new THREE.Mesh(bGeo, bMat);
+      building.position.set(x, h / 2, z);
+      building.castShadow = true;
+      building.receiveShadow = true;
+      scene.add(building);
 
-    // Grid lines (streets)
-    const gridHelper = new THREE.GridHelper(160, 20, 0x1A2640, 0x0E1C30);
-    gridHelper.position.y = 0.01;
-    scene.add(gridHelper);
-
-    // ══════════════════════════════════════════
-    // BUILDING FACTORY
-    // ══════════════════════════════════════════
-    function createBuilding(x, z, w, d, h, colorHex, emitHex) {
-      const geo = new THREE.BoxGeometry(w, h, d);
-      const mat = new THREE.MeshStandardMaterial({
-        color: colorHex,
-        roughness: 0.75,
-        metalness: 0.15,
-        emissive: emitHex,
-        emissiveIntensity: 0.12,
+      // Окна — светящиеся ночью, часть окон случайно горит
+      const winMat = new THREE.MeshStandardMaterial({
+        color: windowColor,
+        emissive: windowColor,
+        emissiveIntensity: 1.6,
+        roughness: 0.4,
       });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(x, h / 2, z);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      scene.add(mesh);
-
-      // Roof
-      const roofGeo = new THREE.BoxGeometry(w + 0.3, 0.35, d + 0.3);
-      const roofMat = new THREE.MeshStandardMaterial({
-        color: 0x0F1E35,
-        roughness: 0.95,
-      });
-      const roof = new THREE.Mesh(roofGeo, roofMat);
-      roof.position.set(x, h + 0.175, z);
-      scene.add(roof);
-
-      // Windows glow
-      addWindowGlow(x, z, w, d, h, emitHex);
-    }
-
-    function addWindowGlow(x, z, w, d, h, color) {
-      const rows = Math.floor(h / 2.5);
-      const cols = Math.floor(w / 1.8);
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          if (Math.random() > 0.35) {
-            const wGeo = new THREE.PlaneGeometry(0.6, 0.8);
-            const wMat = new THREE.MeshBasicMaterial({
-              color: color,
-              transparent: true,
-              opacity: 0.45 + Math.random() * 0.35,
-            });
-            const win = new THREE.Mesh(wGeo, wMat);
-            win.position.set(
-              x - w / 2 + 0.9 + c * 1.8,
-              1.5 + r * 2.5,
-              z + d / 2 + 0.01,
-            );
-            scene.add(win);
-          }
+      const floors = Math.max(1, Math.floor(h / 2.8) - 1);
+      const winGeo = new THREE.PlaneGeometry(0.9, 1.1);
+      for (let f = 0; f < floors; f++) {
+        for (let r = 0; r < Math.floor(w / 3); r++) {
+          if (Math.random() < 0.35) continue; // часть окон не горит
+          const win = new THREE.Mesh(winGeo, winMat);
+          win.position.set(
+            x - w / 2 + 1.5 + r * 2.5,
+            1.5 + f * 2.8,
+            z + d / 2 + 0.01,
+          );
+          scene.add(win);
+          const winBack = new THREE.Mesh(winGeo, winMat);
+          winBack.position.set(
+            x - w / 2 + 1.5 + r * 2.5,
+            1.5 + f * 2.8,
+            z - d / 2 - 0.01,
+          );
+          winBack.rotation.y = Math.PI;
+          scene.add(winBack);
         }
       }
     }
@@ -390,6 +340,74 @@ class _CityPanoramaScreenState extends State<CityPanoramaScreen> {
     const starMat = new THREE.PointsMaterial({ color: 0xE2E8F0, size: 0.3, transparent: true, opacity: 0.7 });
     const stars = new THREE.Points(starGeo, starMat);
     scene.add(stars);
+
+    // ══════════════════════════════════════════
+    // ПРОСТОЕ УПРАВЛЕНИЕ КАМЕРОЙ (ORBIT + ZOOM)
+    // ══════════════════════════════════════════
+    const controls = {
+      angle: Math.PI / 5,
+      elevation: 0.42,
+      distance: 70,
+      autoRotate: true,
+      target: new THREE.Vector3(0, 6, 0),
+      update() {
+        if (this.autoRotate) this.angle += 0.0018;
+        const cosE = Math.cos(this.elevation);
+        camera.position.set(
+          this.target.x + this.distance * cosE * Math.sin(this.angle),
+          this.target.y + this.distance * Math.sin(this.elevation),
+          this.target.z + this.distance * cosE * Math.cos(this.angle),
+        );
+        camera.lookAt(this.target);
+      },
+    };
+
+    let dragMode = null; // 'orbit' | 'zoom'
+    let lastX = 0, lastY = 0;
+    let pinchDist = 0;
+    const canvas = renderer.domElement;
+
+    canvas.addEventListener('pointerdown', (e) => {
+      dragMode = 'orbit';
+      lastX = e.clientX; lastY = e.clientY;
+      controls.autoRotate = false;
+      canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (dragMode !== 'orbit') return;
+      controls.angle -= (e.clientX - lastX) * 0.005;
+      controls.elevation = Math.min(1.35, Math.max(0.08, controls.elevation + (e.clientY - lastY) * 0.004));
+      lastX = e.clientX; lastY = e.clientY;
+    });
+    canvas.addEventListener('pointerup', () => { dragMode = null; });
+    canvas.addEventListener('pointercancel', () => { dragMode = null; });
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      controls.distance = Math.min(160, Math.max(18, controls.distance + e.deltaY * 0.05));
+    }, { passive: false });
+
+    // Pinch-to-zoom (два пальца)
+    const activePointers = new Map();
+    canvas.addEventListener('pointerdown', (e) => activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY }));
+    canvas.addEventListener('pointermove', (e) => {
+      if (!activePointers.has(e.pointerId)) return;
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (activePointers.size === 2) {
+        const pts = [...activePointers.values()];
+        const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        if (pinchDist > 0) {
+          controls.distance = Math.min(160, Math.max(18, controls.distance - (d - pinchDist) * 0.15));
+        }
+        pinchDist = d;
+        dragMode = null;
+      }
+    });
+    const endPointer = (e) => {
+      activePointers.delete(e.pointerId);
+      if (activePointers.size < 2) pinchDist = 0;
+    };
+    canvas.addEventListener('pointerup', endPointer);
+    canvas.addEventListener('pointercancel', endPointer);
 
     // ══════════════════════════════════════════
     // ANIMATE
