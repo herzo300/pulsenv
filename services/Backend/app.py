@@ -23,6 +23,7 @@ from services.Backend.routers import (
     admin_metrics,
     agent,
     ai,
+    ai_bridge,
     ai_utilities,
     cameras,
     complaints,
@@ -62,6 +63,7 @@ from services.Backend.routers.jkh_outages import router as jkh_outages_router
 from services.Backend.routers.petitions import router as petitions_router
 from services.Backend.routers import parking_monitor
 from services.Backend.routers import openworker_bridge
+from services.Backend.routers.digital_twin_3d import router as digital_twin_3d_router
 from services.Backend.security import parse_cors_origins
 
 logger = logging.getLogger(__name__)
@@ -95,7 +97,10 @@ async def _metrics_worker():
 
 
 def check_and_add_columns():
-    """Verify and add missing columns to database tables (like push_sent in reports)."""
+    """Dev-fallback: добавляет недостающие колонки (например, push_sent).
+
+    В production схемой управляет Alembic (миграция 003_reports_push_sent) —
+    там эта функция не вызывается (см. lifespan)."""
     from sqlalchemy import text
     from services.data_layer.database import SessionLocal, DATABASE_URL
     db = SessionLocal()
@@ -109,9 +114,9 @@ def check_and_add_columns():
                 "SELECT column_name FROM information_schema.columns WHERE table_name='reports'"
             )).fetchall()
             cols = [r[0] for r in res]
-            
+
         if "push_sent" not in cols:
-            logger.info("Adding push_sent column to reports table")
+            logger.info("Adding push_sent column to reports table (dev fallback)")
             db.execute(text("ALTER TABLE reports ADD COLUMN push_sent BOOLEAN DEFAULT FALSE"))
             db.commit()
     except Exception as e:
@@ -124,7 +129,7 @@ def check_and_add_columns():
 async def lifespan(app: FastAPI):
     """Application startup/shutdown lifecycle."""
     # --- Startup ---
-    logger.info("СообщиО API starting up...")
+    logger.info("Пульс Города API starting up...")
 
     # Start metrics background worker
     worker_task = asyncio.create_task(_metrics_worker())
@@ -143,6 +148,17 @@ async def lifespan(app: FastAPI):
         app.state.parking_task = parking_task
     except Exception as exc:
         logger.warning("Failed to start parking monitor task: %s", exc)
+
+    # Hermes Twin Builder: фоновая валидация/дорисовка зданий 3D-двойника
+    # (сверка с OSM каждые 6 часов, обновление реестра для всех клиентов)
+    if os.getenv("HERMES_TWIN_BUILDER", "true").lower() in ("1", "true", "yes"):
+        try:
+            from services.business.hermes_twin_builder import hermes_twin_builder_loop
+            twin_task = asyncio.create_task(hermes_twin_builder_loop(interval_hours=2.0))
+            app.state.hermes_twin_task = twin_task
+            logger.info("Hermes Twin Builder background task started")
+        except Exception as exc:
+            logger.warning("Failed to start Hermes Twin Builder: %s", exc)
 
     # Ensure DB tables exist (dev fallback; production should use alembic upgrade head)
     if os.getenv("PRODUCTION", "").lower() in ("1", "true", "yes"):
@@ -166,10 +182,15 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("DB_AUTO_CREATE disabled — expecting alembic migrations")
 
-    try:
-        check_and_add_columns()
-    except Exception as e:
-        logger.warning("Failed to run check_and_add_columns: %s", e)
+    if os.getenv("DB_AUTO_CREATE", "true").lower() in ("1", "true", "yes"):
+        # Dev-режим: разрешаем legacy-fallback для недостающих колонок.
+        # Production (DB_AUTO_CREATE=false) управляется только Alembic.
+        try:
+            check_and_add_columns()
+        except Exception as e:
+            logger.warning("Failed to run check_and_add_columns: %s", e)
+    else:
+        logger.info("Production mode: схема БД только через alembic upgrade head")
 
     # Optional report retention cleanup (disabled by default)
     if os.getenv("REPORT_RETENTION_CLEANUP_ENABLED", "false").lower() in (
@@ -215,40 +236,26 @@ async def lifespan(app: FastAPI):
         logger.warning("Alerts background loop not started: %s", e)
 
     if os.getenv("TG_AUTO_START_MONITOR", "true").lower() in ("1", "true", "yes"):
-        try:
-            from services.data_layer.database import SessionLocal
-            from services.monitoring.config import CHANNELS_TO_MONITOR
-            from services.telegram_monitor import start_telegram_monitoring
+        # Мониторинг Telegram запускается отдельным контейнером `monitoring`
+        # (services/monitoring/main.py). Встроенный TelegramMonitor удалён —
+        # он дублировал активный пайплайн telegram_handler.py и ловил все
+        # сообщения аккаунта без фильтра каналов.
+        logger.info(
+            "Telegram monitoring is handled by the dedicated `monitoring` container"
+        )
 
-            api_id = int(os.getenv("TG_API_ID", "0") or "0")
-            api_hash = os.getenv("TG_API_HASH", "").strip()
-            phone = os.getenv("TG_PHONE", "").strip()
-            if api_id and api_hash and phone:
-                db = SessionLocal()
-                monitor = await start_telegram_monitoring(
-                    api_id=api_id,
-                    api_hash=api_hash,
-                    phone=phone,
-                    channels=CHANNELS_TO_MONITOR,
-                    bot_token=os.getenv("TG_BOT_TOKEN", "").strip() or None,
-                    db=db,
-                )
-                app.state.telegram_monitor = monitor
-                logger.info(
-                    "Telegram monitor auto-started (%d channels)",
-                    len(CHANNELS_TO_MONITOR),
-                )
-            else:
-                logger.warning(
-                    "Telegram monitor auto-start skipped: TG_API_ID/HASH/PHONE missing"
-                )
-        except Exception as e:
-            logger.warning("Telegram monitor auto-start failed: %s", e)
+        # Start Auto Road Works Watchdog Engine
+        try:
+            from services.Backend.services.auto_road_works_monitor import run_road_works_watchdog_loop
+            app.state.road_works_task = asyncio.create_task(run_road_works_watchdog_loop(1800))
+            logger.info("Auto Road Works Watchdog Engine daemon started")
+        except Exception as rw_err:
+            logger.warning("Road works watchdog daemon start failed: %s", rw_err)
 
     yield
 
     # --- Shutdown ---
-    logger.info("СообщиО API shutting down...")
+    logger.info("Пульс Города API shutting down...")
     metrics_worker = getattr(app.state, "metrics_worker", None)
     if metrics_worker:
         metrics_worker.cancel()
@@ -289,7 +296,7 @@ limiter = Limiter(
 )
 
 
-app = FastAPI(title="СообщиО API", lifespan=lifespan)
+app = FastAPI(title="Пульс Города API", lifespan=lifespan)
 
 # Attach limiter state for router decorators
 app.state.limiter = limiter
@@ -388,6 +395,8 @@ app.include_router(health_config)           # /, /health, /config, /categories, 
 app.include_router(pulse_stats)             # /api/pulse/stats
 app.include_router(storage)                 # /api/storage/*, /api/pages/*
 app.include_router(geocoding)               # /api/geo/reverse
+from services.Backend.routers.jkh_help_router import router as jkh_help_router
+app.include_router(jkh_help_router)
 app.include_router(mobile_complaints)       # POST /complaints
 app.include_router(payments)                # /api/stars/*, /api/collective-email
 app.include_router(ai_utilities)            # /api/rag/ask, /api/sentiment, /api/ocr
@@ -399,6 +408,7 @@ app.include_router(admin_metrics, prefix="/api")
 app.include_router(map_data, prefix="/api")
 app.include_router(complaints)
 app.include_router(ai, prefix="/api")
+app.include_router(ai_bridge.router)  # /api/ai/bridge — OpenRouter мост (tor/direct)
 app.include_router(agent)
 app.include_router(telegram_router)
 app.include_router(uk_ratings)
@@ -419,19 +429,30 @@ app.include_router(yandex_router, prefix="/api/yookassa")  # /api/yookassa/creat
 app.include_router(webrtc_proxy_router)  # /api/v1/webrtc/whep
 app.include_router(passkeys_router)  # /api/v1/auth/passkey/*
 app.include_router(pmtiles_server_router)  # /api/v1/pmtiles/*
-app.include_router(pmtiles_server_router, prefix="/api/pmtiles")  # /api/pmtiles/*
 app.include_router(predictive_maintenance_router)  # /api/v1/predictive/risk-map
 app.include_router(watchdog_router)  # /api/watchdog/*
 app.include_router(geo_subscriptions_router)  # /api/geo-subscriptions
+app.include_router(jkh_outages_router)  # /api/v1/jkh/incidents, /house-status
 app.include_router(petitions_router)  # /api/v1/petitions/list, /api/v1/petitions/create
 
-from services.Backend.routers import flood_monitor, edds_integration, house_community, parking_monitor, openworker_bridge
+from services.Backend.routers import flood_monitor, edds_integration, house_community, parking_monitor, openworker_bridge, sync, hydrology, multiplex_ws
+from services.Backend.routers.road_works import router as road_works_router
+from services.Backend.routers.b2g_fz59_router import router as b2g_fz59_router
+app.include_router(road_works_router)
+app.include_router(b2g_fz59_router)
+app.include_router(digital_twin_3d_router)
+app.include_router(multiplex_ws.router)
 app.include_router(parking_monitor.router)
 app.include_router(house_community.router)
-app.include_router(pmtiles_server_router)
 app.include_router(openworker_bridge.router)
 app.include_router(flood_monitor.router)
 app.include_router(edds_integration.router)
+app.include_router(sync.router)
+app.include_router(hydrology.router)
+
+# Версионированный публичный API (аддитивно; старые пути сохраняются)
+from services.Backend.routers.api_v1 import router as api_v1_router
+app.include_router(api_v1_router)
 
 
 @app.middleware("http")
