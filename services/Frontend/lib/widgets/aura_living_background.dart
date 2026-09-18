@@ -354,6 +354,7 @@ class _AuraLivingBackgroundState extends State<AuraLivingBackground>
       case AuraWeather.sakura:
       case AuraWeather.fireflies:
       case AuraWeather.incense:
+      case AuraWeather.morning:
         return PracticeShape.lotus;
       case AuraWeather.snow:
         return PracticeShape.sphere;
@@ -534,24 +535,47 @@ class _AuraFallbackPainter extends CustomPainter {
   }
 
   void _drawTouchFog(Canvas canvas, Size size, double phase) {
+    // 1. Атмосферный живой туман на заднем плане (Mist/Fog haze)
+    final isFoggy = scene.weather == AuraWeather.fog || scene.weather == AuraWeather.rain;
+    final fogAlpha = isFoggy ? 0.28 : 0.12;
+    final fogPaint = Paint()
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 36);
+
+    for (int i = 0; i < 3; i++) {
+      final yOffset = size.height * (0.35 + i * 0.25) + math.sin(phase * 0.5 + i * 1.5) * 24;
+      final xOffset = size.width * 0.5 + math.cos(phase * 0.3 + i * 2.0) * 40;
+      
+      fogPaint.color = scene.secondary.withOpacity(fogAlpha * (0.7 + 0.3 * math.sin(phase + i)));
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(xOffset, yOffset),
+          width: size.width * 1.3,
+          height: size.height * 0.35,
+        ),
+        fogPaint,
+      );
+    }
+
+    // 2. Интерактивный туман при касании
     final touch = fogTouch;
-    if (touch == null || touchEnergy <= 0.01) return;
-    final radius = size.shortestSide * (0.22 + touchEnergy * 0.26);
-    final paint = Paint()
-      ..color = scene.secondary.withOpacity(0.055 * touchEnergy)
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, radius * 0.26);
-    final drift = Offset(
-      math.sin(phase * 0.7) * radius * 0.08,
-      math.cos(phase * 0.5) * radius * 0.06,
-    );
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: touch + drift,
-        width: radius * 1.65,
-        height: radius * 0.92,
-      ),
-      paint,
-    );
+    if (touch != null && touchEnergy > 0.01) {
+      final radius = size.shortestSide * (0.22 + touchEnergy * 0.26);
+      final touchPaint = Paint()
+        ..color = scene.secondary.withOpacity(0.055 * touchEnergy)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, radius * 0.26);
+      final drift = Offset(
+        math.sin(phase * 0.7) * radius * 0.08,
+        math.cos(phase * 0.5) * radius * 0.06,
+      );
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: touch + drift,
+          width: radius * 1.65,
+          height: radius * 0.92,
+        ),
+        touchPaint,
+      );
+    }
   }
 
   void _drawBloomFields(Canvas canvas, Size size, double phase) {

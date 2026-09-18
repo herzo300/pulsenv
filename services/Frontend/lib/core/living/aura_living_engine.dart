@@ -17,6 +17,7 @@ enum AuraWeather {
   snow, // ❄️ Gentle snowfall — winter/universal
   ocean, // 🌊 Deep ocean waves — sleep/calm
   fireflies, // ✨ Hotaru — Japan summer nights
+  morning, // ☀️ Светлое утро — свежий светлый фон для Гермеса
   incense, // 🪔 Sacred smoke — India/spiritual
   // GPU shader-based immersive effects
   fluid, // 🌊 Fluid simulation — touch interactive
@@ -210,6 +211,8 @@ class AuraLivingEngine {
         return 'shaders/candle.frag';
       case AuraWeather.sakura:
         return 'shaders/aura_theme.frag'; // soft base — sakura particles via CustomPainter
+      case AuraWeather.morning:
+        return 'shaders/aurora_theme.frag'; // мягкое светлое течение
       case AuraWeather.snow:
         return 'shaders/fog_theme.frag'; // cool fog base — snow particles via CustomPainter
       case AuraWeather.ocean:
@@ -295,7 +298,7 @@ class AuraLivingEngine {
       case AuraPractice.focus:
         return AuraWeather.candle;
       case AuraPractice.sos:
-        return AuraWeather.fluid;
+        return AuraWeather.morning; // светлый приятный фон Гермеса
       case AuraPractice.premium:
         return AuraWeather.aurora;
     }
@@ -327,6 +330,8 @@ class AuraLivingEngine {
         return 0.48;
       case AuraWeather.sakura:
         return 0.30; // very gentle, contemplative
+      case AuraWeather.morning:
+        return 0.32; // мягко и живо
       case AuraWeather.snow:
         return 0.22; // slow, peaceful
       case AuraWeather.ocean:
@@ -370,11 +375,14 @@ class AuraLivingEngine {
 
   static List<Color> _paletteFor(AuraWeather weather, int mood, int hour) {
     final List<Color> basePalette = _getBasePalette(weather, mood);
+    // morning — светлый фон Гермеса, не затемняем циркадными сдвигами
+    if (weather == AuraWeather.morning) return basePalette;
     return _adjustPaletteForCircadian(basePalette, hour);
   }
 
   static List<Color> _adjustPaletteForCircadian(List<Color> baseColors, int hour) {
     // Night: 21:00 - 05:00 -> dim and shift towards deep space indigo
+    // (morning остаётся светлым всегда — это светлый фон Гермеса)
     if (hour >= 21 || hour < 5) {
       return baseColors.map((color) {
         return Color.lerp(color, const Color(0xFF04000C), 0.58)!;
@@ -481,6 +489,13 @@ class AuraLivingEngine {
           Color(0xFFFCB9C5), // 桜色 sakura pink
           Color(0xFFBBA0CB), // 藤色 wisteria
           Color(0xFFF5E6D3), // warm petal white
+        ];
+      case AuraWeather.morning:
+        return const [
+          Color(0xFFEAF4FF), // нежно-голубое небо
+          Color(0xFFFFE9C9), // тёплый рассвет
+          Color(0xFFBDE3FF), // светлая лазурь
+          Color(0xFFF6FBFF), // утренний туман
         ];
       case AuraWeather.snow:
         return const [
