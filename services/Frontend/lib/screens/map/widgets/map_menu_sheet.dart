@@ -27,7 +27,6 @@ import '../../gamification_screen.dart';
 import '../../ai_digest_screen.dart';
 import '../../ai_assistant_screen.dart';
 import '../../digital_twin_3d_screen.dart';
-import '../../webgl/webgl_twin_screen.dart';
 import '../../../widgets/aura_theme_picker.dart';
 
 
@@ -284,41 +283,12 @@ class MapMenuSheet extends StatelessWidget {
                     builder: (context) {
                       final List<Widget> gridItems = [
                         _menuTile(
-                          label: '3D Двойник',
-                          subtitle: 'Digital Twin Нижневартовска',
+                          label: 'Зд Двойник',
+                          subtitle: '3D-модель города: единая сцена',
                           assetPath: 'assets/icons/pulse_twin.svg',
                           color: const Color(0xFF00E5FF),
                           onTap: () {
                             Navigator.push(context, MaterialPageRoute(builder: (_) => const DigitalTwin3DScreen()));
-                          },
-                        ),
-                        _menuTile(
-                          label: 'WebGL Двойник',
-                          subtitle: 'Фотореалистичная сцена с текстурами',
-                          assetPath: 'assets/icons/pulse_twin.svg',
-                          color: const Color(0xFF7DD3FC),
-                          onTap: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const WebglTwinScreen()));
-                          },
-                        ),
-                        _menuTile(
-                          label: 'Погода',
-                          subtitle: 'Живое небо и прогноз',
-                          customIcon: Icons.wb_sunny_rounded,
-                          color: const Color(0xFFF59E0B),
-                          onTap: () {
-                            Navigator.of(context).pop();
-                            context.push('/weather');
-                          },
-                        ),
-                        _menuTile(
-                          label: 'Ремонт & Паспорта',
-                          subtitle: 'Объекты BKD & тротуары',
-                          customIcon: Icons.construction_rounded,
-                          color: const Color(0xFFFF9100),
-                          onTap: () {
-                            Navigator.of(context).pop();
-                            onOpenRoadWorks?.call();
                           },
                         ),
                         _menuTile(

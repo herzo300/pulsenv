@@ -4313,11 +4313,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // 3D Digital Twin Нижневартовска
+                        // 3D Digital Twin Нижневартовска (WebGL внутри)
                         _buildDockButton(
                            icon: Icons.view_in_ar_rounded,
                            tooltip: '3D/4D Двойник Нижневартовска',
-                           highlighted: true,
+                           highlighted: false,
                            onPressed: () {
                              _emitSelectionHaptic();
                              Navigator.of(context).push(
@@ -4360,7 +4360,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         _buildDockButton(
                            icon: Icons.construction_rounded,
                            tooltip: 'Паспорта объектов ремонта и благоустройства',
-                           highlighted: true,
+                           highlighted: false,
                            onPressed: () {
                              _emitSelectionHaptic();
                              _showRoadWorksModalSheet();

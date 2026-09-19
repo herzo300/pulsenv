@@ -1,0 +1,10 @@
+# Style Analysis
+- **Material**: Soft matte clay/plasticine texture with smooth gradients
+- **Lighting**: Soft diffused lighting from above-left, gentle shadows
+- **Composition**: 3D objects on flat square platform, slight perspective angle
+- **Background**: Light gray/white gradient, clean and minimal
+- **Colors**: Pastel yellow, light cyan blue, cream/beige accents on gray base
+
+# Final Prompt
+
+A claymorphic 3D render of a lost and found icon on a light gray square platform: a soft matte cardboard box in pastel yellow with open flaps, a light cyan blue magnifying glass leaning against it, and a cream-colored key lying in front, all made from smooth clay material with rounded edges, soft diffused lighting from above-left creating gentle shadows, isometric perspective view, minimal white-gray gradient background, pastel color palette, soft and playful aesthetic

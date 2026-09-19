@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import '../map/map_config.dart';
+import 'webgl/webgl_twin_screen.dart';
 
 /// Интерактивный 3D/4D цифровой двойник Нижневартовска.
 /// Единая изометрическая сцена из реальных полигонов зданий (OSM-типология),
@@ -1006,6 +1007,12 @@ class _DigitalTwin3DScreenState extends State<DigitalTwin3DScreen>
           const SizedBox(width: 8),
           _iconButton(Icons.open_in_full_rounded, 'Полноэкранный режим',
               _toggleImmersive),
+          const SizedBox(width: 8),
+          // WebGL-режим: фотореалистичная сцена с текстурами (единая модель двойника)
+          _iconButton(Icons.view_in_ar_rounded, 'WebGL-сцена с текстурами', () {
+            Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const WebglTwinScreen()));
+          }),
         ],
       ),
     );

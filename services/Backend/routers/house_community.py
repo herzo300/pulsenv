@@ -14,6 +14,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["house_community_and_hermes"])
 
+# Задания ИИ-Гермеса по домам (круглосуточный мониторинг) и активные контексты
+_hermes_sentinel_tasks: Dict[str, Dict[str, Any]] = {}
+_hermes_active_house_contexts: Dict[str, Dict[str, Any]] = {}
+
 # Persistent file storage for community help requests across server restarts / app reinstalls
 _COMMUNITY_POSTS_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "community_help_posts.json")
 
@@ -456,6 +460,14 @@ async def create_hermes_house_task(req: HermesHouseTaskRequest):
 
     _hermes_sentinel_tasks[norm] = task_payload
     _hermes_active_house_contexts[req.user_id or "default"] = task_payload
+
+    # Регистрируем дом в реальном фоновом мониторинге (скан каждые 5 минут):
+    # городские события и сигналы, упоминающие этот адрес, приходят в чат дома
+    try:
+        from services.house_sentinel_background import register_sentinel_task
+        register_sentinel_task(norm, task_payload)
+    except Exception as exc:  # не ломаем активацию, если модуль недоступен
+        logger.warning("sentinel register failed: %s", exc)
 
     # Оповещение по WebSocket в комнату дома
     await manager.broadcast_to_house(address, {

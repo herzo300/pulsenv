@@ -50,6 +50,7 @@ from services.Backend.routers.dispatcher import router as dispatcher_router
 from services.Backend.routers.daily_fun import router as daily_fun_router
 from services.Backend.routers.transport import router as transport_router
 from services.Backend.routers import viseron as viseron_router
+from services.Backend.routers import visual_search
 from services.Backend.routers.yandex_kassa import router as yandex_router
 from services.Backend.routers.cameras import CameraAnalyzeRequest, analyze_camera_free
 from services.Backend.routers.telegram_router import router as telegram_router
@@ -148,6 +149,16 @@ async def lifespan(app: FastAPI):
         app.state.parking_task = parking_task
     except Exception as exc:
         logger.warning("Failed to start parking monitor task: %s", exc)
+
+    # House Sentinel: реальный фоновый мониторинг домов (задания ИИ-Гермеса 24/7):
+    # скан городских событий и сигналов каждые 5 минут, уведомления в чаты домов
+    try:
+        from services.house_sentinel_background import run_forever as house_sentinel_loop
+        house_sentinel_task = asyncio.create_task(house_sentinel_loop())
+        app.state.house_sentinel_task = house_sentinel_task
+        logger.info("House Sentinel background loop started (5-min interval)")
+    except Exception as exc:
+        logger.warning("Failed to start house sentinel loop: %s", exc)
 
     # Hermes Twin Builder: фоновая валидация/дорисовка зданий 3D-двойника
     # (сверка с OSM каждые 6 часов, обновление реестра для всех клиентов)
@@ -418,6 +429,7 @@ app.include_router(daily_digest)
 app.include_router(weather_alerts.router)
 app.include_router(gamification)
 app.include_router(viseron_router.router)
+app.include_router(visual_search.router)  # /api/visual-search — поиск по камерам
 app.include_router(transport_router, prefix="/api/transport")
 app.include_router(fuel_router)  # /api/fuel/prices, /api/fuel/best
 app.include_router(fuel_stations_router)  # /api/fuel/stations, /api/fuel/scan-status

@@ -200,21 +200,34 @@ class DeviceLocationService {
   Future<DeviceLocationFailure?> _ensurePermission() async {
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
+      // Android показывает системный диалог только один раз; при повторном
+      // отказе requestPermission сразу вернёт denied — тогда ведём в настройки
       permission = await Geolocator.requestPermission();
     }
 
     if (permission == LocationPermission.denied) {
-      return const DeviceLocationFailure(
-        code: 'permission_denied',
-        userMessage: 'Нужен доступ к геолокации для определения адреса.',
-      );
+      // Второй шанс: иногда checkPermission отдаёт denied, хотя диалог ещё
+      // ни разу не показывался в этом lifecycle — пробуем ещё раз явно
+      try {
+        permission = await Geolocator.requestPermission();
+      } catch (_) {}
+      if (permission == LocationPermission.denied) {
+        return const DeviceLocationFailure(
+          code: 'permission_denied',
+          userMessage:
+              'Нужен доступ к геолокации. Нажмите GPS ещё раз и разрешите доступ, '
+              'либо включите его в настройках приложения.',
+          openAppSettings: true,
+        );
+      }
     }
 
     if (permission == LocationPermission.deniedForever) {
       return const DeviceLocationFailure(
         code: 'permission_denied_forever',
         userMessage:
-            'Доступ к GPS запрещён. Разрешите его в настройках приложения.',
+            'Доступ к GPS запрещён. Сейчас откроем настройки — разрешите '
+            '«Местоположение» для Пульс города.',
         openAppSettings: true,
       );
     }

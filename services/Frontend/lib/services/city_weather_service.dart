@@ -398,14 +398,43 @@ class CityWeatherService {
     return null;
   }
 
+  /// Кандидаты URL погоды: основной + резервные (мобильные сети иногда
+  /// рвут соединение к одному из адресов — экран погоды не должен пустеть).
+  static List<String> get _weatherUrlCandidates {
+    final base = MapConfig.backendApiBaseUrl;
+    final host = MapConfig.backendBaseUrl;
+    return [
+      '$base/weather/current',
+      '$host:8000/api/weather/current',
+      'https://45-153-68-59.sslip.io/api/weather/current',
+    ];
+  }
+
+  Future<http.Response?> _tryGet(List<String> urls,
+      {Map<String, String>? query}) async {
+    for (final u in urls) {
+      try {
+        var uri = Uri.parse(u);
+        if (query != null) {
+          uri = uri.replace(queryParameters: query);
+        }
+        final response =
+            await http.get(uri).timeout(const Duration(seconds: 12));
+        if (response.statusCode == 200) return response;
+      } catch (_) {
+        continue;
+      }
+    }
+    return null;
+  }
+
   Future<CityWeatherSnapshot> fetchWeather() async {
     if (!MapConfig.hasBackendConfig) return CityWeatherSnapshot.empty();
     try {
       final cityId = CityProvider().activeCity.id;
-      final response = await http
-          .get(Uri.parse('${MapConfig.backendApiBaseUrl}/weather/current?city=$cityId'))
-          .timeout(const Duration(seconds: 12));
-      if (response.statusCode != 200) {
+      final response = await _tryGet(_weatherUrlCandidates,
+          query: {'city': cityId});
+      if (response == null) {
         final cached = await getCachedWeather();
         return cached ?? CityWeatherSnapshot.empty();
       }
