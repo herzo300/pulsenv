@@ -112,3 +112,4 @@ test_request.json
 
 # ML weights (large binaries)
 *.pt
+tmp_icons/
