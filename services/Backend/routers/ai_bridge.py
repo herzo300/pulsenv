@@ -20,6 +20,9 @@ TOR_PROXY = os.getenv("OPENROUTER_PROXY", "socks5://tor:9050")
 # Кэш последнего рабочего маршрута: "tor" | "direct" | None
 _route_state: Dict[str, Any] = {"route": None, "checked_at": 0.0}
 
+# Бесплатный текст-фолбэк без ключа (текстовые задачи, RU-доступен напрямую)
+POLLINATIONS_TEXT_URL = "https://text.pollinations.ai/openai"
+
 # Разрешённые модели (белый список: только то, что используется приложением)
 ALLOWED_MODELS = {
     "google/gemini-2.5-flash",
@@ -31,6 +34,7 @@ ALLOWED_MODELS = {
     "qwen/qwen3.5-plus-02-15",
     "qwen/qwen-vl-plus",
     "deepseek/deepseek-v4-flash",
+    "pollinations/openai-fast",
 }
 
 
@@ -59,6 +63,31 @@ async def openrouter_bridge(req: BridgeChatRequest, request: Request):
     Используется мобильным приложением и сервисами, когда прямой доступ
     к openrouter.ai недоступен из сети РФ.
     """
+    # Бесплатный маршрут без ключа: Pollinations (текст)
+    if req.model == "pollinations/openai-fast" or not OPENROUTER_KEY:
+        try:
+            ppayload = {
+                "model": "openai-fast",
+                "messages": req.messages,
+            }
+            with httpx.Client(timeout=60.0) as client:
+                presp = client.post(
+                    POLLINATIONS_TEXT_URL,
+                    json=ppayload,
+                    headers={"User-Agent": "CityPulse/1.0"},
+                )
+                if presp.status_code == 200:
+                    pdata = presp.json()
+                    return {
+                        "status": "ok",
+                        "route": "pollinations",
+                        "model": "openai-fast",
+                        "choices": pdata.get("choices", []),
+                        "usage": pdata.get("usage", {}),
+                    }
+        except Exception as e:
+            logger.warning("pollinations fallback failed: %s", e)
+
     if not OPENROUTER_KEY:
         raise HTTPException(status_code=503, detail="OpenRouter key not configured")
     if req.model not in ALLOWED_MODELS:
@@ -105,7 +134,42 @@ async def openrouter_bridge(req: BridgeChatRequest, request: Request):
             last_err = f"{label}: {type(e).__name__}"
             logger.warning("bridge route %s failed: %s", label, e)
 
+    # Все маршруты OpenRouter упали (мёртвый ключ 401 или блок 403) —
+    # спасаем текстовые запросы бесплатным Pollinations-фолбэком
+    if _is_text_only(req.messages):
+        try:
+            ppayload = {"model": "openai-fast", "messages": req.messages}
+            with httpx.Client(timeout=60.0) as client:
+                presp = client.post(
+                    POLLINATIONS_TEXT_URL,
+                    json=ppayload,
+                    headers={"User-Agent": "CityPulse/1.0"},
+                )
+                if presp.status_code == 200:
+                    pdata = presp.json()
+                    logger.info("bridge degraded to pollinations after: %s", last_err)
+                    return {
+                        "status": "ok",
+                        "route": "pollinations-fallback",
+                        "model": "openai-fast",
+                        "choices": pdata.get("choices", []),
+                        "usage": pdata.get("usage", {}),
+                    }
+        except Exception as e:
+            logger.warning("pollinations last-resort failed: %s", e)
+
     raise HTTPException(status_code=502, detail=f"All routes failed: {last_err}")
+
+
+def _is_text_only(messages: List[Dict[str, Any]]) -> bool:
+    """Проверяем, что запрос не содержит изображений (текст можно деградировать)."""
+    for m in messages:
+        content = m.get("content")
+        if isinstance(content, list):
+            for part in content:
+                if isinstance(part, dict) and part.get("type") == "image_url":
+                    return False
+    return True
 
 
 @router.get("/bridge/status")
