@@ -150,6 +150,15 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("Failed to start parking monitor task: %s", exc)
 
+    # Telegram Bot Worker: long-polling ответы пользователям бота @pulsenvbot
+    try:
+        from services.telegram_bot_worker import run_bot_forever as bot_loop
+        bot_worker_task = asyncio.create_task(bot_loop())
+        app.state.telegram_bot_worker = bot_worker_task
+        logger.info("Telegram bot worker started (long-polling via tor)")
+    except Exception as exc:
+        logger.warning("Failed to start telegram bot worker: %s", exc)
+
     # House Sentinel: реальный фоновый мониторинг домов (задания ИИ-Гермеса 24/7):
     # скан городских событий и сигналов каждые 5 минут, уведомления в чаты домов
     try:

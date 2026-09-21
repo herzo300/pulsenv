@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
+import '../services/device_location_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
 import '../data/nizhnevartovsk_houses.dart';
@@ -322,26 +323,21 @@ class _JkhHouseStatusWidgetState extends State<JkhHouseStatusWidget>
       ),
     );
 
+    // DeviceLocationService: повторный запрос разрешения + авто-открытие
+    // настроек при deniedForever (починено «GPS не включается»)
     Position? pos;
     try {
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
-        final isServiceEnabled = await Geolocator.isLocationServiceEnabled();
-        if (isServiceEnabled) {
-          try {
-            pos = await Geolocator.getCurrentPosition(
-              locationSettings: const LocationSettings(
-                accuracy: LocationAccuracy.high,
-                timeLimit: Duration(seconds: 8),
-              ),
-            );
-          } catch (_) {
-            pos = await Geolocator.getLastKnownPosition();
-          }
-        }
+      final result = await DeviceLocationService.instance.resolve(forceCurrentGPS: true);
+      if (result.isSuccess) {
+        pos = result.position;
+      } else if (result.failure != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFFF59E0B),
+            content: Text(result.failure!.userMessage),
+          ),
+        );
+        await DeviceLocationService.instance.openFailureSettings(result.failure!);
       }
     } catch (_) {}
 

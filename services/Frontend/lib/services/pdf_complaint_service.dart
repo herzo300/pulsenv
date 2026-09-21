@@ -72,6 +72,41 @@ class PdfComplaintService {
                 pw.SizedBox(height: 4),
                 pw.Text('Адрес объекта: $address', style: const pw.TextStyle(fontSize: 11)),
                 pw.SizedBox(height: 16),
+                // ─── Шапка официального обращения (ФЗ-59) ───
+                pw.Text(
+                  'В Администрацию города Нижневартовска',
+                  style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+                ),
+                pw.Text(
+                  '(копия: Управляющая организация по адресу объекта)',
+                  style: const pw.TextStyle(fontSize: 10),
+                ),
+                pw.Text(
+                  'от жителя города Нижневартовска',
+                  style: const pw.TextStyle(fontSize: 10),
+                ),
+                pw.Text(
+                  'пользователя системы «Пульс города» (ID CP-${reportId.toString().padLeft(6, '0')})',
+                  style: const pw.TextStyle(fontSize: 10),
+                ),
+                pw.SizedBox(height: 14),
+
+                // ─── Заголовок ───
+                pw.Center(
+                  child: pw.Text(
+                    'ОБРАЩЕНИЕ',
+                    style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+                  ),
+                ),
+                pw.Center(
+                  child: pw.Text(
+                    '(в порядке Федерального закона от 02.05.2006 № 59-ФЗ «О порядке рассмотрения обращений граждан РФ»)',
+                    style: const pw.TextStyle(fontSize: 8),
+                  ),
+                ),
+                pw.SizedBox(height: 12),
+
+                // ─── Суть обращения ───
                 pw.Container(
                   padding: const pw.EdgeInsets.all(12),
                   decoration: pw.BoxDecoration(
@@ -82,16 +117,66 @@ class PdfComplaintService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        'Суть обращения:',
+                        '1. Суть нарушения:',
                         style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
                       ),
                       pw.SizedBox(height: 6),
                       pw.Text(
+                        'По адресу: $address выявлена проблема категории «$category».',
+                        style: const pw.TextStyle(fontSize: 10),
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
                         description.isNotEmpty ? description : title,
+                        style: const pw.TextStyle(fontSize: 10),
+                      ),
+                      pw.SizedBox(height: 10),
+                      pw.Text(
+                        '2. Правовое обоснование:',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
+                      ),
+                      pw.SizedBox(height: 6),
+                      pw.Text(
+                        'В соответствии со ст. 8 Федерального закона № 59-ФЗ обращение подлежит '
+                        'обязательной регистрации в течение 3 дней и рассмотрению в течение 30 дней '
+                        'со дня регистрации. Неисполнение сроков влечёт ответственность по ст. 5.59 КоАП РФ.',
+                        style: const pw.TextStyle(fontSize: 10),
+                      ),
+                      pw.SizedBox(height: 10),
+                      pw.Text(
+                        '3. Прошу:',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
+                      ),
+                      pw.SizedBox(height: 6),
+                      pw.Text(
+                        '1) провести обследование указанного объекта;'
+                        '2) устранить выявленное нарушение в установленные законом сроки;'
+                        '3) направить мотивированный письменный ответ о принятых мерах в мой адрес '
+                        'в течение 30 дней с момента регистрации настоящего обращения.',
                         style: const pw.TextStyle(fontSize: 10),
                       ),
                     ],
                   ),
+                ),
+                pw.SizedBox(height: 12),
+
+                // ─── Приложения ───
+                pw.Text(
+                  'Приложение: фотофиксация из системы «Пульс города» (при наличии).',
+                  style: const pw.TextStyle(fontSize: 9),
+                ),
+                pw.SizedBox(height: 20),
+
+                // ─── Подпись ───
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Дата: $dateStr', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text(
+                      'Подпись: ______________',
+                      style: const pw.TextStyle(fontSize: 10),
+                    ),
+                  ],
                 ),
                 pw.SizedBox(height: 24),
                 pw.Container(

@@ -8,7 +8,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../core/app_router.dart';
 import '../services/sound_service.dart';
-import '../theme/apple_springs.dart';
 
 /// Высокохудожественный сплэш-экран «Самотлор Gold» (Нижневартовск):
 /// - Атмосферный сибирский антураж (силуэт легендарной вышки Самотлора и монумента «Алёша»).
@@ -284,36 +283,20 @@ class _OilSplashScreenState extends State<OilSplashScreen>
               ),
             ),
 
-            // 6. Центральная пульсирующая жидкая капля чёрного золота и 3D ИИ-логотип
+                        // 6. Бьющийся пульс города: ECG-линия + силуэты высоток Нижневартовска.
+            // Каждый удар сердца — здания «вздыхают», волна пульса бежит по крышам.
             Center(
               child: AnimatedBuilder(
                 animation: _pulseController,
                 builder: (context, child) {
-                  final heroScale = 1.0 + math.sin(_pulseController.value * math.pi) * 0.06;
                   return SizedBox(
-                    width: 280,
-                    height: 280,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        CustomPaint(
-                          painter: _LiquidGoldCorePainter(
-                            pulse: _pulseController.value,
-                            time: _time,
-                          ),
-                        ),
-                        // 3D золотая капля нефти (рендер Blender 5.1, студийный свет)
-                        Transform.scale(
-                          scale: heroScale,
-                          child: Image.asset(
-                            'assets/splash/oil_drop_3d.png',
-                            width: 250,
-                            height: 250,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const SizedBox(),
-                          ),
-                        ),
-                      ],
+                    width: 320,
+                    height: 320,
+                    child: CustomPaint(
+                      painter: CityPulsePainter(
+                        pulse: _pulseController.value,
+                        time: _time,
+                      ),
                     ),
                   );
                 },
@@ -948,103 +931,143 @@ class _OilAtmospherePainter extends CustomPainter {
   bool shouldRepaint(covariant _OilAtmospherePainter oldDelegate) => true;
 }
 
-/// Пейнтер центральной пульсирующей капли чёрного золота с сейсмическими золотыми волнами
-class _LiquidGoldCorePainter extends CustomPainter {
-  final double pulse;
+class CityPulsePainter extends CustomPainter {
+  final double pulse; // 0..1 цикл удара
   final double time;
+  CityPulsePainter({required this.pulse, required this.time});
 
-  _LiquidGoldCorePainter({required this.pulse, required this.time});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final unit = size.shortestSide / 280.0;
-
-    // 1. Сейсмические золотые волны (Pulse Rings)
-    final ringPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4;
-
-    for (int i = 0; i < 3; i++) {
-      final ringProgress = (pulse + i / 3.0) % 1.0;
-      final radius = (52.0 + ringProgress * 85.0) * unit;
-      final opacity = (1.0 - ringProgress) * 0.35;
-
-      ringPaint.color = const Color(0xFFFFD700).withOpacity(opacity);
-      canvas.drawCircle(center, radius, ringPaint);
-    }
-
-    // 2. Вращающиеся золотые частицы короны
-    final swirlPaint = Paint()..style = PaintingStyle.fill;
-    for (int i = 0; i < 8; i++) {
-      final angle = time * 0.9 + (i * math.pi / 4);
-      final dist = (54.0 + math.sin(time * 2.2 + i) * 7.0) * unit;
-      final sx = center.dx + math.cos(angle) * dist;
-      final sy = center.dy + math.sin(angle) * dist;
-      final r = (2.2 + math.sin(time * 1.5 + i).abs() * 1.6) * unit;
-
-      swirlPaint.color = const Color(0xFFFFF8D6).withOpacity(0.55);
-      canvas.drawCircle(Offset(sx, sy), r, swirlPaint);
-    }
-
-    // 3. Органическая морфинг-капля чёрного золота
-    final path = Path();
-    final baseRadius = (44.0 + pulse * 5.0) * unit;
-    const numPoints = 10;
-    final points = <Offset>[];
-
-    for (int i = 0; i < numPoints; i++) {
-      final angle = i * 2 * math.pi / numPoints;
-      final wave = math.sin(time * 3.2 + angle * 3.0) * 4.0 * unit;
-      final r = baseRadius + wave;
-
-      final x = center.dx + math.cos(angle) * r;
-      final y = center.dy + math.sin(angle) * r;
-      points.add(Offset(x, y));
-    }
-
-    path.moveTo(points[0].dx, points[0].dy);
-    for (int i = 0; i < numPoints; i++) {
-      final nextIdx = (i + 1) % numPoints;
-      final xc = (points[i].dx + points[nextIdx].dx) / 2;
-      final yc = (points[i].dy + points[nextIdx].dy) / 2;
-      path.quadraticBezierTo(points[i].dx, points[i].dy, xc, yc);
-    }
-    path.close();
-
-    // 4. Заливка капли радиальным градиентом благородного золота и нефти
-    final dropGradient = ui.Gradient.radial(
-      Offset(center.dx - 8 * unit, center.dy - 10 * unit),
-      baseRadius * 1.3,
-      [
-        const Color(0xFFFFFFFF), // Яркий сверкающий центр
-        const Color(0xFFFFE082), // Золотой блик
-        const Color(0xFFD4AF37), // Самотлорское золото
-        const Color(0xFF4A380A), // Тёмное золото
-        const Color(0xFF080602), // Вязкая сибирская нефть на кайме
-      ],
-      [0.0, 0.25, 0.55, 0.82, 1.0],
-    );
-
-    final dropPaint = Paint()
-      ..style = PaintingStyle.fill
-      ..shader = dropGradient;
-
-    // Золотая тень капли
-    canvas.drawShadow(path, const Color(0xFFFFD700).withOpacity(0.45), 16, true);
-    canvas.drawPath(path, dropPaint);
-
-    // 5. Глянцевый блик на капле
-    final highlightPaint = Paint()
-      ..color = Colors.white.withOpacity(0.55)
-      ..style = PaintingStyle.fill;
-
-    canvas.drawOval(
-      Rect.fromLTWH(center.dx - 22 * unit, center.dy - 25 * unit, 12 * unit, 7 * unit),
-      highlightPaint,
-    );
+  double get _beat {
+    final t = pulse;
+    if (t < 0.12) return Curves.easeOutCubic.transform(t / 0.12) * 0.35;
+    if (t < 0.18) return 0.35 - (t - 0.12) / 0.06 * 0.25;
+    if (t < 0.26) return 0.10 + Curves.easeOutCubic.transform((t - 0.18) / 0.08) * 0.90;
+    if (t < 0.32) return 1.0 - Curves.easeInCubic.transform((t - 0.26) / 0.06) * 1.05;
+    if (t < 0.38) return -0.05 + (t - 0.32) / 0.06 * 0.22;
+    if (t < 0.46) return 0.17 - (t - 0.38) / 0.08 * 0.17;
+    return 0.0;
   }
 
   @override
-  bool shouldRepaint(covariant _LiquidGoldCorePainter oldDelegate) => true;
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final beat = _beat.clamp(-0.1, 1.0).toDouble();
+    final beatAbs = beat.abs();
+    final baseY = h * 0.62;
+
+    final glowPaint = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(0.0, 0.2),
+        radius: 1.0,
+        colors: [
+          Color.lerp(const Color(0x33D4A537), const Color(0x88D4A537), beatAbs)!,
+          const Color(0x00000000),
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+    canvas.drawRect(Rect.fromLTWH(0, 0, w, h), glowPaint);
+
+    final cityPaint = Paint()..color = const Color(0xFF0B1626);
+    final edgePaint = Paint()
+      ..color = Color.lerp(
+          const Color(0xFF1E3A5F), const Color(0xFFD4A537), beatAbs * 0.9)!
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
+
+    final towers = <double>[0.34, 0.58, 0.42, 0.75, 0.5, 0.95, 0.62, 0.8, 0.45, 0.68, 0.38];
+    final n = towers.length;
+    const cityWidthFactor = 0.92;
+    final towerW = w * cityWidthFactor / n;
+    final x0 = w * (1 - cityWidthFactor) / 2;
+
+    for (int i = 0; i < n; i++) {
+      final wave = math.sin(time * 1.4 + i * 0.55);
+      final lift = beat * towers[i] * (0.55 + 0.45 * math.sin(i * 1.7 + time * 0.8));
+      final th = h * towers[i] * (0.72 + 0.28 * wave * 0.3) * (1.0 + lift * 0.16);
+      final tx = x0 + i * towerW;
+      final rect = Rect.fromLTRB(tx + 1.5, baseY - th, tx + towerW - 1.5, baseY);
+      final rrect = RRect.fromRectAndCorners(rect,
+          topLeft: const Radius.circular(3), topRight: const Radius.circular(3));
+      canvas.drawRRect(rrect, cityPaint);
+      canvas.drawRRect(rrect, edgePaint);
+
+      if (beatAbs > 0.25) {
+        final winPaint = Paint()
+          ..color = const Color(0xFFD4A537).withOpacity(((beatAbs - 0.25) * 1.4).clamp(0.0, 0.9));
+        final rng = math.Random(i * 97);
+        for (int f = 0; f < 5; f++) {
+          for (int c = 0; c < 2; c++) {
+            if (rng.nextDouble() > 0.62) continue;
+            final wx = rect.left + 4 + c * (rect.width - 8) / 2;
+            final wy = rect.top + 8 + f * (rect.height - 14) / 5;
+            if (wy < rect.bottom - 8) {
+              canvas.drawRRect(
+                RRect.fromRectAndRadius(
+                    Rect.fromCenter(
+                        center: Offset(wx, wy), width: rect.width * 0.22, height: 4),
+                    const Radius.circular(1)),
+                winPaint);
+            }
+          }
+        }
+      }
+    }
+
+    final ecg = Path();
+    final segW = w * 0.8;
+    final ex0 = (w - segW) / 2;
+    const steps = 120;
+    for (int s = 0; s <= steps; s++) {
+      final t = s / steps;
+      double y = 0.0;
+      final p2 = (time * 0.35 + t) % 1.0;
+      if (p2 > 0.40 && p2 < 0.46) {
+        y = -0.12;
+      } else if (p2 >= 0.46 && p2 < 0.50) {
+        y = 0.28;
+      } else if (p2 >= 0.50 && p2 < 0.54) {
+        y = -0.95;
+      } else if (p2 >= 0.54 && p2 < 0.58) {
+        y = 0.34;
+      } else if (p2 > 0.70 && p2 < 0.80) {
+        y = -0.18;
+      }
+      final px = ex0 + t * segW;
+      final py = baseY + y * h * 0.34;
+      if (s == 0) {
+        ecg.moveTo(px, py);
+      } else {
+        ecg.lineTo(px, py);
+      }
+    }
+    canvas.drawPath(
+      ecg,
+      Paint()
+        ..color = const Color(0xFFD4A537).withOpacity(0.25 + beatAbs * 0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 7
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+    canvas.drawPath(
+      ecg,
+      Paint()
+        ..color = const Color(0xFFFFE9B8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.4
+        ..strokeCap = StrokeCap.round);
+
+    if (beatAbs > 0.3) {
+      final ringPhase = ((pulse - 0.26) / 0.5).clamp(0.0, 1.0);
+      canvas.drawCircle(
+        Offset(w / 2, baseY),
+        40 + ringPhase * w * 0.55,
+        Paint()
+          ..color = const Color(0xFFD4A537)
+              .withOpacity((1 - ringPhase) * beatAbs * 0.5)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5);
+    }
+  }
+
+  @override
+  bool shouldRepaint(CityPulsePainter old) => old.pulse != pulse || old.time != time;
 }

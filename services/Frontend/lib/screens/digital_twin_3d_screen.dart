@@ -242,9 +242,8 @@ class _DigitalTwin3DScreenState extends State<DigitalTwin3DScreen>
     try {
       final results = await Future.wait([
         http
-            .get(Uri.parse('$base/api/v1/3d-twin/buildings'),
-                headers: const {'Accept-Encoding': 'gzip'})
-            .timeout(const Duration(seconds: 25)),
+            .get(Uri.parse('$base/api/v1/3d-twin/buildings'))
+            .timeout(const Duration(seconds: 60)),
         http
             .get(Uri.parse('$base/api/v1/3d-twin/landmarks'))
             .timeout(const Duration(seconds: 6)),

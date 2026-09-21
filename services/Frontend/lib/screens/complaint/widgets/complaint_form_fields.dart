@@ -290,19 +290,19 @@ class ComplaintFormFields extends StatelessWidget {
               : const Icon(Icons.gps_fixed),
           tooltip: 'Определить местоположение по GPS',
         ),
-        if (latitude != null && longitude != null) ...[
-          const SizedBox(width: 8.0),
-          IconButton.filled(
-            style: IconButton.styleFrom(
-              backgroundColor: const Color(0xFF00E5FF),
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
-            onPressed: onShowOnMap,
-            icon: const Icon(Icons.map_outlined),
-            tooltip: 'Показать на карте',
+        const SizedBox(width: 8.0),
+        // Навигатор/карта: всегда активна — без координат ведёт на карту
+        // для выбора точки, с координатами — показывает место сигнала
+        IconButton.filled(
+          style: IconButton.styleFrom(
+            backgroundColor: const Color(0xFF00E5FF),
+            foregroundColor: Colors.black,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           ),
-        ],
+          onPressed: onShowOnMap,
+          icon: const Icon(Icons.map_outlined),
+          tooltip: 'Показать на карте',
+        ),
       ],
     );
   }

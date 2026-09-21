@@ -370,6 +370,25 @@ class _WeatherScreenState extends State<WeatherScreen> with SingleTickerProvider
         case 'fireflies': return AuraWeather.fireflies;
         case 'cosmos': return AuraWeather.cosmos;
         case 'technoCivic': return AuraWeather.technoCivic;
+        case 'morning': return AuraWeather.morning;
+        case 'incense': return AuraWeather.incense;
+        case 'fractal': return AuraWeather.fractal;
+        case 'waveFunc': return AuraWeather.waveFunc;
+        case 'blackHole': return AuraWeather.blackHole;
+        case 'supernova': return AuraWeather.supernova;
+        case 'matrix': return AuraWeather.matrix;
+        case 'glitch': return AuraWeather.glitch;
+        case 'hologram': return AuraWeather.hologram;
+        case 'snow': return AuraWeather.snow;
+        case 'ocean': return AuraWeather.ocean;
+        case 'rain': return AuraWeather.rain;
+        case 'water': return AuraWeather.water;
+        case 'breath': return AuraWeather.breath;
+        case 'tropical': return AuraWeather.tropical;
+        case 'candle': return AuraWeather.candle;
+        case 'dawn': return AuraWeather.dawn;
+        case 'sunset': return AuraWeather.sunset;
+        case 'aura': return AuraWeather.aura;
       }
     }
 
@@ -455,6 +474,25 @@ class _WeatherScreenState extends State<WeatherScreen> with SingleTickerProvider
         case 'fireflies': return WeatherEffect.fireflies;
         case 'cosmos': return WeatherEffect.cosmos;
         case 'technoCivic': return WeatherEffect.technoCivic;
+        case 'morning': return WeatherEffect.clear;
+        case 'incense': return WeatherEffect.fog;
+        case 'fractal': return WeatherEffect.clear;
+        case 'waveFunc': return WeatherEffect.clear;
+        case 'blackHole': return WeatherEffect.cosmos;
+        case 'supernova': return WeatherEffect.cosmos;
+        case 'matrix': return WeatherEffect.rain;
+        case 'glitch': return WeatherEffect.storm;
+        case 'hologram': return WeatherEffect.clear;
+        case 'snow': return WeatherEffect.snow;
+        case 'ocean': return WeatherEffect.clear;
+        case 'rain': return WeatherEffect.rain;
+        case 'water': return WeatherEffect.rain;
+        case 'breath': return WeatherEffect.fog;
+        case 'tropical': return WeatherEffect.clear;
+        case 'candle': return WeatherEffect.storm;
+        case 'dawn': return WeatherEffect.sakura;
+        case 'sunset': return WeatherEffect.sakura;
+        case 'aura': return WeatherEffect.fireflies;
       }
     }
     return weatherEffectFromKind(condition);
@@ -513,6 +551,25 @@ class _WeatherScreenState extends State<WeatherScreen> with SingleTickerProvider
               ('fireflies', 'Светлячки', Icons.blur_on_rounded, const [Color(0xFF0D1B2A), Color(0xFFCCFF00)]),
               ('cosmos', 'Космический', Icons.rocket_launch_rounded, const [Color(0xFF030008), Color(0xFF9D4EDD)]),
               ('technoCivic', 'Цивик Тех', Icons.lan_rounded, const [Color(0xFF0A1128), Color(0xFF00E5FF)]),
+              ('morning', 'Светлое утро', Icons.wb_sunny_rounded, const [Color(0xFFEAF4FF), Color(0xFFFFE9C9)]),
+              ('incense', 'Священный дым', Icons.self_improvement_rounded, const [Color(0xFF1A0E0A), Color(0xFFD4A574)]),
+              ('fractal', 'Фрактал Мандельброт', Icons.auto_awesome_motion_rounded, const [Color(0xFF0A0510), Color(0xFFFF6B9D)]),
+              ('waveFunc', 'Квантовая волна', Icons.science_rounded, const [Color(0xFF020A18), Color(0xFF00E5FF)]),
+              ('blackHole', 'Чёрная дыра', Icons.dark_mode_rounded, const [Color(0xFF000000), Color(0xFF7B2CBF)]),
+              ('supernova', 'Сверхновая', Icons.flare_rounded, const [Color(0xFF1A0500), Color(0xFFFFAA00)]),
+              ('matrix', 'Матрица', Icons.terminal_rounded, const [Color(0xFF000800), Color(0xFF00FF41)]),
+              ('glitch', 'Глитч', Icons.broken_image_rounded, const [Color(0xFF12001A), Color(0xFFFF2079)]),
+              ('hologram', 'Голограмма', Icons.view_in_ar_rounded, const [Color(0xFF001514), Color(0xFF00FFF5)]),
+              ('snow', 'Снегопад', Icons.ac_unit_rounded, const [Color(0xFF0A1020), Color(0xFFD6E8F0)]),
+              ('ocean', 'Океан', Icons.water_rounded, const [Color(0xFF020A18), Color(0xFF00A8B5)]),
+              ('rain', 'Ливень', Icons.water_drop_rounded, const [Color(0xFF071827), Color(0xFF2C8CFF)]),
+              ('water', 'Водная гладь', Icons.pool_rounded, const [Color(0xFF021420), Color(0xFF00C2C7)]),
+              ('breath', 'Дыхание', Icons.air_rounded, const [Color(0xFF0A1520), Color(0xFF9BD1E4)]),
+              ('tropical', 'Тропики', Icons.park_rounded, const [Color(0xFF0D1A08), Color(0xFFFFB347)]),
+              ('candle', 'Свеча', Icons.local_fire_department_rounded, const [Color(0xFF1A0A05), Color(0xFFFFB56B)]),
+              ('dawn', 'Рассвет', Icons.wb_twilight_rounded, const [Color(0xFF07121E), Color(0xFFFFB58A)]),
+              ('sunset', 'Закат', Icons.wb_sunny_rounded, const [Color(0xFF140918), Color(0xFFFF8A5C)]),
+              ('aura', 'Аура', Icons.spa_rounded, const [Color(0xFF10243A), Color(0xFF4AD7B8)]),
             ];
 
             return BackdropFilter(
