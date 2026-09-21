@@ -111,11 +111,11 @@ class OfflineTilesService extends ChangeNotifier {
 
   /// OpenStreetMap с распределёнными субдоменами (100% доступность в РФ)
   static const String kDayTileUrl =
-      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      'https://45-153-68-59.sslip.io/tiles/day/{z}/{x}/{y}.png';
 
   /// CartoDB Dark Matter для тёмной темы
   static const String kNightTileUrl =
-      'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png';
+      'https://45-153-68-59.sslip.io/tiles/night/{z}/{x}/{y}.png';
 
   /// Esri World Imagery для спутникового режима
   static const String kSatelliteTileUrl =

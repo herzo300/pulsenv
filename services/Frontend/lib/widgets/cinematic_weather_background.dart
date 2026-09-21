@@ -297,6 +297,52 @@ class _CinematicWeatherPainter extends CustomPainter {
       }
     }
 
+    // ── Слой 3.5: Плывущие облачные банки (Pareto: max wow / min GPU) ──
+    // 4 размытых эллипса дрейфуют с разной скоростью; плотность от влажности
+    final cloudAlpha = 0.10 + 0.14 * H;
+    final cloudPaint = Paint()
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30);
+    for (int c = 0; c < 4; c++) {
+      final speed = 0.008 + c * 0.004; // экранов/сек
+      final cx = ((t * speed + c * 0.37) % 1.4 - 0.2) * size.width;
+      final cy = size.height * (0.18 + c * 0.13);
+      final cw = size.width * (0.38 + 0.1 * math.sin(t * 0.05 + c));
+      final chh = size.height * 0.08;
+      cloudPaint.color = (isDay ? Colors.white : const Color(0xFF93A8C4))
+          .withOpacity(cloudAlpha * (0.7 + 0.3 * math.sin(t * 0.1 + c * 2.0)));
+      final rrect = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset(cx, cy), width: cw, height: chh),
+        Radius.circular(chh / 2),
+      );
+      canvas.drawRRect(rrect, cloudPaint);
+    }
+
+    // ── Слой 3.6: Воздушные блики-частицы (200 шт, батчed drawPoints) ──
+    // Мелкие светлячки воздуха: днём — солнечная пыль, ночью — холодные искры
+    final rngDust = math.Random(777);
+    final dustColor = isDay
+        ? const Color(0xFFFFE9B8)
+        : const Color(0xFFBFEFFF);
+    final dustPaint = Paint()
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 1.6;
+    final dustPts = <ui.Offset>[];
+    final dustAlphas = <double>[];
+    for (int d = 0; d < 60; d++) {
+      final bx = rngDust.nextDouble();
+      final by = rngDust.nextDouble();
+      final drift = math.sin(t * (0.3 + rngDust.nextDouble() * 0.5) + d);
+      final px = (bx + 0.02 * drift) * size.width;
+      final py = (by - 0.015 * t * (0.2 + rngDust.nextDouble() * 0.3) % 1.0) % 1.0 * size.height;
+      final tw = 0.5 + 0.5 * math.sin(t * 1.7 + d * 2.4);
+      dustPts.add(Offset(px, py));
+      dustAlphas.add((0.06 + 0.10 * tw) * (0.4 + 0.6 * U));
+    }
+    for (int d = 0; d < dustPts.length; d++) {
+      dustPaint.color = dustColor.withOpacity(dustAlphas[d].clamp(0.0, 0.35));
+      canvas.drawCircle(dustPts[d], 1.4, dustPaint);
+    }
+
     // ── Слой 4: Кинематографический финиш ─────────────────────────
     // Виньетка: мягкая радиальная + затемнение низа под контент
     final vignettePaint = Paint()

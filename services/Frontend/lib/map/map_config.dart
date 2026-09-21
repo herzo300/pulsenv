@@ -27,7 +27,7 @@ const String kGoogleRoadsTileUrl =
 const String kGoogleHybridRoadsTileUrl =
     'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
 const String kCartoVoyagerRoadsTileUrl =
-    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
+    'https://45-153-68-59.sslip.io/tiles/voyager/{z}/{x}/{y}.png';
 
 String _backendBaseUrl =
     const String.fromEnvironment('BACKEND_BASE_URL', defaultValue: '');
