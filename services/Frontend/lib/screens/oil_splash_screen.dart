@@ -225,37 +225,18 @@ class _OilSplashScreenState extends State<OilSplashScreen>
               ),
             ),
 
-            // 3.5 Реальный силуэт Нижневартовска (ИИ-арт: вышки Самотлора,
-            // панельные дома, монумент «Алёша», факелы, отражение в Оби)
+            // 3.5 ЖИВОЙ силуэт Нижневартовска: 3 слоя параллакса, мерцающие окна,
+            // дым из труб, птицы — заставка дышит, а не статичная картинка
             Positioned(
               left: 0,
               right: 0,
               bottom: 118,
+              height: 250,
               child: IgnorePointer(
                 child: AnimatedBuilder(
                   animation: _pulseController,
-                  builder: (context, child) {
-                    final glow = 0.82 + math.sin(_time * 1.1) * 0.14;
-                    final drift = math.sin(_time * 0.25) * 5.0;
-                    return Opacity(
-                      opacity: glow.clamp(0.0, 1.0),
-                      child: Transform.translate(
-                        offset: Offset(drift, 0),
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: FractionallySizedBox(
-                      widthFactor: 1.06,
-                      child: Image.asset(
-                        'assets/splash/nv_skyline_silhouette.png',
-                        fit: BoxFit.fitWidth,
-                        alignment: Alignment.bottomCenter,
-                        errorBuilder: (_, __, ___) => const SizedBox(),
-                      ),
-                    ),
+                  builder: (context, _) => CustomPaint(
+                    painter: LivingCitySilhouettePainter(time: _time),
                   ),
                 ),
               ),
@@ -1070,4 +1051,147 @@ class CityPulsePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(CityPulsePainter old) => old.pulse != pulse || old.time != time;
+}
+
+/// Живой силуэт города: 3 слоя параллакса (дальний/средний/ближний),
+/// мерцающие окна, дым из труб, пролетающие птицы. Полностью процедурный.
+class LivingCitySilhouettePainter extends CustomPainter {
+  final double time;
+  LivingCitySilhouettePainter({required this.time});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    // ─── Слой 1: дальний план (тёмно-синий, медленный дрейф) ───
+    _drawLayer(canvas, size,
+        color: const Color(0xFF14243C),
+        speed: 4,
+        yBase: h * 0.55,
+        maxH: h * 0.45,
+        seedBase: 11,
+        opacity: 0.8,
+        windows: false);
+
+    // ─── Слой 2: средний план (глубокий синий, окна мерцают) ───
+    _drawLayer(canvas, size,
+        color: const Color(0xFF0B1830),
+        speed: 8,
+        yBase: h * 0.75,
+        maxH: h * 0.62,
+        seedBase: 37,
+        opacity: 0.92,
+        windows: true);
+
+    // ─── Слой 3: ближний план (почти чёрный + золотые окна + дым) ───
+    _drawLayer(canvas, size,
+        color: const Color(0xFF060D1A),
+        speed: 14,
+        yBase: h * 0.95,
+        maxH: h * 0.8,
+        seedBase: 73,
+        opacity: 1.0,
+        windows: true,
+        smoke: true);
+
+    // ─── Птицы: 5 силуэтов летят across ───
+    final birdPaint = Paint()
+      ..color = const Color(0xFF0A1626)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    for (int b = 0; b < 5; b++) {
+      final t = (time * 0.05 + b * 0.23) % 1.3;
+      final bx = t * w * 1.2 - w * 0.1;
+      final by = h * 0.18 + math.sin(time * 1.2 + b * 2) * 8 + b * 6.0;
+      final flap = math.sin(time * 6 + b * 3) * 4;
+      canvas.drawLine(Offset(bx - 5, by + flap * 0.3), Offset(bx, by), birdPaint);
+      canvas.drawLine(Offset(bx, by), Offset(bx + 5, by + flap * 0.3), birdPaint);
+    }
+  }
+
+  void _drawLayer(Canvas canvas, Size size,
+      {required Color color,
+      required double speed,
+      required double yBase,
+      required double maxH,
+      required int seedBase,
+      required double opacity,
+      required bool windows,
+      bool smoke = false}) {
+    final w = size.width;
+    final paint = Paint()..color = color.withOpacity(opacity);
+
+    // Дрейф слоя туда-сюда (параллакс)
+    final drift = math.sin(time * speed * 0.05 + seedBase) * 6;
+
+    final rng = math.Random(seedBase);
+    var path = Path();
+    path.moveTo(-20, size.height + 20);
+
+    final towers = <Rect>[];
+    double x = -20 + drift;
+    while (x < w + 20) {
+      final tw = 14.0 + rng.nextDouble() * 22;
+      // Вышки Самотлора тонкие + панельки широкие
+      final isDerrick = seedBase == 73 && rng.nextDouble() > 0.72;
+      final th = isDerrick
+          ? maxH * (0.9 + rng.nextDouble() * 0.1)
+          : maxH * (0.35 + rng.nextDouble() * 0.65);
+      final top = yBase - th;
+      if (isDerrick) {
+        // Вышка: пирамида-силуэт
+        path.lineTo(x + tw * 0.2, top);
+        path.lineTo(x + tw * 0.5, top - 6);
+        path.lineTo(x + tw * 0.8, top);
+      } else {
+        path.lineTo(x, top);
+        path.lineTo(x + tw, top);
+        towers.add(Rect.fromLTRB(x, top, x + tw, yBase));
+      }
+      x += tw + 3 + rng.nextDouble() * 10;
+    }
+    path.lineTo(w + 20, size.height + 20);
+    path.close();
+    canvas.drawPath(path, paint);
+
+    // Мерцающие золотые окна
+    if (windows) {
+      for (final r in towers) {
+        final rngW = math.Random(r.left.toInt() * 31 + seedBase);
+        final cols = (r.width / 6).floor();
+        final rows = (r.height / 9).floor();
+        for (int c = 0; c < cols; c++) {
+          for (int rr = 0; rr < rows; rr++) {
+            if (rngW.nextDouble() > 0.24) continue;
+            final tw2 = 0.5 + 0.5 * math.sin(time * 0.9 + c * 1.7 + rr * 2.3 + r.left);
+            final alpha = (0.14 + 0.30 * tw2).clamp(0.0, 0.6);
+            if (alpha < 0.1) continue;
+            canvas.drawRect(
+              Rect.fromLTWH(r.left + 3 + c * 6, r.top + 4 + rr * 9, 2.5, 3.5),
+              Paint()..color = const Color(0xFFD4A537).withOpacity(alpha),
+            );
+          }
+        }
+      }
+    }
+
+    // Дым из труб (только ближний слой)
+    if (smoke) {
+      final smokePaint = Paint()
+        ..color = const Color(0x30445566)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+      for (final r in towers.take(4)) {
+        for (int p = 0; p < 3; p++) {
+          final ph = (time * 0.3 + p * 0.33 + r.left * 0.01) % 1.0;
+          final sy = r.top - ph * 30;
+          final sx = r.left + r.width * 0.3 + math.sin(time + p) * 4;
+          canvas.drawCircle(Offset(sx, sy), 3 + ph * 5, smokePaint);
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(LivingCitySilhouettePainter old) => old.time != time;
 }

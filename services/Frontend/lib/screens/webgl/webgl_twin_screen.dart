@@ -138,7 +138,7 @@ const String kWebglTwinHtml = r'''
 </style>
 </head>
 <body>
-<div id="hud">🏙️ НИЖНЕВАРТОВСК · WEBGL-ДВОЙНИК · <span id="cnt">…</span></div>
+<div id="hud">🏙️ НИЖНЕВАРТОВСК · WEBGL-ДВОЙНИК · <span id="cnt">…</span> · <span id="season"></span></div>
 <div id="hint">1 палец — вращение · 2 пальца — зум · слайдер — время суток</div>
 <input id="timeSlider" type="range" min="0" max="24" step="0.25" value="14">
 <div id="err">Не удалось загрузить модель города</div>
@@ -165,7 +165,7 @@ scene.fog = new THREE.Fog(0x030712, 300, 1400);
 const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 1, 3000);
 const renderer = new THREE.WebGLRenderer({canvas:document.getElementById('c'), antialias:true});
 renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -244,6 +244,21 @@ function facadeTexture(baseHex, kind, litSeed){
       }
     }
   }
+  // Фотореализм: грязь/потёмнение внизу фасада (12% высоты)
+  const grime = x.createLinearGradient(0, S, 0, S * 0.88);
+  grime.addColorStop(0, 'rgba(40,35,28,0.38)');
+  grime.addColorStop(1, 'rgba(40,35,28,0)');
+  x.fillStyle = grime;
+  x.fillRect(0, S * 0.88, S, S * 0.12);
+  // AO-полосы вдоль швов панелей
+  if (kind === 'panel') {
+    for (let r = 1; r < 9; r++) {
+      x.fillStyle = 'rgba(0,0,0,0.10)';
+      x.fillRect(0, r * (S / 9) - 2, S, 2);
+      x.fillStyle = 'rgba(255,255,255,0.05)';
+      x.fillRect(0, r * (S / 9), S, 1);
+    }
+  }
   const map = new THREE.CanvasTexture(c);
   const emap = new THREE.CanvasTexture(litC);
   [map,emap].forEach(t=>{t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=4;});
@@ -254,6 +269,7 @@ function facadeTexture(baseHex, kind, litSeed){
 const MATERIALS = {
   panelCream: {base:0xd8cfc0, kind:'panel'},
   panelGrey:  {base:0xc9c5bc, kind:'panel'},
+  panelDark:  {base:0xb8b4ac, kind:'panel'},
   brick:      {base:0xc4886b, kind:'brick'},
   brick2:     {base:0xb07a5e, kind:'brick'},
   stuccoHi:   {base:0x7f9bb3, kind:'stucco'},
@@ -261,6 +277,17 @@ const MATERIALS = {
   industrial: {base:0x8d9398, kind:'panel'},
   wooden:     {base:0xa98f76, kind:'stucco'},
 };
+
+// Сезонные профили (по фото НВ с высоты, VLM-анализ): земля/небо/свет/солнце
+const SEASONS = {
+  winter: {ground:0xe8f0f7, sky:0xb3d7eb, sun:0xd1e3f7, elev:15, veg:'snow'},
+  spring: {ground:0xddd9c7, sky:0xaedff7, sun:0xe7f2ff, elev:35, veg:'fresh'},
+  summer: {ground:0xd4bfaa, sky:0x89cff0, sun:0xffffff, elev:60, veg:'lush'},
+  autumn: {ground:0x8c5a39, sky:0xd1a47f, sun:0xfff9f1, elev:30, veg:'gold'},
+};
+const _month = new Date().getMonth();
+const SEASON = (_month<=1||_month===11) ? 'winter' : (_month<=4 ? 'spring' : (_month<=7 ? 'summer' : 'autumn'));
+const SEASON_CFG = SEASONS[SEASON];
 
 function pickMaterial(h, category, seed){
   const cat = (category||'').toLowerCase();
@@ -286,6 +313,36 @@ function ringToLocal(ring, lng0, lat0, cosLat0){
   return ring.map(function(p){ return [R*(p[0]-lng0)*deg*cosLat0, R*(p[1]-lat0)*deg]; });
 }
 
+// Мелкие здания: один BoxGeometry + instancing-style клонирование
+const _smallGeo = new THREE.BoxGeometry(1, 1, 1);
+function addSmallBuilding(cx, cy, h, category, seed){
+  if(h < 2.5) h = 2.5;
+  const mat = pickMaterial(h, category, seed);
+  // вариация тона панели ±5% (фотореализм: панели не одинаковые)
+  const c = new THREE.Color(mat.base);
+  const v = ((seed % 100) / 100 - 0.5) * 0.10;
+  c.offsetHSL(0, 0, v);
+  const tex = facadeTexture(c.getHex(), mat.kind, (seed % 99991) + 7);
+  tex.map.repeat.set(1, Math.max(1, Math.round(h / 12)));
+  tex.emap.repeat.copy(tex.map.repeat);
+  const wallMat = new THREE.MeshStandardMaterial({
+    map: tex.map,
+    emissiveMap: tex.emap,
+    emissive: new THREE.Color(0xffffff),
+    emissiveIntensity: 0.0,
+    roughness: 0.86,
+    metalness: 0.0,
+  });
+  const mesh = new THREE.Mesh(_smallGeo, wallMat);
+  const rad2 = 4 + (seed % 7);
+  mesh.scale.set(rad2, h, rad2 * 0.8);
+  mesh.position.set(cx, h / 2, cy);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData.wallMat = wallMat;
+  buildingsGroup.add(mesh);
+}
+
 function addBuilding(ringM, h, category, seed){
   if(ringM.length < 3 || h < 3) return;
   const shape = new THREE.Shape();
@@ -296,7 +353,9 @@ function addBuilding(ringM, h, category, seed){
   geo.rotateX(-Math.PI/2);
 
   const mat = pickMaterial(h, category, seed);
-  const tex = facadeTexture(mat.base, mat.kind, (seed%99991)+7);
+  const cBase = new THREE.Color(mat.base);
+  cBase.offsetHSL(0, 0, ((seed % 100) / 100 - 0.5) * 0.10);
+  const tex = facadeTexture(cBase.getHex(), mat.kind, (seed%99991)+7);
   let perim = 0;
   for(let i=0;i<ringM.length;i++){
     const p=ringM[i], q=ringM[(i+1)%ringM.length];
@@ -374,7 +433,7 @@ function addRiver(){
 // ═══ ЗЕМЛЯ ═══
 function addGround(){
   const g = new THREE.PlaneGeometry(4000, 4000);
-  const m = new THREE.MeshStandardMaterial({color: 0x33413a, roughness: 1});
+  const m = new THREE.MeshStandardMaterial({color: SEASON_CFG.ground, roughness: 1});
   const ground = new THREE.Mesh(g, m);
   ground.rotation.x = -Math.PI/2;
   ground.position.y = -0.3;
@@ -429,15 +488,16 @@ function applyTime(){
   const dayK = Math.max(0, Math.min(1, (elev+6)/18));
   const nightK = 1-dayK;
   sun.position.set(Math.sin(az)*600, Math.max(30, elev*12), Math.cos(az)*600);
-  sun.intensity = 0.15 + 1.3*dayK;
-  sun.color.setHSL(0.09+0.04*dayK, 0.6*(1-dayK*0.7), 0.55+0.35*dayK);
+  sun.intensity = 0.15 + 1.3*dayK * (SEASON === 'summer' ? 1.25 : 1.0);
+  sun.color.set(SEASON_CFG.sun);
   hemi.intensity = 0.25 + 0.8*dayK;
+  hemi.color.set(SEASON_CFG.sky);
   moonAmb.intensity = 0.55*nightK;
   const glow = Math.min(1, Math.max(0, (10-elev)/12));
   buildingsGroup.children.forEach(function(m){
     if(m.userData.wallMat) m.userData.wallMat.emissiveIntensity = glow*1.35;
   });
-  const skyDay = new THREE.Color(0x8fc3e8), skyNight = new THREE.Color(0x0a1024);
+  const skyDay = new THREE.Color(SEASON_CFG.sky), skyNight = new THREE.Color(0x0a1024);
   const sky = skyNight.clone().lerp(skyDay, dayK);
   if(elev>0 && elev<14){ sky.lerp(new THREE.Color(0xf0a868), (14-elev)/14*0.4*dayK); }
   scene.background = sky; scene.fog.color = sky;
@@ -469,17 +529,28 @@ async function loadCity(){
       const ring=ringToLocal(cs[0],lng0,lat0,cosL0);
       const h=parseFloat((f.properties&&f.properties.render_height)||12);
       const cat=(f.properties&&f.properties.category)||'';
+      // ВСЕ здания в модели: мелкие (гаражи/сараи) идут лёгким боксом
+      // вместо ExtrudeGeometry — 10.5k полигонов остаются в бюджете GPU
       var rad=0;
+      var cxw=0, cyw=0;
       for(var i=0;i<ring.length;i++){
         var p=ring[i], q=ring[(i+1)%ring.length];
         rad=Math.max(rad, Math.hypot(p[0]-q[0],p[1]-q[1]));
+        cxw+=p[0]; cyw+=p[1];
       }
-      if(feats.length>2500 && rad<14) return;
+      cxw/=ring.length; cyw/=ring.length;
+      if(rad < 14){
+        addSmallBuilding(cxw, cyw, h, cat, seed);
+        count++;
+        return;
+      }
       seed=(seed*2654435761)%4294967296;
       addBuilding(ring,h,cat,seed);
       count++;
     });
     document.getElementById('cnt').textContent = count+' зданий';
+    const seasonNames = {winter:'❄️ зима', spring:'🌱 весна', summer:'☀️ лето', autumn:'🍂 осень'};
+    document.getElementById('season').textContent = seasonNames[SEASON];
     addRiver(); addGround(); applyTime(); ctrl.update();
   }catch(e){
     console.error(e);
@@ -509,4 +580,5 @@ addEventListener('resize', function(){
 </html>
 
 ''';
+
 
