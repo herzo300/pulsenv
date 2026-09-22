@@ -477,14 +477,11 @@ function addRiver(){
 
 // ═══ ДОРОГИ И ДЕРЕВЬЯ (OSM Overpass) ═══
 var roadsGroup = null;
-function addRoads(){
+function addRoads(lat0, lng0, cosL){
   fetch(API+'/api/v1/3d-twin/roads').then(r=>r.json()).then(d=>{
     if(!d || !d.roads) return;
     const roads = d.roads;
-    // Репроекция в локальные метры (как здания)
     const R = 6378137, deg = Math.PI/180;
-    // центр bbox города (близко к центру зданий)
-    const lat0 = 60.934, lng0 = 76.553, cosL = Math.cos(lat0*deg);
     const roadMat = new THREE.MeshStandardMaterial({color: 0x27313c, roughness: 0.95});
     const lineMat = new THREE.LineBasicMaterial({color: 0x55606b, transparent:true, opacity:0.5});
     let built = 0;
@@ -528,8 +525,7 @@ function addRoads(){
     let ti = 0;
     for(const rd of roads){
       if(rd.width < 4) continue; // только вдоль крупных дорог
-      const R2 = 6378137, deg2 = Math.PI/180;
-      const pts = rd.points.map(p=>[R2*(p[0]-lng0)*deg2*cosL, R2*(p[1]-lat0)*deg2]);
+      const pts = rd.points.map(p=>[R*(p[0]-lng0)*deg*cosL, R*(p[1]-lat0)*deg]);
       for(let i=0; i<pts.length-1 && ti<treeCount; i++){
         const [x1,z1] = pts[i], [x2,z2] = pts[i+1];
         const len = Math.hypot(x2-x1, z2-z1);
@@ -553,10 +549,13 @@ function addRoads(){
         }
       }
     }
-    trunkInst.count = ti; crownInst.count = ti;
-    trunkInst.castShadow = true; crownInst.castShadow = true;
-    scene.add(trunkInst); scene.add(crownInst);
-    crownInst.instanceColor.needsUpdate = true;
+    if(ti > 0){
+      trunkInst.count = ti; crownInst.count = ti;
+      trunkInst.castShadow = true; crownInst.castShadow = true;
+      scene.add(trunkInst); scene.add(crownInst);
+      if(crownInst.instanceColor) crownInst.instanceColor.needsUpdate = true;
+    }
+    if(crownInst.instanceColor) crownInst.instanceColor.needsUpdate = true;
   }).catch(e=>console.warn('roads load failed', e));
 }
 
@@ -680,7 +679,8 @@ async function loadCity(){
     });
     const seasonNames = {winter:'❄️ зима', spring:'🌱 весна', summer:'☀️ лето', autumn:'🍂 осень'};
     document.getElementById('cnt').textContent = count.toLocaleString('ru-RU') + ' зданий · ' + seasonNames[SEASON];
-    addRiver(); addGround(); addRoads(); applyTime(); ctrl.update();
+    addRoads(lat0, lng0, cosL0);
+    addRiver(); addGround(); applyTime(); ctrl.update();
   }catch(e){
     console.error(e);
     document.getElementById('err').style.display='flex';
@@ -720,6 +720,7 @@ addEventListener('resize', function(){
 </html>
 
 ''';
+
 
 
 

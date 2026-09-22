@@ -62,6 +62,42 @@ class MeshChatMessageRequest(BaseModel):
     sender: str = Field(default="Житель Нижневартовска")
     text: str = Field(min_length=1, max_length=1000)
 
+# Реестр живых mesh-узлов (кто онлайн прямо сейчас)
+_mesh_online_peers: Dict[str, Dict[str, Any]] = {}
+
+
+@router.get("/mesh/peers")
+async def get_mesh_peers(user_id: str = Query("anon"), lat: float = Query(0), lng: float = Query(0)):
+    """Живые узлы меш-сети: регистрируем вызывающего (heartbeat) и отдаём
+    остальных онлайн-пользователей рядом (в радиусе 5 км)."""
+    import time as _t
+    now = _t.time()
+    # heartbeat вызывающего
+    _mesh_online_peers[user_id] = {
+        "id": user_id,
+        "lat": lat,
+        "lng": lng,
+        "last_seen": now,
+    }
+    # чистка мёртвых (>90 сек без heartbeat)
+    for k in list(_mesh_online_peers.keys()):
+        if now - _mesh_online_peers[k]["last_seen"] > 90:
+            _mesh_online_peers.pop(k)
+    # сортировка по расстоянию, если есть координаты
+    import math as _m
+    def dist(a):
+        if not lat or not lng:
+            return 999999
+        return _m.hypot((a["lat"] - lat) * 111000, (a["lng"] - lng) * 60000)
+    peers = [
+        {**v, "distance_m": round(dist(v)), "name": f"Узел {v['id'][-4:]}"}
+        for k, v in _mesh_online_peers.items()
+        if k != user_id
+    ]
+    peers.sort(key=lambda p: p["distance_m"])
+    return {"peers": peers[:20], "online_count": len(_mesh_online_peers)}
+
+
 @router.get("/mesh/messages")
 async def get_mesh_messages():
     """Returns mesh chat history with 30-day retention filter."""
@@ -243,7 +279,11 @@ def _generate_house_intelligence(address: str) -> Dict[str, Any]:
     данные капремонта, инженерную телеметрию и привязку к УК для любого дома Нижневартовска.
     """
     clean_addr = _normalize_address(address)
-    h = abs(hash(clean_addr))
+    # Стабильный FNV-1a: Python hash() рандомизирован между запусками
+    # (PYTHONHASHSEED) — «здоровье дома» менялось от рестарта к рестарту.
+    h = 2166136261
+    for ch in clean_addr:
+        h = ((h ^ ord(ch)) * 16777619) % 2147483647
 
     # Определение года постройки и характеристик по улице / району
     if "побед" in clean_addr and ("3" in clean_addr or "д. 3" in clean_addr or "д.3" in clean_addr):

@@ -316,9 +316,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _linkedVk = value;
     });
     FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('ВКонтакте привязан: $value')),
-    );
+    // Синхронизация с сервером: привязка видна с любого устройства
+    try {
+      final tgId = await _resolveTelegramId();
+      if (tgId > 0) {
+        await http.post(
+          Uri.parse('${MapConfig.backendApiBaseUrl}/profile/bind?telegram_id=$tgId&vk_id=${Uri.encodeComponent(value)}'),
+        ).timeout(const Duration(seconds: 6));
+      }
+    } catch (_) {}
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('ВКонтакте привязан: $value')),
+      );
+    }
   }
 
   Future<void> _saveMaxunId() async {

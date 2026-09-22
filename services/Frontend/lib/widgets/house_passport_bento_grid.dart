@@ -104,6 +104,16 @@ class _HousePassportBentoGridState extends State<HousePassportBentoGrid> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
+                          Text(
+                            'УК: ${intel.ukName} · ${intel.ukPhone}',
+                            style: TextStyle(
+                              color: textColor.withOpacity(0.75),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
                       ),
                     ),

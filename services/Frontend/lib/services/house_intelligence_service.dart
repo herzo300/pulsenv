@@ -170,9 +170,21 @@ class HouseIntelligenceService {
     return fallbackModel;
   }
 
+  /// Стабильный хеш адреса (FNV-1a): Dart String.hashCode рандомизирован
+  /// при каждом запуске изолята — из-за него «здоровье дома» менялось
+  /// от версии к версии. FNV-1a детерминирован везде и всегда.
+  static int _stableHash(String s) {
+    var h = 0x811c9dc5;
+    for (final c in s.codeUnits) {
+      h ^= c;
+      h = (h * 0x01000193) & 0x7fffffff;
+    }
+    return h;
+  }
+
   HouseIntelligenceModel buildDeterministicModel(String address) {
     final lower = address.toLowerCase().replaceAll('ё', 'е');
-    final h = address.hashCode.abs();
+    final h = _stableHash(address);
 
     int buildYear = 1986;
     String series = '112-я серия (северное исполнение)';

@@ -179,3 +179,26 @@ async def get_user_profile(telegram_id: int, db: Session = Depends(get_db)):
                 "vip": [],
             },
         }
+
+
+@router.post("/bind")
+async def bind_profile_account(
+    telegram_id: int,
+    vk_id: str = "",
+    db: Session = Depends(get_db),
+):
+    """Привязка аккаунта соцсетей к профилю (ТГ/ВК/Maxun) — синхронизация
+    между устройствами одного пользователя."""
+    from services.data_layer.models import User
+    user = db.query(User).filter(User.telegram_id == telegram_id).first()
+    if not user:
+        user = User(telegram_id=telegram_id, username=f"User_{telegram_id}")
+        db.add(user)
+    if vk_id:
+        user.vk_id = vk_id
+    db.commit()
+    return {
+        "success": True,
+        "telegram_id": telegram_id,
+        "vk_id": user.vk_id or "",
+    }

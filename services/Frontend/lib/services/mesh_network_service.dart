@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -60,52 +63,72 @@ class MeshNetworkService extends ChangeNotifier {
   }
 
   /// Starts scanning for nearby peers (Bluetooth Low Energy / Wi-Fi Direct)
+  Timer? _heartbeatTimer;
+  double? _myLat, _myLng;
+
   Future<void> startMesh() async {
     if (_isConnected) return;
     _isConnected = true;
     _isScanning = true;
-    debugPrint('🌐 Mesh Network: Starting P2P scanning...');
-    
-    // Simulate initial discovered peers
-    _peers.clear();
-    _peers.addAll([
-      {
-        'id': 'peer-1024',
-        'name': 'Александр (Узел 4)',
-        'signal': 0.92,
-        'role': 'Ретранслятор',
-        'lat': 60.9412,
-        'lng': 76.5710,
-        'lastSeen': DateTime.now()
-      },
-      {
-        'id': 'peer-5012',
-        'name': 'Екатерина (Шлюз)',
-        'signal': 0.78,
-        'role': 'Интернет-шлюз',
-        'lat': 60.9385,
-        'lng': 76.5642,
-        'lastSeen': DateTime.now()
-      },
-      {
-        'id': 'peer-9921',
-        'name': 'Дмитрий (Узел 9)',
-        'signal': 0.54,
-        'role': 'Абонент',
-        'lat': 60.9430,
-        'lng': 76.5801,
-        'lastSeen': DateTime.now().subtract(const Duration(minutes: 2))
-      },
-    ]);
-    
+    debugPrint('🌐 Mesh Network: Starting real peer discovery...');
+
+    // Пробуем GPS для геопривязки узла (не критично — сеть работает и без него)
+    try {
+      final pos = await Geolocator.getLastKnownPosition();
+      _myLat = pos?.latitude;
+      _myLng = pos?.longitude;
+    } catch (_) {}
+
+    await _heartbeatPeers();
+    // Heartbeat каждые 45 сек: мы онлайн, получаем соседей
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 45), (_) {
+      _heartbeatPeers();
+    });
     notifyListeners();
-    _simulateDiscovery();
+  }
+
+  /// Реальный обмен: регистрируемся на сервере и получаем живых соседей
+  Future<void> _heartbeatPeers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final uid = prefs.getString('profile_user_id') ??
+          'device_${DateTime.now().millisecondsSinceEpoch ~/ 86400000}';
+      final qs = 'user_id=${Uri.encodeComponent(uid)}'
+          '&lat=${_myLat ?? 0}&lng=${_myLng ?? 0}';
+      final res = await http
+          .get(Uri.parse('${MapConfig.backendApiBaseUrl}/mesh/peers?$qs'))
+          .timeout(const Duration(seconds: 8));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(res.bodyBytes));
+        final list = (data['peers'] as List? ?? []);
+        _peers
+          ..clear()
+          ..addAll(list.map((p) {
+            final dist = (p['distance_m'] as num?)?.toDouble() ?? 999999;
+            return {
+              'id': p['id'],
+              'name': p['name'] ?? 'Узел',
+              'signal': (dist < 999999) ? (1.0 - (dist / 5000).clamp(0.0, 0.95)) : 0.3,
+              'role': dist < 500 ? 'Рядом' : 'В сети',
+              'lat': p['lat'],
+              'lng': p['lng'],
+              'distance_m': dist,
+              'lastSeen': DateTime.now(),
+            };
+          }));
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('mesh heartbeat error: $e');
+    }
   }
 
   /// Stops mesh operations to save battery
   void stopMesh() {
     _isConnected = false;
     _isScanning = false;
+    _heartbeatTimer?.cancel();
     _peers.clear();
     debugPrint('🌐 Mesh Network: Stopped.');
     notifyListeners();

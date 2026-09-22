@@ -952,15 +952,8 @@ Positioned.fill(
                             const SizedBox(height: 12),
                           ],
 
-                          // «Память места»: что здесь происходило раньше
-                          // (текущие сигналы + архив, включая повторяющиеся темы)
-                          _PlaceMemoryBlock(
-                            complaint: complaint,
-                            isLightTheme: isLightTheme,
-                            primaryTextColor: primaryTextColor,
-                            secondaryTextColor: secondaryTextColor,
-                            accent: categoryColor,
-                          ),
+                          // История дома перенесена в «Паспорт дома»
+                          // (по запросу пользователя — в описании сигналов её больше нет)
                           const SizedBox(height: 12),
 
                           // Краткий анализ ИИ (спойлер с RAG-юристом ХМАО)
