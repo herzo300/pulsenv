@@ -173,7 +173,12 @@ class _OilSplashScreenState extends State<OilSplashScreen>
           _onEnter();
         },
         behavior: HitTestBehavior.opaque,
-        child: Stack(
+        child: SafeArea(
+          // Фон всё равно на весь экран (Stack рисуется поверх), но
+          // контент (город/заголовок) не уезжает под системные панели
+          bottom: false,
+          child: Stack(
+            clipBehavior: Clip.none,
           children: [
             // 1. Фоновый атмосферный сибирский градиент (Ночной Самотлор)
             Positioned.fill(
@@ -434,6 +439,7 @@ class _OilSplashScreenState extends State<OilSplashScreen>
                 ),
               ),
           ],
+          ),
         ),
       ),
     );

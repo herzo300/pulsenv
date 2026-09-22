@@ -270,3 +270,15 @@ async def get_twin_stats():
         "samotlor_swir_guardian": "Active (Sentinel-2 B11/B12)",
         "digital_twin_readiness": "100%",
     }
+
+
+@router.get("/roads")
+async def get_3d_roads():
+    """Дорожная сеть Нижневартовска из OSM (Overpass): линии с шириной по типу."""
+    import json as _json
+    import os as _os
+    for path in ["data/nv_roads.json", "/app/data/nv_roads.json"]:
+        if _os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                return _json.load(f)
+    return {"roads": []}

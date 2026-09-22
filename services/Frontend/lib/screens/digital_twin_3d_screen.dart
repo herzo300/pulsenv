@@ -3597,23 +3597,39 @@ class _ScenePainter extends CustomPainter {
       7 + pulse * 6,
       Paint()..color = lm.color.withOpacity(0.25 * (1 - pulse)),
     );
-    // Подпись
+    // Подпись: премиальный пин — иконка-ромб над НОМЕРОМ, название
+    // строго ПОД иконкой по центру (не сбоку и не поверх)
     final tp = TextPainter(
       text: TextSpan(
         text: lm.name,
         style: const TextStyle(
-            color: Color(0xFFF8FAFC), fontSize: 10, fontWeight: FontWeight.w600),
+            color: Color(0xFFF8FAFC), fontSize: 10, fontWeight: FontWeight.w700,
+            letterSpacing: 0.3),
       ),
       textDirection: TextDirection.ltr,
-    )..layout(maxWidth: 140);
+    )..layout(maxWidth: 150);
+    final boxW = tp.width + 14;
+    final boxX = top.dx - boxW / 2;
+    final boxY = top.dy + 10;
+    // Стеклянная капсула подписи
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(top.dx + 8, top.dy - tp.height / 2, tp.width + 10, tp.height + 4),
-        const Radius.circular(5),
+        Rect.fromLTWH(boxX, boxY, boxW, tp.height + 8),
+        const Radius.circular(9),
       ),
-      Paint()..color = const Color(0xFF111C30).withOpacity(0.85),
+      Paint()..color = const Color(0xFF0D1626).withOpacity(0.88),
     );
-    tp.paint(canvas, Offset(top.dx + 13, top.dy - tp.height / 2 + 2));
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(boxX, boxY, boxW, tp.height + 8),
+        const Radius.circular(9),
+      ),
+      Paint()
+        ..color = lm.color.withOpacity(0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+    tp.paint(canvas, Offset(boxX + 7, boxY + 4));
   }
 
   // --- Факелы Самотлора ---

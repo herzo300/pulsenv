@@ -122,26 +122,39 @@ const String kWebglTwinHtml = r'''
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Нижневартовск — WebGL двойник</title>
 <style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{background:#030712;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;touch-action:none}
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{background:#030712;overflow:hidden;font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;touch-action:none}
   canvas{display:block;width:100vw;height:100vh}
-  #hud{position:fixed;top:14px;left:50%;transform:translateX(-50%);
-    background:rgba(10,20,36,.72);border:1px solid rgba(0,229,255,.35);color:#eaf6ff;
-    padding:8px 20px;border-radius:24px;font-size:12px;font-weight:700;letter-spacing:.6px;
-    backdrop-filter:blur(12px);box-shadow:0 4px 24px rgba(0,0,0,.4);pointer-events:none;z-index:10;white-space:nowrap}
-  #hint{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
-    background:rgba(10,20,36,.6);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.75);
-    padding:6px 16px;border-radius:14px;font-size:11px;backdrop-filter:blur(8px);pointer-events:none;z-index:10}
-  #timeSlider{position:fixed;bottom:52px;left:50%;transform:translateX(-50%);width:min(70vw,340px);
-    z-index:11;accent-color:#00e5ff}
+  #hud{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);left:50%;transform:translateX(-50%);
+    background:rgba(8,15,28,.55);border:1px solid rgba(148,197,255,.22);color:#eef4fb;
+    padding:10px 22px;border-radius:28px;font-size:12.5px;font-weight:700;letter-spacing:.8px;
+    backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);
+    box-shadow:0 8px 32px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08);
+    pointer-events:none;z-index:10;white-space:nowrap}
+  #hud .lbl{color:#7fb2e8;font-weight:500;letter-spacing:1.2px;font-size:10px;display:block;text-align:center;margin-top:2px}
+  #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 74px);left:50%;transform:translateX(-50%);
+    background:rgba(8,15,28,.5);border:1px solid rgba(255,255,255,.1);color:rgba(238,244,251,.75);
+    padding:7px 18px;border-radius:16px;font-size:11px;backdrop-filter:blur(14px);
+    pointer-events:none;z-index:10;white-space:nowrap}
+  #timeSlider{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);left:50%;transform:translateX(-50%);width:min(74vw,360px);
+    z-index:11;accent-color:#6cb6ff;opacity:.92}
   #err{position:fixed;inset:0;display:none;align-items:center;justify-content:center;color:#94a3b8;font-size:13px}
+  .fab{position:fixed;right:14px;z-index:11;width:46px;height:46px;border-radius:50%;
+    background:rgba(8,15,28,.55);border:1px solid rgba(148,197,255,.25);backdrop-filter:blur(14px);
+    display:flex;align-items:center;justify-content:center;color:#cfe4fa;font-size:19px;
+    box-shadow:0 6px 20px rgba(0,0,0,.4)}
+  #fabOrbit{top:calc(env(safe-area-inset-top,0px) + 72px)}
+  #fabSpin{top:calc(env(safe-area-inset-top,0px) + 128px)}
+  .fab.on{background:rgba(108,182,255,.3);border-color:#6cb6ff;color:#fff}
 </style>
 </head>
 <body>
-<div id="hud">🏙️ НИЖНЕВАРТОВСК · WEBGL-ДВОЙНИК · <span id="cnt">…</span> · <span id="season"></span></div>
-<div id="hint">1 палец — вращение · 2 пальца — зум · слайдер — время суток</div>
+<div id="hud">НИЖНЕВАРТОВСК<span class="lbl" id="cnt">…</span><span id="season" style="display:none"></span></div>
+<div id="hint">Палец — вращение 360° · Щипок — зум · Слайдер — время</div>
 <input id="timeSlider" type="range" min="0" max="24" step="0.25" value="14">
 <div id="err">Не удалось загрузить модель города</div>
+<div class="fab" id="fabOrbit" title="Автооблёт"> ⟳ </div>
+<div class="fab" id="fabSpin" title="Сброс камеры"> ⌖ </div>
 <canvas id="c"></canvas>
 
 <script>
@@ -235,6 +248,18 @@ function facadeTexture(baseHex, kind, litSeed){
       x.fillRect(wx, wy, ww, wh);
       x.fillStyle = 'rgba(160,190,220,.18)';
       x.fillRect(wx, wy, ww, wh*0.35);
+      // Балконные плиты: горизонтальные выступы через ряд (LOD-дёшево, в текстуре)
+      if(kind !== 'industrial' && (r % 2 === 1)){
+        x.fillStyle = 'rgba(255,255,255,0.16)';
+        x.fillRect(wx-4, wy + wh + 1, ww+8, 3);
+        x.fillStyle = 'rgba(0,0,0,0.22)';
+        x.fillRect(wx-4, wy + wh + 4, ww+8, 1.5);
+        // перила: вертикальные штрихи
+        x.fillStyle = 'rgba(30,40,50,0.35)';
+        for(let bx = wx-2; bx < wx+ww+2; bx += 3){
+          x.fillRect(bx, wy - wh*0.15, 1, wh*0.35);
+        }
+      }
       if(rand() < 0.62){
         const warm = rand();
         const col = warm<0.72 ? '#ffc879' : (warm<0.9 ? '#ffe7bc' : '#c7ddf2');
@@ -380,6 +405,26 @@ function addBuilding(ringM, h, category, seed){
   mesh.userData.wallMat = wallMat;
   buildingsGroup.add(mesh);
 
+  // 3D-балконы на жилых домах: выступающие плиты через этаж (фронт-фасад)
+  const isResidential = (category||'').toLowerCase().includes('жил') || h >= 21;
+  if(isResidential && h > 12){
+    const balMat = new THREE.MeshStandardMaterial({color: cBase.clone().offsetHSL(0,0,-0.08), roughness: 0.9});
+    const floorsN = Math.floor(h / 3);
+    const frontZ = null; // вычислим ниже по bounding box формы
+    const bb = new THREE.Box3().setFromObject(mesh);
+    const balGeo = new THREE.BoxGeometry(2.2, 0.18, 1.1);
+    for(let f2 = 2; f2 < floorsN; f2 += 2){
+      const y = f2 * 3 + 0.4;
+      // вдоль фронтальной грани
+      for(let bx = bb.min.x + 3; bx < bb.max.x - 3; bx += 4.5){
+        const b = new THREE.Mesh(balGeo, balMat);
+        b.position.set(bx, y, bb.max.z + 0.55);
+        b.castShadow = true;
+        buildingsGroup.add(b);
+      }
+    }
+  }
+
   const roofMat = new THREE.MeshStandardMaterial({
     color: seed%3===0 ? 0x4a504e : 0x3c4240, roughness: 0.95,
   });
@@ -430,6 +475,91 @@ function addRiver(){
   scene.add(water);
 }
 
+// ═══ ДОРОГИ И ДЕРЕВЬЯ (OSM Overpass) ═══
+var roadsGroup = null;
+function addRoads(){
+  fetch(API+'/api/v1/3d-twin/roads').then(r=>r.json()).then(d=>{
+    if(!d || !d.roads) return;
+    const roads = d.roads;
+    // Репроекция в локальные метры (как здания)
+    const R = 6378137, deg = Math.PI/180;
+    // центр bbox города (близко к центру зданий)
+    const lat0 = 60.934, lng0 = 76.553, cosL = Math.cos(lat0*deg);
+    const roadMat = new THREE.MeshStandardMaterial({color: 0x27313c, roughness: 0.95});
+    const lineMat = new THREE.LineBasicMaterial({color: 0x55606b, transparent:true, opacity:0.5});
+    let built = 0;
+    for(const rd of roads){
+      if(rd.points.length < 2) continue;
+      const pts = rd.points.map(p=>[R*(p[0]-lng0)*deg*cosL, R*(p[1]-lat0)*deg]);
+      // Лента дороги: ribbon из треугольников вдоль полилинии
+      const pos = [];
+      const w = (rd.width||3) / 2;
+      for(let i=0; i<pts.length-1; i++){
+        const [x1,z1] = pts[i], [x2,z2] = pts[i+1];
+        const dx = x2-x1, dz = z2-z1;
+        const len = Math.hypot(dx,dz);
+        if(len < 1) continue;
+        const nx = -dz/len*w, nz = dx/len*w;
+        pos.push(
+          x1+nx, 0.12, z1+nz,  x2+nx, 0.12, z2+nz,  x2-nx, 0.12, z2-nz,
+          x1+nx, 0.12, z1+nz,  x2-nx, 0.12, z2-nz,  x1-nx, 0.12, z1-nz
+        );
+      }
+      if(pos.length < 18) continue;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, roadMat);
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+      built++;
+    }
+    document.getElementById('cnt').textContent += ' · ' + built.toLocaleString('ru-RU') + ' дорог';
+    // Деревья: процедурно вдоль дорог (каждые ~60м) + случайный джиттер
+    const trunkGeo = new THREE.CylinderGeometry(0.25, 0.35, 2.2, 5);
+    const trunkMat = new THREE.MeshStandardMaterial({color: 0x4a3628});
+    const crownGeo = new THREE.SphereGeometry(2.6, 7, 6);
+    const crownColors = [0x1d4a2c, 0x256b3a, 0x2f7a44, 0x386b3c];
+    const treeCount = 900;
+    const trunkInst = new THREE.InstancedMesh(trunkGeo, trunkMat, treeCount);
+    const crownInst = new THREE.InstancedMesh(crownGeo, 
+      new THREE.MeshStandardMaterial({roughness: 0.95}), treeCount);
+    const m4 = new THREE.Matrix4();
+    let ti = 0;
+    for(const rd of roads){
+      if(rd.width < 4) continue; // только вдоль крупных дорог
+      const R2 = 6378137, deg2 = Math.PI/180;
+      const pts = rd.points.map(p=>[R2*(p[0]-lng0)*deg2*cosL, R2*(p[1]-lat0)*deg2]);
+      for(let i=0; i<pts.length-1 && ti<treeCount; i++){
+        const [x1,z1] = pts[i], [x2,z2] = pts[i+1];
+        const len = Math.hypot(x2-x1, z2-z1);
+        const steps = Math.max(1, Math.floor(len/60));
+        for(let s=0; s<steps && ti<treeCount; s++){
+          const t = (s+0.5)/steps;
+          const side = (ti%2===0?1:-1);
+          const dx = x2-x1, dz = z2-z1;
+          const l2 = Math.hypot(dx,dz)||1;
+          const tx = x1+dx*t + (-dz/l2)*side*(rd.width/2+2.5);
+          const tz = z1+dz*t + (dx/l2)*side*(rd.width/2+2.5);
+          const scale = 0.8 + Math.random()*0.6;
+          m4.makeScale(scale,scale,scale);
+          m4.setPosition(tx, 1.1*scale, tz);
+          trunkInst.setMatrixAt(ti, m4);
+          m4.makeScale(scale*(0.8+Math.random()*0.5), scale*(0.9+Math.random()*0.6), scale*(0.8+Math.random()*0.5));
+          m4.setPosition(tx, (2.2+2.0)*scale*0.75, tz);
+          crownInst.setMatrixAt(ti, m4);
+          crownInst.setColorAt(ti, new THREE.Color(crownColors[ti%4]));
+          ti++;
+        }
+      }
+    }
+    trunkInst.count = ti; crownInst.count = ti;
+    trunkInst.castShadow = true; crownInst.castShadow = true;
+    scene.add(trunkInst); scene.add(crownInst);
+    crownInst.instanceColor.needsUpdate = true;
+  }).catch(e=>console.warn('roads load failed', e));
+}
+
 // ═══ ЗЕМЛЯ ═══
 function addGround(){
   const g = new THREE.PlaneGeometry(4000, 4000);
@@ -469,7 +599,7 @@ cv.addEventListener('pointermove', function(e){
     pinch=d; mode=null;
   } else if(mode==='orbit'){
     ctrl.angle -= (e.clientX-lastX)*0.0045;
-    ctrl.elev = Math.min(1.35, Math.max(0.12, ctrl.elev+(e.clientY-lastY)*0.004));
+    ctrl.elev = Math.min(1.48, Math.max(0.03, ctrl.elev+(e.clientY-lastY)*0.004));
     lastX=e.clientX; lastY=e.clientY;
   }});
 function endP(e){ pts.delete(e.pointerId); if(pts.size<2) pinch=0; if(pts.size===0) mode=null; }
@@ -548,10 +678,9 @@ async function loadCity(){
       addBuilding(ring,h,cat,seed);
       count++;
     });
-    document.getElementById('cnt').textContent = count+' зданий';
     const seasonNames = {winter:'❄️ зима', spring:'🌱 весна', summer:'☀️ лето', autumn:'🍂 осень'};
-    document.getElementById('season').textContent = seasonNames[SEASON];
-    addRiver(); addGround(); applyTime(); ctrl.update();
+    document.getElementById('cnt').textContent = count.toLocaleString('ru-RU') + ' зданий · ' + seasonNames[SEASON];
+    addRiver(); addGround(); addRoads(); applyTime(); ctrl.update();
   }catch(e){
     console.error(e);
     document.getElementById('err').style.display='flex';
@@ -559,11 +688,22 @@ async function loadCity(){
 }
 loadCity();
 
+// FAB: автооблёт + сброс камеры
+let autoSpin = false;
+document.getElementById('fabOrbit').addEventListener('click', function(){
+  autoSpin = !autoSpin;
+  this.classList.toggle('on', autoSpin);
+});
+document.getElementById('fabSpin').addEventListener('click', function(){
+  ctrl.angle = Math.PI/5; ctrl.elev = 0.46; ctrl.dist = 620;
+});
+
 // ═══ АНИМАЦИЯ ═══
 var t0 = performance.now();
 function animate(){
   requestAnimationFrame(animate);
   const t = (performance.now()-t0)/1000;
+  if(autoSpin) ctrl.angle += 0.0022;
   if(water) water.material.uniforms.uTime.value = t;
   ctrl.update();
   renderer.render(scene, camera);
@@ -580,5 +720,6 @@ addEventListener('resize', function(){
 </html>
 
 ''';
+
 
 
