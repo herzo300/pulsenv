@@ -803,13 +803,13 @@ class _DigitalTwin3DScreenState extends State<DigitalTwin3DScreen>
                               ),
                             ),
                           ),
-                          // HUD (в полноэкранном режиме скрыт)
+                          // НОВЫЙ UI: живой «пилот-город» — только
+                          // бейдж города сверху и 3 линзы-карточки снизу
                           if (!_isImmersive) ...[
-                            _buildTopBar(),
-                            _buildStatsStrip(),
-                            if (_selected != null) _buildInspector(),
-                            _buildBottomDock(sceneSize),
+                            _buildCityBadge(),
+                            _buildLivingLenses(sceneSize),
                           ],
+                          if (_selected != null && !_isImmersive) _buildInspector(),
                           if (_isImmersive)
                             Positioned(
                               top: 12,
@@ -876,147 +876,6 @@ class _DigitalTwin3DScreenState extends State<DigitalTwin3DScreen>
   // HUD
   // -------------------------------------------------------------------------
 
-  Widget _buildTopBar() {
-    // Кинематографичный командный бар: стеклянная капсула с живым
-    // градиентом времени суток и «дыханием» города (taste-skill).
-    final hour = _dayHour.floor();
-    final (phaseIcon, phaseLabel, glowColor) = hour >= 22 || hour < 5
-        ? ('🌙', 'НОЧЬ', const Color(0xFF5B7FA6))
-        : (hour < 9
-            ? ('🌅', 'УТРО', const Color(0xFFF0A868))
-            : (hour < 18
-                ? ('☀️', 'ДЕНЬ', const Color(0xFF63C7B2))
-                : ('🌇', 'ВЕЧЕР', const Color(0xFFE58B62))));
-    return Positioned(
-      top: 10,
-      left: 14,
-      right: 14,
-      child: Row(
-        children: [
-          Expanded(
-            child: _glassShell(
-              borderRadius: 26,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              child: Row(
-                children: [
-                  // Живой «пульс города»: двойное свечение
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          Colors.white,
-                          _accent,
-                        ],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                            color: _accent.withOpacity(0.9), blurRadius: 10),
-                        BoxShadow(
-                            color: _accent2.withOpacity(0.5), blurRadius: 16),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text('$phaseIcon ',
-                                style: const TextStyle(fontSize: 11)),
-                            const Text('НИЖНЕВАРТОВСК',
-                                style: TextStyle(
-                                    color: _ink,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 13,
-                                    letterSpacing: 2.4)),
-                            const SizedBox(width: 6),
-                            Text(phaseLabel,
-                                style: TextStyle(
-                                    color: glowColor,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 9,
-                                    letterSpacing: 1.4)),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${_buildings.length} зданий · ${_signals.length} сигналов · Обь течёт',
-                          style: const TextStyle(
-                              color: _inkDim,
-                              fontSize: 10,
-                              letterSpacing: 0.3),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          // Компас: стеклянный циферблат направлений
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  const Color(0xFF1B2F49).withOpacity(0.85),
-                  const Color(0xFF0D1626).withOpacity(0.92),
-                ],
-              ),
-              border: Border.all(color: _accent.withOpacity(0.40), width: 1.1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.35),
-                  blurRadius: 14,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: CustomPaint(painter: _CompassPainter(azimuth: _azimuth)),
-          ),
-          const SizedBox(width: 8),
-          _iconButton(
-            _autoOrbit ? Icons.pause_circle_rounded : Icons.play_circle_rounded,
-            _autoOrbit ? 'Остановить облёт' : 'Автооблёт',
-            () {
-              setState(() {
-                _autoOrbit = !_autoOrbit;
-                if (_autoOrbit) {
-                  _clock.repeat();
-                } else {
-                  _ensureTicker();
-                }
-              });
-            },
-          ),
-          const SizedBox(width: 8),
-          _iconButton(Icons.center_focus_strong_rounded, 'Сброс камеры',
-              () => _resetCamera(MediaQuery.of(context).size)),
-          const SizedBox(width: 8),
-          _iconButton(Icons.open_in_full_rounded, 'Полноэкранный режим',
-              _toggleImmersive),
-          const SizedBox(width: 8),
-          // WebGL-режим: фотореалистичная сцена с текстурами (единая модель двойника)
-          _iconButton(Icons.view_in_ar_rounded, 'WebGL-сцена с текстурами', () {
-            Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => const WebglTwinScreen()));
-          }),
-        ],
-      ),
-    );
-  }
-
   Widget _iconButton(IconData icon, String tooltip, VoidCallback onTap) {
     return Tooltip(
       message: tooltip,
@@ -1053,29 +912,6 @@ class _DigitalTwin3DScreenState extends State<DigitalTwin3DScreen>
             ],
           ),
           child: Icon(icon, color: _accent, size: 22),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatsStrip() {
-    // Телеметрия: вертикальная стеклянная колонка у левого края —
-    // не перекрывает сцену, читается как HUD авиаприбора (taste-skill)
-    final avg = _stats?['average_height_m'] ?? '—';
-    return Positioned(
-      top: 118,
-      left: 14,
-      child: _glassShell(
-        borderRadius: 18,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        child: Column(
-          children: [
-            _statCell('${_buildings.length}', 'ЗДАНИЙ', _accent),
-            _statDiv(),
-            _statCell('$avg', 'СР.ЭТ.', const Color(0xFF7DD3FC)),
-            _statDiv(),
-            _statCell('${_signals.length}', 'СИГНАЛ.', const Color(0xFFF59E0B)),
-          ],
         ),
       ),
     );
@@ -1330,56 +1166,146 @@ class _DigitalTwin3DScreenState extends State<DigitalTwin3DScreen>
     return hours;
   }
 
-  Widget _buildBottomDock(Size size) {
+
+  // ═══════════════════════════════════════════════════════════════
+  // НОВЫЙ UI «ЖИВОЙ ГОРОД»: минимализм — витрина + 3 линзы
+  // ═══════════════════════════════════════════════════════════════
+
+  Widget _buildCityBadge() {
+    final hour = _dayHour.floor();
+    final phaseIcon = hour >= 22 || hour < 5 ? '🌙' : (hour < 9 ? '🌅' : (hour < 18 ? '☀️' : '🌇'));
     return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 0,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      top: 12,
+      left: 14,
+      right: 14,
+      child: _glassShell(
+        borderRadius: 26,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 10, height: 10,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(colors: [Colors.white, Color(0xFF00E5FF)]),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text('$phaseIcon НИЖНЕВАРТОВСК',
+                style: const TextStyle(
+                    color: _ink, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 2.2)),
+            const Spacer(),
+            Text(
+              '${_buildings.length.toString()} зданий · ${_signals.length} сигналов',
+              style: const TextStyle(color: _inkDim, fontSize: 10.5, letterSpacing: 0.3),
+            ),
+            const SizedBox(width: 8),
+            // WebGL-сцена
+            _iconButton(Icons.view_in_ar_rounded, 'WebGL-сцена с текстурами', () {
+              Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const WebglTwinScreen()));
+            }),
+            const SizedBox(width: 6),
+            _iconButton(
+                _autoOrbit ? Icons.pause_circle_rounded : Icons.play_circle_rounded,
+                _autoOrbit ? 'Остановить облёт' : 'Автооблёт', () {
+              setState(() {
+                _autoOrbit = !_autoOrbit;
+                if (_autoOrbit) {
+                  _clock.repeat();
+                } else {
+                  _ensureTicker();
+                }
+              });
+            }),
+            const SizedBox(width: 6),
+            _iconButton(Icons.open_in_full_rounded, 'Полноэкранный режим', _toggleImmersive),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLivingLenses(Size size) {
+    return Positioned(
+      left: 14,
+      right: 14,
+      bottom: 16,
+      child: Row(
         children: [
-          // Контекстная панель режима
-          AnimatedSize(
-            duration: const Duration(milliseconds: 280),
-            curve: Curves.easeOutCubic,
-            alignment: Alignment.bottomCenter,
-            child: _buildContextPanel(),
-          ),
-          const SizedBox(height: 8),
-          // Чипы режимов
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
+          Expanded(child: _lensCard(
+            icon: Icons.campaign_rounded,
+            color: const Color(0xFFFFB800),
+            title: 'СИГНАЛЫ',
+            value: '${_signals.length}',
+            subtitle: _signals.isEmpty ? 'город спокоен' : 'живая лента',
+            onTap: () => setState(() => _showLandmarks = !_showLandmarks),
+          )),
+          const SizedBox(width: 10),
+          Expanded(child: _lensCard(
+            icon: Icons.water_rounded,
+            color: const Color(0xFF4AD9FF),
+            title: 'ОБЬ · ПОГОДА',
+            value: _floodData?['current_level_cm']?.toString() ?? '—',
+            subtitle: _floodData?['threat_level']?.toString().split('(').first.trim().toLowerCase() ?? 'стабильно',
+            onTap: _showTodaySunset,
+          )),
+          const SizedBox(width: 10),
+          Expanded(child: _lensCard(
+            icon: Icons.location_city_rounded,
+            color: const Color(0xFF34D399),
+            title: 'ГОРОД',
+            value: '26',
+            subtitle: 'микрорайонов',
+            onTap: () => setState(() => _showCameras = !_showCameras),
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _lensCard({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String value,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: _glassShell(
+        borderRadius: 22,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
               children: [
-                _modeChip(_TwinMode.sun, Icons.wb_sunny_rounded, 'Солнце'),
+                Icon(icon, color: color, size: 16),
                 const SizedBox(width: 6),
-                _modeChip(_TwinMode.flood, Icons.flood_rounded, 'Паводок'),
-                const SizedBox(width: 6),
-                _modeChip(_TwinMode.snow, Icons.ac_unit_rounded, 'Снег'),
-                const SizedBox(width: 6),
-                _modeChip(_TwinMode.samotlor, Icons.local_fire_department_rounded,
-                    'Самотлор'),
-                const SizedBox(width: 6),
-                _modeChip(_TwinMode.time, Icons.history_rounded, '4D'),
-                const SizedBox(width: 6),
-                _layerChip(
-                  icon: Icons.videocam_rounded,
-                  label: 'Камеры',
-                  active: _showCameras,
-                  onTap: () => setState(() => _showCameras = !_showCameras),
-                ),
-                _layerChip(
-                  icon: Icons.architecture_rounded,
-                  label: 'Доминанты',
-                  active: _showLandmarks,
-                  onTap: () => setState(() => _showLandmarks = !_showLandmarks),
+                Expanded(
+                  child: Text(title,
+                      style: const TextStyle(
+                          color: _inkDim, fontSize: 8.5, fontWeight: FontWeight.w800, letterSpacing: 1.1)),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 10),
-        ],
+            const SizedBox(height: 6),
+            Text(value,
+                style: TextStyle(
+                    color: color, fontSize: 20, fontWeight: FontWeight.w900, height: 1.0)),
+            const SizedBox(height: 3),
+            Text(subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: _inkDim, fontSize: 9.5)),
+          ],
+        ),
       ),
     );
   }
